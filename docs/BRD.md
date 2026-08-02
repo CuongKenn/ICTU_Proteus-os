@@ -141,9 +141,15 @@ Proteus-OS-Monorepo/
 │
 ├── plugins/                     # 3. KHO PHÂN HỆ NGHIỆP VỤ MỞ RỘNG
 │   ├── hr-module/
-│   │   ├── manifest.yaml        # Tệp định nghĩa cấu trúc Plugin (DB, Workflow, Dashboard)
-│   │   ├── workflows/           # Các luồng n8n export sẵn dạng .json
-│   │   └── seed_data.sql        # Dữ liệu giả lập ban đầu
+│   │   ├── manifest.yaml        # Siêu dữ liệu (Tên, version, quyền truy cập...)
+│   │   ├── db/
+│   │   │   └── seed_data.sql    # Khởi tạo bảng & dữ liệu mẫu (PostgreSQL)
+│   │   ├── workflows/           
+│   │   │   └── leave_request.json # Luồng quy trình n8n (Export file JSON)
+│   │   ├── dashboards/
+│   │   │   └── hr_metrics.json  # Biểu đồ báo cáo Metabase (Export file JSON)
+│   │   └── ui/
+│   │       └── appsmith_app.json # Giao diện màn hình nhập liệu (Appsmith export)
 │   └── finance-module/
 │
 ├── docs/                        # 4. TÀI LIỆU DỰ ÁN
