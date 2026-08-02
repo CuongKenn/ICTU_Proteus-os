@@ -92,7 +92,31 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 - **NFR3. Quản lý kho mã nguồn:** Bắt buộc lưu trữ Public trên GitHub. Phải có tài liệu `README.md` siêu chi tiết, `CHANGELOG.md`, và sử dụng chức năng Issue (Bug tracker).
 - **NFR4. API First:** Các thành phần giao tiếp 100% qua RESTful API, có tài liệu Swagger.
 
-## 4. THIẾT KẾ KIẾN TRÚC MÃ NGUỒN & TRIỂN KHAI (SAD)
+## 4. NGĂN XẾP CÔNG NGHỆ (TECH STACK) ĐỀ XUẤT
+
+Để đảm bảo khả năng triển khai độc lập bằng Docker (NFR2) và tối ưu hóa cho AI, dự án đề xuất sử dụng ngăn xếp công nghệ sau:
+
+### 4.1. Phân hệ Tích hợp Open-Source (Các công cụ lắp ghép)
+- **Không gian [H] (Nhân sự):**
+  - Quản lý Định danh (SSO): **Keycloak** (Tiêu chuẩn OAuth2/OIDC, bảo mật cao).
+  - Nhắn tin nội bộ (Chat): **Mattermost** (Hỗ trợ Webhook và Interactive Buttons cho AI).
+  - Lưu trữ file: **Nextcloud**.
+  - Wiki/CMS: **Outline** (Viết bằng Markdown, giao diện hiện đại).
+- **Không gian [P] (Quy trình):**
+  - Tự động hóa Workflow: **n8n** (Hỗ trợ xuất/nhập luồng dạng JSON, phù hợp để đóng gói Plugin).
+  - Low-code UI: **Appsmith** (Kết nối trực tiếp API/DB dễ dàng).
+- **Không gian [D] (Dữ liệu):**
+  - Cơ sở dữ liệu: **PostgreSQL** (Lưu trữ cả dữ liệu quan hệ và JSON).
+  - Dashboard: **Metabase** (Trực quan hóa dữ liệu mạnh mẽ).
+- **Không gian [I] (AI):**
+  - Vector Database: **Qdrant** (Nhẹ, mã nguồn mở, tối ưu cho RAG).
+
+### 4.2. Phân hệ Đột phá - Innovation Layer (Phần lõi tự phát triển)
+- **Backend (Core API & AI Orchestrator):** Sử dụng **Python (FastAPI)**. Tốc độ xử lý nhanh, tự động sinh tài liệu Swagger, dễ dàng tích hợp thư viện AI (LangChain).
+- **Frontend (Giao diện App Store):** Sử dụng **Next.js (React)** để tạo trải nghiệm mượt mà, thân thiện.
+- **Cơ sở hạ tầng & Triển khai (DevOps):** Đóng gói toàn bộ bằng **Docker Compose**. Định tuyến tự động bằng **Traefik Proxy**.
+
+## 5. THIẾT KẾ KIẾN TRÚC MÃ NGUỒN & TRIỂN KHAI (SAD)
 
 Để đáp ứng tiêu chuẩn quản lý mã nguồn của cuộc thi, dự án tổ chức thành một Monorepo với cấu trúc thư mục như sau:
 
