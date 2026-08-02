@@ -129,10 +129,15 @@ Proteus-OS-Monorepo/
 │   └── setup.sh                 # Script chạy 1-click cho Ban giám khảo (Build from Source)
 │
 ├── core-engine/                 # 2. INNOVATION LAYER (Sản phẩm đội tự code)
-│   ├── api/                     # Proteus OS Plugin SDK & API Routes (FastAPI/Node.js)
-│   ├── orchestrator/            # Bộ thông dịch AI Orchestrator & DSL parser
-│   ├── Dockerfile               # Tệp đóng gói image cho Core Engine
-│   └── requirements.txt         # Thư viện phụ thuộc
+│   ├── backend/                 # API & AI Orchestrator (FastAPI)
+│   │   ├── api/                 # API Routes
+│   │   ├── orchestrator/        # Bộ thông dịch AI
+│   │   └── requirements.txt     # Thư viện phụ thuộc Python
+│   ├── frontend/                # App Store Marketplace UI (Next.js)
+│   │   ├── src/                 # Mã nguồn React components
+│   │   └── package.json         # Thư viện phụ thuộc Node.js
+│   ├── tests/                   # Kịch bản kiểm thử (Unit tests) giúp ghi điểm PoF
+│   └── Dockerfile               # Tệp đóng gói Multi-stage build cho Core Engine
 │
 ├── plugins/                     # 3. KHO PHÂN HỆ NGHIỆP VỤ MỞ RỘNG
 │   ├── hr-module/
