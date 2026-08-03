@@ -156,8 +156,12 @@ Proteus-OS-Monorepo/
 │   └── finance-module/
 │
 ├── docs/                        # 4. TÀI LIỆU DỰ ÁN
-│   ├── architecture.md          # Sơ đồ kiến trúc kỹ thuật
-│   └── api-swagger.yaml         # Tài liệu API
+│   ├── architecture.md          # Sơ đồ kiến trúc tổng thể (SAD)
+│   ├── ui_ux_design.md          # Phác thảo giao diện Launchpad & App Store
+│   ├── erd.md                   # Lược đồ cơ sở dữ liệu cốt lõi (Core ERD)
+│   ├── clarification.md         # Làm rõ kiến trúc Đa khách hàng & Phân quyền
+│   ├── api-swagger.yaml         # Tài liệu API của Core Engine
+│   └── images/                  # Thư mục chứa hình ảnh tài liệu
 │
 ├── LICENSE                      # BẮT BUỘC: Giấy phép nguồn mở (MIT/Apache 2.0)
 ├── README.md                    # Hướng dẫn chi tiết cách build, run và test
