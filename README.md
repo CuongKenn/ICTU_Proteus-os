@@ -5,7 +5,7 @@
   <p><b>Hệ điều hành Doanh nghiệp (Enterprise OS) Thế hệ mới</b></p>
   <p><i>Linux là hệ điều hành cho máy tính. Proteus OS là hệ điều hành cho doanh nghiệp.</i></p>
 
-  [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+  [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
   [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)]()
 </div>
@@ -69,4 +69,4 @@ Dự án yêu cầu môi trường **Docker** và **Docker Compose** để chạ
 Mọi đóng góp (Pull Request, Báo lỗi - Issue) đều được hoan nghênh. Vui lòng đọc kỹ bộ tài liệu trong thư mục `docs/` để nắm rõ triết lý thiết kế trước khi gửi mã nguồn.
 
 ## 📜 Giấy phép (License)
-Dự án được phân phối dưới giấy phép **MIT**. Vui lòng xem tệp [LICENSE](./LICENSE) để biết thêm chi tiết.
+Dự án được phân phối dưới giấy phép **GNU AGPLv3**. Vui lòng xem tệp [LICENSE](./LICENSE) để biết thêm chi tiết.

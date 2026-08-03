@@ -88,7 +88,7 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 
 ## 3. YÊU CẦU PHI CHỨC NĂNG (NFR) - RÀO CHẮN ĐIỂM SỐ PoF
 
-- **NFR1. Giấy phép nguồn mở (OSI-Approved):** Toàn bộ mã nguồn tự phát triển (Innovation Layer) phải gắn giấy phép MIT/Apache 2.0 ở đầu mỗi tệp tin. Phải có file LICENSE toàn văn ở thư mục gốc. Không sửa mã nguồn lõi của thư viện bên thứ 3.
+- **NFR1. Giấy phép nguồn mở (OSI-Approved):** Toàn bộ mã nguồn tự phát triển (Innovation Layer) phải gắn giấy phép GNU AGPLv3 ở đầu mỗi tệp tin. Phải có file LICENSE toàn văn ở thư mục gốc. Không sửa mã nguồn lõi của thư viện bên thứ 3.
 - **NFR2. Môi trường triển khai (Build From Source):** Hệ thống phải được Container hóa toàn bộ bằng Docker & Docker Compose. Cung cấp file `setup.sh` chạy 1-click.
 - **NFR3. Quản lý kho mã nguồn:** Bắt buộc lưu trữ Public trên GitHub. Phải có tài liệu `README.md` siêu chi tiết, `CHANGELOG.md`, và sử dụng chức năng Issue (Bug tracker).
 - **NFR4. API First:** Các thành phần giao tiếp 100% qua RESTful API, có tài liệu Swagger.
@@ -163,7 +163,7 @@ Proteus-OS-Monorepo/
 │   ├── api-swagger.yaml         # Tài liệu API của Core Engine
 │   └── images/                  # Thư mục chứa hình ảnh tài liệu
 │
-├── LICENSE                      # BẮT BUỘC: Giấy phép nguồn mở (MIT/Apache 2.0)
+├── LICENSE                      # BẮT BUỘC: Giấy phép nguồn mở (GNU AGPLv3)
 ├── README.md                    # Hướng dẫn chi tiết cách build, run và test
 └── CHANGELOG.md                 # Ghi chú các bản cập nhật phiên bản
 ```
