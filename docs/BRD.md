@@ -48,6 +48,7 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 - **Phân loại luồng dữ liệu:**
   - **Dữ liệu có cấu trúc:** Dữ liệu từ [P] đẩy thẳng vào PostgreSQL, kết hợp ứng dụng Dữ liệu mở liên kết (LOD) để chuẩn hóa cấu trúc siêu dữ liệu, hình thành Nguồn sự thật duy nhất.
   - **Dữ liệu phi cấu trúc:** File PDF, ảnh từ [H] đẩy về Nextcloud và Vector DB.
+- **Lược đồ Dữ liệu (Data Model Concept):** Khởi tạo Lược đồ Thực thể Liên kết (ERD) cấp cao để map các bảng lõi (`Users`, `Tenants`, `Roles`) giao tiếp với dữ liệu nghiệp vụ của Plugin, đảm bảo tính vẹn toàn dữ liệu.
 - **Thang đo phân tích (Dashboard Metabase):** Bắt buộc hiển thị đủ 3 cấp độ:
   - *Mô tả (Chuyện gì đã xảy ra):* Thẻ số hiển thị tổng task hoàn thành, tổng đơn nghỉ phép.
   - *Chẩn đoán (Tại sao xảy ra):* Biểu đồ tỷ lệ nguyên nhân gây trễ SLA của từng phòng ban.
@@ -91,6 +92,8 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 - **NFR2. Môi trường triển khai (Build From Source):** Hệ thống phải được Container hóa toàn bộ bằng Docker & Docker Compose. Cung cấp file `setup.sh` chạy 1-click.
 - **NFR3. Quản lý kho mã nguồn:** Bắt buộc lưu trữ Public trên GitHub. Phải có tài liệu `README.md` siêu chi tiết, `CHANGELOG.md`, và sử dụng chức năng Issue (Bug tracker).
 - **NFR4. API First:** Các thành phần giao tiếp 100% qua RESTful API, có tài liệu Swagger.
+- **NFR5. Ghi Log tập trung (Logging):** Hệ thống phải có cơ chế ghi Log lỗi tập trung (Ví dụ sử dụng ELK stack hoặc Grafana Loki) để theo dõi quá trình cài đặt Plugin và hoạt động của AI.
+- **NFR6. Sao lưu và Phục hồi (Backup & Recovery):** Đảm bảo tính liên tục của doanh nghiệp (Business Continuity) bằng cách thiết lập cronjob tự động sao lưu PostgreSQL và Nextcloud định kỳ.
 
 ## 4. NGĂN XẾP CÔNG NGHỆ (TECH STACK) ĐỀ XUẤT
 

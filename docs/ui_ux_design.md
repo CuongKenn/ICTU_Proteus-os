@@ -39,3 +39,11 @@ Khi người dùng click vào một Icon trên Launchpad (VD: click vào *Financ
 1. **Khung viền chung (App Shell):** Mọi ứng dụng (dù là Appsmith tự thiết kế hay Metabase nhúng vào) đều được bọc trong một khung viền (Iframe hoặc Layout) có chứa thanh điều hướng trên cùng (Top Navbar).
 2. **Nút "Về trang chủ" (Home Button):** Luôn có một nút logo Proteus OS ở góc trên cùng bên trái để nhân viên thoát ứng dụng hiện tại và quay lại màn hình Launchpad một cách mượt mà nhất.
 3. **Single Sign-On (Trải nghiệm liền mạch):** Nhờ Keycloak, người dùng khi bấm vào icon Chat (Mattermost) hay Wiki (Outline) sẽ vào thẳng bên trong luôn mà không bao giờ bị hỏi lại mật khẩu.
+4. **Trung tâm thông báo (Notification Center):** Tích hợp một "Quả chuông" ở Top Navbar để tổng hợp mọi cảnh báo từ Mattermost, hệ thống duyệt đơn n8n, và Tác tử AI giám sát, giúp người dùng không bỏ lỡ thông tin quan trọng.
+
+---
+
+## 4. Trải nghiệm Đa nền tảng và Trợ năng (Accessibility)
+
+- **Thiết kế Đáp ứng (Mobile Responsiveness):** Cấu trúc lưới (Grid) của Launchpad và giao diện Appsmith/Metabase đều được thiết kế Responsive 100%, đảm bảo Giám đốc có thể xem báo cáo hoặc duyệt đơn trơn tru ngay trên màn hình điện thoại di động (Smartphone/Tablet).
+- **Chế độ Sáng/Tối (Light/Dark Mode Toggle):** Dù Dark Mode mang lại vẻ cao cấp, hệ thống vẫn cung cấp nút chuyển đổi sang Light Mode (chế độ nền trắng, chữ đen) để phục vụ cho các nhân sự lớn tuổi hoặc khi làm việc dưới môi trường chói sáng, đáp ứng tiêu chuẩn tiếp cận (a11y) của phần mềm doanh nghiệp.
