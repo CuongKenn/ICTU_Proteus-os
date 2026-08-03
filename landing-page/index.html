@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proteus OS - Hệ điều hành Doanh nghiệp Thế hệ mới</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        deepblue: '#0A0F24',
+                        neonpurple: '#8B5CF6',
+                        neonglow: '#3B82F6',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-deepblue text-slate-200 antialiased overflow-x-hidden">
+    
+    <!-- Background Gradient Effects -->
+    <div class="fixed inset-0 z-[-1] pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-neonpurple/20 blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-neonglow/20 blur-[150px]"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 glass-nav border-b border-white/10 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex-shrink-0 flex items-center gap-3">
+                    <img src="images/proteus_logo.png" alt="Proteus OS Logo" class="w-12 h-12 rounded-xl shadow-[0_0_15px_rgba(139,92,246,0.5)]">
+                    <span class="font-bold text-2xl tracking-tight text-white">Proteus <span class="text-neonpurple">OS</span></span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a href="#home" class="hover:text-neonpurple px-3 py-2 rounded-md text-sm font-medium transition-colors">Trang chủ</a>
+                        <a href="#features" class="hover:text-neonpurple px-3 py-2 rounded-md text-sm font-medium transition-colors">Tính năng</a>
+                        <a href="#ecosystem" class="hover:text-neonpurple px-3 py-2 rounded-md text-sm font-medium transition-colors">Hệ sinh thái</a>
+                        <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" class="bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-all backdrop-blur-md flex items-center gap-2">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <!-- Left Text -->
+                <div class="text-center lg:text-left z-10">
+                    <div class="inline-block mb-4 px-4 py-1.5 rounded-full border border-neonpurple/30 bg-neonpurple/10 text-neonpurple text-sm font-semibold tracking-wide backdrop-blur-md">
+                        <i class="fas fa-rocket mr-2"></i> Kỷ nguyên mới của Quản trị Doanh nghiệp
+                    </div>
+                    <h1 class="text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+                        Đập tan Ốc đảo <br/>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-neonpurple to-neonglow">Thông tin rời rạc.</span>
+                    </h1>
+                    <p class="text-lg md:text-xl text-slate-400 mb-8 max-w-2xl mx-auto lg:mx-0">
+                        Linux là hệ điều hành cho máy tính. <b>Proteus OS</b> là Hệ điều hành cho Doanh nghiệp. Tích hợp SSO, Workflow, Dữ liệu thống nhất và Trợ lý AI tự hành (Agentic AI) vào một nền tảng duy nhất.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        <a href="#features" class="bg-gradient-to-r from-neonpurple to-neonglow hover:from-purple-500 hover:to-blue-500 text-white font-semibold px-8 py-4 rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all transform hover:scale-105 flex items-center justify-center gap-2">
+                            Khám phá ngay <i class="fas fa-arrow-right"></i>
+                        </a>
+                        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/tree/main/docs" target="_blank" class="glass-card hover:bg-white/10 text-white font-semibold px-8 py-4 rounded-xl border border-white/10 transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-book"></i> Đọc Tài liệu
+                        </a>
+                    </div>
+                </div>
+                <!-- Right Image -->
+                <div class="relative z-10 lg:ml-10">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-neonpurple/20 to-neonglow/20 rounded-2xl blur-2xl transform scale-105"></div>
+                    <img src="images/hero_ai_network.png" alt="Proteus OS AI Network" class="relative rounded-2xl border border-white/10 shadow-2xl floating">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- H-P-D-I Features Section -->
+    <section id="features" class="py-20 relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Kiến trúc <span class="text-neonpurple">H-P-D-I</span> Cốt lõi</h2>
+                <p class="text-slate-400 max-w-2xl mx-auto">Bốn không gian tích hợp hoàn hảo giúp doanh nghiệp vận hành trơn tru từ con người đến máy móc.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- H -->
+                <div class="glass-card rounded-2xl p-8 border border-white/5 hover:border-neonpurple/50 transition-all group">
+                    <div class="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-users text-2xl text-blue-400"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3">[H] Không gian Con người</h3>
+                    <p class="text-slate-400">Giao tiếp tập trung qua Chat (Mattermost), chia sẻ tài liệu (Wiki) và quản lý định danh một lần (SSO Keycloak). Chấm dứt cảnh phải nhớ hàng chục mật khẩu.</p>
+                </div>
+                
+                <!-- P -->
+                <div class="glass-card rounded-2xl p-8 border border-white/5 hover:border-green-500/50 transition-all group">
+                    <div class="w-14 h-14 rounded-xl bg-green-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-cogs text-2xl text-green-400"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3">[P] Không gian Quy trình</h3>
+                    <p class="text-slate-400">Tự động hóa luồng công việc (n8n) kết hợp với các Form nhập liệu siêu tốc (Appsmith). Hệ thống chạy bằng thuật toán hướng sự kiện, không còn "chạy bằng cơm".</p>
+                </div>
+
+                <!-- D -->
+                <div class="glass-card rounded-2xl p-8 border border-white/5 hover:border-yellow-500/50 transition-all group">
+                    <div class="w-14 h-14 rounded-xl bg-yellow-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-database text-2xl text-yellow-400"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3">[D] Không gian Dữ liệu</h3>
+                    <p class="text-slate-400">Nguồn sự thật duy nhất (Unified DB) với PostgreSQL và hệ thống Báo cáo Thông minh Metabase. Cung cấp góc nhìn toàn cảnh về sức khỏe doanh nghiệp thời gian thực.</p>
+                </div>
+
+                <!-- I -->
+                <div class="glass-card rounded-2xl p-8 border border-white/5 hover:border-neonpurple/50 transition-all group">
+                    <div class="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(139,92,246,0.3)]">
+                        <i class="fas fa-robot text-2xl text-neonpurple"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3">[I] Không gian Trí tuệ (AI)</h3>
+                    <p class="text-slate-400">Tác tử AI Tự hành (Agentic AI) được nhúng sâu vào lõi. AI không chỉ trả lời câu hỏi bằng tài liệu nội bộ (RAG) mà còn có quyền thay mặt Giám đốc thực thi tác vụ qua hệ thống.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Marketplace Section -->
+    <section id="ecosystem" class="py-20 relative z-10 bg-black/30 border-y border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div class="order-2 lg:order-1 relative">
+                    <div class="absolute inset-0 bg-neonglow/10 rounded-xl blur-xl"></div>
+                    <img src="images/proteus_os_marketplace.png" alt="App Store Marketplace" class="relative rounded-xl border border-white/10 shadow-2xl glass-card">
+                </div>
+                <div class="order-1 lg:order-2">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">Chợ Ứng Dụng Nội Bộ<br/> <span class="text-neonglow">(App Store)</span></h2>
+                    <p class="text-lg text-slate-400 mb-6">
+                        Khác với các hệ thống ERP cứng nhắc, Proteus OS cho phép Ban quản trị mở rộng tính năng vô hạn thông qua <b>Plugin Marketplace</b>.
+                    </p>
+                    <ul class="space-y-4 text-slate-300">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mt-1 mr-3"></i>
+                            <span><b>Cài đặt 1 Click:</b> Tự động hóa việc tạo Database, Workflow và Dashboard chỉ với một thao tác tải Plugin.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mt-1 mr-3"></i>
+                            <span><b>Cô lập Dữ liệu:</b> Áp dụng kiến trúc Multi-Tenancy tiên tiến, đảm bảo dữ liệu giữa các phòng ban/công ty tách biệt hoàn toàn.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mt-1 mr-3"></i>
+                            <span><b>Auto-Rollback:</b> Nếu quá trình cài đặt gặp sự cố, Tác tử dọn dẹp sẽ tự động hoàn tác để đảm bảo hệ thống luôn sạch sẽ.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-10 border-t border-white/10 mt-20 relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center gap-2 mb-4 md:mb-0">
+                <img src="images/proteus_logo.png" alt="Proteus OS Logo" class="w-8 h-8 rounded-lg">
+                <span class="font-bold text-white">Proteus OS</span>
+            </div>
+            <p class="text-slate-500 text-sm">© 2026 CuongKenn & ICTU Team. All rights reserved.</p>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <a href="https://github.com/CuongKenn/ICTU_Proteus-os" class="text-slate-400 hover:text-white transition-colors"><i class="fab fa-github text-xl"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Custom Script for Navbar -->
+    <script>
+        const nav = document.querySelector('nav');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 20) {
+                nav.classList.add('bg-deepblue/80', 'backdrop-blur-lg');
+                nav.classList.remove('bg-transparent');
+            } else {
+                nav.classList.add('bg-transparent');
+                nav.classList.remove('bg-deepblue/80', 'backdrop-blur-lg');
+            }
+        });
+    </script>
+</body>
+</html>
