@@ -2,8 +2,8 @@
   <img src="./docs/images/proteus_logo.png" alt="Proteus OS Logo" width="250">
   
   <h1>Proteus OS</h1>
-  <p><b>Hệ điều hành Doanh nghiệp (Enterprise OS) Thế hệ mới</b></p>
-  <p><i>Linux là hệ điều hành cho máy tính. Proteus OS là hệ điều hành cho doanh nghiệp.</i></p>
+  <p><b>Hệ điều hành Đa năng (Universal OS) Thế hệ mới</b></p>
+  <p><i>Linux là hệ điều hành cho máy tính. Proteus OS là hệ điều hành lõi cho mọi tổ chức (Doanh nghiệp, Trường học, Y tế,...).</i></p>
 
   [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
@@ -14,7 +14,7 @@
 
 ## 🌟 Tầm nhìn & Sứ mệnh
 
-**Proteus OS** không chỉ là một phần mềm ERP thông thường, mà là một **Hệ điều hành** tích hợp toàn diện. Hệ thống giải quyết triệt để "nỗi đau" của doanh nghiệp SME và các tổ chức giáo dục bằng cách đập bỏ "ốc đảo thông tin", tự động hóa quy trình (Workflow) và nhúng Trí tuệ Nhân tạo (Agentic AI) vào mọi ngóc ngách của quá trình vận hành.
+**Proteus OS** không chỉ là một phần mềm quản trị thông thường, mà là một **Hệ điều hành Đa năng (Universal OS)**. Với kiến trúc Lõi (Core) kết hợp linh hoạt cùng Chợ ứng dụng (Plugin Marketplace), hệ thống có thể biến hóa để giải quyết triệt để "nỗi đau" của bất kỳ tổ chức nào (từ Doanh nghiệp SME, Trường học cho đến Bệnh viện) bằng cách đập bỏ "ốc đảo thông tin", tự động hóa quy trình (Workflow) và nhúng Trí tuệ Nhân tạo (Agentic AI) vào mọi ngóc ngách của quá trình vận hành.
 
 Dự án được xây dựng dựa trên sự kết hợp hoàn hảo giữa các nền tảng **Open-Source** hàng đầu thế giới và **Innovation Layer** (Core Engine) tự phát triển với kiến trúc Micro-Kernel hiện đại.
 
