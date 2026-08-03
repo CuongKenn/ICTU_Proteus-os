@@ -36,7 +36,7 @@ Thay vì thiết kế theo dạng thanh menu dọc (Sidebar) nhàm chán như c�
 
 Khi người dùng click vào một Icon trên Launchpad (VD: click vào *Finance*), hệ thống sẽ mở ứng dụng đó ra. Tuy nhiên, để đảm bảo tính đồng nhất (Consistency) về trải nghiệm:
 
-1. **Khung viền chung (App Shell):** Mọi ứng dụng (dù là Appsmith tự thiết kế hay Metabase nhúng vào) đều được bọc trong một khung viền (Iframe hoặc Layout) có chứa thanh điều hướng trên cùng (Top Navbar).
+1. **Khung viền chung (App Shell):** Mọi ứng dụng (dù là Appsmith tự thiết kế hay Metabase nhúng vào) đều được bọc trong một khung viền Iframe nội bộ có chứa thanh điều hướng trên cùng (Top Navbar). *(Lưu ý: Để tránh lỗi bảo mật chặn hiển thị Iframe của trình duyệt, toàn bộ các ứng dụng được định tuyến qua Traefik chia sẻ chung một domain gốc bằng phương pháp Single-Domain Path-Based Routing, vd: `proteus.local/chat`, `proteus.local/apps`).*
 2. **Nút "Về trang chủ" (Home Button):** Luôn có một nút logo Proteus OS ở góc trên cùng bên trái để nhân viên thoát ứng dụng hiện tại và quay lại màn hình Launchpad một cách mượt mà nhất.
 3. **Single Sign-On (Trải nghiệm liền mạch):** Nhờ Keycloak, người dùng khi bấm vào icon Chat (Mattermost) hay Wiki (Outline) sẽ vào thẳng bên trong luôn mà không bao giờ bị hỏi lại mật khẩu.
 4. **Trung tâm thông báo (Notification Center):** Tích hợp một "Quả chuông" ở Top Navbar để tổng hợp mọi cảnh báo từ Mattermost, hệ thống duyệt đơn n8n, và Tác tử AI giám sát, giúp người dùng không bỏ lỡ thông tin quan trọng.

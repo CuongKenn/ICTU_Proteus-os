@@ -78,8 +78,8 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 #### FR5. Proteus OS Plugin Manager & Marketplace
 - **Mô tả:** Hệ thống cốt lõi do đội tự code (Python/Node.js) để quản lý vòng đời của các Plugin. Bao gồm một giao diện Web "App Store" (Marketplace) để quản trị viên cài đặt các module nghiệp vụ chỉ bằng một cú click chuột.
 - **Luồng xử lý:** Quản trị viên bấm nút "Cài đặt" trên giao diện Marketplace (hoặc dùng lệnh `proteus-os install`) -> Hệ thống đọc file `manifest.yaml` của Plugin -> Tự động gọi API Postgres để tạo bảng (Table) -> Gọi API n8n để nạp luồng quy trình (Blueprint) -> Gọi API Metabase để tạo Dashboard.
-- **Tự động phục hồi (Auto-Rollback):** Tích hợp cơ chế Transaction. Nếu có bất kỳ bước gọi API nào (DB, n8n, Metabase) bị lỗi giữa chừng, hệ thống sẽ tự động Rollback (xóa các thành phần đã tạo) để trả môi trường về trạng thái sạch.
-- **Tiêu chí nghiệm thu (AC):** Chỉ với 1 thao tác cài đặt, toàn bộ hạ tầng DB, Workflow và Report của nghiệp vụ đó được khởi tạo thành công trong vòng 30 giây mà không cần thao tác tay. Nếu có lỗi gián đoạn, hệ thống tự thu hồi không để lại dữ liệu rác.
+- **Tự động phục hồi (Auto-Rollback & Cleanup):** Vì cài đặt qua nhiều hệ thống (DB, n8n, Metabase) là giao dịch phân tán (Distributed Transaction), hệ thống sử dụng cơ chế **Compensating Transaction** (cố gắng gọi API xóa phần đã tạo nếu có lỗi). Nếu mạng gặp sự cố khiến việc xóa thất bại, trạng thái Plugin sẽ được đánh dấu là `FAILED_DIRTY` trong Database. Một **Tác tử Dọn dẹp (Cleanup Agent)** chạy ngầm định kỳ sẽ tự động quét và xóa sạch các rác dữ liệu này.
+- **Tiêu chí nghiệm thu (AC):** Chỉ với 1 thao tác cài đặt, toàn bộ hạ tầng DB, Workflow và Report của nghiệp vụ đó được khởi tạo thành công trong vòng 30 giây mà không cần thao tác tay. Nếu có lỗi gián đoạn, hệ thống hoặc dọn dẹp ngay lập tức, hoặc đưa vào hàng đợi Cleanup để đảm bảo không để lại dữ liệu rác về lâu dài.
 
 #### FR6. AI Orchestrator & Workflow DSL (Domain Specific Language)
 - **Mô tả:** Bộ thông dịch tự viết giúp kết nối "Não" của AI với "Chân tay" của hệ thống quản lý.

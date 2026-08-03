@@ -20,15 +20,11 @@ erDiagram
     
     USER {
         uuid id PK
+        uuid tenant_id FK "Thuộc về 1 Tenant duy nhất (1 Realm)"
         uuid keycloak_id "ID đồng bộ từ Keycloak"
         string email
         string full_name
         boolean is_active
-    }
-    
-    TENANT_USER {
-        uuid tenant_id FK
-        uuid user_id FK
         timestamp joined_at
     }
     
@@ -38,8 +34,7 @@ erDiagram
         string description
     }
     
-    TENANT_USER_ROLE {
-        uuid tenant_id FK
+    USER_ROLE {
         uuid user_id FK
         uuid role_id FK
     }
@@ -59,11 +54,9 @@ erDiagram
         timestamp installed_at
     }
 
-    TENANT ||--o{ TENANT_USER : "có nhiều"
-    USER ||--o{ TENANT_USER : "thuộc về"
-    
-    TENANT_USER ||--o{ TENANT_USER_ROLE : "được phân"
-    ROLE ||--o{ TENANT_USER_ROLE : "áp dụng cho"
+    TENANT ||--o{ USER : "có nhiều"
+    USER ||--o{ USER_ROLE : "được phân"
+    ROLE ||--o{ USER_ROLE : "áp dụng cho"
     
     TENANT ||--o{ TENANT_PLUGIN : "cài đặt"
     PLUGIN ||--o{ TENANT_PLUGIN : "được cài bởi"
@@ -73,12 +66,11 @@ erDiagram
 
 ### 2.1. Nhóm Quản lý Đa khách hàng & Người dùng (Multi-Tenancy & Identity)
 - **Bảng `TENANT`:** Trái tim của kiến trúc Multi-Tenancy. Mỗi khách hàng mua SaaS sẽ có một bản ghi ở đây. Cột `keycloak_realm` dùng để trỏ tới vách ngăn tương ứng bên trong Keycloak.
-- **Bảng `USER`:** Lưu trữ thông tin cơ bản của người dùng. Mật khẩu không được lưu ở đây mà do Keycloak quản lý. Cột `keycloak_id` dùng làm cầu nối để đồng bộ trạng thái khi đăng nhập (SSO).
-- **Bảng `TENANT_USER` (Bảng trung gian):** Giải quyết bài toán một người dùng có thể thuộc nhiều tổ chức (Ví dụ: Một chuyên gia tư vấn tham gia vào hệ thống của nhiều công ty khác nhau).
+- **Bảng `USER`:** Lưu trữ thông tin cơ bản của người dùng. Mỗi User chỉ thuộc về 1 Tenant duy nhất để đồng nhất với cơ chế cách ly Realm của Keycloak. Mật khẩu không được lưu ở đây mà do Keycloak quản lý. Cột `keycloak_id` dùng làm cầu nối để đồng bộ trạng thái khi đăng nhập (SSO).
 
 ### 2.2. Nhóm Quản lý Phân quyền (RBAC)
 - **Bảng `ROLE`:** Danh mục các Vai trò cốt lõi.
-- **Bảng `TENANT_USER_ROLE`:** Xác định cụ thể người dùng X trong tổ chức Y thì có vai trò Z. (Ví dụ: Nguyễn Văn A là `Admin` ở Công ty B, nhưng chỉ là `Guest` ở Công ty C). Bảng này là căn cứ để chặn/mở quyền ở API Gateway.
+- **Bảng `USER_ROLE`:** Xác định cụ thể người dùng có vai trò gì trong hệ thống. Bảng này là căn cứ để chặn/mở quyền ở API Gateway.
 
 ### 2.3. Nhóm Quản lý Chợ Ứng dụng (Marketplace)
 - **Bảng `PLUGIN`:** Chứa danh sách các gói mở rộng hiện có trên App Store của Proteus OS (như HR, Finance, CRM).
