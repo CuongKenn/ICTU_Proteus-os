@@ -84,17 +84,29 @@ graph LR
 **Đặc điểm kỹ thuật Frontend:**
 - **App Shell Design:** Tạo ra một khung viền giao diện duy nhất. Các ứng dụng khác (Appsmith, Metabase, Mattermost) được nhúng vào vị trí nội dung (Main Content Area) để giữ lại thanh điều hướng (Navbar) của Proteus OS.
 - **BFF Pattern:** Client (Trình duyệt) không bao giờ gọi trực tiếp xuống FastAPI. Mọi request đi qua Next.js API Routes. Tại đây, Next.js sẽ đính kèm Access Token (lưu an toàn bằng HttpOnly Cookies) vào Header trước khi gửi xuống FastAPI, giúp chống lại tấn công XSS.
+- **Kiến trúc Custom Hooks & Zustand (Thay thế MVVM):** Thay vì áp dụng mô hình MVVM truyền thống (vốn đi ngược lại triết lý One-way Data Flow của React), Frontend sử dụng mô hình Component-Based kết hợp Custom Hooks.
+  - *View:* Các Function Components chỉ làm nhiệm vụ hiển thị UI tĩnh.
+  - *ViewModel (Custom Hooks):* Đóng gói toàn bộ Business Logic và State Management (sử dụng **Zustand**) vào các hooks như `useAppStore()`, `useAuth()`. Điều này giúp tách biệt hoàn toàn giao diện khỏi logic nghiệp vụ, dễ dàng viết Unit Test.
 
 ### 2.2. Backend Architecture (FastAPI)
-Backend sử dụng **FastAPI (Python)**, được thiết kế theo mô hình **Domain-Driven Design (DDD)** và **Clean Architecture**.
+Backend sử dụng **FastAPI (Python)**, được thiết kế theo mô hình **Hexagonal Architecture (Ports and Adapters)** kết hợp với **Domain-Driven Design (DDD)**. 
+
+Bởi vì Core Engine đóng vai trò là một "Orchestrator" phải gọi rất nhiều công cụ bên ngoài (n8n, Metabase, Keycloak, Qdrant), kiến trúc Hexagonal giúp giữ cho lõi nghiệp vụ hoàn toàn độc lập với các thư viện và framework bên ngoài.
 
 **Cấu trúc các lớp (Layers):**
-1. **API Router Layer:** Nhận request, kiểm tra đầu vào (Pydantic validation).
-2. **Middleware/Auth Layer:** Giao tiếp với Keycloak để xác minh JWT Token, trích xuất `tenant_id` và `roles`. Từ chối các request không có quyền (403 Forbidden).
-3. **Service Layer (Nghiệp vụ cốt lõi):**
-   - *Plugin Service:* Đọc file `manifest.yaml`, kết nối database tạo Schema, gọi API của n8n và Metabase để khởi tạo môi trường (Provisioning) khi người dùng bấm "Cài đặt".
-   - *AI Orchestrator Service:* Nhận prompt ngôn ngữ tự nhiên từ người dùng, nhúng (embed) vào Qdrant để tìm ngữ cảnh (RAG), sinh ra cấu trúc lệnh JSON (ReAct pattern), và đẩy lệnh cho n8n thực thi.
-4. **Data Access Layer:** Tương tác với PostgreSQL thông qua ORM (SQLAlchemy). Bắt buộc nhúng `tenant_id` vào mọi câu lệnh WHERE để đảm bảo Row-Level Security.
+1. **Primary Adapters (Inbound):** 
+   - *API Routers:* Nhận REST request từ Frontend BFF, validate bằng Pydantic.
+   - *Middleware/Auth Layer:* Xác minh JWT Token từ Keycloak, trích xuất `tenant_id` và `roles`.
+2. **Core Domain (Nghiệp vụ cốt lõi):**
+   - *Plugin Use Cases:* Xử lý logic cài đặt/gỡ bỏ plugin.
+   - *AI Orchestrator Use Cases:* Phân tích ngữ nghĩa lệnh AI, lên kế hoạch thực thi (ReAct pattern).
+3. **Secondary Ports (Outbound Interfaces):** Định nghĩa các Abstract Base Classes (Interface) mà Domain cần dùng (VD: `IWorkflowEngine`, `IIdentityServer`).
+4. **Secondary Adapters (Outbound):** Triển khai thực tế các Ports.
+   - `N8nAdapter`: Gọi API n8n để nạp luồng.
+   - `MetabaseAdapter`: Gọi API Metabase để tạo Dashboard.
+   - `QdrantAdapter`: Giao tiếp với Vector DB.
+   - `PostgresAdapter`: Tương tác DB thông qua SQLAlchemy (có RLS).
+*(Kiến trúc này giúp dự án dễ dàng thay thế công cụ, ví dụ đổi từ Qdrant sang Milvus chỉ bằng cách viết một Adapter mới).*
 
 ---
 
