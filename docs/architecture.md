@@ -116,7 +116,5 @@ Bởi vì Core Engine đóng vai trò là một "Orchestrator" phải gọi rấ
 
 - **Cô lập Tài khoản (Keycloak Realms):** Sử dụng tính năng **Realms** của Keycloak. Mỗi khách hàng (Trường A, Doanh nghiệp B) là một Realm độc lập. Người dùng của Trường A không bao giờ đăng nhập chéo được vào Trường B.
 - **Phân quyền Động (RBAC):** Khi một Plugin được cài đặt, nó định nghĩa các Vai trò (Role) trong `manifest.yaml`. Người dùng được gán Role trong Keycloak. Token JWT mang theo Role này và sẽ được Frontend đọc để giấu bớt giao diện (Dynamic UI) và Backend đọc để chặn truy cập trái phép.
-- **Cô lập Dữ liệu (PostgreSQL Schema):** Sử dụng cơ chế **Hỗn hợp (Hybrid)**:
-  - Dùng **Schema-per-tenant** (Mỗi tổ chức là một Schema riêng) để lưu trữ dữ liệu nghiệp vụ sinh động của các Plugin, giúp dễ dàng sao lưu và tùy biến.
-  - Dùng **Shared-Schema kết hợp Row-Level Security (RLS)** cho các bảng cấu hình dùng chung toàn hệ thống, đảm bảo an toàn truy xuất mà không bị phình to (bloat) database.
+- **Cô lập Dữ liệu (PostgreSQL Row-Level Security):** Toàn bộ dữ liệu nghiệp vụ của các tổ chức được lưu chung trên một Database (Shared-Schema) để tối ưu hóa tài nguyên và dễ dàng bảo trì. Hệ thống sử dụng cơ chế **Row-Level Security (RLS)** trên Postgres (thông qua cột `tenant_id`) để đảm bảo dữ liệu của tổ chức nào chỉ tổ chức đó truy cập được, an toàn tuyệt đối ở cấp độ cơ sở dữ liệu.
 - **Cô lập Ứng dụng (App Store):** Trường A có thể mua và cài Plugin "Quản lý Canteen", hệ thống sẽ kích hoạt Plugin này vào Schema của Trường A. Trường B sẽ không nhìn thấy tính năng này nếu chưa mua.
