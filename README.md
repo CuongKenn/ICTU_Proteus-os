@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./docs/images/proteus_os_launchpad.png" alt="Proteus OS Logo" width="100%">
+  <img src="./docs/images/proteus_logo.png" alt="Proteus OS Logo" width="250">
   
   <h1>Proteus OS</h1>
   <p><b>Hệ điều hành Doanh nghiệp (Enterprise OS) Thế hệ mới</b></p>
