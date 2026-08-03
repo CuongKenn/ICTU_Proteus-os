@@ -8,7 +8,7 @@ Tài liệu này được biên soạn bằng ngôn ngữ dễ hiểu nhất, k�
 
 Hãy tưởng tượng chiếc điện thoại thông minh (Smartphone) của bạn. Khi mới mua về, nó có một hệ điều hành (iOS/Android) với các tính năng cơ bản như Nghe, Gọi, Cài đặt. Sau đó, nếu bạn cần làm gì thêm, bạn sẽ vào **App Store** để tải ứng dụng như Zalo (chat), Facebook (mạng xã hội), Mobile Banking (tài chính). Các ứng dụng này chạy độc lập nhưng đều dùng chung một tài khoản Apple ID/Google Account của bạn, dùng chung mạng và bộ nhớ máy.
 
-**Proteus OS chính là một hệ điều hành giống như vậy, nhưng được thiết kế riêng cho Doanh nghiệp và Trường học.**
+**Proteus OS chính là một hệ điều hành giống như vậy, nhưng được thiết kế dưới dạng Lõi Đa năng (Universal OS) dùng cho mọi tổ chức (Doanh nghiệp, Trường học, Y tế, v.v.).**
 - **Hạt nhân (Core):** Cung cấp các nền tảng cơ bản nhất như: Đăng nhập một lần (SSO), Không gian lưu trữ, và Kênh giao tiếp.
 - **Chợ ứng dụng (Marketplace):** Nơi Ban giám đốc có thể cài đặt thêm các "Plugin" (phân hệ nghiệp vụ) như: Quản lý Nhân sự, Quản lý Điểm số, Kế toán... chỉ bằng **một cú click chuột**.
 - **Điểm khác biệt lớn nhất (Agentic AI):** Khác với Windows hay iOS, Proteus OS tích hợp Trí tuệ nhân tạo (AI) hoạt động như một "Trợ lý ảo" có quyền lực thực sự – nó không chỉ biết trả lời câu hỏi mà còn có "chân tay" để tự động bấm duyệt đơn từ, điều phối công việc hay báo cáo dòng tiền thay cho con người.
@@ -41,4 +41,4 @@ Khi cung cấp phần mềm cho 100 trường học, chúng ta không thể mua 
 
 ## 3. Tổng kết
 
-Proteus OS sinh ra để đập tan tình trạng "ốc đảo thông tin" (mỗi phòng ban dùng một phần mềm rời rạc). Nó biến hệ thống quản lý doanh nghiệp thành một thể thống nhất, **dễ cài đặt như tải App trên điện thoại**, **bảo mật như ngân hàng** (nhờ cô lập chung cư Multi-tenancy), và **cực kỳ thông minh** nhờ AI trực tiếp điều hành công việc.
+Proteus OS sinh ra để đập tan tình trạng "ốc đảo thông tin" (mỗi phòng ban dùng một phần mềm rời rạc). Nó biến hệ thống quản trị của bất kỳ tổ chức nào thành một thể thống nhất, **dễ cài đặt như tải App trên điện thoại**, **bảo mật như ngân hàng** (nhờ cô lập chung cư Multi-tenancy), và **cực kỳ thông minh** nhờ AI trực tiếp điều hành công việc.

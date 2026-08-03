@@ -2,17 +2,17 @@
 
 **Tên dự án:** Proteus OS
 **Phiên bản:** 2.0
-**Tầm nhìn:** *"Linux là hệ điều hành cho máy tính. Proteus OS là hệ điều hành cho doanh nghiệp."*
+**Tầm nhìn:** *"Linux là hệ điều hành cho máy tính. Proteus OS là hệ điều hành lõi cho mọi tổ chức (Doanh nghiệp, Trường học, Y tế,...)."*
 
 ## 1. TỔNG QUAN DỰ ÁN
 
-### 1.1 Bài toán hiện tại (Nỗi đau của Doanh nghiệp SME)
+### 1.1 Bài toán hiện tại (Nỗi đau của các Tổ chức, Doanh nghiệp SME)
 - **Ốc đảo thông tin:** Doanh nghiệp sử dụng nhiều phần mềm rời rạc (Chat, Email, ERP, HRM) không giao tiếp với nhau, gây ra tình trạng bẫy "rác đầu vào - rác đầu ra".
 - **Thiếu tính tự động hóa:** Nhân viên phải nhập liệu lặp lại ở nhiều hệ thống, tốn thời gian chuyển giao thông tin thủ công giữa các bộ phận.
 - **AI bị mù cục bộ:** Các chatbot AI hiện hành chỉ hoạt động dưới dạng hỏi-đáp văn bản dựa trên file upload lẻ tẻ, không có khả năng truy xuất "Nguồn sự thật duy nhất" của toàn doanh nghiệp để ra quyết định và thực thi lệnh.
 
 ### 1.2 Giải pháp Proteus OS
-- Thiết kế một Hệ điều hành Doanh nghiệp (Proteus OS) áp dụng cấu trúc phân bổ quyền điều khiển H-P-D-I.
+- Thiết kế một Hệ điều hành Đa năng (Proteus OS) áp dụng cấu trúc phân bổ quyền điều khiển H-P-D-I và kiến trúc Core + Plugin.
 - **Kiến trúc Open-Core + Plugin:** Proteus OS đóng vai trò là hạt nhân trung tâm (Core). Các nghiệp vụ chuyên ngành (HR, Kế toán, Quản lý trường học) sẽ đóng gói thành dạng "Plugin" (qua `manifest.yaml`) cắm vào nền tảng.
 - Chuyển giao quyền kiểm soát từ thao tác thủ công sang các thuật toán tự động và Tác tử tự hành (Agentic AI).
 

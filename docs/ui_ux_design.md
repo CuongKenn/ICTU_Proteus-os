@@ -1,6 +1,6 @@
 # Ý tưởng Thiết kế Giao diện (UI/UX) cho Proteus OS
 
-Để Proteus OS thực sự mang tầm vóc của một "Hệ điều hành cho doanh nghiệp" chứ không chỉ là một phần mềm quản lý thông thường, giao diện người dùng (UI) cần được thiết kế theo hướng **Hiện đại, Tối giản và Tập trung vào trải nghiệm (User-centric)**. 
+Để Proteus OS thực sự mang tầm vóc của một "Hệ điều hành Đa năng cho mọi tổ chức" chứ không chỉ là một phần mềm quản lý thông thường, giao diện người dùng (UI) cần được thiết kế theo hướng **Hiện đại, Tối giản và Tập trung vào trải nghiệm (User-centric)**. 
 
 Dưới đây là mô tả chi tiết và hình ảnh phác thảo (Mockup) cho 2 màn hình quan trọng nhất của hệ thống.
 
@@ -46,4 +46,4 @@ Khi người dùng click vào một Icon trên Launchpad (VD: click vào *Financ
 ## 4. Trải nghiệm Đa nền tảng và Trợ năng (Accessibility)
 
 - **Thiết kế Đáp ứng (Mobile Responsiveness):** Cấu trúc lưới (Grid) của Launchpad và giao diện Appsmith/Metabase đều được thiết kế Responsive 100%, đảm bảo Giám đốc có thể xem báo cáo hoặc duyệt đơn trơn tru ngay trên màn hình điện thoại di động (Smartphone/Tablet).
-- **Chế độ Sáng/Tối (Light/Dark Mode Toggle):** Dù Dark Mode mang lại vẻ cao cấp, hệ thống vẫn cung cấp nút chuyển đổi sang Light Mode (chế độ nền trắng, chữ đen) để phục vụ cho các nhân sự lớn tuổi hoặc khi làm việc dưới môi trường chói sáng, đáp ứng tiêu chuẩn tiếp cận (a11y) của phần mềm doanh nghiệp.
+- **Chế độ Sáng/Tối (Light/Dark Mode Toggle):** Dù Dark Mode mang lại vẻ cao cấp, hệ thống vẫn cung cấp nút chuyển đổi sang Light Mode (chế độ nền trắng, chữ đen) để phục vụ cho các nhân sự lớn tuổi hoặc khi làm việc dưới môi trường chói sáng, đáp ứng tiêu chuẩn tiếp cận (a11y) của phần mềm quản trị chuyên nghiệp.
