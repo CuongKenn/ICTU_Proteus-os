@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Proteus OS Core Engine API
+  description: >
+    Tài liệu OpenAPI (Swagger) cho phần Backend Core (FastAPI) của Proteus OS.
+    Core Engine đóng vai trò là Orchestrator, xử lý vòng đời Plugin và điều phối Tác tử AI (Agentic AI).
+  version: 2.0.0
+  contact:
+    name: ICTU Proteus OS Team
+servers:
+  - url: http://api.proteus.local/api/v1
+    description: Môi trường Development (Local Docker)
+
+components:
+  securitySchemes:
+    KeycloakBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Nhập Access Token lấy từ Keycloak SSO.
+
+  schemas:
+    PluginManifest:
+      type: object
+      properties:
+        code_name:
+          type: string
+          example: "hr-module"
+        manifest_url:
+          type: string
+          format: uri
+          example: "https://raw.githubusercontent.com/.../manifest.yaml"
+      required:
+        - code_name
+        - manifest_url
+
+    AICommandRequest:
+      type: object
+      properties:
+        command:
+          type: string
+          description: "Mệnh lệnh ngôn ngữ tự nhiên từ Giám đốc"
+          example: "Hãy duyệt tất cả đơn xin nghỉ phép trong ngày hôm nay."
+      required:
+        - command
+
+    StandardResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+        data:
+          type: object
+
+security:
+  - KeycloakBearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Kiểm tra trạng thái hệ thống
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+
+  /plugins:
+    get:
+      summary: Lấy danh sách Plugin đã cài đặt của Tenant hiện tại
+      description: Dựa vào JWT Token, hệ thống trích xuất `tenant_id` và trả về các Plugin thuộc về Tenant đó.
+      tags:
+        - Plugin Marketplace
+      responses:
+        '200':
+          description: Trả về danh sách ứng dụng.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+
+  /plugins/install:
+    post:
+      summary: Cài đặt một Plugin mới (Provisioning)
+      description: Core Engine sẽ tải manifest, chạy script SQL tạo bảng (Schema-per-tenant), và gọi n8n/Metabase để nạp dữ liệu. Hỗ trợ Auto-Rollback nếu lỗi.
+      tags:
+        - Plugin Marketplace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PluginManifest'
+      responses:
+        '202':
+          description: Yêu cầu cài đặt đã được tiếp nhận và đang chạy ngầm (Background Task).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+
+  /ai/execute:
+    post:
+      summary: Điều phối Tác tử AI thực thi lệnh (AI Orchestrator)
+      description: >
+        Nhận lệnh bằng ngôn ngữ tự nhiên. 
+        Sử dụng Langchain kết hợp Qdrant (RAG) để phân tích ý định. 
+        Chuyển đổi thành luồng ReAct và kích hoạt luồng Webhook trên n8n.
+      tags:
+        - Agentic AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AICommandRequest'
+      responses:
+        '200':
+          description: Đã gửi lệnh xác nhận (Interactive Message) qua Mattermost thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
