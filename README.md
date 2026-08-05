@@ -35,6 +35,11 @@ Toàn bộ tài liệu đặc tả, thiết kế kiến trúc và giao diện đ
 
 Dự án yêu cầu môi trường **Docker** và **Docker Compose** để chạy.
 
+> [!NOTE]
+> **Hai chế độ truy cập:**
+> - **Development (local):** Truy cập trực tiếp qua port (hướng dẫn bên dưới). Dùng để dev nhanh, không cần cấu hình domain.
+> - **Production/Staging:** Toàn bộ traffic đi qua **Traefik Proxy** tại domain `proteus.local` (hoặc domain thật). Xem chi tiết tại [Deployment Guide](./docs/deployment.md).
+
 1. **Clone mã nguồn:**
    ```bash
    git clone https://github.com/CuongKenn/ICTU_Proteus-os.git
@@ -48,10 +53,17 @@ Dự án yêu cầu môi trường **Docker** và **Docker Compose** để chạ
    ./setup.sh
    ```
 
-3. **Truy cập Hệ thống:**
-   - Launchpad: `http://localhost:3000`
+3. **Truy cập Hệ thống (Development — truy cập trực tiếp):**
+   - Launchpad (Next.js): `http://localhost:3000`
    - API Docs (Swagger): `http://localhost:8000/docs`
    - Keycloak Admin: `http://localhost:8080`
+
+   **Truy cập Hệ thống (Production — qua Traefik):**
+   - Launchpad: `https://proteus.local/`
+   - API: `https://proteus.local/api/`
+   - Keycloak: `https://proteus.local/auth/`
+   - Mattermost Chat: `https://proteus.local/chat/`
+   - Grafana Monitoring: `https://proteus.local/monitoring/`
 
 ## 🏗️ Ngăn xếp Công nghệ (Tech Stack)
 
