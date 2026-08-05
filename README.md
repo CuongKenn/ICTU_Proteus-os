@@ -23,12 +23,13 @@ Dự án được xây dựng dựa trên sự kết hợp hoàn hảo giữa c�
 Toàn bộ tài liệu đặc tả, thiết kế kiến trúc và giao diện được lưu trữ công khai trong thư mục `/docs`. Vui lòng đọc kỹ trước khi đóng góp code:
 
 - 📄 **[Tài liệu Đặc tả Yêu cầu (BRD)](./docs/BRD.md):** Tầm nhìn, chức năng và rào chắn kỹ thuật (NFR).
-- 🏗️ **[Thiết kế Kiến trúc Tổng thể (SAD)](./docs/architecture.md):** Phân tích kiến trúc Hexagonal (Backend), Custom Hooks (Frontend) và tích hợp hệ sinh thái mở.
+- 🏗️ **[Thiết kế Kiến trúc Tổng thể (SAD)](./docs/architecture.md):** Phân tích kiến trúc Hexagonal (Backend), Custom Hooks (Frontend), SSO flow bảo mật và ADR chốt Redis Event Bus.
 - 🎨 **[Thiết kế Giao diện (UI/UX)](./docs/ui_ux_design.md):** Phác thảo giao diện Launchpad & App Store theo phong cách Glassmorphism.
-- 🗄️ **[Lược đồ Dữ liệu (Core ERD)](./docs/erd.md):** Sơ đồ quan hệ các bảng lõi của hệ thống.
-- 🔐 **[Làm rõ Đa khách hàng & Phân quyền](./docs/clarification.md):** Cơ chế Multi-Tenancy (SaaS) và Role-Based Access Control qua Keycloak.
-- 🔌 **[Tài liệu API (OpenAPI/Swagger)](./docs/api-swagger.yaml):** Đặc tả các Endpoint của Core Engine.
-- 🚀 **[Hướng dẫn Triển khai (Deployment Guide)](./docs/deployment.md):** Kiến trúc mạng, Traefik routing và yêu cầu phần cứng.
+- 🗄️ **[Lược đồ Dữ liệu (Core ERD)](./docs/erd.md):** Sơ đồ quan hệ các bảng lõi, triển khai RLS và chiến lược Migration.
+- 🔐 **[Làm rõ Đa khách hàng & Phân quyền](./docs/clarification.md):** Multi-Tenancy, RBAC, Keycloak sync flow, Metabase OSS embedding và Human-in-the-loop AI.
+- 🔌 **[Tài liệu API (OpenAPI/Swagger)](./docs/api-swagger.yaml):** Đặc tả 18+ Endpoint của Core Engine, đầy đủ error schemas.
+- 🤖 **[Đặc tả AI DSL (DX-DSL Spec)](./docs/dsl-spec.md):** Cấu trúc JSON chuẩn, whitelist action, effect levels và validation rules cho AI Orchestrator.
+- 🚀 **[Hướng dẫn Triển khai (Deployment Guide)](./docs/deployment.md):** Kiến trúc mạng, Traefik routing, Observability Stack (Loki) và chiến lược Backup.
 
 ## 🚀 Hướng dẫn Cài đặt (Quick Start)
 

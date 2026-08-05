@@ -4,12 +4,28 @@ info:
   description: >
     Tài liệu OpenAPI (Swagger) cho phần Backend Core (FastAPI) của Proteus OS.
     Core Engine đóng vai trò là Orchestrator, xử lý vòng đời Plugin và điều phối Tác tử AI (Agentic AI).
+
+    **Quy tắc Bảo mật:**
+    - Mọi endpoint (trừ `/health` và `/health/detailed`) đều yêu cầu JWT Bearer Token từ Keycloak.
+    - Backend trích xuất `tenant_id` và `roles` từ JWT để xử lý Multi-Tenancy và RBAC.
+    - Client (browser) không bao giờ gọi trực tiếp vào đây; mọi request đi qua Next.js BFF.
   version: 2.0.0
   contact:
     name: ICTU Proteus OS Team
+    url: https://github.com/CuongKenn/ICTU_Proteus-os
+  license:
+    name: GNU AGPLv3
+    url: https://www.gnu.org/licenses/agpl-3.0.html
+
 servers:
   - url: http://api.proteus.local/api/v1
-    description: Môi trường Development (Local Docker)
+    description: Môi trường Development (Local Docker via Traefik)
+  - url: https://{domain}/api/v1
+    description: Môi trường Production
+    variables:
+      domain:
+        default: proteus.local
+        description: Tên miền triển khai thực tế
 
 components:
   securitySchemes:
@@ -17,57 +33,463 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Nhập Access Token lấy từ Keycloak SSO.
+      description: >
+        Nhập Access Token lấy từ Keycloak SSO.
+        Token phải chứa claim `tenant_id` và `roles`.
+        Thực tế, token này được Next.js BFF đính kèm tự động vào Header trước khi gọi FastAPI.
 
   schemas:
-    PluginManifest:
-      type: object
-      properties:
-        code_name:
-          type: string
-          example: "hr-module"
-        manifest_url:
-          type: string
-          format: uri
-          example: "https://raw.githubusercontent.com/.../manifest.yaml"
-      required:
-        - code_name
-        - manifest_url
-
-    AICommandRequest:
-      type: object
-      properties:
-        command:
-          type: string
-          description: "Mệnh lệnh ngôn ngữ tự nhiên từ Giám đốc"
-          example: "Hãy duyệt tất cả đơn xin nghỉ phép trong ngày hôm nay."
-      required:
-        - command
-
+    # ==============================
+    # SHARED RESPONSE SCHEMAS
+    # ==============================
     StandardResponse:
       type: object
       properties:
         status:
           type: string
+          enum: [success, error, pending]
           example: "success"
         message:
           type: string
+          example: "Thao tác thành công."
         data:
           type: object
+          nullable: true
+      required:
+        - status
+        - message
+
+    PaginatedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        data:
+          type: array
+          items:
+            type: object
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 42
+            page:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 20
+            total_pages:
+              type: integer
+              example: 3
+
+    # ==============================
+    # ERROR SCHEMAS
+    # ==============================
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        error_code:
+          type: string
+          description: "Mã lỗi nội bộ để debug (VD: PLUGIN_NOT_FOUND, TENANT_MISMATCH)"
+          example: "PLUGIN_NOT_FOUND"
+        message:
+          type: string
+          example: "Plugin với ID này không tồn tại hoặc không thuộc Tenant của bạn."
+        details:
+          type: object
+          nullable: true
+          description: "Chi tiết lỗi bổ sung (validation errors, stacktrace ở dev mode)"
+      required:
+        - status
+        - error_code
+        - message
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        error_code:
+          type: string
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "Dữ liệu đầu vào không hợp lệ."
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "manifest_url"
+              issue:
+                type: string
+                example: "Phải là URL hợp lệ (bắt đầu bằng https://)"
+
+    # ==============================
+    # DOMAIN SCHEMAS
+    # ==============================
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          example: "nguyen.van.a@truong-a.edu.vn"
+        full_name:
+          type: string
+          example: "Nguyễn Văn A"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+          example: ["hr_manager", "leave_approver"]
+        last_login_at:
+          type: string
+          format: date-time
+        joined_at:
+          type: string
+          format: date-time
+
+    TenantInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Trường THPT Chu Văn An"
+        domain:
+          type: string
+          example: "cva.proteus.vn"
+        plan:
+          type: string
+          enum: [free, pro, enterprise]
+        is_active:
+          type: boolean
+        installed_plugin_count:
+          type: integer
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+
+    TenantCreateRequest:
+      type: object
+      required:
+        - name
+        - domain
+      properties:
+        name:
+          type: string
+          example: "Trường THPT Chu Văn An"
+        domain:
+          type: string
+          example: "cva"
+          description: "Subdomain duy nhất, không chứa dấu cách hay ký tự đặc biệt"
+        plan:
+          type: string
+          enum: [free, pro, enterprise]
+          default: free
+        admin_email:
+          type: string
+          format: email
+          description: "Email admin đầu tiên, sẽ được tạo tài khoản Keycloak tự động"
+
+    PluginInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code_name:
+          type: string
+          example: "hr-module"
+        display_name:
+          type: string
+          example: "Quản lý Nhân sự Pro"
+        description:
+          type: string
+        version:
+          type: string
+          example: "1.2.0"
+        author:
+          type: string
+          example: "ICTU Team"
+        icon_url:
+          type: string
+          format: uri
+        is_official:
+          type: boolean
+        download_count:
+          type: integer
+
+    InstalledPluginInfo:
+      allOf:
+        - $ref: '#/components/schemas/PluginInfo'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [INSTALLING, ACTIVE, FAILED_DIRTY, DISABLED, UNINSTALLING, DELETED]
+              example: "ACTIVE"
+            installed_version:
+              type: string
+              example: "1.2.0"
+            installed_at:
+              type: string
+              format: date-time
+            config_override:
+              type: object
+              nullable: true
+              description: "Cấu hình tùy chỉnh của Tenant"
+
+    PluginInstallRequest:
+      type: object
+      required:
+        - code_name
+        - manifest_url
+      properties:
+        code_name:
+          type: string
+          example: "hr-module"
+          description: "Định danh duy nhất của Plugin trên Marketplace"
+        manifest_url:
+          type: string
+          format: uri
+          example: "https://raw.githubusercontent.com/CuongKenn/ICTU_Proteus-os/main/plugins/hr-module/manifest.yaml"
+          description: "URL dẫn tới file manifest.yaml của Plugin"
+        config_override:
+          type: object
+          nullable: true
+          description: "Cấu hình tùy chỉnh (ghi đè default trong manifest)"
+
+    InstallTaskStatus:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          description: "ID tác vụ cài đặt ngầm"
+        plugin_code_name:
+          type: string
+        overall_status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, ROLLING_BACK]
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              step_name:
+                type: string
+                example: "Provisioning Database Schema"
+              status:
+                type: string
+                enum: [PENDING, RUNNING, DONE, FAILED]
+              message:
+                type: string
+                nullable: true
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    AICommandRequest:
+      type: object
+      required:
+        - command
+      properties:
+        command:
+          type: string
+          description: "Mệnh lệnh ngôn ngữ tự nhiên từ Giám đốc"
+          example: "Hãy duyệt tất cả đơn xin nghỉ phép trong ngày hôm nay."
+        context:
+          type: object
+          nullable: true
+          description: "Ngữ cảnh bổ sung (VD: phòng ban đang được focus)"
+          example:
+            department: "Kế toán"
+            date: "2026-08-05"
+        session_id:
+          type: string
+          nullable: true
+          description: "ID phiên chat (dùng để ghép các lệnh liên tiếp lại thành conversation)"
+
+    AICommandResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        intent:
+          type: string
+          description: "Ý định AI phân tích được"
+          example: "approve_leave_requests"
+        dsl_command:
+          type: object
+          description: "Cấu trúc DX-DSL đã được tạo ra, xem docs/dsl-spec.md"
+        requires_approval:
+          type: boolean
+          description: "TRUE nếu lệnh có tác động thực thi (write action)"
+        approval_message_id:
+          type: string
+          nullable: true
+          description: "ID tin nhắn Interactive đã gửi lên Mattermost để chờ phê duyệt"
+        mattermost_channel:
+          type: string
+          nullable: true
+          example: "town-square"
+
+    AIHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        command:
+          type: string
+        intent:
+          type: string
+        status:
+          type: string
+          enum: [PENDING_APPROVAL, APPROVED, REJECTED, EXECUTED, FAILED]
+        executed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    KnowledgeIngestRequest:
+      type: object
+      properties:
+        source_type:
+          type: string
+          enum: [nextcloud_file, url, raw_text]
+          description: "Loại nguồn dữ liệu cần nạp vào RAG"
+        source_path:
+          type: string
+          description: "Đường dẫn file Nextcloud hoặc URL"
+          example: "/Company/Policies/leave-policy.pdf"
+        raw_text:
+          type: string
+          nullable: true
+          description: "Nội dung văn bản thô (dùng khi source_type = raw_text)"
+        metadata:
+          type: object
+          description: "Tags, category cho document (dùng để lọc khi RAG query)"
+          example:
+            category: "HR Policy"
+            department: "all"
+
+    MattermostCallbackPayload:
+      type: object
+      required:
+        - user_id
+        - context
+      properties:
+        user_id:
+          type: string
+          description: "Mattermost User ID của người bấm nút"
+        action:
+          type: string
+          enum: [approve, reject]
+          description: "Hành động của người dùng"
+        context:
+          type: object
+          description: "Payload đính kèm trong Interactive Button"
+          properties:
+            action_id:
+              type: string
+              format: uuid
+              description: "ID lệnh AI cần thực thi sau khi phê duyệt"
+            session_id:
+              type: string
+              format: uuid
+
+    N8nCallbackPayload:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          description: "ID Workflow n8n đã chạy xong"
+        execution_id:
+          type: string
+          description: "ID lần thực thi cụ thể"
+        status:
+          type: string
+          enum: [success, error]
+        result_data:
+          type: object
+          nullable: true
+          description: "Dữ liệu kết quả của Workflow"
+        error_message:
+          type: string
+          nullable: true
+        session_id:
+          type: string
+          format: uuid
+          description: "Session AI gốc để báo cáo kết quả về đúng người"
 
 security:
   - KeycloakBearerAuth: []
 
+tags:
+  - name: System
+    description: Kiểm tra sức khỏe hệ thống
+  - name: Auth & Profile
+    description: Thông tin người dùng hiện tại
+  - name: Tenant Management
+    description: Quản lý Tenant (chỉ dành cho Super Admin)
+  - name: Plugin Marketplace
+    description: Danh sách, cài đặt, nâng cấp, gỡ bỏ Plugin
+  - name: Agentic AI
+    description: Điều phối Tác tử AI và xử lý phê duyệt
+  - name: Knowledge Base
+    description: Quản lý tài liệu cho RAG pipeline
+  - name: Webhooks
+    description: Callback endpoints nhận tín hiệu từ hệ thống ngoài
+
 paths:
+  # ==============================
+  # SYSTEM
+  # ==============================
   /health:
     get:
-      summary: Kiểm tra trạng thái hệ thống
-      tags:
-        - System
+      summary: Kiểm tra trạng thái hệ thống (Public)
+      description: Trả về trạng thái cơ bản. Không yêu cầu xác thực. Dùng cho load balancer health check.
+      tags: [System]
       security: []
       responses:
         '200':
-          description: OK
+          description: Hệ thống đang hoạt động bình thường
           content:
             application/json:
               schema:
@@ -76,50 +498,426 @@ paths:
                   status:
                     type: string
                     example: "healthy"
+                  version:
+                    type: string
+                    example: "2.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
 
-  /plugins:
+  /health/detailed:
     get:
-      summary: Lấy danh sách Plugin đã cài đặt của Tenant hiện tại
-      description: Dựa vào JWT Token, hệ thống trích xuất `tenant_id` và trả về các Plugin thuộc về Tenant đó.
-      tags:
-        - Plugin Marketplace
+      summary: Kiểm tra trạng thái chi tiết từng service
+      description: >
+        Trả về trạng thái ping tới từng service phụ thuộc. Yêu cầu role `system_admin`.
+        Sử dụng để debug khi hệ thống gặp sự cố.
+      tags: [System]
+      security: []
       responses:
         '200':
-          description: Trả về danh sách ứng dụng.
+          description: Chi tiết trạng thái từng service
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StandardResponse'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  services:
+                    type: object
+                    properties:
+                      postgresql:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [up, down]
+                          latency_ms:
+                            type: integer
+                            example: 3
+                      qdrant:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          latency_ms:
+                            type: integer
+                      n8n:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                      keycloak:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                      redis:
+                        type: object
+                        properties:
+                          status:
+                            type: string
 
-  /plugins/install:
+  # ==============================
+  # AUTH & PROFILE
+  # ==============================
+  /auth/me:
+    get:
+      summary: Lấy thông tin người dùng hiện tại
+      description: >
+        Dựa vào JWT Token, trả về thông tin đầy đủ của người dùng đang đăng nhập:
+        profile, tenant, và danh sách role đang được gán.
+        Frontend dùng endpoint này để render Launchpad (biết user là ai, có plugin nào).
+      tags: [Auth & Profile]
+      responses:
+        '200':
+          description: Thông tin người dùng và tenant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/UserProfile'
+                          tenant:
+                            $ref: '#/components/schemas/TenantInfo'
+        '401':
+          description: Token không hợp lệ hoặc đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==============================
+  # TENANT MANAGEMENT (Super Admin only)
+  # ==============================
+  /tenants:
+    get:
+      summary: Lấy danh sách tất cả Tenant (Super Admin)
+      description: Chỉ Super Admin của Proteus OS (không phải Tenant Admin) mới gọi được endpoint này.
+      tags: [Tenant Management]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Danh sách Tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+        '403':
+          description: Không có quyền Super Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
-      summary: Cài đặt một Plugin mới (Provisioning)
-      description: Core Engine sẽ tải manifest, chạy script SQL tạo bảng (Schema-per-tenant), và gọi n8n/Metabase để nạp dữ liệu. Hỗ trợ Auto-Rollback nếu lỗi.
-      tags:
-        - Plugin Marketplace
+      summary: Tạo Tenant mới (Onboarding khách hàng mới)
+      description: >
+        Tạo một Tenant mới, đồng thời tự động:
+        1. Tạo Realm tương ứng trong Keycloak.
+        2. Tạo tài khoản Admin đầu tiên trong Keycloak và gửi email mời.
+        3. Insert bản ghi vào bảng `TENANT` trong PostgreSQL.
+      tags: [Tenant Management]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PluginManifest'
+              $ref: '#/components/schemas/TenantCreateRequest'
+      responses:
+        '201':
+          description: Tenant được tạo thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TenantInfo'
+        '400':
+          description: Domain đã tồn tại hoặc dữ liệu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Không có quyền Super Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tenants/{tenant_id}:
+    get:
+      summary: Lấy thông tin chi tiết một Tenant
+      tags: [Tenant Management]
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Thông tin Tenant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TenantInfo'
+        '404':
+          description: Tenant không tìm thấy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==============================
+  # PLUGIN MARKETPLACE
+  # ==============================
+  /plugins/marketplace:
+    get:
+      summary: Lấy danh sách Plugin trên Marketplace (chưa cài đặt)
+      description: >
+        Trả về tất cả Plugin có sẵn trên App Store, có lọc ra những Plugin mà Tenant
+        hiện tại **chưa** cài đặt. Frontend dùng để render màn hình Marketplace.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Tìm kiếm theo tên Plugin
+        - name: is_official
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Danh sách Plugin có thể cài đặt
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PluginInfo'
+
+  /plugins:
+    get:
+      summary: Lấy danh sách Plugin đã cài đặt của Tenant hiện tại
+      description: Dựa vào JWT Token, hệ thống trích xuất `tenant_id` và trả về các Plugin đã cài thuộc về Tenant đó. Frontend dùng để render Launchpad.
+      tags: [Plugin Marketplace]
+      responses:
+        '200':
+          description: Danh sách Plugin đã cài đặt
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InstalledPluginInfo'
+
+  /plugins/install:
+    post:
+      summary: Cài đặt một Plugin mới (Async Provisioning)
+      description: >
+        Core Engine sẽ tải manifest, chạy script SQL tạo bảng (schema-per-tenant),
+        gọi n8n/Metabase/Appsmith để nạp dữ liệu. Toàn bộ là **background task** (async).
+
+        **Luồng Compensating Transaction:** Nếu bất kỳ bước nào thất bại, hệ thống tự động
+        rollback các bước đã hoàn thành và đặt trạng thái thành `FAILED_DIRTY`.
+
+        Dùng `GET /plugins/install/{task_id}/status` để polling tiến trình.
+      tags: [Plugin Marketplace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PluginInstallRequest'
       responses:
         '202':
-          description: Yêu cầu cài đặt đã được tiếp nhận và đang chạy ngầm (Background Task).
+          description: Yêu cầu cài đặt đã được tiếp nhận và đang chạy ngầm
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          task_id:
+                            type: string
+                            format: uuid
+                            description: "Dùng để polling tại GET /plugins/install/{task_id}/status"
+        '400':
+          description: manifest_url không hợp lệ hoặc Plugin đã được cài đặt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Người dùng không có quyền cài đặt Plugin (không phải Admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /plugins/install/{task_id}/status:
+    get:
+      summary: Polling trạng thái cài đặt Plugin (theo từng bước)
+      description: >
+        Frontend polling endpoint này mỗi 2-3 giây để cập nhật thanh tiến trình (Progress Bar)
+        trên UI trong khi Plugin đang được cài đặt ở phía backend.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trạng thái chi tiết của tác vụ cài đặt
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstallTaskStatus'
+        '404':
+          description: Task ID không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /plugins/{plugin_id}:
+    put:
+      summary: Nâng cấp (Upgrade) Plugin lên phiên bản mới
+      description: >
+        Tải manifest mới nhất, so sánh phiên bản với `installed_version`,
+        chạy script Migration tuần tự cho Database và nạp lại luồng n8n.
+        Đây cũng là background task, trả về task_id để polling.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: plugin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Yêu cầu nâng cấp đang được xử lý ngầm
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          task_id:
+                            type: string
+                            format: uuid
+        '404':
+          description: Plugin không tồn tại hoặc chưa được cài
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Gỡ cài đặt (Uninstall) Plugin
+      description: >
+        Chuyển trạng thái Plugin sang `UNINSTALLING`. Tác tử Dọn dẹp (Cleanup Agent)
+        sẽ tự động chạy ngầm để: DROP bảng schema, xóa workflow trên n8n,
+        xóa dashboard trên Metabase, và xóa UI khỏi Appsmith.
+        Hành động này **không thể hoàn tác** và sẽ xóa toàn bộ dữ liệu nghiệp vụ của Plugin.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: plugin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Yêu cầu gỡ cài đặt đã được tiếp nhận
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandardResponse'
+        '404':
+          description: Plugin không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
+  # ==============================
+  # AGENTIC AI
+  # ==============================
   /ai/execute:
     post:
       summary: Điều phối Tác tử AI thực thi lệnh (AI Orchestrator)
       description: >
-        Nhận lệnh bằng ngôn ngữ tự nhiên. 
-        Sử dụng Langchain kết hợp Qdrant (RAG) để phân tích ý định. 
-        Chuyển đổi thành luồng ReAct và kích hoạt luồng Webhook trên n8n.
-      tags:
-        - Agentic AI
+        Nhận lệnh bằng ngôn ngữ tự nhiên từ Giám đốc.
+
+        **Quy trình xử lý:**
+        1. LangChain + Qdrant (RAG) phân tích ý định và ngữ cảnh.
+        2. Chuyển đổi thành cấu trúc `DX-DSL` (xem `docs/dsl-spec.md`).
+        3. Validate DSL: kiểm tra action type, quyền của người ra lệnh.
+        4. Nếu lệnh có **tác động thực thi** (write action): bắt buộc gửi Interactive Message
+           qua Mattermost để chờ phê duyệt của Ban Giám đốc (**Human-in-the-loop**).
+        5. Nếu lệnh chỉ **đọc dữ liệu** (read action): thực thi ngay và trả về kết quả.
+      tags: [Agentic AI]
       requestBody:
         required: true
         content:
@@ -128,75 +926,231 @@ paths:
               $ref: '#/components/schemas/AICommandRequest'
       responses:
         '200':
-          description: Đã gửi lệnh xác nhận (Interactive Message) qua Mattermost thành công.
+          description: Đã xử lý lệnh AI thành công
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StandardResponse'
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AICommandResponse'
+        '400':
+          description: Lệnh không thể phân tích được hoặc DSL không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Người dùng không có quyền ra lệnh AI thực thi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /plugins/{plugin_id}:
-    put:
-      summary: Cập nhật (Upgrade) Plugin
-      description: Tải manifest mới nhất, chạy script Migration cho Database và nạp lại luồng n8n.
-      tags:
-        - Plugin Marketplace
-      parameters:
-        - name: plugin_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '202':
-          description: Yêu cầu nâng cấp đang được xử lý ngầm.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
-    delete:
-      summary: Gỡ cài đặt (Uninstall) Plugin
-      description: Xóa dữ liệu Plugin khỏi Tenant. Chuyển trạng thái Plugin sang DELETED. Tác tử dọn dẹp (Cleanup Agent) sẽ tự động chạy ngầm để DROP schema và xóa workflow trên n8n.
-      tags:
-        - Plugin Marketplace
-      parameters:
-        - name: plugin_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '202':
-          description: Yêu cầu gỡ cài đặt đang được xử lý ngầm.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
-
-  /webhooks/mattermost/callback:
-    post:
-      summary: Webhook Callback từ Mattermost (Phê duyệt của Giám đốc)
+  /ai/history:
+    get:
+      summary: Lấy lịch sử lệnh AI của Tenant
       description: >
-        Endpoint nhận tín hiệu khi người dùng (Giám đốc) click vào nút [Phê duyệt] hoặc [Từ chối] trên tin nhắn Interactive của Mattermost.
-        Nếu Phê duyệt, Core Engine sẽ gọi tiếp n8n để hoàn tất luồng hành động của AI.
-      tags:
-        - Agentic AI
+        Trả về lịch sử các lệnh AI đã được ra và kết quả thực thi.
+        Dùng để audit, debug và hiển thị trong giao diện quản trị AI.
+      tags: [Agentic AI]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING_APPROVAL, APPROVED, REJECTED, EXECUTED, FAILED]
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lịch sử lệnh AI
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AIHistoryItem'
+
+  # ==============================
+  # KNOWLEDGE BASE
+  # ==============================
+  /knowledge/ingest:
+    post:
+      summary: Nạp tài liệu vào RAG Pipeline
+      description: >
+        Nhận tài liệu từ Nextcloud, URL hoặc văn bản thô và xử lý:
+        1. Tải nội dung về.
+        2. Chunking (băm nhỏ văn bản).
+        3. Embedding (chuyển thành vector).
+        4. Lưu vào Qdrant với metadata của Tenant (để RAG chỉ tìm trong tài liệu của mình).
+        Là background task, trả về task_id để theo dõi.
+      tags: [Knowledge Base]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeIngestRequest'
+      responses:
+        '202':
+          description: Tài liệu đã được đưa vào hàng đợi xử lý
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          task_id:
+                            type: string
+                            format: uuid
+                          estimated_chunks:
+                            type: integer
+                            description: "Ước tính số chunk sẽ được tạo ra"
+        '400':
+          description: Nguồn dữ liệu không hợp lệ hoặc không thể truy cập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /knowledge/search:
+    post:
+      summary: Tìm kiếm ngữ nghĩa trong tài liệu nội bộ (RAG Query)
+      description: Tìm kiếm semantic search trên Qdrant, chỉ trong vector collection của Tenant hiện tại.
+      tags: [Knowledge Base]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - query
               properties:
-                user_id:
+                query:
                   type: string
-                context:
-                  type: object
-                  description: Dữ liệu đính kèm (VD action_id)
+                  example: "Quy trình xin nghỉ phép năm như thế nào?"
+                top_k:
+                  type: integer
+                  default: 5
+                  description: "Số lượng kết quả trả về"
+                filter_category:
+                  type: string
+                  nullable: true
       responses:
         '200':
-          description: Đã nhận lệnh phê duyệt thành công.
+          description: Kết quả tìm kiếm semantic
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            score:
+                              type: number
+                              format: float
+                              description: "Độ tương đồng (0.0 - 1.0)"
+                            content:
+                              type: string
+                            source:
+                              type: string
+                              description: "Nguồn tài liệu gốc"
+                            metadata:
+                              type: object
+
+  # ==============================
+  # WEBHOOKS (Callback từ hệ thống ngoài)
+  # ==============================
+  /webhooks/mattermost/callback:
+    post:
+      summary: Webhook Callback từ Mattermost (Phê duyệt của Giám đốc)
+      description: >
+        Endpoint nhận tín hiệu khi người dùng (Giám đốc) click vào nút **[Phê duyệt]** hoặc **[Từ chối]**
+        trên tin nhắn Interactive của Mattermost.
+
+        **Xác thực Callback:** Request từ Mattermost sẽ được ký bằng HMAC-SHA256 sử dụng
+        `MATTERMOST_WEBHOOK_SECRET`. Backend phải verify chữ ký trước khi xử lý.
+
+        Nếu Phê duyệt: Core Engine gọi n8n để hoàn tất luồng hành động của AI.
+        Nếu Từ chối: Core Engine ghi log và thông báo lại kết quả từ chối.
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MattermostCallbackPayload'
+      responses:
+        '200':
+          description: Đã nhận lệnh phê duyệt/từ chối thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '400':
+          description: Chữ ký HMAC không hợp lệ hoặc action_id đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /webhooks/n8n/callback:
+    post:
+      summary: Webhook Callback từ n8n (Báo cáo kết quả Workflow)
+      description: >
+        n8n gọi về endpoint này sau khi hoàn tất thực thi một Workflow.
+        Core Engine sẽ ghi nhận kết quả vào AUDIT_LOG và thông báo kết quả
+        về đúng người ra lệnh ban đầu qua Mattermost.
+
+        **Xác thực Callback:** Tương tự Mattermost, sử dụng `N8N_WEBHOOK_SECRET` để verify.
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/N8nCallbackPayload'
+      responses:
+        '200':
+          description: Callback nhận thành công
           content:
             application/json:
               schema:

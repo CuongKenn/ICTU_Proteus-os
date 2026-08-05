@@ -100,3 +100,68 @@ docker-compose ps
 
 - **Persistent Volumes:** Tất cả dữ liệu quan trọng (PostgreSQL data, Qdrant vectors, Mattermost files, Nextcloud data) đều được map ra ngoài thư mục vật lý thông qua Docker Volumes để đảm bảo dữ liệu không bị mất khi khởi động lại container.
 - **SSL/TLS:** Mặc định, Traefik được cấu hình sử dụng Let's Encrypt (DNS Challenge) để tự động cấp phát và gia hạn chứng chỉ SSL, đảm bảo mọi giao tiếp đều mã hóa qua HTTPS.
+
+---
+
+## 5. Hệ thống Ghi Log Tập trung (Observability Stack)
+
+Để đáp ứng NFR5, Proteus OS sử dụng **Grafana Loki + Promtail** (nhẹ hơn ELK Stack, phù hợp với Docker Compose) để thu thập và trực quan hóa log.
+
+### 5.1. Kiến trúc Logging
+
+```mermaid
+graph LR
+    subgraph Services
+        FastAPI[FastAPI Core Engine]
+        N8n[n8n Workflow]
+        NextJS[Next.js Frontend]
+    end
+
+    subgraph ObservabilityStack
+        Promtail[Promtail\nLog Collector]
+        Loki[(Grafana Loki\nLog Storage)]
+        Grafana[Grafana Dashboard]
+    end
+
+    FastAPI -->|stdout/stderr logs| Promtail
+    N8n -->|stdout/stderr logs| Promtail
+    NextJS -->|stdout/stderr logs| Promtail
+    Promtail -->|Push logs| Loki
+    Grafana -->|Query| Loki
+```
+
+### 5.2. Các nhóm Log quan trọng cần theo dõi
+
+| Log Label | Nội dung | Mức độ |
+|---|---|---|
+| `job=plugin-manager` | Tiến trình cài đặt Plugin (từng bước) | INFO / ERROR |
+| `job=ai-orchestrator` | Lệnh AI nhận được, DSL tạo ra, kết quả | INFO / WARN |
+| `job=auth-middleware` | Lỗi xác thực JWT, tenant không tồn tại | WARN / ERROR |
+| `job=rls-guard` | Attempt truy cập sai tenant_id | ERROR / CRITICAL |
+| `job=cleanup-agent` | Kết quả dọn dẹp FAILED_DIRTY plugins | INFO / ERROR |
+
+### 5.3. Truy cập Grafana
+
+Sau khi hệ thống khởi động, truy cập Grafana tại `https://proteus.local/monitoring/` với thông tin đăng nhập mặc định trong file `.env`.
+
+---
+
+## 6. Sao lưu & Phục hồi (Backup & Recovery)
+
+Để đáp ứng NFR6 và đảm bảo Business Continuity:
+
+### 6.1. Chiến lược Sao lưu
+
+- **PostgreSQL:** Cronjob tự động `pg_dump` mỗi ngày lúc 2:00 AM, lưu vào volume `./backups/postgres/`. Giữ lại 30 bản gần nhất.
+- **Qdrant Vector DB:** Sao lưu snapshot mỗi tuần (dữ liệu vector có thể rebuild lại từ tài liệu gốc nếu cần).
+- **Nextcloud Files:** Rsync hàng đêm sang storage phụ (có thể là S3-compatible như MinIO).
+- **Mattermost:** Export message history theo tháng.
+
+### 6.2. Kiểm tra Phục hồi
+
+Định kỳ 3 tháng/lần, Admin phải thực hiện **Disaster Recovery Test**:
+1. Dừng toàn bộ hệ thống.
+2. Khởi tạo lại từ bản backup mới nhất.
+3. Xác nhận dữ liệu nguyên vẹn.
+4. Ghi chép RTO (Recovery Time Objective) và RPO (Recovery Point Objective) đạt được.
+

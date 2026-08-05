@@ -39,6 +39,111 @@ Khi cung cấp phần mềm cho 100 trường học, chúng ta không thể mua 
 
 ---
 
-## 3. Tổng kết
+## 3. Đồng bộ Tài khoản Keycloak ↔ PostgreSQL
+
+Keycloak là nơi lưu thông tin đăng nhập, còn PostgreSQL lưu thông tin nghiệp vụ của người dùng. Làm thế nào hai hệ thống này luôn "biết" nhau?
+
+### 3.1. Luồng Đồng bộ
+
+Chúng ta sử dụng cơ chế **"First Login Hook"** thay vì đồng bộ theo batch, giúp tạo User record tự động mà không cần cronjob phức tạp.
+
+```
+[Người dùng đăng nhập lần đầu]
+         ↓
+Keycloak xác thực mật khẩu → Cấp JWT Token
+         ↓
+Next.js BFF nhận Token → Decode JWT → Đọc keycloak_id
+         ↓
+Next.js gọi FastAPI: GET /auth/me
+         ↓
+FastAPI kiểm tra: USER nào có keycloak_id này trong PostgreSQL?
+    - Nếu KHÔNG CÓ → Tự động INSERT User mới vào PostgreSQL (first-login provisioning)
+    - Nếu CÓ → Cập nhật last_login_at, đồng bộ full_name/email nếu đã thay đổi
+         ↓
+Trả về profile đầy đủ cho Frontend
+```
+
+### 3.2. Xử lý khi Admin vô hiệu hóa tài khoản
+
+Kịch bản: Nhân viên nghỉ việc, Admin bấm "Disable" trong Keycloak.
+- **Tác động tức thì:** Keycloak thu hồi Session, mọi Token cũ hết hạn (max 5 phút).
+- **Đồng bộ PostgreSQL:** Keycloak gửi **Event Webhook** (`user.disabled`) tới FastAPI endpoint `POST /webhooks/keycloak/events`. FastAPI cập nhật `USER.is_active = false`.
+- **Kết quả:** Nhân viên bị logout toàn bộ hệ thống (Chat, File, Dashboard) trong vòng 5 phút — đúng với Acceptance Criteria của FR1.
+
+---
+
+## 4. Giải mã Tính năng Báo cáo an toàn (Metabase Embedding)
+
+### 4.1. Thực trạng: Metabase OSS vs Enterprise
+
+> [!IMPORTANT]
+> **Tính năng "Signed Embedding" yêu cầu Metabase Enterprise** (trả phí ~$500+/tháng). Dự án sử dụng phương án thay thế miễn phí bên dưới.
+
+### 4.2. Phương án cho Proteus OS (Metabase OSS)
+
+Proteus OS sử dụng **Public Embedding kết hợp Row-Level Security** để đạt mức bảo mật tương đương:
+
+1. **Bộ lọc cứng trên Dashboard:** Mỗi Metabase Question/Dashboard được cấu hình sẵn filter `tenant_id = {{tenant_id}}` dưới dạng Locked Parameter. Người xem không thể thay đổi filter này từ giao diện.
+
+2. **Kiểm soát truy cập qua Traefik:** Trước khi render Iframe Metabase, Next.js BFF gọi API nội bộ để lấy **embed_url** có kèm tham số lọc. URL này có thời gian sống ngắn (TTL 60 giây), không thể tái sử dụng.
+
+3. **Fallback — Metabase Service Account per Tenant:** Mỗi Tenant được cấp một Metabase account riêng, chỉ có quyền xem Dashboard của mình. Keycloak SSO đồng bộ login vào Metabase qua LDAP/OIDC, đảm bảo không cần quản lý mật khẩu riêng.
+
+**Kết quả:** Giáo viên lớp 10A mở biểu đồ điểm số → chỉ thấy điểm lớp 10A. Không thể truy cập biểu đồ của lớp khác.
+
+---
+
+## 5. Cơ chế AI Thực thi Ủy quyền (Human-in-the-Loop)
+
+Đây là tính năng phân biệt Proteus OS với các chatbot thông thường. AI không chỉ "nói chuyện" mà còn có thể **làm việc thật sự**.
+
+### 5.1. Tại sao cần Human-in-the-Loop?
+
+Hãy tưởng tượng AI nghe lệnh "Duyệt tất cả đơn nghỉ phép hôm nay" và **tự động thực thi ngay**. Điều gì xảy ra nếu:
+- Có 50 đơn bất thường cùng một ngày (dấu hiệu gian lận)?
+- Lệnh bị hiểu nhầm (AI duyệt cả đơn của tuần sau)?
+- Người ra lệnh không đủ thẩm quyền?
+
+**Giải pháp:** Mọi hành động thực thi của AI đều phải đi qua nút **[Phê duyệt]** của người có thẩm quyền.
+
+### 5.2. Luồng Hoạt động Chi tiết
+
+```
+Giám đốc chat: "Duyệt tất cả đơn xin nghỉ phép hôm nay"
+         ↓
+AI Orchestrator phân tích → Tạo DX-DSL Command:
+{
+  "action": "hr.leave_requests.batch_approve",
+  "effect": "write",       ← Đây là write action → BẮT BUỘC xin phê duyệt
+  "filter": { "date": "today", "status": "pending" },
+  "count": 12              ← AI đếm trước để BGĐ biết
+}
+         ↓
+AI gửi Interactive Message lên Mattermost:
+"⚠️ Tôi chuẩn bị DUYỆT 12 đơn nghỉ phép ngày 05/08/2026.
+ [✅ Phê duyệt]   [❌ Hủy bỏ]"
+         ↓
+Giám đốc bấm [✅ Phê duyệt]
+         ↓
+Mattermost gửi callback → FastAPI /webhooks/mattermost/callback
+         ↓
+FastAPI verify chữ ký HMAC → Kích hoạt n8n Workflow
+         ↓
+n8n cập nhật 12 đơn trong PostgreSQL → Gửi email thông báo → Callback FastAPI
+         ↓
+AI báo cáo: "✅ Đã duyệt thành công 12 đơn nghỉ phép. Chi tiết: [link]"
+```
+
+### 5.3. Các loại Action và Quy tắc Phê duyệt
+
+| Loại Action | Ví dụ | Cần phê duyệt? |
+|---|---|---|
+| `effect: read` | "Bao nhiêu nhân viên nghỉ phép hôm nay?" | ❌ Không (trả lời ngay) |
+| `effect: write` | "Duyệt đơn nghỉ phép", "Gửi email toàn công ty" | ✅ Bắt buộc |
+| `effect: critical` | "Xóa tài khoản nhân viên", "Chuyển khoản ngân hàng" | ✅ Bắt buộc + Xác nhận lần 2 |
+
+---
+
+## 6. Tổng kết
 
 Proteus OS sinh ra để đập tan tình trạng "ốc đảo thông tin" (mỗi phòng ban dùng một phần mềm rời rạc). Nó biến hệ thống quản trị của bất kỳ tổ chức nào thành một thể thống nhất, **dễ cài đặt như tải App trên điện thoại**, **bảo mật như ngân hàng** (nhờ cô lập chung cư Multi-tenancy), và **cực kỳ thông minh** nhờ AI trực tiếp điều hành công việc.

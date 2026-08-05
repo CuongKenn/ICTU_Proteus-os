@@ -86,31 +86,41 @@ graph LR
 
 **Đặc điểm kỹ thuật Frontend:**
 - **App Shell Design:** Tạo ra một khung viền giao diện duy nhất. Các ứng dụng khác (Appsmith, Metabase, Mattermost) được nhúng vào vị trí nội dung (Main Content Area) để giữ lại thanh điều hướng (Navbar) của Proteus OS. Để khắc phục lỗi SameSite Cookie và X-Frame-Options khi nhúng Iframe, hệ thống sử dụng **Single-Domain Path-Based Routing** qua Traefik (tất cả các app chạy chung một domain gốc, vd: `proteus.local/chat`, `proteus.local/apps`).
-- **BFF Pattern:** Client (Trình duyệt) không bao giờ gọi trực tiếp xuống FastAPI. Mọi request đi qua Next.js API Routes. Tại đây, Next.js sẽ đính kèm Access Token (lưu an toàn bằng HttpOnly Cookies) vào Header trước khi gửi xuống FastAPI, giúp chống lại tấn công XSS.
+- **BFF Pattern & Token Storage:** Client (Trình duyệt) không bao giờ gọi trực tiếp xuống FastAPI. Mọi request đi qua Next.js API Routes (BFF). Sau khi Keycloak trả về Access Token, **Next.js Server** (không phải browser) lưu Token vào **HttpOnly, Secure, SameSite=Strict Cookie**. Token không bao giờ xuất hiện ở JavaScript client, giúp chống lại tấn công XSS. Khi cần gọi FastAPI, Next.js API Route đọc Token từ Cookie phía server và đính kèm vào `Authorization: Bearer` Header trước khi forward request.
+- **Zustand — Chỉ dùng cho UI State:** Zustand chỉ lưu trữ các trạng thái UI không nhạy cảm như: trạng thái sidebar (mở/đóng), theme (dark/light), ngôn ngữ hiển thị. **Tuyệt đối không lưu JWT Token, user credentials, hay bất kỳ thông tin nhạy cảm nào vào Zustand.**
 - **Kiến trúc Custom Hooks & Zustand (Thay thế MVVM):** Thay vì áp dụng mô hình MVVM truyền thống (vốn đi ngược lại triết lý One-way Data Flow của React), Frontend sử dụng mô hình Component-Based kết hợp Custom Hooks.
   - *ViewModel (Custom Hooks):* Đóng gói toàn bộ Business Logic và State Management (sử dụng **Zustand**) vào các hooks như `useAppStore()`, `useAuth()`. Điều này giúp tách biệt hoàn toàn giao diện khỏi logic nghiệp vụ, dễ dàng viết Unit Test.
 
 ### 2.1.1. Luồng Xác thực SSO & Nhúng Iframe (Sequence Diagram)
-Việc truyền Token vào Iframe (Appsmith/Metabase) một cách bảo mật thường vấp phải giới hạn SameSite Cookie hoặc CORS. Để khắc phục, hệ thống định tuyến Iframe đi qua Traefik Proxy.
+Việc truyền Token vào Iframe (Appsmith/Metabase) một cách bảo mật thường vấp phải giới hạn SameSite Cookie hoặc CORS. Để khắc phục, hệ thống định tuyến Iframe đi qua Traefik Proxy và tận dụng cơ chế **HttpOnly Cookie chia sẻ cùng domain**.
+
+> [!WARNING]
+> **Anti-pattern cần tránh:** Tuyệt đối **KHÔNG** truyền JWT Token vào URL query parameter (VD: `?token=xxx`). Token trong URL sẽ bị lộ trong: browser history, server access log, `Referer` header khi click link, và màn hình shoulder-surfing. Đây là vi phạm nghiêm trọng OWASP A02:2021.
 
 ```mermaid
 sequenceDiagram
     participant User as Người dùng
-    participant UI as Next.js (App Shell)
+    participant Browser as Browser (Client)
+    participant NextJS as Next.js Server (BFF)
     participant Keycloak as Keycloak (SSO)
     participant Traefik as Traefik Proxy
     participant Appsmith as Appsmith (Iframe)
 
-    User->>UI: Truy cập ứng dụng (VD: /apps/hr)
-    UI->>Keycloak: Chuyển hướng để đăng nhập
-    Keycloak-->>UI: Trả về JWT Access Token
-    UI->>UI: Lưu Token vào Local State (Zustand)
-    UI->>Traefik: Render Iframe (src="/proxy/appsmith", truyền Token vào URL hoặc Header ẩn)
-    Note over UI,Traefik: Single-Domain Path-Based Routing
-    Traefik->>Traefik: Middleware bóc tách Token, Verify nhanh
+    User->>Browser: Truy cập ứng dụng (VD: proteus.local/apps/hr)
+    Browser->>NextJS: GET /apps/hr (chưa có session)
+    NextJS->>Keycloak: Redirect đăng nhập (OIDC Authorization Code Flow)
+    User->>Keycloak: Nhập username/password
+    Keycloak-->>NextJS: Callback với Authorization Code
+    NextJS->>Keycloak: Đổi Code lấy Access Token + Refresh Token
+    Note over NextJS,Keycloak: Bước này xảy ra phía SERVER, browser không thấy Token
+    NextJS->>Browser: Set-Cookie: session=<encrypted_token>; HttpOnly; Secure; SameSite=Strict
+    Browser->>NextJS: GET /proxy/appsmith (tự động kèm HttpOnly Cookie)
+    NextJS->>NextJS: Đọc Token từ Cookie (phía server), gắn vào Authorization Header
+    NextJS->>Traefik: Forward request kèm Bearer Token (nội mạng)
+    Note over NextJS,Traefik: Single-Domain Path-Based Routing (cùng domain proteus.local)
     Traefik->>Appsmith: Chuyển tiếp Request nội mạng (Kèm Session/Auth)
-    Appsmith-->>UI: Render HTML (Đã đăng nhập thành công)
-    UI-->>User: Hiển thị giao diện liền mạch
+    Appsmith-->>Browser: Render HTML (Đã đăng nhập thành công)
+    Browser-->>User: Hiển thị giao diện liền mạch
 ```
 
 ### 2.2. Backend Architecture (FastAPI)
@@ -135,6 +145,16 @@ Bởi vì Core Engine đóng vai trò là một "Orchestrator" phải gọi rấ
 
 ---
 
+## 2.3. AI Orchestrator & DX-DSL
+
+AI Orchestrator là bộ não điều phối nối giữa lệnh ngôn ngữ tự nhiên của người dùng và hành động thực thi trên hệ thống. Sau khi LangChain + RAG phân tích ý định, Orchestrator chuyển đổi lệnh sang cấu trúc **DX-DSL (Domain Execution - Domain Specific Language)**.
+
+Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **[`docs/dsl-spec.md`](./dsl-spec.md)**.
+
+**Nguyên tắc Human-in-the-loop bắt buộc:** Bất kỳ DSL Command nào có `effect: write` (tác động thực thi — thay đổi dữ liệu, kích hoạt workflow) đều **PHẢI** gửi Interactive Message qua Mattermost để chờ phê duyệt của Ban Giám đốc trước khi thực thi. AI không được phép tự động bypass bước này.
+
+---
+
 ## 3. Kiến trúc Đa khách hàng (Multi-Tenancy) & Phân quyền
 
 Để Proteus OS có thể thương mại hoá dưới dạng SaaS bán cho nhiều tổ chức (trường học/doanh nghiệp) dùng chung trên 1 hệ thống đám mây, kiến trúc bảo mật được thiết kế như sau:
@@ -143,3 +163,25 @@ Bởi vì Core Engine đóng vai trò là một "Orchestrator" phải gọi rấ
 - **Phân quyền Động (RBAC):** Khi một Plugin được cài đặt, nó định nghĩa các Vai trò (Role) trong `manifest.yaml`. Người dùng được gán Role trong Keycloak. Token JWT mang theo Role này và sẽ được Frontend đọc để giấu bớt giao diện (Dynamic UI) và Backend đọc để chặn truy cập trái phép.
 - **Cô lập Dữ liệu (PostgreSQL Row-Level Security):** Toàn bộ dữ liệu nghiệp vụ của các tổ chức được lưu chung trên một Database (Shared-Schema) để tối ưu hóa tài nguyên và dễ dàng bảo trì. Hệ thống sử dụng cơ chế **Row-Level Security (RLS)** trên Postgres (thông qua cột `tenant_id`) để đảm bảo dữ liệu của tổ chức nào chỉ tổ chức đó truy cập được, an toàn tuyệt đối ở cấp độ cơ sở dữ liệu.
 - **Cô lập Ứng dụng (App Store):** Trường A có thể mua và cài Plugin "Quản lý Canteen", hệ thống sẽ kích hoạt Plugin này vào Schema của Trường A. Trường B sẽ không nhìn thấy tính năng này nếu chưa mua.
+
+---
+
+## 4. Quyết định Kiến trúc (Architecture Decision Records)
+
+### ADR-001: Chọn Redis làm Event Bus
+
+**Ngày quyết định:** 2026-08-05  
+**Trạng thái:** Đã chốt ✅
+
+**Lý do lựa chọn Redis Pub/Sub thay vì RabbitMQ:**
+
+| Tiêu chí | Redis Pub/Sub | RabbitMQ |
+|---|---|---|  
+| **RAM footprint** | ~50MB | ~200MB+ |
+| **Độ phức tạp** | Đơn giản, ít config | Phức tạp, cần nhiều config |
+| **Message durability** | Mất message nếu subscriber offline | Persistent, có ACK |
+| **Phù hợp với use case** | Event-driven thông báo tức thì | Reliable task queue |
+
+**Kết luận:** Trong Proteus OS, Event Bus chủ yếu dùng để **Plugin A phát sự kiện, Plugin B lắng nghe tức thì** (VD: HR tạo nhân viên mới → Finance tạo tài khoản lương). Đây là use case của fire-and-forget notification, không yêu cầu message durability. Redis Pub/Sub đủ dùng và nhẹ hơn nhiều so với RabbitMQ, giúp giảm yêu cầu RAM của toàn hệ thống.
+
+**Lưu ý:** Nếu trong tương lai cần **reliable task queue** (VD: email gửi đi phải đảm bảo không mất), sẽ thêm **Redis Streams** (không phải Pub/Sub) hoặc nâng cấp lên RabbitMQ cho queue đó riêng biệt.

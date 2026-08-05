@@ -13,100 +13,249 @@ erDiagram
     TENANT {
         uuid id PK
         string name "Tên Trường/Doanh nghiệp"
-        string domain "Subdomain định danh"
+        string domain "Subdomain định danh (VD: truong-a.proteus.vn)"
         string keycloak_realm "Tên Realm trên Keycloak"
+        string plan "Gói dịch vụ: free / pro / enterprise"
+        boolean is_active "Trạng thái hoạt động"
         timestamp created_at
+        timestamp updated_at
     }
-    
+
     USER {
         uuid id PK
         uuid tenant_id FK "Thuộc về 1 Tenant duy nhất (1 Realm)"
-        uuid keycloak_id "ID đồng bộ từ Keycloak"
+        uuid keycloak_id "ID đồng bộ từ Keycloak (UUID duy nhất)"
         string email
         string full_name
+        string avatar_url
         boolean is_active
+        timestamp last_login_at "Dùng cho audit và bảo mật"
         timestamp joined_at
+        timestamp updated_at "Dùng để tracking đồng bộ từ Keycloak"
     }
-    
+
     ROLE {
         uuid id PK
-        string name "Tên vai trò (VD: Admin, HR)"
+        uuid tenant_id FK "Role thuộc về Tenant nào (NULL = Core Role)"
+        string plugin_code_name "Role thuộc Plugin nào (NULL = System Role)"
+        string name "Tên vai trò (VD: hr_manager, finance_viewer)"
+        string display_name "Tên hiển thị thân thiện"
         string description
+        boolean is_system_role "TRUE = Core Role, không xóa được"
+        timestamp created_at
     }
-    
+
     USER_ROLE {
         uuid user_id FK
         uuid role_id FK
+        uuid granted_by_user_id FK "Ai đã gán role này"
+        timestamp granted_at
     }
-    
+
     PLUGIN {
         uuid id PK
-        string code_name "VD: hr-module"
+        string code_name "Định danh duy nhất, VD: hr-module"
         string display_name "Tên hiển thị trên App Store"
-        string version
-        string manifest_url "Đường dẫn tải manifest"
+        string description
+        string version "Phiên bản hiện tại (Semantic Versioning)"
+        string icon_url
+        string manifest_url "Đường dẫn tải manifest.yaml"
+        string author "Tên nhà phát triển"
+        string license "Giấy phép (VD: AGPL-3.0)"
+        boolean is_official "Plugin chính thức của Proteus OS?"
+        integer download_count
+        timestamp published_at
+        timestamp updated_at
     }
-    
+
     TENANT_PLUGIN {
         uuid tenant_id FK
         uuid plugin_id FK
-        boolean is_active "Trạng thái Bật/Tắt"
+        string status "Enum: INSTALLING / ACTIVE / FAILED_DIRTY / DISABLED / UNINSTALLING / DELETED"
+        string installed_version "Phiên bản đang chạy"
+        jsonb config_override "Cấu hình tùy chỉnh của Tenant (ghi đè default)"
+        text install_error_log "Lưu stacktrace nếu status = FAILED_DIRTY"
+        uuid installed_by_user_id FK "Admin nào đã bấm Install"
         timestamp installed_at
+        timestamp last_updated_at
+    }
+
+    AUDIT_LOG {
+        uuid id PK
+        uuid tenant_id FK "Hành động xảy ra ở Tenant nào"
+        uuid user_id FK "Ai thực hiện (NULL nếu là AI Agent)"
+        string actor_type "Enum: HUMAN / AI_AGENT / SYSTEM"
+        string action "Tên hành động, VD: plugin.install, ai.command.execute"
+        string resource_type "Loại đối tượng bị tác động, VD: PLUGIN, USER, WORKFLOW"
+        uuid resource_id "ID đối tượng bị tác động"
+        jsonb payload "Dữ liệu đầu vào của hành động"
+        jsonb result "Kết quả sau khi thực thi"
+        string status "Enum: SUCCESS / FAILED / PENDING_APPROVAL"
+        string ip_address
+        timestamp created_at
     }
 
     TENANT ||--o{ USER : "có nhiều"
+    TENANT ||--o{ ROLE : "định nghĩa"
     USER ||--o{ USER_ROLE : "được phân"
     ROLE ||--o{ USER_ROLE : "áp dụng cho"
-    
+    USER ||--o{ USER_ROLE : "cấp phép (granted_by)"
+
     TENANT ||--o{ TENANT_PLUGIN : "cài đặt"
     PLUGIN ||--o{ TENANT_PLUGIN : "được cài bởi"
+    USER ||--o{ TENANT_PLUGIN : "cài đặt bởi (installed_by)"
+
+    TENANT ||--o{ AUDIT_LOG : "thuộc về"
+    USER ||--o{ AUDIT_LOG : "thực hiện"
 ```
+
+---
 
 ## 2. Diễn giải các Bảng (Tables Description)
 
 ### 2.1. Nhóm Quản lý Đa khách hàng & Người dùng (Multi-Tenancy & Identity)
-- **Bảng `TENANT`:** Trái tim của kiến trúc Multi-Tenancy. Mỗi khách hàng mua SaaS sẽ có một bản ghi ở đây. Cột `keycloak_realm` dùng để trỏ tới vách ngăn tương ứng bên trong Keycloak.
-- **Bảng `USER`:** Lưu trữ thông tin cơ bản của người dùng. Mỗi User chỉ thuộc về 1 Tenant duy nhất để đồng nhất với cơ chế cách ly Realm của Keycloak. Mật khẩu không được lưu ở đây mà do Keycloak quản lý. Cột `keycloak_id` dùng làm cầu nối để đồng bộ trạng thái khi đăng nhập (SSO).
 
-### 2.2. Nhóm Quản lý Phân quyền (RBAC)
-- **Bảng `ROLE`:** Danh mục các Vai trò cốt lõi.
-- **Bảng `USER_ROLE`:** Xác định cụ thể người dùng có vai trò gì trong hệ thống. Bảng này là căn cứ để chặn/mở quyền ở API Gateway.
+- **Bảng `TENANT`:** Trái tim của kiến trúc Multi-Tenancy. Mỗi khách hàng mua SaaS sẽ có một bản ghi ở đây. Cột `keycloak_realm` dùng để trỏ tới vách ngăn tương ứng bên trong Keycloak. Cột `plan` xác định giới hạn tính năng (freemium model).
+- **Bảng `USER`:** Lưu trữ thông tin cơ bản của người dùng. Mỗi User chỉ thuộc về 1 Tenant duy nhất để đồng nhất với cơ chế cách ly Realm của Keycloak. Mật khẩu **không được lưu ở đây** mà do Keycloak quản lý. Cột `keycloak_id` dùng làm cầu nối để đồng bộ trạng thái khi đăng nhập (SSO). Cột `updated_at` dùng để phát hiện khi Keycloak gửi User-Updated event.
+
+### 2.2. Nhóm Quản lý Phân quyền (RBAC - Role-Based Access Control)
+
+- **Bảng `ROLE`:** Danh mục các Vai trò. Điểm quan trọng:
+  - `tenant_id = NULL` → **Core System Role** (Admin, SuperAdmin) áp dụng toàn hệ thống.
+  - `tenant_id = <id>` → **Tenant-scoped Role** (HR Manager của Trường A).
+  - `plugin_code_name != NULL` → **Plugin Role** tự động tạo khi Plugin được cài đặt (VD: `hr_manager`, `leave_approver`).
+- **Bảng `USER_ROLE`:** Xác định cụ thể người dùng có vai trò gì trong hệ thống. Cột `granted_by_user_id` đảm bảo mọi thay đổi phân quyền đều có người chịu trách nhiệm (accountability).
 
 ### 2.3. Nhóm Quản lý Chợ Ứng dụng (Marketplace)
+
 - **Bảng `PLUGIN`:** Chứa danh sách các gói mở rộng hiện có trên App Store của Proteus OS (như HR, Finance, CRM).
-- **Bảng `TENANT_PLUGIN`:** Ghi nhận tổ chức (Tenant) nào đã bấm nút "Install" ứng dụng nào. Khi truy cập Launchpad, Frontend (Next.js) sẽ `SELECT` từ bảng này để biết phải vẽ ra màn hình những Icon ứng dụng nào cho tổ chức đó.
+- **Bảng `TENANT_PLUGIN`:** Ghi nhận tổ chức nào đã cài ứng dụng nào. Khi truy cập Launchpad, Frontend (Next.js) sẽ `SELECT` từ bảng này để vẽ ra màn hình các Icon ứng dụng. Trạng thái `status` quan trọng:
+
+  | Status | Ý nghĩa |
+  |---|---|
+  | `INSTALLING` | Đang chạy provisioning (tạo DB, nạp n8n, Metabase) |
+  | `ACTIVE` | Đã cài đặt thành công, sẵn sàng sử dụng |
+  | `FAILED_DIRTY` | Cài đặt thất bại giữa chừng, có dữ liệu rác. Cleanup Agent sẽ xử lý |
+  | `DISABLED` | Admin tắt tạm thời nhưng chưa gỡ |
+  | `UNINSTALLING` | Đang gỡ cài đặt (Compensating Transaction) |
+  | `DELETED` | Đã gỡ hoàn toàn |
+
+### 2.4. Nhóm Kiểm toán & Bảo mật (Audit Trail)
+
+- **Bảng `AUDIT_LOG`:** Ghi lại mọi hành động quan trọng trong hệ thống. Đây là yêu cầu bắt buộc cho hệ thống Enterprise, đặc biệt khi AI Agent có quyền thực thi lệnh thay mặt người dùng. Cột `actor_type = AI_AGENT` giúp dễ dàng lọc và kiểm soát các hành động do AI thực hiện. Bảng này **không được phép xóa (DELETE)**, chỉ được thêm (INSERT-only).
+
+---
 
 ## 3. Liên kết với Dữ liệu Nghiệp vụ của Plugin
+
 Khi Tenant cài đặt Plugin `hr-module`, hệ thống sẽ tự động sinh ra các bảng nghiệp vụ (như `hr_employees`, `hr_leave_requests`) và **tự động thêm cột `tenant_id` (Khóa ngoại)** vào các bảng đó để đảm bảo áp dụng chính sách bảo mật Row-Level Security (RLS).
 
 ### Ví dụ: Cấu trúc Dữ liệu của HR Plugin (Minh họa RLS)
-Khi Plugin HR được cài đặt, nó sẽ sinh ra các bảng riêng và liên kết với Core như sau:
 
 ```mermaid
 erDiagram
     TENANT {
         uuid id PK
     }
-    
+
     HR_EMPLOYEE {
         uuid id PK
         uuid tenant_id FK "Dùng để phân tách dữ liệu (RLS)"
         string full_name
         string position
+        string department
+        date hire_date
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
     }
-    
+
     HR_LEAVE_REQUEST {
         uuid id PK
         uuid tenant_id FK "Dùng để phân tách dữ liệu (RLS)"
         uuid employee_id FK
+        uuid approved_by FK "NULL nếu chưa duyệt"
+        string leave_type "ENUM: annual / sick / unpaid"
         date start_date
         date end_date
-        string status
+        integer days_count
+        string reason
+        string status "ENUM: pending / approved / rejected / cancelled"
+        timestamp created_at
+        timestamp updated_at
     }
 
     TENANT ||--o{ HR_EMPLOYEE : "sở hữu"
     TENANT ||--o{ HR_LEAVE_REQUEST : "sở hữu"
     HR_EMPLOYEE ||--o{ HR_LEAVE_REQUEST : "tạo"
+    HR_EMPLOYEE ||--o{ HR_LEAVE_REQUEST : "duyệt (approved_by)"
 ```
 
-Nhờ cột `tenant_id`, lệnh truy vấn của Nhân viên công ty A `SELECT * FROM hr_leave_requests` sẽ bị PostgreSQL (thông qua RLS Policy) tự động chèn thêm điều kiện `WHERE tenant_id = 'A'`. Điều này đảm bảo an toàn tuyệt đối ở cấp độ cơ sở dữ liệu, không cho phép rò rỉ dữ liệu sang công ty B.
+---
+
+## 4. Triển khai Row-Level Security (RLS) trên PostgreSQL
+
+RLS là lớp bảo vệ cuối cùng ở cấp độ Database, đảm bảo dữ liệu không bao giờ rò rỉ ngay cả khi code tầng trên có lỗi.
+
+### 4.1. Cơ chế hoạt động
+
+PostgreSQL sử dụng một biến session (`app.current_tenant_id`) được set bởi SQLAlchemy middleware tại thời điểm bắt đầu mỗi request. Khi một query chạy, PostgreSQL sẽ tự động áp thêm điều kiện `WHERE tenant_id = current_setting('app.current_tenant_id')`.
+
+### 4.2. Middleware Set Session Variable
+
+Trong FastAPI backend (`core-engine/backend/adapters/postgres_adapter.py`), mỗi request được xử lý như sau:
+
+```sql
+-- Được gọi bởi SQLAlchemy event listener trước mỗi query
+SET LOCAL app.current_tenant_id = '<tenant_id_from_jwt>';
+```
+
+### 4.3. Script RLS Policy mẫu
+
+Mỗi Plugin khi cài đặt sẽ chạy script tương tự để kích hoạt RLS cho các bảng của mình:
+
+```sql
+-- 1. Bật RLS cho bảng
+ALTER TABLE hr_leave_requests ENABLE ROW LEVEL SECURITY;
+
+-- 2. Tạo Policy: Chỉ xem được record của Tenant mình
+CREATE POLICY tenant_isolation_policy ON hr_leave_requests
+    USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
+
+-- 3. Áp dụng cho tất cả các lệnh (SELECT, INSERT, UPDATE, DELETE)
+CREATE POLICY tenant_isolation_policy ON hr_leave_requests
+    FOR ALL
+    USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid);
+```
+
+> [!WARNING]
+> **Lưu ý quan trọng về Superuser:** PostgreSQL RLS **bỏ qua** hoàn toàn đối với Superuser. Do đó, ứng dụng (FastAPI) phải kết nối đến PostgreSQL bằng một user có quyền hạn chế (không phải `postgres`), chỉ có `SELECT`, `INSERT`, `UPDATE`, `DELETE` trên các bảng nghiệp vụ. Superuser chỉ được dùng cho công tác DBA.
+
+### 4.4. Luồng Query hoàn chỉnh
+
+```
+JWT Token (có tenant_id: "uuid-truong-a")
+        ↓
+FastAPI Middleware (trích xuất tenant_id)
+        ↓
+SQLAlchemy Event: SET LOCAL app.current_tenant_id = 'uuid-truong-a'
+        ↓
+Query: SELECT * FROM hr_leave_requests
+        ↓
+PostgreSQL RLS tự động biến thành:
+SELECT * FROM hr_leave_requests WHERE tenant_id = 'uuid-truong-a'
+        ↓
+Kết quả: Chỉ trả về dữ liệu của Trường A ✅
+```
+
+---
+
+## 5. Chiến lược Migration Schema
+
+Khi Plugin được nâng cấp (upgrade), hệ thống cần cập nhật schema mà không làm mất dữ liệu.
+
+- Mỗi Plugin đi kèm thư mục `migrations/` chứa các script Alembic (hoặc SQL thuần).
+- Plugin Manager so sánh `installed_version` (trong `TENANT_PLUGIN`) với `version` trong `manifest.yaml` mới tải về.
+- Các migration script được đặt tên theo dạng `V1.0.0__initial.sql`, `V1.1.0__add_department.sql` để chạy tuần tự.
+- Nếu migration thất bại, Compensating Transaction sẽ `ROLLBACK` toàn bộ và đặt trạng thái về `FAILED_DIRTY`.
