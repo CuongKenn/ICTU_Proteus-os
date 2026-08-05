@@ -144,6 +144,143 @@ AI báo cáo: "✅ Đã duyệt thành công 12 đơn nghỉ phép. Chi tiết: 
 
 ---
 
-## 6. Tổng kết
+## 6. Giao tiếp giữa các Plugin — Độc lập hay Kết nối?
+
+Đây là câu hỏi kiến trúc quan trọng. Câu trả lời ngắn gọn là: **Plugin độc lập về dữ liệu, nhưng CÓ THỂ giao tiếp với nhau qua sự kiện (Event-Driven)**.
+
+### 6.1. Nguyên tắc cơ bản: Loose Coupling
+
+Proteus OS thiết kế các Plugin theo nguyên tắc **"Loose Coupling, High Cohesion"** — giống như các ứng dụng trên điện thoại:
+
+- Ứng dụng **Zalo** và **ViettelPay** trên điện thoại bạn không "biết" nhau.
+- Nhưng khi bạn nhận được tiền qua Zalo Pay → Zalo **phát ra thông báo** → ViettelPay **nhận được thông báo** → Cả hai cùng cập nhật số dư cho bạn.
+- Zalo không cần biết ViettelPay hoạt động như thế nào. ViettelPay cũng không cần truy cập dữ liệu nội bộ của Zalo.
+
+**Proteus OS hoạt động y như vậy với các Plugin.**
+
+### 6.2. Cô lập Dữ liệu (Data Isolation) — Quy tắc Vàng
+
+> [!CAUTION]
+> **Tuyệt đối cấm** một Plugin truy vấn trực tiếp vào bảng dữ liệu của Plugin khác (cross-schema query). Đây là nguyên nhân số 1 gây ra "Spaghetti Architecture" trong các hệ thống ERP truyền thống.
+
+Mỗi Plugin khi được cài đặt có **schema dữ liệu riêng biệt**:
+- `hr-module` → Có bảng `hr_employees`, `hr_leave_requests`
+- `finance-module` → Có bảng `finance_accounts`, `finance_payroll`
+- Plugin này **KHÔNG ĐƯỢC** chạy `SELECT * FROM hr_employees` từ trong code của mình.
+
+**Lý do:** Nếu sau này HR Module thay đổi cấu trúc bảng `hr_employees`, Finance Module sẽ bị lỗi ngay lập tức — đây là "tight coupling" cần tránh.
+
+### 6.3. Giao tiếp qua Event Bus (Redis Pub/Sub)
+
+Khi một hành động xảy ra trong Plugin A, nó **phát ra một sự kiện (Event)** vào Event Bus trung tâm (Redis). Plugin B lắng nghe sự kiện đó qua n8n Webhook và xử lý theo logic của mình, hoàn toàn độc lập.
+
+```
+Plugin A (HR)                    Redis Pub/Sub              Plugin B (Finance)
+     │                               (Event Bus)                    │
+     │  Nhân viên mới được tạo           │                          │
+     │─── PUBLISH ──────────────────────>│                          │
+     │  event: "hr.employee.created"     │                          │
+     │  payload: { employee_id, ... }    │                          │
+     │                                   │──── SUBSCRIBE ──────────>│
+     │                                   │  (n8n Webhook trigger)   │
+     │                                   │                          │ Tạo tài khoản lương
+     │                                   │                          │ cho nhân viên mới
+     │                                   │                          │ trong DB của Finance
+```
+
+### 6.4. Cấu trúc Event chuẩn (Event Schema)
+
+Mọi Event phát ra phải tuân thủ cấu trúc sau để đảm bảo Plugin B có đủ thông tin xử lý:
+
+```json
+{
+  "event_id": "uuid-v4",
+  "event_type": "hr.employee.created",
+  "tenant_id": "uuid-truong-a",
+  "plugin_source": "hr-module",
+  "created_at": "2026-08-05T15:00:00Z",
+  "payload": {
+    "employee_id": "uuid-v4",
+    "full_name": "Nguyễn Văn A",
+    "department": "Kế toán",
+    "hire_date": "2026-08-05",
+    "position": "Kế toán viên"
+  }
+}
+```
+
+> [!IMPORTANT]
+> **`tenant_id` là trường bắt buộc trong mọi Event.** Plugin B phải kiểm tra `tenant_id` trước khi xử lý để đảm bảo không xử lý nhầm dữ liệu của Tenant khác (đặc biệt quan trọng vì Redis Pub/Sub là shared channel).
+
+### 6.5. Quy tắc đặt tên Event (Event Naming Convention)
+
+```
+{plugin_code_name}.{resource}.{action_past_tense}
+```
+
+| Event Type | Ý nghĩa |
+|---|---|
+| `hr.employee.created` | HR Module vừa tạo nhân viên mới |
+| `hr.employee.deactivated` | HR Module vừa vô hiệu hóa nhân viên |
+| `hr.leave_request.approved` | Đơn nghỉ phép vừa được duyệt |
+| `finance.payroll.processed` | Finance vừa xử lý xong bảng lương |
+| `core.plugin.installed` | Một Plugin vừa được cài đặt thành công |
+
+### 6.6. Ví dụ End-to-End: HR → Finance
+
+**Kịch bản:** Nhân viên mới vào làm, HR tạo hồ sơ → Finance tự động tạo tài khoản lương.
+
+```
+[Bước 1] Admin HR tạo nhân viên mới trên Appsmith UI
+         ↓
+[Bước 2] n8n Workflow của HR Module INSERT vào bảng hr_employees
+         ↓
+[Bước 3] n8n Workflow PUBLISH event lên Redis:
+         Channel: "proteus.events.hr"
+         Event: { event_type: "hr.employee.created", tenant_id: "...", payload: {...} }
+         ↓
+[Bước 4] n8n Workflow của Finance Module đang SUBSCRIBE channel "proteus.events.hr"
+         → Nhận được event "hr.employee.created"
+         ↓
+[Bước 5] Finance Workflow kiểm tra tenant_id, lọc đúng dữ liệu
+         → INSERT vào bảng finance_accounts: tạo tài khoản lương cho nhân viên
+         → Gửi thông báo Mattermost: "✅ Đã tạo tài khoản lương cho Nguyễn Văn A"
+         ↓
+[Kết quả] HR không cần làm thêm bất kỳ thao tác nào. Finance tự động chạy.
+```
+
+### 6.7. Bảng tổng hợp: Làm gì và Không làm gì
+
+| Tình huống | Đúng ✅ | Sai ❌ |
+|---|---|---|
+| Finance cần dữ liệu nhân viên | Subscribe event `hr.employee.created` | `SELECT * FROM hr_employees` từ Finance code |
+| Plugin cần thông báo Plugin khác | PUBLISH event lên Redis | Gọi trực tiếp API nội bộ của Plugin khác |
+| Xử lý sự kiện đa Tenant | Luôn filter theo `tenant_id` trong event payload | Xử lý tất cả events không phân biệt Tenant |
+| Plugin A phụ thuộc Plugin B | Khai báo dependency trong `manifest.yaml` | Hard-code import code của Plugin B |
+
+### 6.8. Khai báo Dependency trong manifest.yaml
+
+Nếu Finance Plugin cần nhận Events từ HR Plugin, điều này phải được khai báo rõ ràng trong `manifest.yaml` của Finance:
+
+```yaml
+# plugins/finance-module/manifest.yaml
+name: finance-module
+version: "1.0.0"
+
+event_subscriptions:
+  - source_plugin: hr-module
+    event_types:
+      - hr.employee.created
+      - hr.employee.deactivated
+      - hr.leave_request.approved
+    handler_workflow: finance_sync_workflow.json
+```
+
+Plugin Manager sẽ đọc `event_subscriptions` và tự động cấu hình n8n để Finance Workflow lắng nghe đúng các event từ HR. Nếu HR Module chưa được cài đặt, Plugin Manager sẽ **cảnh báo dependency** nhưng vẫn cho phép cài (các subscription sẽ được kích hoạt sau khi HR được cài xong).
+
+---
+
+## 7. Tổng kết
 
 Proteus OS sinh ra để đập tan tình trạng "ốc đảo thông tin" (mỗi phòng ban dùng một phần mềm rời rạc). Nó biến hệ thống quản trị của bất kỳ tổ chức nào thành một thể thống nhất, **dễ cài đặt như tải App trên điện thoại**, **bảo mật như ngân hàng** (nhờ cô lập chung cư Multi-tenancy), và **cực kỳ thông minh** nhờ AI trực tiếp điều hành công việc.
+
