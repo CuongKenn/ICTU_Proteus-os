@@ -379,9 +379,133 @@ Giám đốc (với role tenant_admin) bấm [✅ Phê duyệt]
 Cài đặt bắt đầu
 ```
 
+
 ---
 
-## 8. Tổng kết
+## 9. AI có thể làm gì trong hệ thống Proteus OS?
+
+AI trong Proteus OS không chỉ là một chatbot thông thường. Nó hoạt động như một **Trợ lý Điều hành thực sự** với 3 chế độ hoạt động riêng biệt, từ việc trả lời câu hỏi đến tự động xử lý công việc.
+
+### 9.1. Ba "Bộ não" của AI Proteus OS
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Chế độ 1: Trợ lý Tri thức (RAG Assistant)                  │
+│  → Trả lời câu hỏi dựa trên tài liệu nội bộ                  │
+│  → Không cần phê duyệt                                       │
+├──────────────────────────────────────────────────────────────┤
+│  Chế độ 2: Kiểm soát viên (Proactive Monitor)                │
+│  → Chạy ngầm 24/7, phát hiện bất thường tự động              │
+│  → Gửi cảnh báo, KHÔNG tự động hành động                     │
+├──────────────────────────────────────────────────────────────┤
+│  Chế độ 3: Tác tử Thực thi (Executive Agent)                 │
+│  → Thực hiện công việc thật sự theo lệnh của người dùng      │
+│  → BẮT BUỘC qua Human-in-the-loop trước khi thực thi         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.2. Chế độ 1 — Trả lời câu hỏi (RAG Assistant)
+
+AI "học" toàn bộ tài liệu nội bộ của tổ chức (quy trình, hướng dẫn, chính sách, biên bản họp, v.v.) được lưu trong Nextcloud → Băm nhỏ → Nhúng vector → Lưu vào Qdrant.
+
+**Ví dụ những gì AI có thể trả lời ngay, không cần phê duyệt:**
+
+| Câu hỏi | AI làm gì |
+|---|---|
+| "Quy trình xin nghỉ phép năm là gì?" | Tìm trong tài liệu HR Policy, trả lời kèm trích dẫn nguồn |
+| "Hôm nay có bao nhiêu người nghỉ phép?" | Query `hr_leave_requests` theo ngày hôm nay |
+| "Doanh thu tháng 7 là bao nhiêu?" | Query Metabase Dashboard tài chính |
+| "Ai là người phụ trách dự án X?" | Tìm trong tài liệu dự án, trả lời |
+| "Chính sách OT của công ty như thế nào?" | Tìm trong HR Policy Document, trích dẫn |
+
+> [!NOTE]
+> AI trả lời dựa trên tài liệu thật của tổ chức, không "đoán mò". Mọi câu trả lời đều có **trích dẫn nguồn gốc** (tên file, số trang) để người dùng có thể xác minh.
+
+---
+
+### 9.3. Chế độ 2 — Giám sát Chủ động (Proactive Monitor)
+
+AI chạy ngầm như một "Kiểm soát viên" không ngủ, định kỳ quét dữ liệu để phát hiện bất thường.
+
+**Ví dụ các tình huống AI tự phát hiện và cảnh báo:**
+
+| Tình huống phát hiện | Cảnh báo AI gửi qua Mattermost |
+|---|---|
+| Đơn hàng #1024 chưa được duyệt sau 24h | ⚠️ "Đơn hàng #1024 trễ 24h. Kẹt ở bước Chờ ký Kế toán. Cần xử lý gấp." |
+| Nhân viên A xin nghỉ phép nhưng chưa bàn giao công việc | ⚠️ "Nguyễn Văn A nghỉ từ T2 nhưng chưa có bàn giao. Đề nghị kiểm tra." |
+| Tỷ lệ nghỉ phép tháng này tăng 40% so với tháng trước | 📊 "Báo cáo bất thường: Nghỉ phép tháng 8 tăng 40%. Xem chi tiết: [link]" |
+| Plugin cài đặt thất bại (FAILED_DIRTY) | 🔴 "Plugin HR Module cài đặt thất bại. Cleanup đang chạy. Kiểm tra log." |
+
+**Giới hạn quan trọng:** AI chỉ **BÁO CÁO**, không tự hành động. Muốn AI xử lý → chuyển sang Chế độ 3.
+
+---
+
+### 9.4. Chế độ 3 — Thực thi Lệnh (Executive Agent)
+
+Đây là chế độ mạnh nhất. AI nhận lệnh ngôn ngữ tự nhiên → phân tích → tạo DX-DSL → chờ phê duyệt → thực thi.
+
+**Tất cả những gì AI được phép thực thi (theo DX-DSL Action Whitelist):**
+
+#### Nhóm Hệ thống (Core)
+| Hành động | Yêu cầu phê duyệt | Role cần có |
+|---|---|---|
+| Xem danh sách Plugin đã cài | ❌ Không | Mọi role |
+| Cài đặt Plugin mới | ✅ 1 người duyệt | `tenant_admin` |
+| Vô hiệu hóa tài khoản nhân viên | ✅ **2 người duyệt** | `tenant_admin` |
+| Nạp tài liệu mới vào RAG | ✅ 1 người duyệt | `tenant_admin` |
+
+#### Nhóm Nhân sự (HR Plugin)
+| Hành động | Yêu cầu phê duyệt | Role cần có |
+|---|---|---|
+| Xem danh sách nhân viên | ❌ Không | `hr_manager`, `hr_viewer` |
+| Xem đơn nghỉ phép | ❌ Không | HR roles |
+| Duyệt 1 đơn nghỉ phép | ✅ 1 người duyệt | `leave_approver`, `hr_manager` |
+| Duyệt hàng loạt đơn nghỉ phép | ✅ 1 người duyệt | `leave_approver`, `hr_manager` |
+| Từ chối đơn nghỉ phép | ✅ 1 người duyệt | `leave_approver`, `hr_manager` |
+| Báo cáo chấm công | ❌ Không | `hr_manager`, `hr_viewer` |
+
+#### Nhóm Kế toán (Finance Plugin — Dự kiến)
+| Hành động | Yêu cầu phê duyệt | Role cần có |
+|---|---|---|
+| Xem danh sách hóa đơn | ❌ Không | Finance roles |
+| Duyệt hóa đơn thanh toán | ✅ 1 người duyệt | `finance_approver` |
+| Báo cáo dòng tiền | ❌ Không | Finance roles |
+| Khởi tạo lệnh chuyển khoản | ✅ **2 người duyệt** | `finance_approver` + cấp 2 |
+
+> [!CAUTION]
+> **AI KHÔNG THỂ và KHÔNG ĐƯỢC:** Thực hiện bất kỳ hành động nào nằm ngoài danh sách whitelist trên. Mọi yêu cầu "ngoài menu" sẽ bị Orchestrator từ chối với lỗi `DSL_INVALID_ACTION`.
+
+---
+
+### 9.5. Điều AI KHÔNG thể làm
+
+Đây là danh sách những gì AI bị cấm tuyệt đối, dù người dùng yêu cầu:
+
+| Yêu cầu | Tại sao bị chặn |
+|---|---|
+| "Xóa toàn bộ dữ liệu của Trường A" | Không có action `core.data.delete_all` trong whitelist |
+| "Chuyển khoản 1 tỷ cho đối tác" | `finance.transfers.initiate` là `critical`, cần 2 người phê duyệt + xác nhận OTP |
+| "Truy cập dữ liệu của Trường B" | RLS PostgreSQL chặn cứng theo `tenant_id`, AI không có cách bypass |
+| "Tự động duyệt mọi đơn mà không hỏi" | Mọi `effect: write` đều phải qua Human-in-the-loop — hard-coded, không cấu hình được |
+| "Đăng nhập vào hệ thống ngoài" | AI chỉ có thể gọi API nội bộ đã được định nghĩa, không có quyền Internet |
+| "Sửa code của hệ thống" | Không có action nào trong whitelist cho phép điều này |
+
+---
+
+### 9.6. Ranh giới Phân loại: AI làm vs. Con người làm
+
+```
+Con người PHẢI làm:          │  AI có thể hỗ trợ/làm thay:
+─────────────────────────────┼─────────────────────────────────────
+Quyết định chiến lược        │  Thu thập dữ liệu, phân tích xu hướng
+Phán xét tình huống phức tạp │  Xử lý công việc lặp đi lặp lại
+Giao tiếp cảm xúc với nhân viên │  Báo cáo, tổng hợp, so sánh số liệu
+Phê duyệt cuối cùng (write)  │  Chuẩn bị hồ sơ để người duyệt
+Chịu trách nhiệm pháp lý     │  Nhắc nhở deadline, gửi cảnh báo
+```
+
 
 Proteus OS sinh ra để đập tan tình trạng "ốc đảo thông tin" (mỗi phòng ban dùng một phần mềm rời rạc). Nó biến hệ thống quản trị của bất kỳ tổ chức nào thành một thể thống nhất, **dễ cài đặt như tải App trên điện thoại**, **bảo mật như ngân hàng** (nhờ cô lập chung cư Multi-tenancy), và **cực kỳ thông minh** nhờ AI trực tiếp điều hành công việc.
 
