@@ -133,3 +133,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandardResponse'
+
+  /plugins/{plugin_id}:
+    put:
+      summary: Cập nhật (Upgrade) Plugin
+      description: Tải manifest mới nhất, chạy script Migration cho Database và nạp lại luồng n8n.
+      tags:
+        - Plugin Marketplace
+      parameters:
+        - name: plugin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Yêu cầu nâng cấp đang được xử lý ngầm.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    delete:
+      summary: Gỡ cài đặt (Uninstall) Plugin
+      description: Xóa dữ liệu Plugin khỏi Tenant. Chuyển trạng thái Plugin sang DELETED. Tác tử dọn dẹp (Cleanup Agent) sẽ tự động chạy ngầm để DROP schema và xóa workflow trên n8n.
+      tags:
+        - Plugin Marketplace
+      parameters:
+        - name: plugin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Yêu cầu gỡ cài đặt đang được xử lý ngầm.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+
+  /webhooks/mattermost/callback:
+    post:
+      summary: Webhook Callback từ Mattermost (Phê duyệt của Giám đốc)
+      description: >
+        Endpoint nhận tín hiệu khi người dùng (Giám đốc) click vào nút [Phê duyệt] hoặc [Từ chối] trên tin nhắn Interactive của Mattermost.
+        Nếu Phê duyệt, Core Engine sẽ gọi tiếp n8n để hoàn tất luồng hành động của AI.
+      tags:
+        - Agentic AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                context:
+                  type: object
+                  description: Dữ liệu đính kèm (VD action_id)
+      responses:
+        '200':
+          description: Đã nhận lệnh phê duyệt thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'

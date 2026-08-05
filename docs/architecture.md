@@ -30,6 +30,7 @@ graph TD
         PG[(PostgreSQL)]
         Qdrant[(Qdrant - Vector DB)]
         Appsmith[Appsmith - Lowcode UI]
+        EventBus[[Redis / RabbitMQ - Event Bus]]
     end
 
     User((Người dùng)) --> UI
@@ -46,6 +47,8 @@ graph TD
     Orch --> Qdrant : RAG (Truy xuất Tri thức)
     Orch --> n8n : Kích hoạt Hành động (Agent)
     Orch --> Mattermost : Gửi tin nhắn Phê duyệt
+    n8n <--> EventBus : Pub/Sub Giao tiếp chéo Plugin
+    API --> EventBus : Bắn sự kiện
 
     Appsmith -.-> UI : Nhúng qua Iframe
     Metabase -.-> UI : Nhúng qua Iframe
@@ -85,8 +88,30 @@ graph LR
 - **App Shell Design:** Tạo ra một khung viền giao diện duy nhất. Các ứng dụng khác (Appsmith, Metabase, Mattermost) được nhúng vào vị trí nội dung (Main Content Area) để giữ lại thanh điều hướng (Navbar) của Proteus OS. Để khắc phục lỗi SameSite Cookie và X-Frame-Options khi nhúng Iframe, hệ thống sử dụng **Single-Domain Path-Based Routing** qua Traefik (tất cả các app chạy chung một domain gốc, vd: `proteus.local/chat`, `proteus.local/apps`).
 - **BFF Pattern:** Client (Trình duyệt) không bao giờ gọi trực tiếp xuống FastAPI. Mọi request đi qua Next.js API Routes. Tại đây, Next.js sẽ đính kèm Access Token (lưu an toàn bằng HttpOnly Cookies) vào Header trước khi gửi xuống FastAPI, giúp chống lại tấn công XSS.
 - **Kiến trúc Custom Hooks & Zustand (Thay thế MVVM):** Thay vì áp dụng mô hình MVVM truyền thống (vốn đi ngược lại triết lý One-way Data Flow của React), Frontend sử dụng mô hình Component-Based kết hợp Custom Hooks.
-  - *View:* Các Function Components chỉ làm nhiệm vụ hiển thị UI tĩnh.
   - *ViewModel (Custom Hooks):* Đóng gói toàn bộ Business Logic và State Management (sử dụng **Zustand**) vào các hooks như `useAppStore()`, `useAuth()`. Điều này giúp tách biệt hoàn toàn giao diện khỏi logic nghiệp vụ, dễ dàng viết Unit Test.
+
+### 2.1.1. Luồng Xác thực SSO & Nhúng Iframe (Sequence Diagram)
+Việc truyền Token vào Iframe (Appsmith/Metabase) một cách bảo mật thường vấp phải giới hạn SameSite Cookie hoặc CORS. Để khắc phục, hệ thống định tuyến Iframe đi qua Traefik Proxy.
+
+```mermaid
+sequenceDiagram
+    participant User as Người dùng
+    participant UI as Next.js (App Shell)
+    participant Keycloak as Keycloak (SSO)
+    participant Traefik as Traefik Proxy
+    participant Appsmith as Appsmith (Iframe)
+
+    User->>UI: Truy cập ứng dụng (VD: /apps/hr)
+    UI->>Keycloak: Chuyển hướng để đăng nhập
+    Keycloak-->>UI: Trả về JWT Access Token
+    UI->>UI: Lưu Token vào Local State (Zustand)
+    UI->>Traefik: Render Iframe (src="/proxy/appsmith", truyền Token vào URL hoặc Header ẩn)
+    Note over UI,Traefik: Single-Domain Path-Based Routing
+    Traefik->>Traefik: Middleware bóc tách Token, Verify nhanh
+    Traefik->>Appsmith: Chuyển tiếp Request nội mạng (Kèm Session/Auth)
+    Appsmith-->>UI: Render HTML (Đã đăng nhập thành công)
+    UI-->>User: Hiển thị giao diện liền mạch
+```
 
 ### 2.2. Backend Architecture (FastAPI)
 Backend sử dụng **FastAPI (Python)**, được thiết kế theo mô hình **Hexagonal Architecture (Ports and Adapters)** kết hợp với **Domain-Driven Design (DDD)**. 

@@ -78,3 +78,35 @@ erDiagram
 
 ## 3. Liên kết với Dữ liệu Nghiệp vụ của Plugin
 Khi Tenant cài đặt Plugin `hr-module`, hệ thống sẽ tự động sinh ra các bảng nghiệp vụ (như `hr_employees`, `hr_leave_requests`) và **tự động thêm cột `tenant_id` (Khóa ngoại)** vào các bảng đó để đảm bảo áp dụng chính sách bảo mật Row-Level Security (RLS).
+
+### Ví dụ: Cấu trúc Dữ liệu của HR Plugin (Minh họa RLS)
+Khi Plugin HR được cài đặt, nó sẽ sinh ra các bảng riêng và liên kết với Core như sau:
+
+```mermaid
+erDiagram
+    TENANT {
+        uuid id PK
+    }
+    
+    HR_EMPLOYEE {
+        uuid id PK
+        uuid tenant_id FK "Dùng để phân tách dữ liệu (RLS)"
+        string full_name
+        string position
+    }
+    
+    HR_LEAVE_REQUEST {
+        uuid id PK
+        uuid tenant_id FK "Dùng để phân tách dữ liệu (RLS)"
+        uuid employee_id FK
+        date start_date
+        date end_date
+        string status
+    }
+
+    TENANT ||--o{ HR_EMPLOYEE : "sở hữu"
+    TENANT ||--o{ HR_LEAVE_REQUEST : "sở hữu"
+    HR_EMPLOYEE ||--o{ HR_LEAVE_REQUEST : "tạo"
+```
+
+Nhờ cột `tenant_id`, lệnh truy vấn của Nhân viên công ty A `SELECT * FROM hr_leave_requests` sẽ bị PostgreSQL (thông qua RLS Policy) tự động chèn thêm điều kiện `WHERE tenant_id = 'A'`. Điều này đảm bảo an toàn tuyệt đối ở cấp độ cơ sở dữ liệu, không cho phép rò rỉ dữ liệu sang công ty B.
