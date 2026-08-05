@@ -86,27 +86,27 @@ Tất cả action phải tuân theo định dạng:
 
 #### Nhóm `core` — Hành động hệ thống cốt lõi
 
-| Action | Effect | Mô tả |
-|---|---|---|
-| `core.plugins.list` | read | Liệt kê Plugin đã cài |
-| `core.plugins.install` | write | Cài đặt Plugin mới |
-| `core.users.list` | read | Liệt kê người dùng trong Tenant |
-| `core.users.deactivate` | critical | Vô hiệu hóa tài khoản người dùng |
-| `core.knowledge.search` | read | Tìm kiếm tài liệu nội bộ (RAG) |
-| `core.knowledge.ingest` | write | Nạp tài liệu mới vào RAG pipeline |
+| Action | Effect | Required Role | Mô tả |
+|---|---|---|---|
+| `core.plugins.list` | read | mọi role | Liệt kê Plugin đã cài |
+| `core.plugins.install` | write | `tenant_admin`, `superadmin` | Cài đặt Plugin mới |
+| `core.users.list` | read | `tenant_admin`, `superadmin` | Liệt kê người dùng trong Tenant |
+| `core.users.deactivate` | critical | `tenant_admin`, `superadmin` | Vô hiệu hóa tài khoản người dùng |
+| `core.knowledge.search` | read | mọi role | Tìm kiếm tài liệu nội bộ (RAG) |
+| `core.knowledge.ingest` | write | `tenant_admin`, `superadmin` | Nạp tài liệu mới vào RAG pipeline |
 
 #### Nhóm `hr` — Plugin Quản lý Nhân sự
 
-| Action | Effect | Mô tả |
-|---|---|---|
-| `hr.employees.list` | read | Liệt kê nhân viên |
-| `hr.employees.get` | read | Xem thông tin chi tiết nhân viên |
-| `hr.leave_requests.list` | read | Xem danh sách đơn nghỉ phép |
-| `hr.leave_requests.approve` | write | Duyệt 1 đơn nghỉ phép |
-| `hr.leave_requests.batch_approve` | write | Duyệt nhiều đơn theo filter |
-| `hr.leave_requests.reject` | write | Từ chối đơn nghỉ phép |
-| `hr.reports.attendance` | read | Xem báo cáo chấm công |
-| `hr.reports.leave_summary` | read | Xem báo cáo tổng hợp nghỉ phép |
+| Action | Effect | Required Role | Mô tả |
+|---|---|---|---|
+| `hr.employees.list` | read | `hr_manager`, `hr_viewer`, `tenant_admin` | Liệt kê nhân viên |
+| `hr.employees.get` | read | `hr_manager`, `hr_viewer`, `tenant_admin` | Xem thông tin chi tiết nhân viên |
+| `hr.leave_requests.list` | read | mọi role HR, `tenant_admin` | Xem danh sách đơn nghỉ phép |
+| `hr.leave_requests.approve` | write | `leave_approver`, `hr_manager`, `tenant_admin` | Duyệt 1 đơn nghỉ phép |
+| `hr.leave_requests.batch_approve` | write | `leave_approver`, `hr_manager`, `tenant_admin` | Duyệt nhiều đơn theo filter |
+| `hr.leave_requests.reject` | write | `leave_approver`, `hr_manager`, `tenant_admin` | Từ chối đơn nghỉ phép |
+| `hr.reports.attendance` | read | `hr_manager`, `hr_viewer`, `tenant_admin` | Xem báo cáo chấm công |
+| `hr.reports.leave_summary` | read | `hr_manager`, `hr_viewer`, `tenant_admin` | Xem báo cáo tổng hợp nghỉ phép |
 
 #### Nhóm `finance` — Plugin Kế toán (Dự kiến)
 
@@ -183,7 +183,7 @@ Orchestrator phải validate DSL command theo các quy tắc sau TRƯỚC KHI th
 | Rule | Mô tả | Lỗi trả về |
 |---|---|---|
 | **Action whitelist** | `action` phải nằm trong danh sách cho phép | `DSL_INVALID_ACTION` |
-| **Permission check** | `issued_by.roles` phải chứa role được phép thực hiện action đó | `DSL_PERMISSION_DENIED` |
+| **Permission check** | `issued_by.roles` phải chứa role được phép thực hiện action đó (xem cột "Required Role" trong bảng whitelist). VD: `core.plugins.install` chỉ được thực hiện bửi `tenant_admin` hoặc `superadmin`. | `DSL_PERMISSION_DENIED` |
 | **Plugin installed** | Plugin tương ứng với action phải đang ở trạng thái `ACTIVE` | `DSL_PLUGIN_NOT_ACTIVE` |
 | **Parameters schema** | `parameters` phải đúng JSON Schema của action đó | `DSL_INVALID_PARAMETERS` |
 | **Version compatibility** | `dsl_version` phải là phiên bản Orchestrator hỗ trợ | `DSL_VERSION_UNSUPPORTED` |

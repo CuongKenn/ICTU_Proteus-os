@@ -509,10 +509,13 @@ paths:
     get:
       summary: Kiểm tra trạng thái chi tiết từng service
       description: >
-        Trả về trạng thái ping tới từng service phụ thuộc. Yêu cầu role `system_admin`.
+        Trả về trạng thái ping tới từng service phụ thuộc.
+
+        **Quyền truy cập:** Yêu cầu role `superadmin` hoặc `tenant_admin`.
         Sử dụng để debug khi hệ thống gặp sự cố.
       tags: [System]
-      security: []
+      security:
+        - KeycloakBearerAuth: []
       responses:
         '200':
           description: Chi tiết trạng thái từng service
@@ -761,6 +764,8 @@ paths:
         Core Engine sẽ tải manifest, chạy script SQL tạo bảng (schema-per-tenant),
         gọi n8n/Metabase/Appsmith để nạp dữ liệu. Toàn bộ là **background task** (async).
 
+        **Quyền truy cập:** Yêu cầu role `tenant_admin` (cho Tenant của mình) hoặc `superadmin` (cho bất kỳ Tenant). Người dùng thông thường (VD: `hr_manager`) sẽ nhận lỗi 403.
+
         **Luồng Compensating Transaction:** Nếu bất kỳ bước nào thất bại, hệ thống tự động
         rollback các bước đã hoàn thành và đặt trạng thái thành `FAILED_DIRTY`.
 
@@ -796,7 +801,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Người dùng không có quyền cài đặt Plugin (không phải Admin)
+          description: >
+            Không có quyền cài đặt Plugin. Yêu cầu role `tenant_admin` hoặc `superadmin`.
+            Người dùng thông thường sẽ nhận lỗi này nếu cố gắng gọi trực tiếp endpoint này.
           content:
             application/json:
               schema:
@@ -842,6 +849,8 @@ paths:
         Tải manifest mới nhất, so sánh phiên bản với `installed_version`,
         chạy script Migration tuần tự cho Database và nạp lại luồng n8n.
         Đây cũng là background task, trả về task_id để polling.
+
+        **Quyền truy cập:** Yêu cầu role `tenant_admin` hoặc `superadmin`.
       tags: [Plugin Marketplace]
       parameters:
         - name: plugin_id

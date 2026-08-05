@@ -160,7 +160,12 @@ Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **
 Để Proteus OS có thể thương mại hoá dưới dạng SaaS bán cho nhiều tổ chức (trường học/doanh nghiệp) dùng chung trên 1 hệ thống đám mây, kiến trúc bảo mật được thiết kế như sau:
 
 - **Cô lập Tài khoản (Keycloak Realms):** Sử dụng tính năng **Realms** của Keycloak. Mỗi khách hàng (Trường A, Doanh nghiệp B) là một Realm độc lập. Người dùng của Trường A không bao giờ đăng nhập chéo được vào Trường B.
-- **Phân quyền Động (RBAC):** Khi một Plugin được cài đặt, nó định nghĩa các Vai trò (Role) trong `manifest.yaml`. Người dùng được gán Role trong Keycloak. Token JWT mang theo Role này và sẽ được Frontend đọc để giấu bớt giao diện (Dynamic UI) và Backend đọc để chặn truy cập trái phép.
+- **Phân quyền Động (RBAC — 3 tầng):** Hệ thống có 3 tầng phân quyền rõ ràng:
+  - **Platform Level** (`superadmin`, `platform_support`): ICTU Team, có quyền quản lý tất cả Tenant và Marketplace.
+  - **Tenant Level** (`tenant_admin`): Admin của từng tổ chức, có quyền cài/gỡ Plugin và phân quyền người dùng **trong phạm vi Tenant của mình**.
+  - **Plugin Level** (`hr_manager`, `leave_approver`, v.v.): Role được tạo tự động khi Plugin cài đặt, định nghĩa trong `manifest.yaml`. Người dùng chỉ thao tác nghiệp vụ, **không có quyền quản lý Plugin**.
+  
+  Token JWT mang theo Role → Frontend đọc để render Dynamic UI (giấu/hiện tính năng) → Backend đọc để enforce RBAC. Chi tiết xem tại [`docs/clarification.md §7`](./clarification.md).
 - **Cô lập Dữ liệu (PostgreSQL Row-Level Security):** Toàn bộ dữ liệu nghiệp vụ của các tổ chức được lưu chung trên một Database (Shared-Schema) để tối ưu hóa tài nguyên và dễ dàng bảo trì. Hệ thống sử dụng cơ chế **Row-Level Security (RLS)** trên Postgres (thông qua cột `tenant_id`) để đảm bảo dữ liệu của tổ chức nào chỉ tổ chức đó truy cập được, an toàn tuyệt đối ở cấp độ cơ sở dữ liệu.
 - **Cô lập Ứng dụng (App Store):** Trường A có thể mua và cài Plugin "Quản lý Canteen", hệ thống sẽ kích hoạt Plugin này vào Schema của Trường A. Trường B sẽ không nhìn thấy tính năng này nếu chưa mua.
 
