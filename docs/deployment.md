@@ -178,3 +178,49 @@ Sau khi hệ thống khởi động, truy cập Grafana tại `https://proteus.l
 3. Xác nhận dữ liệu nguyên vẹn.
 4. Ghi chép RTO (Recovery Time Objective) và RPO (Recovery Point Objective) đạt được.
 
+---
+
+## 7. AI Services — Yêu cầu Hạ tầng
+
+AI là tính năng tiêu thụ tài nguyên đáng kể nhất. Cần lưu ý khi deploy.
+
+### 7.1. Các dịch vụ phục vụ AI
+
+| Service | Vai trò | Ghi chú Tài nguyên |
+|---|---|---|
+| **Qdrant** | Vector DB lưu trữ embedding tài liệu (RAG) | Cần ít nhất 2GB RAM. Dữ liệu persist tại `./data/qdrant` |
+| **Redis** | Event Bus — AI Monitor subscribe event từ các Plugin | RAM phụ thuộc vào throughput event |
+| **n8n** | Chạy Proactive Monitor Agent (Cron Workflow) | Cần kết nối với PostgreSQL và Mattermost |
+| **LangChain (Core Engine)** | Phân tích ngôn ngữ tự nhiên, tạo DX-DSL | Chạy trong container FastAPI, gọi API LLM ngoài |
+
+### 7.2. LLM Provider (External API)
+
+AI Orchestrator gọi ra một LLM provider bên ngoài. Cần cấu hình trong `.env`:
+
+```env
+# Chọn một trong các provider sau:
+OPENAI_API_KEY=sk-...              # OpenAI GPT-4o
+GEMINI_API_KEY=AIza...             # Google Gemini Pro
+ANTHROPIC_API_KEY=sk-ant-...       # Anthropic Claude
+
+# Model để dùng
+LLM_MODEL=gpt-4o                   # Hoặc gemini-1.5-pro, claude-3-5-sonnet
+LLM_TEMPERATURE=0.1                # Thấp để giảm hallucination trong tác vụ thực thi
+```
+
+> [!WARNING]
+> **Chi phí:** Mỗi lệnh AI gửi đến LLM đều tốn token. Cần monitor usage và đặt budget alert tại provider. Tính năng RAG (Proactive Monitor, Q&A) có thể tốn nhiều token hơn dự kiến nếu không giới hạn context size.
+
+### 7.3. Proactive Monitor — Cấu hình Lịch chạy
+
+Monitor Agent chạy theo Cron qua n8n. Chỉnh lịch trong `n8n` UI:
+
+| Job | Schedule mặc định | Mô tả |
+|---|---|---|
+| Quét đơn quá hạn | `*/30 * * * *` | Mỗi 30 phút kiểm tra workflow bị kẹt |
+| Phân tích bất thường | `0 7 * * *` | 7h sáng mỗi ngày, gửi báo cáo sáng |
+| Sync tài liệu RAG | `0 2 * * *` | 2h sáng hàng đêm, index tài liệu mới từ Nextcloud |
+
+> **Hiểu rõ hơn về những gì AI có thể làm và không thể làm trong hệ thống:** xem [`docs/clarification.md §9`](./clarification.md).
+
+

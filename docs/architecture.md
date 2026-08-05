@@ -147,11 +147,21 @@ Bởi vì Core Engine đóng vai trò là một "Orchestrator" phải gọi rấ
 
 ## 2.3. AI Orchestrator & DX-DSL
 
-AI Orchestrator là bộ não điều phối nối giữa lệnh ngôn ngữ tự nhiên của người dùng và hành động thực thi trên hệ thống. Sau khi LangChain + RAG phân tích ý định, Orchestrator chuyển đổi lệnh sang cấu trúc **DX-DSL (Domain Execution - Domain Specific Language)**.
+AI trong Proteus OS hoạt động theo **3 chế độ độc lập**:
+
+| Chế độ | Component | Mô tả |
+|---|---|---|
+| **RAG Assistant** | LangChain + Qdrant | Trả lời câu hỏi dựa trên tài liệu nội bộ. Không yêu cầu phê duyệt |
+| **Proactive Monitor** | Cron Job + n8n | Chạy ngầm 24/7, quét dữ liệu, phát hiện bất thường, gửi cảnh báo Mattermost. Chỉ báo cáo, không tự hành động |
+| **Executive Agent** | Orchestrator + DX-DSL | Nhận lệnh ngôn ngữ tự nhiên, dịch sang DX-DSL, chờ phê duyệt, rồi thực thi |
+
+**Luồng thực thi (Executive Agent):** Nhận lệnh → LangChain ReAct phân tích → tạo **DX-DSL Command** → Orchestrator xác thực quyền + action whitelist → gửi Interactive Message Mattermost (Human-in-the-loop) → người dùng bấm [Phê duyệt] → Orchestrator gọi n8n API thực thi.
 
 Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **[`docs/dsl-spec.md`](./dsl-spec.md)**.
 
-**Nguyên tắc Human-in-the-loop bắt buộc:** Bất kỳ DSL Command nào có `effect: write` (tác động thực thi — thay đổi dữ liệu, kích hoạt workflow) đều **PHẢI** gửi Interactive Message qua Mattermost để chờ phê duyệt của Ban Giám đốc trước khi thực thi. AI không được phép tự động bypass bước này.
+**Nguyên tắc Human-in-the-loop bắt buộc:** Bất kỳ DSL Command nào có `effect: write` hoặc `effect: critical` đều **PHẢI** gửi Interactive Message qua Mattermost để chờ phê duyệt của Ban Giám đốc trước khi thực thi. AI không được phép tự động bypass bước này.
+
+**Hard Limits (cứng, không cài đặt được):** AI chỉ thực thi các action nằm trong DX-DSL whitelist. Mọi yêu cầu ngoài danh sách (đặc biệt là `core.data.delete_all`, truy cập cross-tenant, sửa code) sẽ bị từ chối ngay tại tầng Orchestrator với lỗi `DSL_INVALID_ACTION`. Chi tiết đầy đủ xem tại **[`docs/clarification.md §9`](./clarification.md)**.
 
 ---
 

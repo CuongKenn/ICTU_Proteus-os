@@ -10,6 +10,8 @@
 
 **DX-DSL (Domain Execution Domain-Specific Language)** là chuẩn ngôn ngữ trung gian dạng JSON mà AI Orchestrator của Proteus OS sử dụng để biểu diễn một lệnh thực thi. Sau khi AI phân tích ngôn ngữ tự nhiên của người dùng (bằng LangChain + RAG), nó tạo ra một cấu trúc DX-DSL chuẩn và gửi cho Orchestrator để validate và thực thi.
 
+> **Tài liệu liên quan:** Tài liệu này đặc tả kỹ thuật của DSL. Để hiểu tổng thể **AI có thể làm gì** trong hệ thống (3 chế độ, capability matrix, hard limits), xem [`docs/clarification.md §9`](./clarification.md).
+
 ### Tại sao cần DSL?
 
 Thay vì AI trực tiếp tạo ra code hoặc SQL (rủi ro SQL Injection, lệnh nguy hiểm), DSL đóng vai trò như **"menu thực đơn"** — AI chỉ được gọi các món trong menu, không được "nấu ăn tự do". Điều này đảm bảo:

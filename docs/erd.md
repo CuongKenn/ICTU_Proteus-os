@@ -149,7 +149,12 @@ erDiagram
 
 ### 2.4. Nhóm Kiểm toán & Bảo mật (Audit Trail)
 
-- **Bảng `AUDIT_LOG`:** Ghi lại mọi hành động quan trọng trong hệ thống. Đây là yêu cầu bắt buộc cho hệ thống Enterprise, đặc biệt khi AI Agent có quyền thực thi lệnh thay mặt người dùng. Cột `actor_type = AI_AGENT` giúp dễ dàng lọc và kiểm soát các hành động do AI thực hiện. Bảng này **không được phép xóa (DELETE)**, chỉ được thêm (INSERT-only).
+- **Bảng `AUDIT_LOG`:** Ghi lại mọi hành động quan trọng trong hệ thống. Đây là yêu cầu bắt buộc cho hệ thống Enterprise, đặc biệt khi AI Agent có quyền thực thi lệnh thay mặt người dùng. Cột `actor_type` xác định nguồn hành động:
+  - `HUMAN`: Người dùng thực hiện trực tiếp qua UI.
+  - `AI_AGENT`: AI thực hiện sau khi được phê duyệt qua Human-in-the-loop. `user_id` lúc này = NULL, nhưng `payload` chứa `command_id` của DSL Command để trace lại.
+  - `SYSTEM`: Hệ thống tự động thực hiện (VD: Cleanup Agent xóa dữ liệu rác `FAILED_DIRTY`).
+  
+  Bảng này **không được phép xóa (DELETE)**, chỉ được thêm (INSERT-only). Để hiểu AI được phép làm những gì trong hệ thống, xem [`docs/clarification.md §9`](./clarification.md).
 
 ---
 
