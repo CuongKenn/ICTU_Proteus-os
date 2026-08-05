@@ -218,15 +218,17 @@ Mỗi Plugin khi cài đặt sẽ chạy script tương tự để kích hoạt 
 -- 1. Bật RLS cho bảng
 ALTER TABLE hr_leave_requests ENABLE ROW LEVEL SECURITY;
 
--- 2. Tạo Policy: Chỉ xem được record của Tenant mình
-CREATE POLICY tenant_isolation_policy ON hr_leave_requests
-    USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
-
--- 3. Áp dụng cho tất cả các lệnh (SELECT, INSERT, UPDATE, DELETE)
+-- 2. Tạo Policy áp dụng cho TẤT CẢ lệnh (SELECT, INSERT, UPDATE, DELETE)
+--    USING: điều kiện lọc khi ĐỌC
+--    WITH CHECK: điều kiện kiểm tra khi GHI (INSERT/UPDATE)
 CREATE POLICY tenant_isolation_policy ON hr_leave_requests
     FOR ALL
+    TO app_user  -- Role của ứng dụng FastAPI (không phải postgres superuser)
     USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
     WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid);
+
+-- 3. Nếu cần tạo lại (VD: khi nâng cấp migration), phải DROP trước
+-- DROP POLICY IF EXISTS tenant_isolation_policy ON hr_leave_requests;
 ```
 
 > [!WARNING]

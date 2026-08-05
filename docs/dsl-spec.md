@@ -48,6 +48,7 @@ Thay vì AI trực tiếp tạo ra code hoặc SQL (rủi ro SQL Injection, lệ
     ]
   },
   "approval_required": true,
+  "approval_deadline": "2026-08-05T15:30:00Z",
   "approval_message": "⚠️ Tôi chuẩn bị DUYỆT 12 đơn nghỉ phép ngày 05/08/2026. Vui lòng xác nhận."
 }
 ```
@@ -66,6 +67,7 @@ Thay vì AI trực tiếp tạo ra code hoặc SQL (rủi ro SQL Injection, lệ
 | `parameters` | object | ✅ | Tham số đầu vào của action |
 | `dry_run_result` | object | Nếu effect=write | Kết quả "chạy thử" để hiển thị cho người phê duyệt |
 | `approval_required` | boolean | ✅ | `true` nếu effect=write hoặc effect=critical |
+| `approval_deadline` | ISO 8601 | Nếu approval_required | Thời điểm hết hạn chờ phê duyệt (write=+30phút, critical=+15phút). Sau deadline, Orchestrator tự động hủy lệnh và báo cáo timeout. |
 | `approval_message` | string | Nếu approval_required | Nội dung tin nhắn Mattermost gửi cho BGĐ |
 
 ---
@@ -134,19 +136,21 @@ Tất cả action phải tuân theo định dạng:
 
 ### 5.1. `hr.leave_requests.batch_approve`
 
-```json
+> **Lưu ý:** Block JSON bên dưới dùng dấu `//` để đánh dấu comment giải thích cho từng trường. Trong thực tế khi gửi API, phải loại bỏ toàn bộ comment và chỉ gửi JSON thuần tú.
+
+```jsonc
 {
   "filter": {
-    "date": "2026-08-05",           // ISO date, optional
-    "date_range": {                 // hoặc dùng range
+    "date": "2026-08-05",           // ISO date (tùy chọn, dùng khi lọc theo ngày cụ thể)
+    "date_range": {                 // Hoặc dùng range (chọn một trong hai, không dùng cả hai)
       "from": "2026-08-01",
       "to": "2026-08-05"
     },
-    "status": "pending",            // required: "pending"
-    "employee_ids": ["uuid-1"],     // optional: giới hạn nhân viên cụ thể
-    "department": "Kế toán"        // optional: giới hạn phòng ban
+    "status": "pending",            // Bắt buộc: chỉ có thể duyệt đơn đang Ở trạng thái "pending"
+    "employee_ids": ["uuid-1"],     // Tùy chọn: giới hạn một số nhân viên cụ thể
+    "department": "Kế toán"         // Tùy chọn: giới hạn phòng ban
   },
-  "note": "Duyệt theo chỉ đạo của BGĐ ngày 05/08"  // optional
+  "note": "Duyệt theo chỉ đạo của BGĐ ngày 05/08"  // Tùy chọn: ghi chú lý do duyệt
 }
 ```
 

@@ -30,7 +30,7 @@ graph TD
         PG[(PostgreSQL)]
         Qdrant[(Qdrant - Vector DB)]
         Appsmith[Appsmith - Lowcode UI]
-        EventBus[[Redis / RabbitMQ - Event Bus]]
+        EventBus[[Redis Pub/Sub - Event Bus]]
     end
 
     User((Người dùng)) --> UI

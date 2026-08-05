@@ -34,7 +34,10 @@ Dành cho lập trình viên chạy thử nghiệm (có thể tắt bớt một 
     - `https://proteus.local/api/` 👉 Chuyển về **FastAPI Core Engine**
     - `https://proteus.local/auth/` 👉 Chuyển về **Keycloak**
     - `https://proteus.local/chat/` 👉 Chuyển về **Mattermost**
+    - `https://proteus.local/files/` 👉 Chuyển về **Nextcloud** (lưu trữ file)
+    - `https://proteus.local/wiki/` 👉 Chuyển về **Outline** (Wiki/CMS)
     - `https://proteus.local/proxy/appsmith/` 👉 Chuyển về **Appsmith** (Để nhúng Iframe)
+    - `https://proteus.local/monitoring/` 👉 Chuyển về **Grafana** (Log Observability)
 
 ### 2.2. Sơ đồ Mạng (Docker Network Diagram)
 
@@ -48,15 +51,25 @@ graph TD
         Keycloak["Keycloak"]
         Appsmith["Appsmith"]
         Mattermost["Mattermost"]
+        Nextcloud["Nextcloud (Files)"]
+        Outline["Outline (Wiki)"]
+        Grafana["Grafana (Monitoring)"]
         PG[("PostgreSQL")]
+        Qdrant[("Qdrant")]
+        Redis[["Redis (Event Bus)"]]
         
         Traefik -->|"/"| UI
         Traefik -->|"/api"| Core
         Traefik -->|"/auth"| Keycloak
         Traefik -->|"/proxy/appsmith"| Appsmith
         Traefik -->|"/chat"| Mattermost
+        Traefik -->|"/files"| Nextcloud
+        Traefik -->|"/wiki"| Outline
+        Traefik -->|"/monitoring"| Grafana
         
         Core --> PG
+        Core --> Qdrant
+        Core --> Redis
         Keycloak --> PG
         Appsmith --> PG
     end

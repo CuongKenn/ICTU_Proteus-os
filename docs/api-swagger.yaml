@@ -1155,3 +1155,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandardResponse'
+
+  /webhooks/keycloak/events:
+    post:
+      summary: Webhook Callback từ Keycloak (Sự kiện người dùng)
+      description: >
+        Keycloak gửi event tới endpoint này khi có thay đổi người dùng quan trọng:
+        - `user.disabled` → Cập nhật `USER.is_active = false` trong PostgreSQL
+        - `user.updated` → Đồng bộ `full_name`, `email` nếu thay đổi
+        - `user.created` → Pre-provision User record (tuỳ chọn, nếu không dùng First Login Hook)
+
+        **Bảo mật:** Request phải kèm `X-Keycloak-Signature` header. Backend verify bằng `KEYCLOAK_WEBHOOK_SECRET`.
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - userId
+              properties:
+                type:
+                  type: string
+                  enum: [user.disabled, user.updated, user.created, user.deleted]
+                  description: "Loại sự kiện Keycloak"
+                userId:
+                  type: string
+                  description: "Keycloak User ID (UUID)"
+                realmId:
+                  type: string
+                  description: "Keycloak Realm ID (tương ứng với Tenant)"
+                details:
+                  type: object
+                  nullable: true
+                  description: "Thông tin bổ sung tùy theo loại event"
+                timestamp:
+                  type: integer
+                  format: int64
+                  description: "Unix timestamp (milliseconds)"
+      responses:
+        '200':
+          description: Event nhận và xử lý thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '400':
+          description: Chữ ký không hợp lệ hoặc event type không được hỗ trợ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

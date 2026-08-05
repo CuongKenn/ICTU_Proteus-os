@@ -35,7 +35,7 @@ Khi cung cấp phần mềm cho 100 trường học, chúng ta không thể mua 
 - Bạn đã bao giờ dùng một phần mềm có hàng trăm nút bấm rối rắm mà bạn chẳng bao giờ đụng tới chưa? 
 - Nhờ tấm "Thẻ căn cước" thông minh ở trên, Proteus OS **biết chính xác bạn là ai và bạn cần gì**. 
 - Nếu bạn là Nhân sự, Launchpad (màn hình chính) của bạn chỉ hiển thị biểu tượng "Tuyển dụng" và "Chấm công". Mọi chức năng thừa thãi đều "tàng hình" giúp màn hình cực kỳ tối giản.
-- **Bảo mật Báo cáo (Metabase Signed Embedding):** Báo cáo là thứ nhạy cảm nhất. Nhờ công nghệ Nhúng bảo mật (Signed Embedding), khi Giáo viên chủ nhiệm lớp 10A mở biểu đồ điểm số, Proteus OS sẽ bí mật gửi kèm mã "10A" vào biểu đồ. Kết quả là biểu đồ tự động lọc (filter) để chỉ hiện đúng điểm của lớp 10A. Giáo viên không thể xem lén điểm của lớp khác.
+- **Bảo mật Báo cáo (Metabase Embedding):** Báo cáo là thứ nhạy cảm nhất. Khi Giáo viên chủ nhiệm lớp 10A mở biểu đồ điểm số, Proteus OS sẽ bí mật gửi kèm mã `10A` vào biểu đồ thông qua cơ chế Locked Parameter, đảm bảo biểu đồ chỉ hiện đúng điểm của lớp 10A. Giáo viên không thể xem lén điểm của lớp khác. *(Chi tiết kỹ thuật triển khai xem tại [Mục 4 — Giải mã Metabase Embedding](#4-giải-mã-tính-năng-báo-cáo-an-toàn-metabase-embedding))*
 
 ---
 
