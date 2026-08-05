@@ -280,7 +280,108 @@ Plugin Manager sẽ đọc `event_subscriptions` và tự động cấu hình n8
 
 ---
 
-## 7. Tổng kết
+## 7. Ai có quyền Cài đặt Plugin?
+
+Đây là câu hỏi quan trọng về phân quyền (RBAC) ở cấp độ quản lý hệ thống. Câu trả lời phụ thuộc vào **ai** đang thao tác và **tổ chức nào** họ thuộc về.
+
+### 7.1. Phân cấp Role trong Proteus OS
+
+Hệ thống có **3 tầng Role** khác nhau:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  TẦNG 1: Platform Level (ICTU Team)                         │
+│  Role: superadmin, platform_support                         │
+│  Phạm vi: Toàn bộ hệ thống, tất cả Tenant                  │
+├─────────────────────────────────────────────────────────────┤
+│  TẦNG 2: Tenant Level (Admin của Trường/Doanh nghiệp)        │
+│  Role: tenant_admin, tenant_manager                         │
+│  Phạm vi: Chỉ trong tổ chức của mình                       │
+├─────────────────────────────────────────────────────────────┤
+│  TẦNG 3: Plugin Level (Người dùng thông thường)             │
+│  Role: hr_manager, finance_viewer, leave_approver, v.v.     │
+│  Phạm vi: Chỉ trong phạm vi chức năng của Plugin đó        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 7.2. Ma trận Phân quyền Cài đặt Plugin
+
+| Hành động | `superadmin` (ICTU) | `tenant_admin` | Người dùng thường |
+|---|---|---|---|
+| Xem danh sách Plugin trên Marketplace | ✅ | ✅ | ✅ (chỉ xem) |
+| Cài Plugin mới cho tổ chức mình | ✅ | ✅ | ❌ |
+| Cài Plugin cho tổ chức **khác** | ✅ | ❌ | ❌ |
+| Gỡ cài đặt Plugin | ✅ | ✅ | ❌ |
+| Vô hiệu hóa Plugin tạm thời | ✅ | ✅ | ❌ |
+| Nâng cấp Plugin lên phiên bản mới | ✅ | ✅ | ❌ |
+| Thêm Plugin mới vào Marketplace | ✅ | ❌ | ❌ |
+| Xóa Plugin khỏi Marketplace | ✅ | ❌ | ❌ |
+
+### 7.3. Mô tả chi tiết từng Role
+
+#### 🔴 `superadmin` — ICTU Platform Team
+- Là người vận hành nền tảng Proteus OS SaaS.
+- Có quyền cao nhất, không bị giới hạn bởi bất kỳ Tenant nào.
+- **Dùng để:** Thêm Plugin mới vào kho Marketplace, xử lý sự cố kỹ thuật cho khách hàng, quản lý billing và license.
+- **Lưu ý bảo mật:** Role này trong Keycloak được cấp cho rất ít người và phải bật **MFA bắt buộc**.
+
+#### 🟠 `tenant_admin` — Admin của Tổ chức
+- Là Trưởng phòng IT hoặc người được Ban Giám đốc ủy quyền quản trị hệ thống.
+- Chỉ có quyền trong phạm vi Realm Keycloak của tổ chức mình.
+- **Dùng để:** Cài/gỡ Plugin, phân quyền người dùng, cấu hình tùy chỉnh Plugin.
+- **Không thể:** Truy cập dữ liệu hoặc quản lý cài đặt Plugin của tổ chức khác.
+
+#### 🟢 Người dùng thông thường (Plugin Roles)
+- Chỉ được sử dụng các tính năng mà Plugin cung cấp, **không thể quản lý Plugin**.
+- Ngay cả `hr_manager` (quản lý nhân sự cấp cao) cũng **không được phép** cài Plugin HR mới.
+- Lý do: Cài Plugin là thao tác kỹ thuật (tạo bảng DB, nạp workflow) có thể ảnh hưởng toàn bộ hệ thống, chỉ Admin mới nên thực hiện.
+
+### 7.4. Luồng Cài đặt có kiểm soát
+
+Để tránh rủi ro, quá trình cài đặt Plugin của `tenant_admin` được thiết kế có **2 bước xác nhận**:
+
+```
+tenant_admin bấm [Cài đặt] trên Marketplace
+         ↓
+Hiện Preview: "Plugin này sẽ tạo 5 bảng DB mới, nạp 3 n8n Workflow,
+               yêu cầu thêm quyền: hr_manager, hr_viewer, leave_approver.
+               Bạn có muốn tiếp tục không?"
+         ↓
+Admin bấm [Xác nhận]
+         ↓
+FastAPI POST /plugins/{code_name}/install (HTTP 202 Accepted)
+         ↓
+Plugin Manager chạy async: tạo DB → nạp n8n → tạo Metabase Dashboard
+         ↓
+Cập nhật TENANT_PLUGIN.status: INSTALLING → ACTIVE (hoặc FAILED_DIRTY)
+         ↓
+Gửi thông báo Mattermost: "✅ Plugin HR Module đã cài đặt thành công"
+```
+
+### 7.5. Điều gì xảy ra khi AI được yêu cầu cài Plugin?
+
+Theo quy tắc Human-in-the-loop, nếu Giám đốc chat: *"Hãy cài Plugin Quản lý Canteen"*:
+
+> [!WARNING]
+> AI **không được phép tự động cài Plugin** dù nhận lệnh từ cấp Giám đốc. Lý do: Giám đốc có thể có role `tenant_admin` nhưng lệnh qua Chat cần được **xác nhận thêm một lần nữa** vì hành động cài Plugin thuộc loại `effect: write` (thay đổi cấu trúc hệ thống).
+
+```
+Giám đốc: "Cài Plugin Quản lý Canteen đi"
+         ↓
+AI tạo DSL: { action: "core.plugins.install", effect: "write", ... }
+         ↓
+AI gửi Mattermost: "⚠️ Tôi chuẩn bị CÀI ĐẶT Plugin 'Canteen Manager v1.2'.
+                    Plugin này sẽ tạo 4 bảng DB mới.
+                    [✅ Phê duyệt]  [❌ Hủy bỏ]"
+         ↓
+Giám đốc (với role tenant_admin) bấm [✅ Phê duyệt]
+         ↓
+Cài đặt bắt đầu
+```
+
+---
+
+## 8. Tổng kết
 
 Proteus OS sinh ra để đập tan tình trạng "ốc đảo thông tin" (mỗi phòng ban dùng một phần mềm rời rạc). Nó biến hệ thống quản trị của bất kỳ tổ chức nào thành một thể thống nhất, **dễ cài đặt như tải App trên điện thoại**, **bảo mật như ngân hàng** (nhờ cô lập chung cư Multi-tenancy), và **cực kỳ thông minh** nhờ AI trực tiếp điều hành công việc.
 

@@ -121,9 +121,16 @@ erDiagram
 ### 2.2. Nhóm Quản lý Phân quyền (RBAC - Role-Based Access Control)
 
 - **Bảng `ROLE`:** Danh mục các Vai trò. Điểm quan trọng:
-  - `tenant_id = NULL` → **Core System Role** (Admin, SuperAdmin) áp dụng toàn hệ thống.
-  - `tenant_id = <id>` → **Tenant-scoped Role** (HR Manager của Trường A).
-  - `plugin_code_name != NULL` → **Plugin Role** tự động tạo khi Plugin được cài đặt (VD: `hr_manager`, `leave_approver`).
+  - `tenant_id = NULL` và `plugin_code_name = NULL` → **Platform Core Role** (superadmin, platform_support) — quản lý toàn bộ hệ thống.
+  - `tenant_id = <id>` và `plugin_code_name = NULL` → **Tenant Admin Role** (tenant_admin, tenant_manager) — quản trị trong phạm vi tổ chức.
+  - `tenant_id = <id>` và `plugin_code_name != NULL` → **Plugin Role** tự động tạo khi Plugin được cài đặt (VD: `hr_manager`, `leave_approver`).
+  
+  | Role | tenant_id | plugin_code_name | Quyền cài Plugin |
+  |---|---|---|---|
+  | `superadmin` | NULL | NULL | ✅ Tất cả Tenant |
+  | `tenant_admin` | \<id\> | NULL | ✅ Chỉ Tenant mình |
+  | `hr_manager` | \<id\> | `hr-module` | ❌ Không |
+
 - **Bảng `USER_ROLE`:** Xác định cụ thể người dùng có vai trò gì trong hệ thống. Cột `granted_by_user_id` đảm bảo mọi thay đổi phân quyền đều có người chịu trách nhiệm (accountability).
 
 ### 2.3. Nhóm Quản lý Chợ Ứng dụng (Marketplace)
