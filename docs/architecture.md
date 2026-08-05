@@ -200,3 +200,84 @@ Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **
 **Kết luận:** Trong Proteus OS, Event Bus chủ yếu dùng để **Plugin A phát sự kiện, Plugin B lắng nghe tức thì** (VD: HR tạo nhân viên mới → Finance tạo tài khoản lương). Đây là use case của fire-and-forget notification, không yêu cầu message durability. Redis Pub/Sub đủ dùng và nhẹ hơn nhiều so với RabbitMQ, giúp giảm yêu cầu RAM của toàn hệ thống.
 
 **Lưu ý:** Nếu trong tương lai cần **reliable task queue** (VD: email gửi đi phải đảm bảo không mất), sẽ thêm **Redis Streams** (không phải Pub/Sub) hoặc nâng cấp lên RabbitMQ cho queue đó riêng biệt.
+
+---
+
+### ADR-002: Không dùng Graph RAG ở giai đoạn hiện tại
+
+**Ngày quyết định:** 2026-08-05  
+**Trạng thái:** Đã chốt ✅ — Xem xét lại ở v2.0
+
+#### Vấn đề đặt ra
+
+Liệu có nên dùng **Graph RAG** (Microsoft GraphRAG / LlamaIndex Knowledge Graph) thay cho Vector RAG thuần túy (Qdrant) để cải thiện chất lượng trả lời của AI?
+
+#### Graph RAG là gì?
+
+Standard Vector RAG trích xuất chunk văn bản → embed → lưu Qdrant → tìm kiếm cosine similarity.
+
+Graph RAG bổ sung thêm bước: trích xuất **thực thể (Entity)** và **quan hệ (Relationship)** từ văn bản → xây dựng **Knowledge Graph** → khi query, kết hợp graph traversal + vector search để tìm câu trả lời đa bước (multi-hop reasoning).
+
+```
+Standard RAG:  Tài liệu → Chunks → Qdrant (Vector)
+                                         ↓
+                              Query → cosine similarity → LLM answer
+
+Graph RAG:     Tài liệu → Entity/Relation Extraction → Knowledge Graph (Neo4j)
+                       ↘ Chunks → Qdrant (Vector)
+                                         ↓
+                              Query → Graph Traversal + Vector Search → LLM answer
+```
+
+#### Phân tích cho Proteus OS
+
+| Câu hỏi thực tế | Cách xử lý tốt nhất | Cần Graph RAG? |
+|---|---|---|
+| "Quy trình nghỉ phép là gì?" | Vector RAG tìm trong tài liệu HR Policy | ❌ Không |
+| "Hôm nay có bao nhiêu người nghỉ?" | SQL query vào `hr_leave_requests` | ❌ Không |
+| "Ai là quản lý của phòng Kế toán?" | SQL query vào `hr_employees` | ❌ Không |
+| "Đơn hàng #1024 kẹt ở đâu, tại sao?" | SQL + n8n workflow metadata | ❌ Không |
+| "Nhân viên nào vừa được phê duyệt nghỉ và chưa bàn giao?" | SQL JOIN query | ❌ Không |
+| "Quy trình phê duyệt hóa đơn liên quan đến những ai?" | Vector RAG tìm SOP document | ⚠️ Có thể |
+
+**Nhận xét:** ~90% câu hỏi trong Proteus OS rơi vào 2 loại: (1) query có cấu trúc từ PostgreSQL, (2) tìm kiếm text từ SOP/chính sách. Cả hai đều được giải quyết bởi SQL + Standard Vector RAG mà **không cần Graph RAG**.
+
+#### Lý do từ chối ở giai đoạn hiện tại
+
+| Rủi ro | Chi tiết |
+|---|---|
+| **Chi phí LLM index cao** | Microsoft GraphRAG phải gọi LLM hàng ngàn lần khi indexing để tóm tắt cộng đồng (community summarization). Một corpus 1000 tài liệu có thể tốn hàng trăm USD chỉ để index. |
+| **Hạ tầng phức tạp** | Yêu cầu thêm Neo4j (hoặc NetworkX) cùng với Qdrant. Tăng gánh nặng vận hành và chi phí RAM. |
+| **Entity extraction không hoàn hảo** | Trích xuất thực thể từ văn bản tiếng Việt chuyên ngành (HR/Finance) yêu cầu fine-tuning hoặc prompt engineering nặng — rủi ro chất lượng thấp. |
+| **Over-engineering** | Vấn đề của hệ thống hiện tại chưa đủ phức tạp để cần đến Graph RAG. Dữ liệu quan hệ đã có trong PostgreSQL với schema rõ ràng. |
+| **Maintenance cost** | Knowledge graph cần được cập nhật mỗi khi tài liệu thay đổi — phức tạp hơn nhiều so với re-embedding chunk thuần túy. |
+
+#### Quyết định: Hybrid Search (Qdrant) đủ dùng
+
+Thay vì Graph RAG, cải thiện chất lượng RAG bằng **Hybrid Search** (đã có sẵn trong Qdrant):
+
+```
+Query của người dùng
+      ↓
+┌──────────────────────────────────────────┐
+│  Hybrid Search (Qdrant)                  │
+│  ┌─────────────────┐ ┌─────────────────┐ │
+│  │ Dense Vector    │ │ Sparse BM25     │ │
+│  │ (Semantic)      │ │ (Keyword)       │ │
+│  └─────────────────┘ └─────────────────┘ │
+│         ↓ RRF Fusion (Reciprocal Rank)   │
+└──────────────────────────────────────────┘
+      ↓
+Top-k chunks → LLM answer
+```
+
+Hybrid Search kết hợp **tìm kiếm ngữ nghĩa** (dense vector) + **tìm kiếm từ khóa** (BM25) → cải thiện đáng kể độ chính xác, đặc biệt với tên riêng tiếng Việt (mã nhân viên, tên phòng ban, v.v.) mà dense-only thường bỏ sót.
+
+#### Điều kiện để xem xét lại Graph RAG (v2.0)
+
+Graph RAG nên được xem xét **nếu và chỉ nếu** xuất hiện các vấn đề sau sau khi go-live:
+
+1. Người dùng thường xuyên hỏi câu hỏi multi-hop mà SQL + Vector RAG không trả lời tốt (VD: "Tìm tất cả nhân viên báo cáo cho X, mà đang phụ trách dự án Y, và có đơn Z chưa xử lý").
+2. Corpus tài liệu tăng lên > 10,000 documents và chất lượng retrieval xuống rõ ràng.
+3. Có resource đủ để dùng LlamaIndex Knowledge Graph RAG (nhẹ hơn Microsoft GraphRAG, không cần community summarization).
+
