@@ -28,6 +28,7 @@ Toàn bộ tài liệu đặc tả, thiết kế kiến trúc và giao diện đ
 - 🗄️ **[Lược đồ Dữ liệu (Core ERD)](./docs/erd.md):** Sơ đồ quan hệ các bảng lõi của hệ thống.
 - 🔐 **[Làm rõ Đa khách hàng & Phân quyền](./docs/clarification.md):** Cơ chế Multi-Tenancy (SaaS) và Role-Based Access Control qua Keycloak.
 - 🔌 **[Tài liệu API (OpenAPI/Swagger)](./docs/api-swagger.yaml):** Đặc tả các Endpoint của Core Engine.
+- 🚀 **[Hướng dẫn Triển khai (Deployment Guide)](./docs/deployment.md):** Kiến trúc mạng, Traefik routing và yêu cầu phần cứng.
 
 ## 🚀 Hướng dẫn Cài đặt (Quick Start)
 
