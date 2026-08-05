@@ -163,6 +163,28 @@ Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **
 
 **Hard Limits (cứng, không cài đặt được):** AI chỉ thực thi các action nằm trong DX-DSL whitelist. Mọi yêu cầu ngoài danh sách (đặc biệt là `core.data.delete_all`, truy cập cross-tenant, sửa code) sẽ bị từ chối ngay tại tầng Orchestrator với lỗi `DSL_INVALID_ACTION`. Chi tiết đầy đủ xem tại **[`docs/clarification.md §9`](./clarification.md)**.
 
+### Phân công rõ ràng: n8n vs. LangChain (FastAPI)
+
+> [!IMPORTANT]
+> **n8n là "bàn tay" (execution). LangChain là "bộ não" (reasoning).** Hai thứ không thay thế nhau được.
+
+| Chế độ AI | n8n làm gì | LangChain (FastAPI) làm gì |
+|---|---|---|
+| **RAG Assistant** | ❌ Không tham gia | ✅ Toàn bộ: embed query → Qdrant Hybrid Search → prompt → LLM → trả về |
+| **Proactive Monitor** | ✅ Toàn bộ: Cron trigger → PostgreSQL query → evaluate → Mattermost alert | ❌ Không tham gia |
+| **Executive Agent** | ✅ Nửa sau: nhận webhook từ FastAPI → thực thi hành động → callback | ✅ Nửa trước: hiểu ngôn ngữ tự nhiên → tạo DX-DSL → validate RBAC → quản lý Human-in-the-loop wait state |
+
+**Tại sao không dùng n8n AI Nodes thay LangChain hoàn toàn?**
+
+n8n có tích hợp AI Agent nodes (built-in LangChain), nhưng **không đủ cho production** vì:
+- Không hỗ trợ Qdrant Hybrid Search (Dense Vector + BM25) — cần cho tiếng Việt
+- Không thể inject `tenant_id` vào RAG context một cách type-safe
+- Không có Pydantic schema validation cho DX-DSL output
+- Debug prompt & trace với LangSmith không khả dụng
+- Streaming response cho chat UI không hỗ trợ tốt
+
+**Tóm lại:** Mọi logic cần **LLM reasoning** → FastAPI + LangChain. Mọi logic cần **workflow automation** (cron, webhook, DB write, gửi thông báo) → n8n.
+
 ---
 
 ## 3. Kiến trúc Đa khách hàng (Multi-Tenancy) & Phân quyền

@@ -34,6 +34,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[docs/architecture.md]** Mermaid diagram EventBus label: "Redis / RabbitMQ" → "Redis Pub/Sub" (nhất quán với ADR-001).
 - **[docs/BRD.md]** Event Bus: "Redis Pub/Sub hoặc RabbitMQ" → "Redis Pub/Sub" (nhất quán với ADR-001).
 
+### Changed (tiếp theo)
+- **[docs/architecture.md §2.3]** Thêm bảng phân công rõ ràng "n8n vs. LangChain (FastAPI)" cho cả 3 chế độ AI: RAG Assistant (LangChain toàn bộ, n8n không tham gia), Proactive Monitor (n8n toàn bộ, LangChain không tham gia), Executive Agent (LangChain nửa trước reasoning + DX-DSL, n8n nửa sau execution). Giải thích lý do không thay LangChain bằng n8n AI Nodes cho production.
+
 
 
 ---
