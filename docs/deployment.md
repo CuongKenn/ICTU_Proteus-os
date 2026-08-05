@@ -40,22 +40,26 @@ Dành cho lập trình viên chạy thử nghiệm (có thể tắt bớt một 
 
 ```mermaid
 graph TD
-    Internet((Internet)) -->|Port 443| Traefik[Traefik Proxy]
+    Internet((Internet)) -->|"Port 443"| Traefik["Traefik Proxy"]
     
-    subgraph DockerNetwork [Proteus-Network (Internal)]
-        Traefik -->|/| UI[Next.js App Shell]
-        Traefik -->|/api| Core[FastAPI Core Engine]
-        Traefik -->|/auth| Keycloak[Keycloak]
-        Traefik -->|/proxy/appsmith| Appsmith[Appsmith]
-        Traefik -->|/chat| Mattermost[Mattermost]
+    subgraph DockerNetwork
+        UI["Next.js App Shell"]
+        Core["FastAPI Core Engine"]
+        Keycloak["Keycloak"]
+        Appsmith["Appsmith"]
+        Mattermost["Mattermost"]
+        PG[("PostgreSQL")]
         
-        Core --> PG[(PostgreSQL)]
+        Traefik -->|"/"| UI
+        Traefik -->|"/api"| Core
+        Traefik -->|"/auth"| Keycloak
+        Traefik -->|"/proxy/appsmith"| Appsmith
+        Traefik -->|"/chat"| Mattermost
+        
+        Core --> PG
         Keycloak --> PG
         Appsmith --> PG
     end
-    
-    classDef internal fill:#2d3748,stroke:#4a5568,color:#e2e8f0;
-    class PG,UI,Core,Keycloak,Appsmith,Mattermost internal;
 ```
 
 ---
