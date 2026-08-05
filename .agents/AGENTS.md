@@ -28,3 +28,5 @@ Chào AI Agent, khi bạn được giao nhiệm vụ viết code, phân tích ho
 ## 5. Trước khi Code
 - Hãy luôn dùng công cụ đọc file để đọc kỹ các tài liệu `docs/BRD.md`, `docs/architecture.md` và `docs/erd.md` trước khi thêm tính năng mới.
 - Cập nhật tài liệu `CHANGELOG.md` và `docs/api-swagger.yaml` nếu có thay đổi về Endpoint hoặc luồng dữ liệu lớn.
+- **Quy định Bản quyền (Open-Source License)**: BẮT BUỘC chèn đoạn Text chứa thông tin Bản quyền (Copyright) và Giấy phép (GNU AGPLv3) lên dòng đầu tiên của TẤT CẢ các file mã nguồn (Python, TypeScript, React, v.v.). Điều này nhằm tuân thủ chặt chẽ tính pháp lý của dự án Open-Source. 
+  *(Gợi ý định dạng SPDX ngắn gọn: `Copyright (c) 2026 CuongKenn & ICTU Team` và `SPDX-License-Identifier: AGPL-3.0-or-later` ở dạng comment đầu file).*
