@@ -27,6 +27,53 @@ Chào AI Agent, khi bạn được giao nhiệm vụ viết code, phân tích ho
 
 ## 5. Trước khi Code
 - Hãy luôn dùng công cụ đọc file để đọc kỹ các tài liệu `docs/BRD.md`, `docs/architecture.md` và `docs/erd.md` trước khi thêm tính năng mới.
-- Cập nhật tài liệu `CHANGELOG.md` và `docs/api-swagger.yaml` nếu có thay đổi về Endpoint hoặc luồng dữ liệu lớn.
 - **Quy định Bản quyền (Open-Source License)**: BẮT BUỘC chèn đoạn Text chứa thông tin Bản quyền (Copyright) và Giấy phép (GNU AGPLv3) lên dòng đầu tiên của TẤT CẢ các file mã nguồn (Python, TypeScript, React, v.v.). Điều này nhằm tuân thủ chặt chẽ tính pháp lý của dự án Open-Source. 
   *(Gợi ý định dạng SPDX ngắn gọn: `Copyright (c) 2026 CuongKenn & ICTU Team` và `SPDX-License-Identifier: AGPL-3.0-or-later` ở dạng comment đầu file).*
+
+## 6. Quy tắc Cập nhật CHANGELOG.md (Bắt buộc)
+
+**BẮT BUỘC** cập nhật `CHANGELOG.md` sau mỗi thay đổi đáng kể. Không được commit mà bỏ qua bước này.
+
+### 6.1. Khi nào phải cập nhật?
+
+| Loại thay đổi | Phải update CHANGELOG? |
+|---|---|
+| Thêm tính năng mới (Feature) | ✅ Bắt buộc |
+| Thay đổi API Endpoint (thêm/xóa/sửa) | ✅ Bắt buộc |
+| Thay đổi schema Database (bảng, cột, migration) | ✅ Bắt buộc |
+| Thay đổi kiến trúc (ADR, luồng dữ liệu lớn) | ✅ Bắt buộc |
+| Sửa bug quan trọng (ảnh hưởng đến dữ liệu hoặc bảo mật) | ✅ Bắt buộc |
+| Cập nhật tài liệu docs/ (nội dung đáng kể) | ✅ Bắt buộc |
+| Sửa typo nhỏ, format code, comment | ❌ Không cần |
+| Refactor nội bộ không đổi behavior | ❌ Không cần |
+
+### 6.2. Định dạng bắt buộc (Keep a Changelog)
+
+Luôn thêm mục mới vào section `## [Unreleased]` ở **đầu file**, phân loại theo nhóm:
+
+```markdown
+## [Unreleased] - Sắp tới
+
+### Added
+- [module/file] Mô tả tính năng mới thêm vào.
+
+### Changed
+- [module/file] Mô tả thay đổi đối với tính năng đã có.
+
+### Fixed
+- [module/file] Mô tả bug đã được sửa.
+
+### Removed
+- [module/file] Mô tả tính năng/code đã bị xóa.
+
+### Security
+- [module/file] Mô tả vá lỗ hổng bảo mật.
+```
+
+### 6.3. Quy tắc viết nội dung
+
+- **Luôn ghi tên file/module** trong ngoặc vuông ở đầu dòng: `[docs/api-swagger.yaml]`, `[core-engine/backend]`, `[plugins/hr-module]`.
+- **Viết từ góc nhìn người dùng/developer**, không phải từ góc nhìn kỹ thuật nội bộ. VD: "Thêm endpoint `POST /plugins/install`" thay vì "Sửa hàm `_provision_plugin()`".
+- **Không để trống** các mục không có thay đổi — xóa hẳn nhóm đó thay vì để `### Added\n(trống)`.
+- Cập nhật đồng thời `docs/api-swagger.yaml` nếu có thay đổi về Endpoint hoặc Schema.
+
