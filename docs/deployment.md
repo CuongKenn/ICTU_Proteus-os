@@ -42,7 +42,7 @@ Dành cho lập trình viên chạy thử nghiệm (có thể tắt bớt một 
 graph TD
     Internet((Internet)) -->|Port 443| Traefik[Traefik Proxy]
     
-    subgraph Docker Network [Proteus-Network (Internal)]
+    subgraph DockerNetwork [Proteus-Network (Internal)]
         Traefik -->|/| UI[Next.js App Shell]
         Traefik -->|/api| Core[FastAPI Core Engine]
         Traefik -->|/auth| Keycloak[Keycloak]
