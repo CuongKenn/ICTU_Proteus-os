@@ -10,7 +10,7 @@ import logging
 import time
 
 import httpx
-from jose import JWTError, jwt
+from jose import jwt
 
 from app.infrastructure.config import settings
 
