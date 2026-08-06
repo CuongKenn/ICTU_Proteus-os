@@ -37,6 +37,26 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Changed (tiếp theo)
 - **[docs/architecture.md §2.3]** Thêm bảng phân công rõ ràng "n8n vs. LangChain (FastAPI)" cho cả 3 chế độ AI: RAG Assistant (LangChain toàn bộ, n8n không tham gia), Proactive Monitor (n8n toàn bộ, LangChain không tham gia), Executive Agent (LangChain nửa trước reasoning + DX-DSL, n8n nửa sau execution). Giải thích lý do không thay LangChain bằng n8n AI Nodes cho production.
 
+---
+
+## [Unreleased] — Review & Cải thiện Tài liệu (2026-08-06)
+
+### Added
+- **[docs/clarification.md §8]** Thêm mục mới "Quản lý Token & Phiên làm việc": bảng TTL Token (Access/Refresh/Session), luồng Silent Refresh chi tiết, Refresh Token Rotation security, xử lý khi Refresh Token hết hạn (buộc re-login), bảng edge case (5 tình huống).
+- **[docs/erd.md §2.4]** Thêm bảng `AI_COMMAND` vào ERD: lưu lịch sử DX-DSL Command với đầy đủ approval workflow (approved_by, second_approver, mattermost_message_id, approval_deadline, execution_result). Giải thích lý do tách riêng khỏi `AUDIT_LOG` để query hiệu quả. Bảng trạng thái đầy đủ 6 status.
+- **[docs/ui_ux_design.md §5]** Thêm Design System hoàn chỉnh: Color Palette (14 tokens Dark Mode + 4 tokens Light Mode với HSL/Hex), Typography System (font family + 7-level type scale), Spacing & Grid System (8 tokens + layout specs), Component Inventory (Button variants+states, Plugin Card wireframe+6 states, App Icon spec, Toast 4 types, AI Widget states, Loading/Empty states), Navigation Flow Diagram (Mermaid), Animation & Motion table (8 interactions).
+
+### Changed
+- **[docs/BRD.md]** Fix link broken `./docs/clarification.md §9` → `./clarification.md §9` (BRD nằm trong thư mục docs/ nên đường dẫn con trỏ sai subdirectory).
+- **[docs/BRD.md §5]** Cập nhật cây thư mục `docs/`: thêm `BRD.md`, `dsl-spec.md`, `deployment.md` còn thiếu; cập nhật mô tả `architecture.md` và `api-swagger.yaml`.
+- **[docs/dsl-spec.md §3.1]** Thêm cột `Required Role` vào bảng nhóm `finance` (thiếu so với bảng `core` và `hr`): `finance_viewer`, `finance_approver`, `tenant_admin` theo từng action.
+- **[docs/deployment.md §2.1]** Thêm 2 route còn thiếu: `/workflow/` → n8n Admin UI, `/analytics/` → Metabase BI Dashboard.
+- **[docs/deployment.md §2.2]** Thêm `n8n` và `Metabase` vào Mermaid network diagram (cả node lẫn Traefik routing và kết nối PostgreSQL).
+- **[docs/api-swagger.yaml]** Thống nhất server URL Development: `http://api.proteus.local/api/v1` → `http://localhost:8000/api/v1` (nhất quán với cách truy cập development trong README.md và deployment.md).
+- **[docs/clarification.md §9.4]** Thêm link ngược tham chiếu đến `docs/dsl-spec.md` tại mục CAUTION về `DSL_INVALID_ACTION`.
+
+### Fixed
+- **[docs/dsl-spec.md §6]** Fix typo "bửi" → "bởi" trong mô tả validation rule Permission check.
 
 
 ---

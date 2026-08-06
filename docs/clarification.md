@@ -382,6 +382,77 @@ Cài đặt bắt đầu
 
 ---
 
+## 8. Quản lý Token & Phiên làm việc (Token & Session Management)
+
+Một điểm thường bị bỏ qua khi thiết kế SSO là **vòng đời của Token**. Phần này mô tả rõ những gì xảy ra khi Access Token hết hạn và hệ thống xử lý thế nào để duy trì phiên làm việc liên mạch.
+
+### 8.1. Thời hạn Token trong Proteus OS
+
+| Loại Token | TTL Mặc định | Lưu ở đâu | Ghi chú |
+|---|---|---|---|
+| **Access Token** | 5 phút | HttpOnly Cookie (Server-side) | Thời gian ngắn để giảm rủi ro nếu bị đánh cắp |
+| **Refresh Token** | 8 giờ (ca làm việc) | HttpOnly Cookie (Server-side) | Tự động gia hạn Access Token |
+| **Session Cookie** | Theo Refresh Token | Browser (HttpOnly) | Được mã hóa bằng `NEXTAUTH_SECRET` |
+
+> [!IMPORTANT]
+> **Tại sao TTL Access Token chỉ 5 phút?** Đây là thiết kế cố ý. Nếu Access Token bị đánh cắp (ví dụ lộ qua log), kẻ tấn công chỉ có tối đa 5 phút để lạm dụng. Refresh Token được bảo vệ an toàn hơn nhình ngày lưu trong HttpOnly Cookie, không thể đọc bằng JavaScript.
+
+### 8.2. Luồng Silent Refresh (Tự động gia hạn Token)
+
+Khi Access Token sắp hết hạn, Next.js BFF tự động gia hạn mà người dùng **không hay biết gì**:
+
+```
+Người dùng đang làm việc bình thường
+         ↓
+[4:30 phút] Next.js phát hiện Access Token sắp hết (còn < 30 giây)
+         ↓
+Next.js gọi Keycloak: POST /realms/{realm}/protocol/openid-connect/token
+  Body: grant_type=refresh_token&refresh_token=<encrypted_rt>
+         ↓
+Keycloak trả về: Access Token mới (5 phút) + Refresh Token mới (rotation)
+         ↓
+Next.js cập nhật Cookie ᯻n phía Server
+         ↓
+Request tiếp theo của người dùng được gửi kèm Access Token mới ✅
+```
+
+### 8.3. Refresh Token Rotation (Bảo mật nâng cao)
+
+Proteus OS bật tính năng **Refresh Token Rotation** trong Keycloak:
+- Mỗi khi Refresh Token được dùng để lấy Access Token mới, Keycloak sẽ **huỷ** Refresh Token cũ và cấp Refresh Token **mới** ngay lập tức.
+- Nếu kẻ tấn công đánh cắp được Refresh Token và dùng nó, Keycloak phát hiện có **2 request cùng lúc** dùng cùng một token → **hủy toàn bộ phiên**, buộc người dùng đăng nhập lại.
+
+### 8.4. Xử lý khi Refresh Token hết hạn (Buộc đăng nhập lại)
+
+```
+Người dùng gử request
+         ↓
+Next.js BFF kiểm tra: Refresh Token đã hết hạn
+         ↓
+Next.js xóa Cookie phiên
+         ↓
+Return HTTP 401 → Frontend redirect về trang Login
+         ↓
+Keycloak Hiện thị trang đăng nhập (OIDC Authorization Code Flow)
+         ↓
+Người dùng nhập lại mật khẩu → Phên mới bắt đầu
+```
+
+> [!NOTE]
+> **Trải nghiệm người dùng:** Để tránh mất dữ liệu đang nhập, Frontend (Next.js) lưu Draft State vào `sessionStorage` trước khi redirect. Sau khi đăng nhập lại, hệ thống tự động phục hồi form chưa lưu.
+
+### 8.5. Bảng tổng hợp: Các Edge Case và cách xử lý
+
+| Tình huống | Hành động hệ thống |
+|---|---|
+| Access Token hết hạn, Refresh Token còn hạn | Silent refresh tự động, không ảnh hưởng người dùng |
+| Refresh Token hết hạn (sau 8 giờ) | Redirect về trang đăng nhập, phiên mới |
+| Admin tắt tài khoản trong Keycloak | Trong tối đa 5 phút (hết TTL Access Token), mọi request bị từ chối |
+| Refresh Token bị dùng 2 lần (tấn công) | Keycloak hủy toàn bộ phiên, buộc đăng nhập lại |
+| Người dùng mở nhiều tab | Mỗi tab dùng chung HttpOnly Cookie → Silent refresh đồng bộ toàn bộ |
+
+---
+
 ## 9. AI có thể làm gì trong hệ thống Proteus OS?
 
 AI trong Proteus OS không chỉ là một chatbot thông thường. Nó hoạt động như một **Trợ lý Điều hành thực sự** với 3 chế độ hoạt động riêng biệt, từ việc trả lời câu hỏi đến tự động xử lý công việc.
@@ -475,7 +546,7 @@ AI chạy ngầm như một "Kiểm soát viên" không ngủ, định kỳ qué
 | Khởi tạo lệnh chuyển khoản | ✅ **2 người duyệt** | `finance_approver` + cấp 2 |
 
 > [!CAUTION]
-> **AI KHÔNG THỂ và KHÔNG ĐƯỢC:** Thực hiện bất kỳ hành động nào nằm ngoài danh sách whitelist trên. Mọi yêu cầu "ngoài menu" sẽ bị Orchestrator từ chối với lỗi `DSL_INVALID_ACTION`.
+> **AI KHÔNG THỂ và KHÔNG ĐƯỢC:** Thực hiện bất kỳ hành động nào nằm ngoài danh sách whitelist trên. Mọi yêu cầu "ngoài menu" sẽ bị Orchestrator từ chối với lỗi `DSL_INVALID_ACTION`. Xem đầy đủ cấu trúc và validation rules tại **[`docs/dsl-spec.md`](./dsl-spec.md)**.
 
 ---
 

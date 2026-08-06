@@ -112,12 +112,12 @@ Tất cả action phải tuân theo định dạng:
 
 #### Nhóm `finance` — Plugin Kế toán (Dự kiến)
 
-| Action | Effect | Mô tả |
-|---|---|---|
-| `finance.invoices.list` | read | Xem danh sách hóa đơn |
-| `finance.invoices.approve` | write | Duyệt hóa đơn thanh toán |
-| `finance.reports.cashflow` | read | Xem báo cáo dòng tiền |
-| `finance.transfers.initiate` | critical | Khởi tạo lệnh chuyển khoản |
+| Action | Effect | Required Role | Mô tả |
+|---|---|---|---|
+| `finance.invoices.list` | read | `finance_viewer`, `finance_approver`, `tenant_admin` | Xem danh sách hóa đơn |
+| `finance.invoices.approve` | write | `finance_approver`, `tenant_admin` | Duyệt hóa đơn thanh toán |
+| `finance.reports.cashflow` | read | `finance_viewer`, `finance_approver`, `tenant_admin` | Xem báo cáo dòng tiền |
+| `finance.transfers.initiate` | critical | `finance_approver` + cấp 2 duyệt | Khởi tạo lệnh chuyển khoản |
 
 ---
 
@@ -185,7 +185,7 @@ Orchestrator phải validate DSL command theo các quy tắc sau TRƯỚC KHI th
 | Rule | Mô tả | Lỗi trả về |
 |---|---|---|
 | **Action whitelist** | `action` phải nằm trong danh sách cho phép | `DSL_INVALID_ACTION` |
-| **Permission check** | `issued_by.roles` phải chứa role được phép thực hiện action đó (xem cột "Required Role" trong bảng whitelist). VD: `core.plugins.install` chỉ được thực hiện bửi `tenant_admin` hoặc `superadmin`. | `DSL_PERMISSION_DENIED` |
+| **Permission check** | `issued_by.roles` phải chứa role được phép thực hiện action đó (xem cột "Required Role" trong bảng whitelist). VD: `core.plugins.install` chỉ được thực hiện bởi `tenant_admin` hoặc `superadmin`. | `DSL_PERMISSION_DENIED` |
 | **Plugin installed** | Plugin tương ứng với action phải đang ở trạng thái `ACTIVE` | `DSL_PLUGIN_NOT_ACTIVE` |
 | **Parameters schema** | `parameters` phải đúng JSON Schema của action đó | `DSL_INVALID_PARAMETERS` |
 | **Version compatibility** | `dsl_version` phải là phiên bản Orchestrator hỗ trợ | `DSL_VERSION_UNSUPPORTED` |

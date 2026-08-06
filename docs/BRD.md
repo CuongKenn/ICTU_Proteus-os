@@ -74,7 +74,7 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 - **Luồng xử lý:** Nhận lệnh ủy quyền bằng ngôn ngữ tự nhiên từ Ban Giám đốc qua Chat (VD: "Hãy điều chuyển kho để bù hàng") -> Phân tích logic bằng ReAct (Reasoning and Acting) -> Dịch lệnh thành chuẩn DX-DSL -> Gửi tin nhắn xác nhận (Interactive Message) có nút [Phê duyệt]/[Hủy] qua Mattermost (Human-in-the-loop) -> Giám đốc bấm [Phê duyệt] -> Tự động kích hoạt luồng Workflow tương ứng tại Không gian [P].
 - **Tiêu chí nghiệm thu (AC):** AI tự động hoàn thành một quy trình thông qua API và báo cáo kết quả hoàn tất về cho người ra lệnh trên Chat.
 
-> **Danh sách đầy đủ những gì AI có thể và KHÔNG THỂ làm** (capability matrix, hard limits, ví dụ cụ thể) xem tại: [`docs/clarification.md §9`](./docs/clarification.md).
+> **Danh sách đầy đủ những gì AI có thể và KHÔNG THỂ làm** (capability matrix, hard limits, ví dụ cụ thể) xem tại: [`clarification.md §9`](./clarification.md).
 
 
 ### 2.2. Phân hệ 2: Innovation Layer (Phần lõi tự phát triển - Trọng tâm thi đấu)
@@ -162,11 +162,14 @@ Proteus-OS-Monorepo/
 │   └── finance-module/
 │
 ├── docs/                        # 4. TÀI LIỆU DỰ ÁN
-│   ├── architecture.md          # Sơ đồ kiến trúc tổng thể (SAD)
+│   ├── BRD.md                   # Tài liệu Đặc tả Yêu cầu Nghiệp vụ
+│   ├── architecture.md          # Sơ đồ kiến trúc tổng thể (SAD) & ADR
 │   ├── ui_ux_design.md          # Phác thảo giao diện Launchpad & App Store
 │   ├── erd.md                   # Lược đồ cơ sở dữ liệu cốt lõi (Core ERD)
 │   ├── clarification.md         # Làm rõ kiến trúc Đa khách hàng & Phân quyền
-│   ├── api-swagger.yaml         # Tài liệu API của Core Engine
+│   ├── dsl-spec.md              # Đặc tả ngôn ngữ thực thi AI (DX-DSL)
+│   ├── deployment.md            # Hướng dẫn triển khai, mạng, backup
+│   ├── api-swagger.yaml         # Tài liệu API của Core Engine (OpenAPI 3.1)
 │   └── images/                  # Thư mục chứa hình ảnh tài liệu
 │
 ├── LICENSE                      # BẮT BUỘC: Giấy phép nguồn mở (GNU AGPLv3)

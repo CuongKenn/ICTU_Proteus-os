@@ -18,14 +18,14 @@ info:
     url: https://www.gnu.org/licenses/agpl-3.0.html
 
 servers:
-  - url: http://api.proteus.local/api/v1
-    description: Môi trường Development (Local Docker via Traefik)
+  - url: http://localhost:8000/api/v1
+    description: Môi trường Development (Truy cập trực tiếp không qua Traefik)
   - url: https://{domain}/api/v1
-    description: Môi trường Production
+    description: Môi trường Production/Staging (Qua Traefik Proxy, path-based routing)
     variables:
       domain:
         default: proteus.local
-        description: Tên miền triển khai thực tế
+        description: Tên miền triển khai thực tế (VD proteus.local/api/ → FastAPI)
 
 components:
   securitySchemes:

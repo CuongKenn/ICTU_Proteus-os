@@ -154,9 +154,44 @@ erDiagram
   - `AI_AGENT`: AI thực hiện sau khi được phê duyệt qua Human-in-the-loop. `user_id` lúc này = NULL, nhưng `payload` chứa `command_id` của DSL Command để trace lại.
   - `SYSTEM`: Hệ thống tự động thực hiện (VD: Cleanup Agent xóa dữ liệu rác `FAILED_DIRTY`).
   
-  Bảng này **không được phép xóa (DELETE)**, chỉ được thêm (INSERT-only). Để hiểu AI được phép làm những gì trong hệ thống, xem [`docs/clarification.md §9`](./clarification.md).
+  Bảng này **không được phép xóa (DELETE)**, chỉ được thêm (INSERT-only). Để hiểu AI được phép làm những gì trong hệ thống, xem [`clarification.md §9`](./clarification.md).
+
+- **Bảng `AI_COMMAND`:** Lưu toàn bộ lịch sử các DX-DSL Command do AI tạo ra. Tách riêng khỏi `AUDIT_LOG` vì DSL Command có cấu trúc phức tạp (approval workflow, dry-run result, deadline) cần được **query hiệu quả** theo `status` và `tenant_id`.
+
+```mermaid
+erDiagram
+    AI_COMMAND {
+        uuid id PK "= command_id trong DX-DSL"
+        uuid tenant_id FK "Tenant phát lệnh (RLS)"
+        uuid issued_by_user_id FK "Người ra lệnh"
+        string dsl_version "Phiên bản spec DSL"
+        string action "VD: hr.leave_requests.batch_approve"
+        string effect "Enum: read / write / critical"
+        jsonb parameters "Tham số đầu vào"
+        jsonb dry_run_result "Kết quả chạy thử (affected_count, preview)"
+        string status "Enum: PENDING_APPROVAL / APPROVED / REJECTED / EXECUTED / EXPIRED / CANCELLED"
+        uuid approved_by_user_id FK "Người phê duyệt (NULL nếu chưa duyệt)"
+        uuid second_approver_id FK "Người duyệt thứ 2 (chỉ dùng cho effect=critical)"
+        string mattermost_message_id "ID tin nhắn Mattermost để track callback"
+        timestamp approval_deadline "Thời điểm hết hạn chờ phê duyệt"
+        jsonb execution_result "Kết quả sau khi thực thi"
+        timestamp created_at
+        timestamp approved_at
+        timestamp executed_at
+    }
+```
+
+  | Status | Ý nghĩa |
+  |---|---|
+  | `PENDING_APPROVAL` | Đang chờ người có thẩm quyền bấm [Phê duyệt] trên Mattermost |
+  | `APPROVED` | Đã được phê duyệt, đang chờ Orchestrator thực thi |
+  | `REJECTED` | Bị từ chối bởi người phê duyệt |
+  | `EXECUTED` | Đã thực thi thành công |
+  | `EXPIRED` | Hết thời gian chờ (write: 30 phút, critical: 15 phút) |
+  | `CANCELLED` | Người ra lệnh hoặc Admin hủy trước khi thực thi |
 
 ---
+
 
 ## 3. Liên kết với Dữ liệu Nghiệp vụ của Plugin
 

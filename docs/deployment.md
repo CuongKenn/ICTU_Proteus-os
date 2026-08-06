@@ -36,6 +36,8 @@ Dành cho lập trình viên chạy thử nghiệm (có thể tắt bớt một 
     - `https://proteus.local/chat/` 👉 Chuyển về **Mattermost**
     - `https://proteus.local/files/` 👉 Chuyển về **Nextcloud** (lưu trữ file)
     - `https://proteus.local/wiki/` 👉 Chuyển về **Outline** (Wiki/CMS)
+    - `https://proteus.local/workflow/` 👉 Chuyển về **n8n** (Workflow Admin UI)
+    - `https://proteus.local/analytics/` 👉 Chuyển về **Metabase** (BI Dashboard)
     - `https://proteus.local/proxy/appsmith/` 👉 Chuyển về **Appsmith** (Để nhúng Iframe)
     - `https://proteus.local/monitoring/` 👉 Chuyển về **Grafana** (Log Observability)
 
@@ -53,6 +55,8 @@ graph TD
         Mattermost["Mattermost"]
         Nextcloud["Nextcloud (Files)"]
         Outline["Outline (Wiki)"]
+        N8n["n8n (Workflow)"]
+        Metabase["Metabase (BI)"]
         Grafana["Grafana (Monitoring)"]
         PG[("PostgreSQL")]
         Qdrant[("Qdrant")]
@@ -65,6 +69,8 @@ graph TD
         Traefik -->|"/chat"| Mattermost
         Traefik -->|"/files"| Nextcloud
         Traefik -->|"/wiki"| Outline
+        Traefik -->|"/workflow"| N8n
+        Traefik -->|"/analytics"| Metabase
         Traefik -->|"/monitoring"| Grafana
         
         Core --> PG
@@ -72,6 +78,8 @@ graph TD
         Core --> Redis
         Keycloak --> PG
         Appsmith --> PG
+        N8n --> PG
+        Metabase --> PG
     end
 ```
 
