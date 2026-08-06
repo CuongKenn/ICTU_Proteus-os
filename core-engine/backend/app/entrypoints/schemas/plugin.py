@@ -7,6 +7,8 @@
 import uuid
 from pydantic import BaseModel, Field
 
+from app.core.domain.entities import PluginStatus
+
 
 class PluginResponse(BaseModel):
     id: uuid.UUID
@@ -14,7 +16,7 @@ class PluginResponse(BaseModel):
     display_name: str
     version: str
     is_official: bool
-    status: str | None = None
+    status: PluginStatus | None = None  # Type-safe: chỉ nhận giá trị PluginStatus hợp lệ
 
     model_config = {"from_attributes": True}
 

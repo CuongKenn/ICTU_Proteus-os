@@ -34,6 +34,10 @@ export function usePlugins(): UsePluginsReturn {
           setPlugins(response.data.items);
         }
       } catch (err: unknown) {
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.error("[usePlugins] fetch error:", err);
+        }
         if (!cancelled) {
           setError("Không thể tải danh sách Plugin. Vui lòng thử lại.");
         }

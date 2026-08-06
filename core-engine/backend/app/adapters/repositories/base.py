@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 
-from app.core.domain.entities import PluginEntity, PluginStatus
+from app.core.domain.entities import PluginEntity, PluginStatus, TenantEntity
 
 
 class AbstractPluginRepository(ABC):
@@ -55,11 +55,11 @@ class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""
 
     @abstractmethod
-    async def get_by_id(self, tenant_id: uuid.UUID) -> dict | None:
-        """Lấy Tenant theo ID."""
+    async def get_by_id(self, tenant_id: uuid.UUID) -> TenantEntity | None:
+        """Lấy Tenant theo ID. Trả về None nếu không tìm thấy."""
         ...
 
     @abstractmethod
-    async def get_by_slug(self, slug: str) -> dict | None:
-        """Lấy Tenant theo slug."""
+    async def get_by_slug(self, slug: str) -> TenantEntity | None:
+        """Lấy Tenant theo slug. Trả về None nếu không tìm thấy."""
         ...

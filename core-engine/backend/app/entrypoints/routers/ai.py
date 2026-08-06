@@ -5,11 +5,10 @@
 # Tham chiếu: docs/api-swagger.yaml POST /ai/command, docs/dsl-spec.md
 
 import logging
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
-from app.core.domain.entities import TenantContext
+from app.core.domain.entities import AICommandStatus, TenantContext
 from app.entrypoints.dependencies import get_current_tenant_context
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
 
@@ -50,10 +49,10 @@ async def submit_ai_command(
 
     # TODO: Implement DSL validation và routing logic
     # 1. Gọi DSLValidatorUseCase.validate(body, ctx)
-    # 2. Nếu effect=read → execute ngay
+    # 2. Nếu effect=read → execute ngay và trả về result
     # 3. Nếu effect=write/critical → gửi Mattermost approval request
     return AICommandResponse(
-        command_id="00000000-0000-0000-0000-000000000000",
-        status="PENDING_APPROVAL",
+        command_id=body.command_id,           # Dùng UUID từ request, không hardcode
+        status=AICommandStatus.PENDING_APPROVAL,
         message="Command đã được nhận. Đang chờ phê duyệt từ quản trị viên.",
     )

@@ -4,7 +4,18 @@
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-select = ["E", "F", "I", "UP"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports, undefined names)
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear (common bugs)
+    "W",   # pycodestyle warnings
+    "N",   # pep8 naming conventions
+]
+ignore = [
+    "N805",  # First argument of method should be named 'self' (conflicts with Pydantic validators)
+]
 
 [tool.ruff.format]
 quote-style = "double"

@@ -74,6 +74,19 @@ class PluginEntity(BaseModel):
     status: PluginStatus | None = None  # None nếu chưa cài cho Tenant này
 
 
+class TenantEntity(BaseModel):
+    """
+    Domain Entity cho Tenant (Tổ chức).
+    Lưu metadata của Organization trong hệ thống.
+    """
+    id: uuid.UUID
+    name: str
+    slug: str
+    keycloak_realm: str
+    plan: str = "starter"
+    is_active: bool = True
+
+
 class AICommandEntity(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID

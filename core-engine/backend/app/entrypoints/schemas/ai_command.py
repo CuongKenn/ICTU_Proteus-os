@@ -6,7 +6,10 @@
 
 import uuid
 from typing import Any, Literal
+
 from pydantic import BaseModel, Field
+
+from app.core.domain.entities import AICommandStatus
 
 
 class AICommandRequest(BaseModel):
@@ -41,7 +44,7 @@ class AICommandRequest(BaseModel):
 class AICommandResponse(BaseModel):
     """Output schema cho POST /ai/command."""
 
-    command_id: str
-    status: str
+    command_id: uuid.UUID           # Nhất quán với Request — không dùng str
+    status: AICommandStatus         # Dùng Enum từ domain — Swagger tự gen đúng
     message: str
     result: dict[str, Any] | None = None

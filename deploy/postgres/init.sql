@@ -91,6 +91,11 @@ CREATE TABLE IF NOT EXISTS plugins (
 COMMENT ON TABLE plugins IS 'Danh mục Plugin trên Marketplace. Mỗi Plugin có 1 manifest.yaml.';
 COMMENT ON COLUMN plugins.code_name IS 'Định danh duy nhất dạng kebab-case. Dùng làm prefix cho bảng DB của Plugin.';
 
+-- Index tối ưu cho query Marketplace (ORDER BY is_official DESC, download_count DESC)
+CREATE INDEX IF NOT EXISTS idx_plugins_marketplace
+    ON plugins(is_official DESC, download_count DESC)
+    WHERE deleted_at IS NULL;
+
 -- ─────────────────────────────────────────────────────────────
 -- BẢNG: TENANT_PLUGIN
 -- Trạng thái cài đặt Plugin theo từng Tenant
@@ -203,13 +208,23 @@ CREATE INDEX IF NOT EXISTS idx_ai_commands_status ON ai_commands(status);
 CREATE INDEX IF NOT EXISTS idx_ai_commands_deadline ON ai_commands(approval_deadline)
     WHERE status = 'PENDING_APPROVAL';
 
--- ─────────────────────────────────────────────────────────────
--- TRIGGER: auto-update updated_at
--- ─────────────────────────────────────────────────────────────
+-- ───────────────────────────────────────────────────────────────
+-- TRIGGER: auto-update updated_at (và last_updated_at)
+-- ───────────────────────────────────────────────────────────────
+-- Hàm cho các bảng dùng cột "updated_at" (tenants, users, plugins)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Hàm riêng cho bảng tenant_plugins dùng cột "last_updated_at" (khác với updated_at)
+CREATE OR REPLACE FUNCTION update_last_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_updated_at = NOW();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -226,6 +241,7 @@ CREATE TRIGGER set_plugins_updated_at
     BEFORE UPDATE ON plugins
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Dùng hàm riêng vì cột là last_updated_at, không phải updated_at
 CREATE TRIGGER set_tenant_plugins_updated_at
     BEFORE UPDATE ON tenant_plugins
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    FOR EACH ROW EXECUTE FUNCTION update_last_updated_at_column();
