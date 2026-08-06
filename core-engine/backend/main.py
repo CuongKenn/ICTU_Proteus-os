@@ -6,6 +6,7 @@
 # Tham chiếu: docs/architecture.md, docs/api-swagger.yaml
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,18 @@ from app.entrypoints.routers import health, plugins, ai
 setup_logging(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
+
+# ─── Lifespan (thay thế deprecated @app.on_event) ─────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(
+        "Proteus OS Backend starting",
+        extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
+    )
+    yield
+    logger.info("Proteus OS Backend shutting down")
+
+
 # ─── FastAPI Application ──────────────────────────────────────
 app = FastAPI(
     title="Proteus OS — Core Engine API",
@@ -26,6 +39,7 @@ app = FastAPI(
         "Tham chiếu đầy đủ: docs/api-swagger.yaml"
     ),
     version="0.1.0",
+    lifespan=lifespan,
     docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
     redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
     openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,
@@ -45,16 +59,3 @@ app.add_middleware(
 app.include_router(health.router, tags=["System"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
-
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    logger.info(
-        "Proteus OS Backend starting",
-        extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
-    )
-
-
-@app.on_event("shutdown")
-async def on_shutdown() -> None:
-    logger.info("Proteus OS Backend shutting down")

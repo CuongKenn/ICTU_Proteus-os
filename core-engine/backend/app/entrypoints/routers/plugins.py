@@ -5,17 +5,11 @@
 # Tham chiếu: docs/api-swagger.yaml /plugins/*
 
 import logging
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain.entities import TenantContext
-from app.core.domain.exceptions import (
-    InsufficientPermissionsError,
-    PluginAlreadyInstalledError,
-    PluginNotFoundError,
-)
 from app.entrypoints.dependencies import get_current_tenant_context, get_plugin_repo
 from app.entrypoints.schemas.plugin import (
     PluginInstallRequest,

@@ -27,7 +27,7 @@ export const authOptions: NextAuthOptions = {
         token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at
           ? account.expires_at * 1000
-          : 0;
+          : Date.now() + 60 * 60 * 1000; // Fallback: 1 giờ từ bây giờ
       }
 
       // Token vẫn còn hạn

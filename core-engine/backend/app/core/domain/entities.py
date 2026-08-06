@@ -93,7 +93,7 @@ class InstallRequest(BaseModel):
     tenant_context: TenantContext
 
 
-class AICommandRequest(BaseModel):
-    """Input cho Use Case xử lý DX-DSL Command."""
+class AICommandInput(BaseModel):
+    """Input cho Use Case xử lý DX-DSL Command. (Khác với schema AICommandRequest ở entrypoints)"""
     dsl_payload: dict[str, Any]
     tenant_context: TenantContext

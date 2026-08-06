@@ -5,7 +5,6 @@
 
 import logging
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -40,11 +39,11 @@ class Base(DeclarativeBase):
 
 
 # ─── Dependency ───────────────────────────────────────────────
-@asynccontextmanager
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Context manager cung cấp database session.
-    Tự động commit hoặc rollback khi kết thúc.
+    FastAPI Depends()-compatible async generator.
+    Tự động commit khi thành công, rollback khi có exception.
+    Dùng trực tiếp AsyncSessionLocal — không wrap thêm context manager.
     """
     async with AsyncSessionLocal() as session:
         try:
@@ -54,9 +53,3 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             logger.exception("Database session error — rolling back")
             raise
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI Depends() compatible version của get_db_session."""
-    async with get_db_session() as session:
-        yield session

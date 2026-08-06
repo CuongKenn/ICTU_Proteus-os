@@ -25,20 +25,39 @@ async function proxyHandler(
   const targetPath = params.path.join("/");
   const targetUrl = `${BACKEND_URL}/api/v1/${targetPath}${request.nextUrl.search}`;
 
-  const headers = new Headers(request.headers);
-  headers.set("Authorization", `Bearer ${session.accessToken}`);
-  headers.delete("cookie"); // Không forward cookie xuống Backend
+  // Forward headers có chọn lọc — không forward cookie, host, x-forwarded-* từ client
+  const headers = new Headers({
+    Authorization: `Bearer ${session.accessToken}`,
+    "Content-Type": request.headers.get("Content-Type") ?? "application/json",
+    Accept: request.headers.get("Accept") ?? "application/json",
+    "X-Forwarded-For": request.headers.get("x-forwarded-for") ?? "",
+  });
+
+  // Đọc body một lần — request.text() không thể gọi 2 lần
+  const body =
+    request.method !== "GET" && request.method !== "HEAD"
+      ? await request.text()
+      : undefined;
 
   const response = await fetch(targetUrl, {
     method: request.method,
     headers,
-    body: request.method !== "GET" && request.method !== "HEAD"
-      ? await request.text()
-      : undefined,
+    body,
   });
 
-  const data = await response.json().catch(() => null);
-  return NextResponse.json(data, { status: response.status });
+  // Proxy status code và response body nguyên vẹn
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const data = await response.json().catch(() => null);
+    return NextResponse.json(data, { status: response.status });
+  }
+
+  // Non-JSON response (ví dụ: file download)
+  const blob = await response.blob();
+  return new NextResponse(blob, {
+    status: response.status,
+    headers: { "Content-Type": contentType },
+  });
 }
 
 export const GET = proxyHandler;

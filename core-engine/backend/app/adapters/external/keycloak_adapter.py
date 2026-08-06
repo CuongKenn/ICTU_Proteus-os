@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import httpx
 from jose import JWTError, jwt
@@ -24,18 +25,32 @@ class KeycloakAdapter:
     - Gọi Admin API để tạo/xóa Role khi cài/gỡ Plugin
     """
 
+    # JWKS TTL: 1 giờ — Keycloak thường rotate keys định kỳ
+    _JWKS_TTL_SECONDS: float = 3600.0
+
     def __init__(self) -> None:
         self._jwks_cache: dict | None = None
+        self._jwks_cached_at: float = 0.0
 
     async def _get_jwks(self) -> dict:
-        """Lấy JWKS từ Keycloak (cache lại để không gọi liên tục)."""
-        if self._jwks_cache is not None:
+        """
+        Lấy JWKS từ Keycloak với in-memory cache có TTL.
+        Cache expire sau 1 giờ để tự động nhận keys mới khi Keycloak rotate.
+        """
+        now = time.monotonic()
+        if (
+            self._jwks_cache is not None
+            and (now - self._jwks_cached_at) < self._JWKS_TTL_SECONDS
+        ):
             return self._jwks_cache
 
+        logger.debug("Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url})
         async with httpx.AsyncClient() as client:
             response = await client.get(settings.keycloak_jwks_url, timeout=10.0)
             response.raise_for_status()
             self._jwks_cache = response.json()
+            self._jwks_cached_at = now
+            logger.info("JWKS cache refreshed")
             return self._jwks_cache
 
     async def verify_and_decode_token(self, token: str) -> dict:
@@ -44,23 +59,19 @@ class KeycloakAdapter:
         Trả về payload đã decode nếu hợp lệ.
         Raise JWTError nếu token không hợp lệ hoặc hết hạn.
         """
-        try:
-            jwks = await self._get_jwks()
-            payload = jwt.decode(
-                token,
-                jwks,
-                algorithms=["RS256"],
-                audience=settings.KEYCLOAK_CLIENT_ID,
-                options={"verify_exp": True},
-            )
-            logger.debug(
-                "Token verified successfully",
-                extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},
-            )
-            return payload
-        except JWTError:
-            logger.warning("Invalid JWT token received")
-            raise
+        jwks = await self._get_jwks()
+        payload = jwt.decode(
+            token,
+            jwks,
+            algorithms=["RS256"],
+            audience=settings.KEYCLOAK_CLIENT_ID,
+            options={"verify_exp": True},
+        )
+        logger.debug(
+            "Token verified successfully",
+            extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},
+        )
+        return payload
 
     async def create_role(
         self,
