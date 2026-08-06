@@ -39,7 +39,15 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ---
 
-## [Unreleased] — Review & Cải thiện Tài liệu (2026-08-06)
+## [Unreleased] — Cập nhật GitHub Pages Landing Page (2026-08-06)
+
+### Changed
+- **[landing-page/index.html]** Viết lại toàn bộ GitHub Pages landing page với thiết kế premium Glassmorphism Dark Mode: thêm 10 sections mới (Problem, H-P-D-I, Agentic AI, Marketplace, Launchpad Preview, Tech Stack, Documentation Grid, Roadmap, Quick Start, CTA), Navbar responsive với hamburger mobile menu, Stats bar với counter animation, Footer 4 cột đầy đủ links.
+- **[landing-page/styles.css]** Viết lại toàn bộ CSS bằng Vanilla CSS (loại bỏ Tailwind CDN dependency): Design Tokens CSS Variables theo Design System chuẩn, Background Orbs animation, Grid overlay pattern, tất cả component styles (Glass Card, HPDI Cards, AI Mode Cards, Tech Grid, Docs Grid, Roadmap Timeline, CTA Box, Footer), Responsive breakpoints đầy đủ (1024px, 768px, 480px), Intersection Observer reveal animations, Counter animation.
+
+---
+
+
 
 ### Added
 - **[docs/clarification.md §8]** Thêm mục mới "Quản lý Token & Phiên làm việc": bảng TTL Token (Access/Refresh/Session), luồng Silent Refresh chi tiết, Refresh Token Rotation security, xử lý khi Refresh Token hết hạn (buộc re-login), bảng edge case (5 tình huống).
