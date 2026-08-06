@@ -6,6 +6,7 @@
 # KHÔNG import file này từ Core Domain — chỉ infrastructure và adapters được dùng.
 
 from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

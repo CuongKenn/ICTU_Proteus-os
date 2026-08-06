@@ -52,7 +52,7 @@ async def submit_ai_command(
     # 2. Nếu effect=read → execute ngay và trả về result
     # 3. Nếu effect=write/critical → gửi Mattermost approval request
     return AICommandResponse(
-        command_id=body.command_id,           # Dùng UUID từ request, không hardcode
+        command_id=body.command_id,  # Dùng UUID từ request, không hardcode
         status=AICommandStatus.PENDING_APPROVAL,
         message="Command đã được nhận. Đang chờ phê duyệt từ quản trị viên.",
     )

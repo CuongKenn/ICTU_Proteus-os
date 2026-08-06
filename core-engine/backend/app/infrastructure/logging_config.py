@@ -7,6 +7,7 @@
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -19,7 +20,7 @@ def setup_logging(level: str = "INFO") -> None:
     log_level = getattr(logging, level.upper(), logging.INFO)
 
     # Cấu hình structlog processors
-    shared_processors: list = [
+    shared_processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
@@ -39,9 +40,11 @@ def setup_logging(level: str = "INFO") -> None:
 
     formatter = structlog.stdlib.ProcessorFormatter(
         # JSON format cho production, console format cho development
-        processor=structlog.dev.ConsoleRenderer()
-        if level == "DEBUG"
-        else structlog.processors.JSONRenderer(),
+        processor=(
+            structlog.dev.ConsoleRenderer()
+            if level == "DEBUG"
+            else structlog.processors.JSONRenderer()
+        ),
         foreign_pre_chain=shared_processors,
     )
 
