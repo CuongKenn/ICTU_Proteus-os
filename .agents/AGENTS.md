@@ -94,3 +94,65 @@ Tất cả AI Agents và lập trình viên phải nghiêm ngặt tuân thủ kh
 - **Repository Pattern:** Bắt buộc dùng ở tầng Backend Data Layer để giao tiếp với CSDL (Hoàn toàn phù hợp với Hexagonal Architecture).
 - **Strategy Pattern:** Sử dụng để chuyển đổi linh hoạt các chiến lược/thuật toán (Ví dụ: Lựa chọn giữa các nhà cung cấp LLM khác nhau, các cơ chế xác thực).
 - **Factory Pattern:** Sử dụng để khởi tạo các Client giao tiếp với dịch vụ/hạ tầng bên ngoài (như S3, Redis, LLM Client).
+
+## 9. Quy trình Giải quyết Issues (Issue Resolution Protocol) — BẮT BUỘC
+
+Trước khi bắt đầu triển khai (implement) bất kỳ issue nào, AI Agent **BẮT BUỘC** phải thực hiện đầy đủ các bước kiểm tra sau theo thứ tự:
+
+### Bước 1: Đọc Issue và Xác định Priority
+
+Dùng `gh issue view <number> --repo CuongKenn/ICTU_Proteus-os` để đọc nội dung đầy đủ của issue, kiểm tra:
+- **Label Milestone** (`M1` → `M6`): Issue thuộc Milestone nào? Milestone thấp hơn phải hoàn thành trước.
+- **Label Priority** (`P0-critical`, `P1-high`, `P2-medium`): Ưu tiên cao hơn phải giải quyết trước.
+- **Trạng thái** (open/closed): Không implement issue đã closed.
+
+### Bước 2: Kiểm tra Dependency — KHÔNG BỎ QUA
+
+**BẮT BUỘC** đọc phần **"Dependencies"** trong body của issue. Nếu issue có ghi:
+
+```
+**Depends on:** #X, #Y
+```
+
+Thì Agent phải:
+1. Dùng `gh issue view <X> --repo CuongKenn/ICTU_Proteus-os` để kiểm tra trạng thái issue phụ thuộc.
+2. **Nếu issue phụ thuộc vẫn còn OPEN** → **DỪNG LẠI**, KHÔNG triển khai issue hiện tại. Báo cáo lại với người dùng rằng issue này đang bị block bởi #X, #Y.
+3. **Chỉ tiếp tục** khi TẤT CẢ các issue phụ thuộc đều đã CLOSED (đã được merge).
+
+### Bước 3: Xác định Thứ tự Triển khai Đúng
+
+Tuân thủ nghiêm ngặt thứ tự phụ thuộc sau (đã được xây dựng từ kiến trúc hệ thống):
+
+```
+M1 (Infrastructure) → M2 (Frontend) → M3 (AI Engine) → M4 (HR Module) → M5 (DevOps) → M6 (Testing)
+```
+
+**Trong nội bộ M1**, thứ tự bắt buộc:
+```
+TASK-06 (ORM Models) → TASK-07 (Alembic) → TASK-08 (Repositories) → TASK-09 (RLS)
+TASK-09 (RLS) → TASK-10 (Plugin Repo) → TASK-14 (Manifest Validator) → TASK-15 (Plugin Install)
+TASK-11/12/13 (Adapters) → TASK-15 (Plugin Install) → TASK-16 (Uninstall) → TASK-17 (Disable/Enable)
+TASK-01 (Keycloak) → TASK-02 (GET /auth/me) → TASK-03 (Webhook) → TASK-04 (Tenant) → TASK-05 (RBAC)
+```
+
+**Trong nội bộ M3**, thứ tự bắt buộc:
+```
+TASK-32 (Qdrant Adapter) → TASK-38 (RAG Ingestion) → TASK-33 (DSL Validator) → TASK-34 (Dry Run) → TASK-35 (AI Command Use Case) → TASK-36 (Mattermost Approval)
+```
+
+### Bước 4: Checklist Trước khi Code
+
+Trả lời **TẤT CẢ** câu hỏi dưới đây trước khi viết bất kỳ dòng code nào:
+
+| # | Câu hỏi | Yêu cầu |
+|---|---|---|
+| 1 | Issue này thuộc Milestone nào? | Xác định M1–M6 |
+| 2 | Có issues phụ thuộc nào chưa closed không? | Nếu có → DỪNG |
+| 3 | Đã đọc `docs/BRD.md`, `docs/architecture.md`, `docs/erd.md` chưa? | BẮT BUỘC đọc |
+| 4 | Files nào cần tạo/sửa? | Liệt kê trước khi code |
+| 5 | Có thay đổi Schema DB không? | Nếu có → cần Alembic migration |
+| 6 | Có thay đổi API Endpoint không? | Nếu có → cần update `docs/api-swagger.yaml` |
+| 7 | PR sẽ có `closes #<issue_number>` không? | BẮT BUỘC có |
+
+> **Tóm lại:** Agent không được phép bắt đầu implement issue khi issue đó bị **block bởi dependency chưa hoàn thành**. Đây là quy tắc bất khả xâm phạm để đảm bảo kiến trúc được xây dựng đúng thứ tự từ tầng thấp lên cao.
+
