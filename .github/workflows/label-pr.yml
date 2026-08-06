@@ -1,0 +1,28 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Label PR — Tự động gắn labels vào PR dựa trên paths thay đổi
+# Dùng actions/labeler với config .github/labeler.yml
+
+name: Label PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Auto-label PR by Changed Paths
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Apply labels
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labeler.yml
+          sync-labels: true  # Xóa label cũ nếu path không còn match

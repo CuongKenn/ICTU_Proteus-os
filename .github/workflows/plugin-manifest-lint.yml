@@ -1,0 +1,218 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest Lint — Validate manifest.yaml khi có thay đổi trong plugins/
+# Phát hiện lỗi schema sớm (trước khi install → FAILED_DIRTY)
+
+name: Plugin Manifest Lint
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'plugins/**/manifest.yaml'
+      - 'plugins/**/manifest.yml'
+      - '.github/workflows/plugin-manifest-lint.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'plugins/**/manifest.yaml'
+      - 'plugins/**/manifest.yml'
+      - '.github/workflows/plugin-manifest-lint.yml'
+
+jobs:
+  validate-manifests:
+    name: Validate Plugin Manifest(s)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install yamllint + pyyaml
+        run: pip install yamllint pyyaml packaging
+
+      - name: YAML syntax check (yamllint)
+        run: |
+          echo "=== YAML Syntax Check ==="
+          MANIFESTS=$(find plugins/ -name "manifest.yaml" -o -name "manifest.yml" 2>/dev/null)
+
+          if [ -z "$MANIFESTS" ]; then
+            echo "::warning::Không tìm thấy manifest.yaml nào trong plugins/"
+            exit 0
+          fi
+
+          FAIL=0
+          for manifest in $MANIFESTS; do
+            echo "Checking: $manifest"
+            yamllint -d relaxed "$manifest" || FAIL=1
+          done
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo "::error::YAML syntax errors found."
+            exit 1
+          fi
+          echo "✅ Tất cả manifest YAML syntax hợp lệ."
+
+      - name: Schema validation (Proteus OS manifest-spec v1.1.0)
+        run: |
+          cat << 'PYEOF' > /tmp/validate_manifest.py
+          import sys
+          import yaml
+          import re
+          import os
+          from pathlib import Path
+          from packaging.version import Version, InvalidVersion
+
+          REQUIRED_TOP_FIELDS = [
+              "name", "display_name", "version", "description",
+              "author", "license", "compatibility", "database"
+          ]
+
+          REQUIRED_DB_FIELDS = ["seed_file", "tables"]
+          REQUIRED_TABLE_FIELDS = ["name", "description"]
+          REQUIRED_COMPAT_FIELDS = ["proteus_os_min_version"]
+
+          errors = []
+          warnings = []
+
+          # Tìm tất cả manifest files
+          manifests = list(Path("plugins").rglob("manifest.yaml")) + list(Path("plugins").rglob("manifest.yml"))
+
+          if not manifests:
+              print("::warning::Không tìm thấy manifest.yaml nào.")
+              sys.exit(0)
+
+          for manifest_path in manifests:
+              plugin_dir = manifest_path.parent.name
+              print(f"\n{'='*60}")
+              print(f"Validating: {manifest_path}")
+              print(f"{'='*60}")
+
+              with open(manifest_path, "r", encoding="utf-8") as f:
+                  data = yaml.safe_load(f)
+
+              if not isinstance(data, dict):
+                  errors.append(f"[{manifest_path}] File không phải YAML object hợp lệ.")
+                  continue
+
+              # 1. Check required top-level fields
+              for field in REQUIRED_TOP_FIELDS:
+                  if field not in data:
+                      errors.append(f"[{manifest_path}] Thiếu required field: '{field}'")
+
+              # 2. Validate 'name' format (kebab-case)
+              if "name" in data:
+                  name = data["name"]
+                  if not re.match(r'^[a-z0-9]+(-[a-z0-9]+)*$', str(name)):
+                      errors.append(
+                          f"[{manifest_path}] 'name' phải là kebab-case (chỉ a-z, 0-9, dấu '-'). Got: '{name}'"
+                      )
+                  else:
+                      print(f"  ✅ name: {name}")
+
+              # 3. Validate 'version' (Semantic Versioning)
+              if "version" in data:
+                  version_str = str(data["version"])
+                  try:
+                      v = Version(version_str)
+                      if not re.match(r'^\d+\.\d+\.\d+$', version_str):
+                          raise InvalidVersion("Not strict semver")
+                      print(f"  ✅ version: {version_str}")
+                  except InvalidVersion:
+                      errors.append(
+                          f"[{manifest_path}] 'version' phải là Semantic Versioning (MAJOR.MINOR.PATCH). Got: '{version_str}'"
+                      )
+
+              # 4. Validate database.tables prefix
+              if "database" in data and isinstance(data["database"], dict):
+                  db = data["database"]
+
+                  for field in REQUIRED_DB_FIELDS:
+                      if field not in db:
+                          errors.append(f"[{manifest_path}] Thiếu database.{field}")
+
+                  if "tables" in db and isinstance(db["tables"], list):
+                      plugin_name = data.get("name", "")
+                      # Tạo expected prefix từ plugin name (hr-module → hr_)
+                      expected_prefix = plugin_name.replace("-", "_").split("_")[0] + "_"
+
+                      for table in db["tables"]:
+                          if not isinstance(table, dict):
+                              continue
+                          table_name = table.get("name", "")
+                          if not table_name.startswith(expected_prefix):
+                              errors.append(
+                                  f"[{manifest_path}] Table '{table_name}' phải có prefix '{expected_prefix}' "
+                                  f"(theo plugin name '{plugin_name}')"
+                              )
+                          else:
+                              print(f"  ✅ table prefix OK: {table_name}")
+
+                          for field in REQUIRED_TABLE_FIELDS:
+                              if field not in table:
+                                  errors.append(
+                                      f"[{manifest_path}] Table '{table_name}' thiếu field: '{field}'"
+                                  )
+
+              # 5. Validate ui_apps path format
+              if "ui_apps" in data and isinstance(data["ui_apps"], list):
+                  for app in data["ui_apps"]:
+                      if not isinstance(app, dict):
+                          continue
+                      path = app.get("path", "")
+                      if path and not path.startswith("/apps/"):
+                          errors.append(
+                              f"[{manifest_path}] ui_apps path '{path}' phải bắt đầu bằng '/apps/'"
+                          )
+                      else:
+                          print(f"  ✅ ui_apps path: {path}")
+
+              # 6. Validate compatibility
+              if "compatibility" in data and isinstance(data["compatibility"], dict):
+                  compat = data["compatibility"]
+                  for field in REQUIRED_COMPAT_FIELDS:
+                      if field not in compat:
+                          errors.append(
+                              f"[{manifest_path}] Thiếu compatibility.{field}"
+                          )
+
+              # 7. Validate license
+              if "license" in data:
+                  allowed_licenses = ["AGPL-3.0-or-later", "MIT", "Apache-2.0", "GPL-3.0", "PROPRIETARY"]
+                  if data["license"] not in allowed_licenses:
+                      warnings.append(
+                          f"[{manifest_path}] license '{data['license']}' không trong danh sách khuyến nghị: {allowed_licenses}"
+                      )
+
+          # Summary
+          print(f"\n{'='*60}")
+          print(f"VALIDATION SUMMARY")
+          print(f"{'='*60}")
+          print(f"Manifests checked: {len(manifests)}")
+
+          for w in warnings:
+              print(f"::warning::{w}")
+
+          if errors:
+              print(f"\n❌ {len(errors)} ERROR(S) found:")
+              for e in errors:
+                  print(f"  ::error::{e}")
+              sys.exit(1)
+          else:
+              print(f"✅ All manifests are valid!")
+              sys.exit(0)
+          PYEOF
+          python /tmp/validate_manifest.py
+
+      - name: Print validation summary
+        if: always()
+        run: |
+          echo ""
+          echo "=== Manifest files found ==="
+          find plugins/ -name "manifest.yaml" -o -name "manifest.yml" 2>/dev/null || echo "None"

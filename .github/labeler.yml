@@ -1,0 +1,99 @@
+# .github/labeler.yml
+# Config cho actions/labeler@v5
+# Tham chiếu: https://github.com/actions/labeler
+
+# ── Milestone labels ──────────────────────────────────────────────
+
+"M1: Infrastructure":
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/backend/app/infrastructure/**'
+      - 'core-engine/backend/app/adapters/**'
+      - 'core-engine/backend/app/core/**'
+      - 'deploy/postgres/**'
+      - 'deploy/keycloak/**'
+
+"M2: Frontend":
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/frontend/src/**'
+      - 'core-engine/frontend/public/**'
+      - 'core-engine/frontend/*.ts'
+      - 'core-engine/frontend/*.json'
+
+"M4: HR Module":
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/hr-module/**'
+
+"M5: DevOps":
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'deploy/**'
+      - '.github/**'
+      - 'core-engine/Dockerfile'
+
+# ── Type labels ───────────────────────────────────────────────────
+
+backend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/backend/**'
+
+frontend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/frontend/**'
+
+database:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/backend/alembic/**'
+      - 'core-engine/backend/app/infrastructure/models.py'
+      - 'deploy/postgres/**'
+      - 'plugins/**/migrations/**'
+      - 'plugins/**/db/**'
+
+devops:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'deploy/**'
+      - '.github/workflows/**'
+      - 'core-engine/Dockerfile'
+      - 'docker-compose*.yml'
+
+plugin:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/**'
+      - 'core-engine/backend/app/core/use_cases/plugin_*.py'
+      - 'core-engine/backend/app/adapters/external/*_adapter.py'
+
+ai:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/backend/app/core/use_cases/ai_*.py'
+      - 'core-engine/backend/app/core/use_cases/dsl_*.py'
+      - 'core-engine/backend/app/core/use_cases/rag_*.py'
+      - 'core-engine/backend/app/adapters/external/qdrant_adapter.py'
+      - 'core-engine/backend/app/adapters/external/mattermost_adapter.py'
+
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/backend/app/entrypoints/dependencies.py'
+      - 'core-engine/backend/app/infrastructure/database.py'
+      - 'core-engine/backend/app/adapters/external/keycloak_adapter.py'
+      - 'deploy/keycloak/**'
+
+# ── Special labels ────────────────────────────────────────────────
+
+"M6: Testing":
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'core-engine/backend/tests/**'
+      - 'core-engine/frontend/src/__tests__/**'
+      - '**/*.test.ts'
+      - '**/*.test.py'
+      - '**/conftest.py'
+      - '**/vitest.config.ts'

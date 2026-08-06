@@ -44,13 +44,15 @@ jobs:
       - name: Check formatting (Black)
         run: |
           black --check --diff app/ || {
-            echo "::warning::Formatting issues. Run: black app/"
+            echo "::error::Formatting issues found. Fix với: black app/"
+            exit 1
           }
 
       - name: Check import order (isort)
         run: |
           isort --check-only --diff app/ || {
-            echo "::warning::Import order issues. Run: isort app/"
+            echo "::error::Import order issues. Fix với: isort app/"
+            exit 1
           }
 
       - name: Lint — syntax errors only (hard fail)
@@ -124,6 +126,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
@@ -209,6 +214,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
 
       - name: Enable PostgreSQL extensions
         run: |

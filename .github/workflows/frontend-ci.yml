@@ -99,6 +99,7 @@ jobs:
 
       - name: Build Next.js production bundle
         env:
+          NEXT_TELEMETRY_DISABLED: 1
           # Placeholder URLs để build không fail — giá trị thực inject lúc deploy
           NEXTAUTH_URL: http://localhost:3000
           NEXTAUTH_SECRET: ci-build-secret-placeholder
@@ -112,9 +113,9 @@ jobs:
       - name: Check build output size
         run: |
           echo "=== Next.js Build Size Report ==="
-          du -sh .next/
+          du -sh .next/ || true
           echo "--- Static files ---"
-          find .next/static -name "*.js" | head -10 | xargs -I{} du -h {} | sort -rh
+          find .next/static -name "*.js" 2>/dev/null | head -10 | xargs -I{} du -h {} | sort -rh || echo "No static JS files found"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

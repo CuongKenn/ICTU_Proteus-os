@@ -1,0 +1,114 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# PR Check — Validate PR title (Conventional Commits), body, và issue link
+# Đảm bảo mọi PR đều link tới issue để issues tự đóng khi merge
+
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate-pr:
+    name: Validate PR Title, Body & Issue Link
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # Để comment lên PR nếu lỗi
+
+    steps:
+      - name: Validate PR title (Conventional Commits)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR Title: $PR_TITLE"
+
+          # Conventional Commits format: type(scope)?: description (min 10 chars)
+          # types: feat, fix, docs, chore, ci, refactor, test, style, perf, revert
+          if echo "$PR_TITLE" | grep -qP '^(feat|fix|docs|chore|ci|refactor|test|style|perf|revert)(\(.+\))?: .{10,}$'; then
+            echo "✅ PR title format is valid."
+          else
+            echo "❌ PR title không đúng chuẩn Conventional Commits."
+            echo ""
+            echo "Format yêu cầu: type(scope)?: description"
+            echo "Ví dụ hợp lệ:"
+            echo "  feat(auth): implement Keycloak first login provisioning"
+            echo "  fix(plugin): handle FAILED_DIRTY status in cleanup agent"
+            echo "  docs: update deployment guide with Mattermost setup"
+            echo ""
+            echo "Types: feat | fix | docs | chore | ci | refactor | test | style | perf | revert"
+            exit 1
+          fi
+
+      - name: Validate PR body is not empty
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Strip whitespace
+          BODY_TRIMMED=$(echo "$PR_BODY" | tr -d '[:space:]')
+
+          if [ -z "$BODY_TRIMMED" ] || [ "$BODY_TRIMMED" = "." ] || [ ${#BODY_TRIMMED} -lt 20 ]; then
+            echo "❌ PR body rỗng hoặc quá ngắn (< 20 ký tự sau khi trim)."
+            echo "Vui lòng mô tả thay đổi, lý do, và link issue liên quan."
+            exit 1
+          else
+            echo "✅ PR body hợp lệ (${#BODY_TRIMMED} ký tự)."
+          fi
+
+      - name: Validate PR links an issue
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Kiểm tra có từ khóa closes/fixes/resolves #N trong body hoặc title
+          COMBINED="$PR_TITLE $PR_BODY"
+
+          if echo "$COMBINED" | grep -iqP '(closes?|fixes?|resolves?)\s+#[0-9]+'; then
+            ISSUE_REF=$(echo "$COMBINED" | grep -ioP '(closes?|fixes?|resolves?)\s+#[0-9]+' | head -1)
+            echo "✅ PR liên kết issue: $ISSUE_REF"
+          else
+            echo "❌ PR không liên kết với issue nào."
+            echo ""
+            echo "Vui lòng thêm vào PR body:"
+            echo "  closes #<issue_number>   — ví dụ: closes #15"
+            echo "  fixes #<issue_number>    — ví dụ: fixes #9"
+            echo "  resolves #<issue_number>"
+            echo ""
+            echo "Điều này giúp issue tự động đóng khi PR được merge."
+            exit 1
+          fi
+
+      - name: Comment on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ PR Validation Failed
+
+            PR của bạn chưa đáp ứng đủ tiêu chuẩn dự án. Vui lòng kiểm tra lại:
+
+            | Yêu cầu | Mô tả |
+            |---|---|
+            | **PR Title** | Format: \`type(scope)?: description\` (Conventional Commits) |
+            | **PR Body** | Không được để trống, mô tả rõ thay đổi |
+            | **Issue Link** | Phải có \`closes #N\`, \`fixes #N\` hoặc \`resolves #N\` |
+
+            **Ví dụ PR title hợp lệ:**
+            \`\`\`
+            feat(plugin): implement 6-step compensating transaction install
+            fix(auth): add postgresql-client to migration CI step
+            \`\`\`
+
+            **Ví dụ PR body với issue link:**
+            \`\`\`
+            ## Thay đổi
+            Implement Plugin Install Use Case với 6-step compensating transaction.
+
+            closes #20
+            \`\`\``
+            })

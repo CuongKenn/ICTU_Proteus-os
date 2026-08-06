@@ -1,0 +1,44 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Dependency Review — Scan CVE vulnerabilities trong dependencies mới trên PR
+# Fail nếu có dependency có CVE severity >= HIGH
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'core-engine/backend/requirements.txt'
+      - 'core-engine/frontend/package.json'
+      - 'core-engine/frontend/package-lock.json'
+      - 'plugins/**/requirements.txt'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Security Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review (GitHub Native)
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail nếu có CVE HIGH hoặc CRITICAL
+          fail-on-severity: high
+          # Cho phép các licenses phổ biến
+          allow-licenses: >-
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC,
+            Python-2.0, PSF-2.0, LGPL-2.1-or-later, MPL-2.0,
+            AGPL-3.0-or-later, GPL-3.0-or-later
+          # Comment lên PR với summary
+          comment-summary-in-pr: always
+          # Warn nhưng không fail nếu chỉ có LOW/MODERATE
+          warn-only: false
