@@ -110,6 +110,9 @@ jobs:
     name: Alembic Migration Verification
     runs-on: ubuntu-latest
     needs: lint
+    defaults:
+      run:
+        working-directory: core-engine/backend
 
     services:
       postgres:
@@ -189,6 +192,9 @@ jobs:
     name: Tests & Coverage
     runs-on: ubuntu-latest
     needs: lint
+    defaults:
+      run:
+        working-directory: core-engine/backend
 
     services:
       postgres:
