@@ -1,0 +1,156 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — hr-module (HR Core)
+# Schema đầy đủ theo: docs/plugin-manifest-spec.md v1.1.0
+
+# ════════════════════════════════════════════════
+# PHẦN 1: METADATA
+# ════════════════════════════════════════════════
+name: "hr-module"
+display_name: "HR Core"
+version: "1.0.0"
+description: |
+  Quản lý nhân sự toàn diện: hồ sơ nhân viên, chấm công, quản lý nghỉ phép.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/hr-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+# ════════════════════════════════════════════════
+# PHẦN 2: COMPATIBILITY
+# ════════════════════════════════════════════════
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+# ════════════════════════════════════════════════
+# PHẦN 3: DATABASE
+# ════════════════════════════════════════════════
+database:
+  # Plugin Manager tự động thêm tenant_id + áp RLS cho các bảng này
+  tables:
+    - "hr_employees"
+    - "hr_leave_requests"
+    - "hr_attendance_logs"
+
+  # Chạy một lần khi cài đặt lần đầu
+  seed_file: "db/seed_data.sql"
+
+  # Cấu hình mặc định — tenant_admin có thể override
+  default_config:
+    max_leave_days_per_year: 12
+    leave_approval_required: true
+    notify_channel: "hr-alerts"
+    working_hours_per_day: 8
+
+# ════════════════════════════════════════════════
+# PHẦN 4: WORKFLOWS
+# ════════════════════════════════════════════════
+workflows:
+  - file: "workflows/leave_request.json"
+    name: "HR Leave Request Workflow"
+    description: "Xử lý luồng duyệt/từ chối đơn nghỉ phép"
+    trigger: "webhook"
+
+  - file: "workflows/employee_onboarding.json"
+    name: "Employee Onboarding Workflow"
+    description: "Tạo tài khoản hệ thống khi nhân viên mới vào"
+    trigger: "webhook"
+
+  - file: "workflows/leave_balance_reset.json"
+    name: "Annual Leave Balance Reset"
+    description: "Reset số ngày phép còn lại vào đầu năm mới"
+    trigger: "cron"
+    cron_expression: "0 1 1 1 *"   # 1h sáng, ngày 1 tháng 1
+
+# ════════════════════════════════════════════════
+# PHẦN 5: DASHBOARDS
+# ════════════════════════════════════════════════
+dashboards:
+  - file: "dashboards/hr_metrics.json"
+    name: "HR Overview Dashboard"
+    description: "Tổng quan nhân sự: headcount, nghỉ phép, chấm công theo phòng ban"
+
+# ════════════════════════════════════════════════
+# PHẦN 6: UI APPLICATIONS
+# ════════════════════════════════════════════════
+ui_apps:
+  - file: "ui/appsmith_app.json"
+    name: "HR Management App"
+    path: "/apps/hr"   # BẮT BUỘC prefix /apps/
+
+# ════════════════════════════════════════════════
+# PHẦN 7: ROLES
+# ════════════════════════════════════════════════
+roles:
+  - name: "hr_manager"
+    display_name: "HR Manager"
+    description: "Quản lý nhân sự: thêm/sửa nhân viên, duyệt nghỉ phép, xem báo cáo"
+    permissions:
+      - "hr:employees:read"
+      - "hr:employees:write"
+      - "hr:leave_requests:read"
+      - "hr:leave_requests:approve"
+      - "hr:reports:read"
+
+  - name: "hr_viewer"
+    display_name: "HR Viewer"
+    description: "Chỉ xem thông tin nhân sự, không thể thay đổi"
+    permissions:
+      - "hr:employees:read"
+      - "hr:leave_requests:read"
+      - "hr:reports:read"
+
+  - name: "leave_approver"
+    display_name: "Leave Approver"
+    description: "Duyệt/từ chối đơn nghỉ phép trong phạm vi được phân công"
+    permissions:
+      - "hr:leave_requests:read"
+      - "hr:leave_requests:approve"
+
+# ════════════════════════════════════════════════
+# PHẦN 8: EVENT SUBSCRIPTIONS (nhận)
+# ════════════════════════════════════════════════
+event_subscriptions: []  # HR không cần nhận event từ Plugin khác ở v1.0
+
+# ════════════════════════════════════════════════
+# PHẦN 9: EVENT PUBLICATIONS (phát ra)
+# ════════════════════════════════════════════════
+event_publications:
+  - event_type: "hr.employee.created"
+    description: "Khi một nhân viên mới được tạo thành công"
+    payload_schema:
+      employee_id: "uuid"
+      full_name: "string"
+      department: "string"
+      hire_date: "date"
+      position: "string"
+
+  - event_type: "hr.employee.deactivated"
+    description: "Khi tài khoản nhân viên bị vô hiệu hóa (nghỉ việc)"
+    payload_schema:
+      employee_id: "uuid"
+      deactivated_at: "datetime"
+      reason: "string"
+
+  - event_type: "hr.leave_request.approved"
+    description: "Khi một đơn nghỉ phép được duyệt"
+    payload_schema:
+      leave_request_id: "uuid"
+      employee_id: "uuid"
+      approved_by_user_id: "uuid"
+      start_date: "date"
+      end_date: "date"
+      days_count: "integer"
+
+# ════════════════════════════════════════════════
+# PHẦN 10: DEPENDENCIES
+# ════════════════════════════════════════════════
+dependencies:
+  required: []
+  optional:
+    - plugin: "finance-module"
+      reason: "Finance Module có thể subscribe event hr.employee.created để tạo tài khoản lương tự động"
+      min_version: "1.0.0"

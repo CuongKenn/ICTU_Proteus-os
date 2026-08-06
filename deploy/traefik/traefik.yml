@@ -1,0 +1,46 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Traefik Static Configuration
+# Tham chiếu: docs/deployment.md §2
+
+api:
+  dashboard: true
+  insecure: true   # Dashboard không cần auth (dev only — xóa khi production)
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false   # Service phải có label traefik.enable=true
+    network: proteus-net
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  fields:
+    defaultMode: keep
+    headers:
+      defaultMode: drop
+      names:
+        Authorization: redact   # Ẩn JWT trong access log
+
+# Uncomment khi production (cần domain thực):
+# certificatesResolvers:
+#   letsencrypt:
+#     acme:
+#       email: admin@yourdomain.com
+#       storage: /letsencrypt/acme.json
+#       httpChallenge:
+#         entryPoint: web

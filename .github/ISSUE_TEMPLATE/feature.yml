@@ -1,0 +1,66 @@
+name: "✨ Feature Request"
+description: "Đề xuất tính năng mới cho Proteus OS"
+title: "[FEAT] "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cảm ơn bạn đã đề xuất tính năng! Vui lòng đọc kỹ **[BRD.md](../docs/BRD.md)** và **[architecture.md](../docs/architecture.md)** trước khi submit.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "📝 Mô tả tính năng"
+      description: "Mô tả ngắn gọn tính năng bạn muốn thêm"
+      placeholder: "Tôi muốn hệ thống có thể..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "🎯 Vấn đề cần giải quyết"
+      description: "Tính năng này giải quyết vấn đề gì? Ai là người bị ảnh hưởng?"
+      placeholder: "Hiện tại, khi [X xảy ra], [người dùng Y] gặp khó khăn vì..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "📦 Module / Component liên quan"
+      options:
+        - "core-engine/frontend (Next.js)"
+        - "core-engine/backend (FastAPI)"
+        - "plugins/hr-module"
+        - "deploy (Hạ tầng / Docker)"
+        - "AI Orchestrator"
+        - "Plugin Manager"
+        - "Keycloak / SSO"
+        - "Khác"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "💡 Giải pháp đề xuất (nếu có)"
+      description: "Bạn nghĩ nên implement như thế nào?"
+      placeholder: "Có thể thêm endpoint... hoặc tạo component..."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "✅ Checklist trước khi submit"
+      options:
+        - label: "Tôi đã đọc BRD.md và tính năng này phù hợp với phạm vi dự án"
+          required: true
+        - label: "Tôi đã kiểm tra và chưa có Issue tương tự"
+          required: true
+        - label: "Tính năng này KHÔNG yêu cầu thay đổi kiến trúc cốt lõi (nếu có, cần thảo luận trước)"
+          required: false

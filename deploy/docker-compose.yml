@@ -1,0 +1,313 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Proteus OS — Docker Compose Stack (Full)
+# Tham chiếu kiến trúc: docs/architecture.md, docs/deployment.md
+# Tất cả dịch vụ đặt trong network nội bộ "proteus-net".
+# Traefik là điểm vào duy nhất từ bên ngoài.
+#
+# Sử dụng: cp .env.example .env → điền giá trị → docker compose up -d
+
+services:
+
+  # ────────────────────────────────────────────────────────────
+  # TRAEFIK — Edge Proxy (Ingress)
+  # ────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    container_name: proteus-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"   # Traefik Dashboard (dev only)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik-certs:/letsencrypt
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+  # ────────────────────────────────────────────────────────────
+  # POSTGRESQL — Primary Database
+  # ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: proteus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-proteus}
+      POSTGRES_USER: ${POSTGRES_USER:-proteus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    networks:
+      - proteus-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proteus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ────────────────────────────────────────────────────────────
+  # REDIS — Event Bus (Pub/Sub) + Cache
+  # ────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: proteus-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1
+    volumes:
+      - redis-data:/data
+    networks:
+      - proteus-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ────────────────────────────────────────────────────────────
+  # KEYCLOAK — SSO / Identity Provider
+  # ────────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: proteus-keycloak
+    restart: unless-stopped
+    command: start-dev   # Đổi thành "start" + TLS khi production
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-proteus}
+      KC_DB_USERNAME: ${POSTGRES_USER:-proteus}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_DB_SCHEMA: keycloak
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: auth.${DOMAIN}
+      KC_PROXY: edge
+      KC_HTTP_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`auth.${DOMAIN}`)"
+      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+  # ────────────────────────────────────────────────────────────
+  # QDRANT — Vector Database (RAG / AI)
+  # ────────────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.10.1
+    container_name: proteus-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - proteus-net
+    # Không expose ra ngoài — chỉ backend gọi qua internal network
+
+  # ────────────────────────────────────────────────────────────
+  # N8N — Workflow Automation Engine
+  # ────────────────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:1.52.2
+    container_name: proteus-n8n
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-proteus}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-proteus}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_SCHEMA: n8n
+      N8N_HOST: workflow.${DOMAIN}
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://workflow.${DOMAIN}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_BASIC_AUTH_ACTIVE: "false"   # Auth qua Keycloak OIDC
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`workflow.${DOMAIN}`)"
+      - "traefik.http.routers.n8n.entrypoints=web"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
+  # ────────────────────────────────────────────────────────────
+  # METABASE — Business Intelligence / Dashboard
+  # ────────────────────────────────────────────────────────────
+  metabase:
+    image: metabase/metabase:v0.50.31
+    container_name: proteus-metabase
+    restart: unless-stopped
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${POSTGRES_DB:-proteus}
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${POSTGRES_USER:-proteus}
+      MB_DB_PASS: ${POSTGRES_PASSWORD}
+      MB_DB_HOST: postgres
+      MB_DB_SCHEMA: metabase
+      MB_SITE_URL: http://analytics.${DOMAIN}
+      MB_EMBEDDING_SECRET_KEY: ${METABASE_EMBEDDING_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - metabase-data:/metabase-data
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.metabase.rule=Host(`analytics.${DOMAIN}`)"
+      - "traefik.http.routers.metabase.entrypoints=web"
+      - "traefik.http.services.metabase.loadbalancer.server.port=3000"
+
+  # ────────────────────────────────────────────────────────────
+  # APPSMITH — Low-Code UI Builder
+  # ────────────────────────────────────────────────────────────
+  appsmith:
+    image: appsmith/appsmith-ce:v1.35
+    container_name: proteus-appsmith
+    restart: unless-stopped
+    environment:
+      APPSMITH_DISABLE_TELEMETRY: "true"
+      APPSMITH_CUSTOM_DOMAIN: apps.${DOMAIN}
+    volumes:
+      - appsmith-data:/appsmith-stacks
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.appsmith.rule=Host(`apps.${DOMAIN}`) || PathPrefix(`/proxy/appsmith`)"
+      - "traefik.http.routers.appsmith.entrypoints=web"
+      - "traefik.http.services.appsmith.loadbalancer.server.port=80"
+
+  # ────────────────────────────────────────────────────────────
+  # OUTLINE — Wiki / Knowledge Base
+  # ────────────────────────────────────────────────────────────
+  outline:
+    image: outlinewiki/outline:0.80.2
+    container_name: proteus-outline
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
+      DATABASE_SCHEMA: outline
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      URL: http://wiki.${DOMAIN}
+      SECRET_KEY: ${OUTLINE_SECRET_KEY}
+      UTILS_SECRET: ${OUTLINE_UTILS_SECRET}
+      OIDC_CLIENT_ID: outline
+      OIDC_CLIENT_SECRET: ${OUTLINE_OIDC_SECRET}
+      OIDC_AUTH_URI: http://auth.${DOMAIN}/realms/proteus/protocol/openid-connect/auth
+      OIDC_TOKEN_URI: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
+      OIDC_USERINFO_URI: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
+      OIDC_USERNAME_CLAIM: preferred_username
+      FILE_STORAGE: local
+      FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - outline-data:/var/lib/outline/data
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.outline.rule=Host(`wiki.${DOMAIN}`)"
+      - "traefik.http.routers.outline.entrypoints=web"
+      - "traefik.http.services.outline.loadbalancer.server.port=3000"
+
+  # ────────────────────────────────────────────────────────────
+  # CORE ENGINE — Backend (FastAPI)
+  # ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../core-engine
+      dockerfile: Dockerfile
+      target: backend
+    container_name: proteus-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-proteus}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
+      N8N_URL: http://n8n:5678
+      N8N_API_KEY: ${N8N_API_KEY}
+      QDRANT_URL: http://qdrant:6333
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  # ────────────────────────────────────────────────────────────
+  # CORE ENGINE — Frontend (Next.js BFF)
+  # ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../core-engine
+      dockerfile: Dockerfile
+      target: frontend
+    container_name: proteus-frontend
+    restart: unless-stopped
+    environment:
+      NEXTAUTH_URL: http://${DOMAIN}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_BFF_CLIENT_SECRET}
+      KEYCLOAK_ISSUER: http://auth.${DOMAIN}/realms/${KEYCLOAK_REALM:-proteus}
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.priority=1"   # Backend có priority cao hơn
+
+
+networks:
+  proteus-net:
+    name: proteus-net
+    driver: bridge
+
+volumes:
+  traefik-certs:
+  postgres-data:
+  redis-data:
+  qdrant-data:
+  n8n-data:
+  metabase-data:
+  appsmith-data:
+  outline-data:

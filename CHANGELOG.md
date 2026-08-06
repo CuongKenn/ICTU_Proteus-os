@@ -4,7 +4,23 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] — Plugin Manifest Spec v1.1.0 (2026-08-06)
+## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+
+### Added
+- **[deploy/docker-compose.yml]** Full stack Docker Compose với 10 services: Traefik, PostgreSQL 16, Redis 7, Keycloak 25, Qdrant, n8n, Metabase, Appsmith, Outline, core-engine (backend + frontend). Mọi service đều có healthcheck và restart policy.
+- **[deploy/.env.example]** Template biến môi trường đầy đủ với comment và hướng dẫn cho từng section (domain, PostgreSQL, Redis, Keycloak, n8n, Metabase, Outline, LLM Provider).
+- **[deploy/traefik/traefik.yml]** Traefik v3 static config: Docker provider, JSON access log (Authorization header bị redact), placeholder cho Let's Encrypt.
+- **[deploy/postgres/init.sql]** Core Schema SQL khởi tạo 6 bảng: `tenants`, `users`, `plugins`, `tenant_plugins`, `roles`, `audit_logs`, `ai_commands`. Đầy đủ ENUMs, indexes, auto-update triggers, COMMENT cho mọi bảng/cột. Tạo schema riêng cho Keycloak, n8n, Metabase, Outline.
+- **[core-engine/Dockerfile]** Multi-stage Dockerfile: stage `backend` (Python 3.12-slim + uvicorn), stage `frontend-builder` (Node 20 build Next.js), stage `frontend` (standalone production image).
+- **[core-engine/backend/]** FastAPI Hexagonal Architecture đầy đủ: `main.py` (entry point + CORS), `infrastructure/` (config, database async engine, structlog logging), `core/domain/` (entities, exceptions — pure Python), `adapters/repositories/` (AbstractPluginRepository + SQLAlchemy implementation), `adapters/external/keycloak_adapter.py` (JWT verify + Role CRUD), `entrypoints/dependencies.py` (JWT → TenantContext injection), `entrypoints/routers/` (health, plugins, ai), `entrypoints/schemas/` (plugin, ai_command Pydantic models).
+- **[core-engine/frontend/]** Next.js 14 App Router + BFF pattern: `package.json` (Next.js, NextAuth, Zustand, Axios, Tailwind), `tailwind.config.ts` (đầy đủ Design Tokens từ `docs/ui_ux_design.md`), `src/styles/globals.css` (CSS Variables, glass-card, gradient-text utilities), `src/lib/authOptions.ts` (NextAuth + Keycloak OIDC, JWT session), `src/app/api/auth/[...nextauth]/` (NextAuth handler), `src/app/api/proxy/[...path]/` (BFF Proxy injecting Bearer token), `src/store/authStore.ts` (Zustand auth state), `src/lib/api.ts` (Axios → BFF, 401 interceptor), `src/types/index.ts` (domain types + NextAuth extensions), `src/app/layout.tsx` (root layout dark mode), `src/app/launchpad/page.tsx` (skeleton), `src/hooks/usePlugins.ts` (ViewModel hook).
+- **[plugins/hr-module/manifest.yaml]** HR Module manifest đầy đủ theo `plugin-manifest-spec.md` v1.1.0: 10 phần, 3 roles (hr_manager/hr_viewer/leave_approver), 3 workflows (webhook + cron), 3 event_publications, default_config.
+- **[plugins/hr-module/db/seed_data.sql]** HR Schema: 3 bảng (`hr_employees`, `hr_leave_requests`, `hr_attendance_logs`) với ENUMs, indexes, auto-update triggers. Không có `tenant_id` (Plugin Manager inject).
+- **[.github/ISSUE_TEMPLATE/feature.yml]** GitHub Feature Request template với component dropdown và checklist.
+- **[.github/ISSUE_TEMPLATE/bug.yml]** GitHub Bug Report template với severity dropdown, environment info.
+- **[.github/pull_request_template.md]** PR Checklist template: Backend/Frontend/AI/HITL/Docs sections, hướng dẫn test.
+
+
 
 ### Added
 - **[docs/plugin-manifest-spec.md §3.2]** Thêm trường `database.default_config` (jsonb): khai báo cấu hình mặc định của Plugin mà `tenant_admin` có thể override qua `TENANT_PLUGIN.config_override`.

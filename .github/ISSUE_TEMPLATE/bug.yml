@@ -1,0 +1,87 @@
+name: "🐛 Bug Report"
+description: "Báo cáo lỗi trong hệ thống Proteus OS"
+title: "[BUG] "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cảm ơn bạn đã báo cáo lỗi! Vui lòng cung cấp thông tin chi tiết để chúng tôi tái hiện được lỗi.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "🐛 Mô tả lỗi"
+      description: "Mô tả ngắn gọn lỗi bạn gặp phải"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "🔄 Các bước tái hiện lỗi"
+      description: "Các bước để reproduce lỗi"
+      placeholder: |
+        1. Đăng nhập với tài khoản...
+        2. Điều hướng đến trang...
+        3. Bấm vào nút...
+        4. Thấy lỗi...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "✅ Kết quả mong muốn"
+      description: "Điều gì PHẢI xảy ra?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "❌ Kết quả thực tế"
+      description: "Điều gì ĐÃ xảy ra? (screenshot/log nếu có)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "🔥 Mức độ nghiêm trọng"
+      options:
+        - "Critical — Mất dữ liệu hoặc bảo mật"
+        - "High — Tính năng chính không hoạt động"
+        - "Medium — Tính năng phụ bị ảnh hưởng"
+        - "Low — Lỗi nhỏ về UI/UX"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "📦 Module bị ảnh hưởng"
+      options:
+        - "core-engine/frontend (Next.js)"
+        - "core-engine/backend (FastAPI)"
+        - "plugins/hr-module"
+        - "deploy (Hạ tầng / Docker)"
+        - "AI Orchestrator"
+        - "Keycloak / SSO"
+        - "Không xác định"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "🖥️ Môi trường"
+      placeholder: |
+        - OS: Windows 11 / Ubuntu 22.04
+        - Browser: Chrome 126
+        - Docker version: 27.x
+        - Proteus OS version: 0.1.0
+    validations:
+      required: true
