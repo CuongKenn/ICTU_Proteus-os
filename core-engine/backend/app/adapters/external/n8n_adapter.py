@@ -176,9 +176,7 @@ class N8nAdapter:
         response = await self._request_with_retry("POST", url)
 
         if response.status_code == 404:
-            raise N8nWorkflowNotFoundError(
-                f"Workflow '{workflow_id}' not found on n8n"
-            )
+            raise N8nWorkflowNotFoundError(f"Workflow '{workflow_id}' not found on n8n")
 
         if response.status_code not in (200, 201):
             raise N8nAdapterError(
@@ -208,9 +206,7 @@ class N8nAdapter:
         response = await self._request_with_retry("POST", url)
 
         if response.status_code == 404:
-            raise N8nWorkflowNotFoundError(
-                f"Workflow '{workflow_id}' not found on n8n"
-            )
+            raise N8nWorkflowNotFoundError(f"Workflow '{workflow_id}' not found on n8n")
 
         if response.status_code not in (200, 201):
             raise N8nAdapterError(
@@ -253,9 +249,7 @@ class N8nAdapter:
                 f"n8n delete_workflow failed: HTTP {response.status_code} — {response.text[:200]}"
             )
 
-        logger.info(
-            "Workflow deleted successfully", extra={"workflow_id": workflow_id}
-        )
+        logger.info("Workflow deleted successfully", extra={"workflow_id": workflow_id})
 
     async def trigger_webhook(
         self,

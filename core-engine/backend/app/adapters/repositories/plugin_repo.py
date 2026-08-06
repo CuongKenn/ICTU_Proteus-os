@@ -36,7 +36,9 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             return None
         return self._to_entity(dict(row))
 
-    async def list_marketplace(self, limit: int = 20, offset: int = 0) -> list[PluginEntity]:
+    async def list_marketplace(
+        self, limit: int = 20, offset: int = 0
+    ) -> list[PluginEntity]:
         result = await self._session.execute(
             text(
                 "SELECT * FROM plugins WHERE deleted_at IS NULL "

@@ -16,7 +16,9 @@ class PluginResponse(BaseModel):
     display_name: str
     version: str
     is_official: bool
-    status: PluginStatus | None = None  # Type-safe: chỉ nhận giá trị PluginStatus hợp lệ
+    status: PluginStatus | None = (
+        None  # Type-safe: chỉ nhận giá trị PluginStatus hợp lệ
+    )
 
     model_config = {"from_attributes": True}
 

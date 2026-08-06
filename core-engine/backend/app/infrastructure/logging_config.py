@@ -39,9 +39,11 @@ def setup_logging(level: str = "INFO") -> None:
 
     formatter = structlog.stdlib.ProcessorFormatter(
         # JSON format cho production, console format cho development
-        processor=structlog.dev.ConsoleRenderer()
-        if level == "DEBUG"
-        else structlog.processors.JSONRenderer(),
+        processor=(
+            structlog.dev.ConsoleRenderer()
+            if level == "DEBUG"
+            else structlog.processors.JSONRenderer()
+        ),
         foreign_pre_chain=shared_processors,
     )
 

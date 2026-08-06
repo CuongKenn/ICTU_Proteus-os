@@ -36,7 +36,9 @@ async def list_marketplace_plugins(
     )
 
 
-@router.get("/installed", response_model=PluginListResponse, summary="Liệt kê Plugin đã cài")
+@router.get(
+    "/installed", response_model=PluginListResponse, summary="Liệt kê Plugin đã cài"
+)
 async def list_installed_plugins(
     ctx: TenantContext = Depends(get_current_tenant_context),
     repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
