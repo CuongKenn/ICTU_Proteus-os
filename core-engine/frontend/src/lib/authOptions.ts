@@ -7,8 +7,47 @@
 // Tham chiếu: docs/architecture.md (BFF Pattern), docs/clarification.md §8
 
 import type { NextAuthOptions } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import KeycloakProvider from "next-auth/providers/keycloak";
 
+// ─── Silent Token Refresh ─────────────────────────────────────
+// Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
+// Được gọi tự động khi access_token hết hạn trong JWT callback.
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  try {
+    const tokenUrl = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: process.env.KEYCLOAK_CLIENT_ID!,
+        client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+        refresh_token: token.refreshToken as string,
+      }),
+    });
+
+    const refreshed = await response.json();
+
+    if (!response.ok) {
+      // Refresh thất bại (refresh_token hết hạn hoặc bị revoke)
+      // Trả về token với error để client biết cần login lại
+      return { ...token, error: "RefreshAccessTokenError" };
+    }
+
+    return {
+      ...token,
+      accessToken: refreshed.access_token,
+      refreshToken: refreshed.refresh_token ?? token.refreshToken, // Rotate nếu có
+      accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
+      error: undefined, // Xóa error cũ nếu refresh thành công
+    };
+  } catch {
+    return { ...token, error: "RefreshAccessTokenError" };
+  }
+}
+
+// ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
   providers: [
     KeycloakProvider({
@@ -18,40 +57,45 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // Lưu token vào session để BFF có thể inject vào request xuống Backend
   callbacks: {
     async jwt({ token, account }) {
-      // Lần đầu login — lưu access_token và refresh_token vào JWT session
+      // Lần đầu login — lưu access_token, refresh_token và expiry vào JWT session
       if (account) {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-        token.accessTokenExpires = account.expires_at
-          ? account.expires_at * 1000
-          : Date.now() + 60 * 60 * 1000; // Fallback: 1 giờ từ bây giờ
+        return {
+          ...token,
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token,
+          accessTokenExpires: account.expires_at
+            ? account.expires_at * 1000
+            : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ
+        };
       }
 
-      // Token vẫn còn hạn
-      if (Date.now() < (token.accessTokenExpires as number)) {
+      // Token vẫn còn hạn (thêm buffer 30s để tránh edge case)
+      if (Date.now() < (token.accessTokenExpires as number) - 30_000) {
         return token;
       }
 
-      // TODO: Silent Refresh — làm mới token khi hết hạn
-      // Tham chiếu: docs/clarification.md §8.2
-      return token;
+      // Token sắp/đã hết hạn → Silent refresh
+      return refreshAccessToken(token);
     },
 
     async session({ session, token }) {
-      // Expose access token lên session để BFF Proxy sử dụng
-      // NOTE: accessToken KHÔNG được expose xuống browser (chỉ dùng ở server-side API routes)
+      // Expose access token cho BFF Proxy — KHÔNG expose xuống browser
       session.accessToken = token.accessToken as string;
+
+      // Truyền lỗi refresh lên client để có thể hiển thị thông báo
+      if (token.error) {
+        (session as any).error = token.error;
+      }
+
       return session;
     },
   },
 
-  // Session dùng JWT (stateless) — không cần DB
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 giờ
+    maxAge: 8 * 60 * 60, // 8 giờ (session tối đa, kể cả refresh)
   },
 
   pages: {

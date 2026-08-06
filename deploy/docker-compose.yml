@@ -227,6 +227,9 @@ services:
       OIDC_USERNAME_CLAIM: preferred_username
       FILE_STORAGE: local
       FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+      # NOTE: Outline không hỗ trợ DATABASE_SCHEMA env var.
+      # Schema 'outline' được tạo sẵn trong init.sql.
+      # Để force Outline dùng schema 'outline', cần cấu hình search_path tại cấp PostgreSQL role.
     depends_on:
       postgres:
         condition: service_healthy
@@ -261,17 +264,21 @@ services:
       QDRANT_URL: http://qdrant:6333
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy  # Backend cần Keycloak để fetch JWKS khi startup
     networks:
       - proteus-net
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.routers.backend.priority=10"   # Cao hơn frontend (1) — PathPrefix cụ thể hơn
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   # ────────────────────────────────────────────────────────────

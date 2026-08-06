@@ -4,9 +4,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone", // Tối ưu cho Docker deployment
-  experimental: {
-    // Không cần config thêm hiện tại
-  },
   // Proxy qua BFF — không expose BACKEND_URL ra client
   async rewrites() {
     return [];

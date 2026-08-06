@@ -8,6 +8,7 @@
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import type { StateCreator } from "zustand";
 
 interface User {
   id: string;
@@ -27,12 +28,13 @@ interface AuthState {
   hasRole: (role: string) => boolean;
 }
 
-const storeDefinition = (set: Parameters<typeof create<AuthState>>[0], get: any) => ({
-  user: null as User | null,
+// Fix: StateCreator type đúng cách — TypeScript bảo vệ set/get đầy đủ, không dùng `any`
+const storeDefinition: StateCreator<AuthState> = (set, get) => ({
+  user: null,
   isLoading: true,
 
-  setUser: (user: User | null) => set({ user, isLoading: false }),
-  setLoading: (isLoading: boolean) => set({ isLoading }),
+  setUser: (user) => set({ user, isLoading: false }),
+  setLoading: (isLoading) => set({ isLoading }),
   clearAuth: () => set({ user: null, isLoading: false }),
 
   hasRole: (role: string) => {
@@ -41,7 +43,7 @@ const storeDefinition = (set: Parameters<typeof create<AuthState>>[0], get: any)
   },
 });
 
-// Fix 10: devtools chỉ bật ở development — không expose store name ra production browser DevTools
+// devtools chỉ bật ở development — không expose store name ra production browser DevTools
 export const useAuthStore =
   process.env.NODE_ENV === "development"
     ? create<AuthState>()(devtools(storeDefinition, { name: "AuthStore" }))
