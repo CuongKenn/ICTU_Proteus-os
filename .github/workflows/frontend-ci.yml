@@ -17,10 +17,6 @@ on:
     # Không có paths filter trên PR — để frontend-ci summary job luôn chạy
     # (Required check không được dùng paths filter — sẽ stuck "waiting" nếu workflow không trigger)
 
-defaults:
-  run:
-    working-directory: core-engine/frontend
-
 jobs:
   # Phát hiện xem có thay đổi frontend không — chạy luôn trên mọi PR
   detect-changes:
@@ -43,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: core-engine/frontend
 
     steps:
       - name: Checkout code
