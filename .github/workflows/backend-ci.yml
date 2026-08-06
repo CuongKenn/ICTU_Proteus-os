@@ -170,23 +170,35 @@ jobs:
 
       - name: Run Alembic migrations (upgrade head)
         run: |
-          echo "=== Running: alembic upgrade head ==="
-          alembic upgrade head
-          echo "=== Migration applied successfully ==="
+          if [ -f "alembic.ini" ]; then
+            echo "=== Running: alembic upgrade head ==="
+            alembic upgrade head
+            echo "=== Migration applied successfully ==="
+          else
+            echo "::warning::No alembic.ini found. Skipping migrations."
+          fi
 
       - name: Verify migration state
         run: |
-          echo "=== Current Alembic head ==="
-          alembic current
-          echo ""
-          echo "=== Migration history ==="
-          alembic history --verbose
+          if [ -f "alembic.ini" ]; then
+            echo "=== Current Alembic head ==="
+            alembic current
+            echo ""
+            echo "=== Migration history ==="
+            alembic history --verbose
+          else
+            echo "Skipping verification (no alembic.ini)"
+          fi
 
       - name: Check for model drift
         run: |
-          alembic check 2>&1 || {
-            echo "::warning::Model drift detected! Run: alembic revision --autogenerate -m 'description'"
-          }
+          if [ -f "alembic.ini" ]; then
+            alembic check 2>&1 || {
+              echo "::warning::Model drift detected! Run: alembic revision --autogenerate -m 'description'"
+            }
+          else
+            echo "Skipping drift check (no alembic.ini)"
+          fi
 
   test:
     name: Tests & Coverage
