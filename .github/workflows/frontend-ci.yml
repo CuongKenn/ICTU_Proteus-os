@@ -1,0 +1,132 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Frontend CI — ESLint, TypeScript check, Vitest tests, Next.js Production Build
+# Tham chiếu: ICTU-AI-JUDGE/frontend-ci.yml (adapted for Proteus OS Next.js)
+
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'core-engine/frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'core-engine/frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+defaults:
+  run:
+    working-directory: core-engine/frontend
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: core-engine/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: |
+          npx eslint src/ --max-warnings=50 || {
+            echo "::error::ESLint found issues. Review warnings/errors above."
+            exit 1
+          }
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+  test:
+    name: Vitest Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: core-engine/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Unit Tests (Vitest)
+        run: |
+          if [ -d "src/__tests__" ]; then
+            npm run test -- --run
+          else
+            echo "::warning::No __tests__ directory yet. Skipping."
+          fi
+
+  build:
+    name: Next.js Production Build
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: core-engine/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js production bundle
+        env:
+          # Placeholder URLs để build không fail — giá trị thực inject lúc deploy
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-build-secret-placeholder
+          NEXTAUTH_URL_INTERNAL: http://localhost:3000
+          KEYCLOAK_CLIENT_ID: proteus-bff
+          KEYCLOAK_CLIENT_SECRET: ci-placeholder
+          KEYCLOAK_ISSUER: http://localhost:8080/realms/proteus
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: npm run build
+
+      - name: Check build output size
+        run: |
+          echo "=== Next.js Build Size Report ==="
+          du -sh .next/
+          echo "--- Static files ---"
+          find .next/static -name "*.js" | head -10 | xargs -I{} du -h {} | sort -rh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: core-engine/frontend/.next/
+          retention-days: 3
+
+  frontend-ci:
+    name: frontend-ci ✅
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    steps:
+      - name: All frontend checks passed
+        run: echo "All frontend checks passed successfully"

@@ -1,0 +1,116 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Cleanup Stale Branches — Xóa branch không hoạt động sau 90 ngày
+# Tham chiếu: ICTU-AI-JUDGE/cleanup-stale-branches.yml
+
+name: 🧹 Cleanup Stale Branches
+
+on:
+  schedule:
+    # Chạy 2:00 AM (UTC+7 = 19:00 UTC Chủ nhật)
+    - cron: '0 19 * * 0'
+  workflow_dispatch:
+    inputs:
+      days_inactive:
+        description: 'Xóa branch không hoạt động sau bao nhiêu ngày'
+        required: false
+        default: '90'
+      dry_run:
+        description: 'Dry run (chỉ liệt kê, không xóa thật)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  cleanup:
+    name: Delete Stale Branches
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cleanup stale branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DAYS_INACTIVE: ${{ github.event.inputs.days_inactive || '90' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+        run: |
+          # Branches được bảo vệ — KHÔNG bao giờ xóa
+          PROTECTED_BRANCHES="main master develop dev staging production release hotfix"
+
+          CUTOFF_DATE=$(date -d "$DAYS_INACTIVE days ago" +%s)
+
+          echo "=== 🧹 Stale Branch Cleanup ==="
+          echo "Ngưỡng không hoạt động : ${DAYS_INACTIVE} ngày"
+          echo "Thời gian cutoff       : $(date -d "@$CUTOFF_DATE" '+%Y-%m-%d')"
+          echo "Dry run                : $DRY_RUN"
+          echo ""
+
+          DELETED_COUNT=0
+          SKIPPED_COUNT=0
+          STALE_LIST=""
+
+          for ref in $(git branch -r | grep -v 'HEAD' | sed 's/  origin\///'); do
+            IS_PROTECTED=false
+            for protected in $PROTECTED_BRANCHES; do
+              if [[ "$ref" == "$protected" || "$ref" == "$protected"/* || "$ref" == release/* || "$ref" == hotfix/* ]]; then
+                IS_PROTECTED=true
+                break
+              fi
+            done
+
+            if [ "$IS_PROTECTED" = true ]; then
+              echo "🔒 Bỏ qua (protected): $ref"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+              continue
+            fi
+
+            LAST_COMMIT_DATE=$(git log -1 --format="%ct" "origin/$ref" 2>/dev/null || echo "0")
+
+            if [ "$LAST_COMMIT_DATE" -eq "0" ]; then
+              echo "⚠️  Bỏ qua (không đọc được): $ref"
+              continue
+            fi
+
+            LAST_DATE_HUMAN=$(date -d "@$LAST_COMMIT_DATE" '+%Y-%m-%d')
+            DAYS_AGO=$(( ( $(date +%s) - LAST_COMMIT_DATE ) / 86400 ))
+
+            if [ "$LAST_COMMIT_DATE" -lt "$CUTOFF_DATE" ]; then
+              STALE_LIST="${STALE_LIST}\n  🗑️  $ref (không hoạt động ${DAYS_AGO} ngày — commit cuối: $LAST_DATE_HUMAN)"
+
+              if [ "$DRY_RUN" = "false" ]; then
+                gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$ref" \
+                  --silent && echo "  ✅ Đã xóa: $ref" || echo "  ❌ Lỗi xóa: $ref"
+              fi
+
+              DELETED_COUNT=$((DELETED_COUNT + 1))
+            else
+              echo "✅ Còn hoạt động (${DAYS_AGO} ngày trước): $ref"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+            fi
+          done
+
+          echo ""
+          echo "=== 📊 Kết quả ==="
+          if [ -n "$STALE_LIST" ]; then
+            echo -e "Branch cũ (>= ${DAYS_INACTIVE} ngày):$STALE_LIST"
+          else
+            echo "Không có branch nào cần dọn 🎉"
+          fi
+          echo ""
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "🔍 Dry run: tổng ${DELETED_COUNT} branch sẽ bị xóa nếu chạy thật."
+          else
+            echo "🗑️  Đã xóa: ${DELETED_COUNT} branch"
+          fi
+          echo "🔒 Đã bỏ qua (protected/active): ${SKIPPED_COUNT} branch"

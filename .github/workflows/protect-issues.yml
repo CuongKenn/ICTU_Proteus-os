@@ -1,0 +1,79 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Protect Issues — Tự động reopen issue bị đóng thủ công (không qua PR merge)
+# Quy tắc: Issue chỉ được đóng khi có PR merge với từ khóa "closes #N"
+# Tham chiếu: ICTU-AI-JUDGE/protect-issues.yml
+
+name: Protect Issues
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  reopen-if-manual-close:
+    name: Reopen Manually Closed Issues
+    runs-on: ubuntu-latest
+    # Chỉ chạy nếu issue bị đóng thủ công (không phải bot hay system)
+    if: github.event.sender.type == 'User'
+    permissions:
+      issues: write
+
+    steps:
+      - name: Check if closed via a merged PR
+        id: check_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          CLOSER_TYPE=$(gh api graphql \
+            -F owner="$OWNER" \
+            -F name="$REPO" \
+            -F number=$ISSUE_NUMBER \
+            -f query='
+              query($owner: String!, $name: String!, $number: Int!) {
+                repository(owner: $owner, name: $name) {
+                  issue(number: $number) {
+                    timelineItems(last: 1, itemTypes: CLOSED_EVENT) {
+                      nodes {
+                        ... on ClosedEvent {
+                          closer {
+                            __typename
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ' --jq '.data.repository.issue.timelineItems.nodes[0].closer.__typename' 2>/dev/null)
+
+          echo "Closer type: $CLOSER_TYPE"
+
+          if [ "$CLOSER_TYPE" = "PullRequest" ] || [ "$CLOSER_TYPE" = "Commit" ]; then
+            echo "closed_via_pr=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "closed_via_pr=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reopen issue if closed manually
+        if: steps.check_pr.outputs.closed_via_pr == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.event.sender.login }}
+        run: |
+          gh issue reopen "$ISSUE_NUMBER" --repo "$REPO"
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body \
+            "**Issue được mở lại tự động.**
+
+            Issue này bị đóng thủ công bởi **@${ACTOR}** nhưng chưa được liên kết với bất kỳ Pull Request nào đã merge.
+
+            > **Quy tắc dự án:** Issue chỉ được đóng khi có PR merge vào \`main\` với từ khóa \`closes #${ISSUE_NUMBER}\`, \`fixes #${ISSUE_NUMBER}\`, hoặc \`resolves #${ISSUE_NUMBER}\` trong mô tả PR.
+
+            Nếu muốn đóng issue này vì lý do hợp lệ khác, hãy thêm label \`wontfix\` hoặc \`invalid\` và liên hệ maintainer."
