@@ -104,7 +104,8 @@ class N8nAdapter:
                     "n8n connection error, retrying",
                     extra={"attempt": attempt, "error": str(exc)},
                 )
-                last_exc = N8nAdapterError(f"n8n connection failed: {exc}") from exc
+                err_msg = f"n8n connection failed: {exc}"
+                last_exc = N8nAdapterError(err_msg) from exc
 
         # Hết retry
         raise last_exc or N8nAdapterError("n8n request failed after all retries")
