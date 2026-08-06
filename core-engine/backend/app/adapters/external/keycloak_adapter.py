@@ -115,9 +115,7 @@ class KeycloakAdapter:
                 timeout=10.0,
             )
             if response.status_code == 404:
-                logger.warning(
-                    "Role not found in Keycloak", extra={"role": role_name}
-                )
+                logger.warning("Role not found in Keycloak", extra={"role": role_name})
                 return
             response.raise_for_status()
             logger.info(
