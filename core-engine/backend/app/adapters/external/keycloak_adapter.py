@@ -44,7 +44,9 @@ class KeycloakAdapter:
         ):
             return self._jwks_cache
 
-        logger.debug("Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url})
+        logger.debug(
+            "Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url}
+        )
         async with httpx.AsyncClient() as client:
             response = await client.get(settings.keycloak_jwks_url, timeout=10.0)
             response.raise_for_status()
