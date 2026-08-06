@@ -5,9 +5,9 @@
 # Dùng để FastAPI tự sinh Swagger documentation
 
 import uuid
-from pydantic import BaseModel, Field
 
 from app.core.domain.entities import PluginStatus
+from pydantic import BaseModel, Field
 
 
 class PluginResponse(BaseModel):

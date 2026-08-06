@@ -6,8 +6,6 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain.entities import TenantContext
 from app.entrypoints.dependencies import get_current_tenant_context, get_plugin_repo
@@ -16,6 +14,7 @@ from app.entrypoints.schemas.plugin import (
     PluginListResponse,
     PluginResponse,
 )
+from fastapi import APIRouter, Depends, HTTPException, status
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins")
