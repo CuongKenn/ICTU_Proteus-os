@@ -7,7 +7,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
 ### Added
+- **[.github/workflows/backend-ci.yml]** GitHub Actions CI cho FastAPI backend: Lint (Black + flake8 + isort), Security scan (Bandit), Alembic migration verification (PostgreSQL service container), Pytest coverage ≥70%. Trigger trên `push`/`PR` vào `main`/`develop` khi có thay đổi trong `core-engine/backend/`.
+- **[.github/workflows/frontend-ci.yml]** GitHub Actions CI cho Next.js frontend: ESLint (`--max-warnings=50`), TypeScript type check (`tsc --noEmit`), Vitest unit tests, Next.js production build + bundle size report. Trigger khi có thay đổi trong `core-engine/frontend/`.
+- **[.github/workflows/docker-ci-cd.yml]** Build & Push Docker images lên GHCR (`ghcr.io/cuongkenn/ictu_proteus-os/backend|frontend`). Sử dụng `dorny/paths-filter` để chỉ build service có thay đổi. Hỗ trợ Deploy Webhook trigger sau khi build thành công trên `main`.
+- **[.github/workflows/cleanup-stale-branches.yml]** Tự động xóa branch không hoạt động >90 ngày, chạy lúc 2:00 AM (UTC+7) mỗi Chủ nhật. Bảo vệ `main`, `develop`, `release/*`, `hotfix/*`. Mặc định `dry_run=true` để an toàn.
+- **[.github/workflows/protect-issues.yml]** Tự động reopen issue bị đóng thủ công không qua PR merge. Issue chỉ được đóng khi PR merge vào `main` có từ khóa `closes #N`/`fixes #N`/`resolves #N`.
 - **[deploy/docker-compose.yml]** Full stack Docker Compose với 10 services: Traefik, PostgreSQL 16, Redis 7, Keycloak 25, Qdrant, n8n, Metabase, Appsmith, Outline, core-engine (backend + frontend). Mọi service đều có healthcheck và restart policy.
+
 - **[deploy/.env.example]** Template biến môi trường đầy đủ với comment và hướng dẫn cho từng section (domain, PostgreSQL, Redis, Keycloak, n8n, Metabase, Outline, LLM Provider).
 - **[deploy/traefik/traefik.yml]** Traefik v3 static config: Docker provider, JSON access log (Authorization header bị redact), placeholder cho Let's Encrypt.
 - **[deploy/postgres/init.sql]** Core Schema SQL khởi tạo 6 bảng: `tenants`, `users`, `plugins`, `tenant_plugins`, `roles`, `audit_logs`, `ai_commands`. Đầy đủ ENUMs, indexes, auto-update triggers, COMMENT cho mọi bảng/cột. Tạo schema riêng cho Keycloak, n8n, Metabase, Outline.
