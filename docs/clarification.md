@@ -273,7 +273,14 @@ event_subscriptions:
       - hr.employee.created
       - hr.employee.deactivated
       - hr.leave_request.approved
-    handler_workflow: finance_sync_workflow.json
+    # Đường dẫn TƯƠNG ĐỐI từ thư mục gốc plugin (có prefix thư mục)
+    handler_workflow: "workflows/finance_sync_workflow.json"
+
+dependencies:
+  optional:
+    - plugin: hr-module
+      reason: "Nhận Events về nhân viên để tạo tài khoản lương tự động"
+      min_version: "1.0.0"
 ```
 
 Plugin Manager sẽ đọc `event_subscriptions` và tự động cấu hình n8n để Finance Workflow lắng nghe đúng các event từ HR. Nếu HR Module chưa được cài đặt, Plugin Manager sẽ **cảnh báo dependency** nhưng vẫn cho phép cài (các subscription sẽ được kích hoạt sau khi HR được cài xong).
@@ -395,7 +402,7 @@ Một điểm thường bị bỏ qua khi thiết kế SSO là **vòng đời c�
 | **Session Cookie** | Theo Refresh Token | Browser (HttpOnly) | Được mã hóa bằng `NEXTAUTH_SECRET` |
 
 > [!IMPORTANT]
-> **Tại sao TTL Access Token chỉ 5 phút?** Đây là thiết kế cố ý. Nếu Access Token bị đánh cắp (ví dụ lộ qua log), kẻ tấn công chỉ có tối đa 5 phút để lạm dụng. Refresh Token được bảo vệ an toàn hơn nhình ngày lưu trong HttpOnly Cookie, không thể đọc bằng JavaScript.
+> **Tại sao TTL Access Token chỉ 5 phút?** Đây là thiết kế cố ý. Nếu Access Token bị đánh cắp (ví dụ lộ qua log), kẻ tấn công chỉ có tối đa 5 phút để lạm dụng. Refresh Token được bảo vệ an toàn hơn, được lưu trong HttpOnly Cookie và không thể đọc bằng JavaScript.
 
 ### 8.2. Luồng Silent Refresh (Tự động gia hạn Token)
 

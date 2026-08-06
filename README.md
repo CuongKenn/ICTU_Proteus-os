@@ -1,13 +1,29 @@
 <div align="center">
-  <img src="./docs/images/proteus_logo.png" alt="Proteus OS Logo" width="250">
-  
-  <h1>Proteus OS</h1>
-  <p><b>Hệ điều hành Đa năng (Universal OS) Thế hệ mới</b></p>
-  <p><i>Linux là hệ điều hành cho máy tính. Proteus OS là hệ điều hành lõi cho mọi tổ chức (Doanh nghiệp, Trường học, Y tế,...).</i></p>
 
-  [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
-  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
-  [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)]()
+  <img src="./docs/images/proteus_logo.png" alt="Proteus OS Logo" width="180">
+
+  <h1>⚡ Proteus OS</h1>
+
+  <p><strong>Hệ điều hành Đa năng (Universal OS) Thế hệ mới cho Tổ chức</strong></p>
+
+  <p><em>"Linux là hệ điều hành cho máy tính.<br>Proteus OS là hệ điều hành lõi cho mọi tổ chức — Doanh nghiệp, Trường học, Y tế,..."</em></p>
+
+  <br>
+
+  [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blueviolet.svg?style=for-the-badge&logo=gnu)](./LICENSE)
+  [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?style=for-the-badge&logo=github)](./CONTRIBUTING.md)
+  [![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](./deploy)
+  [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](./core-engine/backend)
+  [![Next.js](https://img.shields.io/badge/Frontend-Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)](./core-engine/frontend)
+  [![Keycloak](https://img.shields.io/badge/Auth-Keycloak-4D4D4D?style=for-the-badge&logo=keycloak&logoColor=white)](https://www.keycloak.org)
+
+  <br>
+
+  [![GitHub Stars](https://img.shields.io/github/stars/CuongKenn/ICTU_Proteus-os?style=flat-square&color=ffd700&logo=github)](https://github.com/CuongKenn/ICTU_Proteus-os/stargazers)
+  [![GitHub Issues](https://img.shields.io/github/issues/CuongKenn/ICTU_Proteus-os?style=flat-square&color=f0455a&logo=github)](https://github.com/CuongKenn/ICTU_Proteus-os/issues)
+  [![GitHub Forks](https://img.shields.io/github/forks/CuongKenn/ICTU_Proteus-os?style=flat-square&color=22c47a&logo=github)](https://github.com/CuongKenn/ICTU_Proteus-os/network/members)
+  [![Last Commit](https://img.shields.io/github/last-commit/CuongKenn/ICTU_Proteus-os?style=flat-square&color=6c63ff&logo=git&logoColor=white)](https://github.com/CuongKenn/ICTU_Proteus-os/commits/main)
+
 </div>
 
 ---
@@ -29,6 +45,7 @@ Toàn bộ tài liệu đặc tả, thiết kế kiến trúc và giao diện đ
 - 🔐 **[Làm rõ Đa khách hàng & Phân quyền](./docs/clarification.md):** Multi-Tenancy, RBAC, Keycloak sync flow, Metabase OSS embedding và Human-in-the-loop AI.
 - 🔌 **[Tài liệu API (OpenAPI/Swagger)](./docs/api-swagger.yaml):** Đặc tả 18+ Endpoint của Core Engine, đầy đủ error schemas.
 - 🤖 **[Đặc tả AI DSL (DX-DSL Spec)](./docs/dsl-spec.md):** Cấu trúc JSON chuẩn, whitelist action, effect levels và validation rules cho AI Orchestrator.
+- 🔌 **[Đặc tả Plugin Manifest](./docs/plugin-manifest-spec.md):** Schema đầy đủ của `manifest.yaml` — metadata, database, workflows, dashboards, roles, event_subscriptions, migration strategy.
 - 🚀 **[Hướng dẫn Triển khai (Deployment Guide)](./docs/deployment.md):** Kiến trúc mạng, Traefik routing, Observability Stack (Loki) và chiến lược Backup.
 
 ## 🚀 Hướng dẫn Cài đặt (Quick Start)

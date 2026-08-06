@@ -32,7 +32,7 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 - **Mô tả:** Phân tầng giao tiếp cơ sở của con người, đảm bảo tính xác thực và chuẩn hóa thông tin đầu vào.
 - **Luồng nghiệp vụ:**
   - Người dùng đăng nhập 1 lần qua Keycloak (SSO) -> Truy cập Portal chung.
-  - Quản trị tri thức nội bộ qua hệ thống Wiki/CMS (ví dụ: Outline/BookStack).
+  - Quản trị tri thức nội bộ qua hệ thống Wiki/CMS: **Outline**.
   - Lưu trữ tài liệu quy trình, hợp đồng trên Nextcloud theo phương pháp P.A.R.A (Projects - Areas - Resources - Archives).
   - Nhận và gửi thông báo công việc qua kênh chat nội bộ Mattermost.
 - **Tiêu chí nghiệm thu (AC):** Vô hiệu hóa được tài khoản nhân viên nghỉ việc trên tất cả các app (Chat, File, Dashboard) chỉ bằng 1 click trên Keycloak.
@@ -85,6 +85,8 @@ Hệ thống được chia làm 2 phân hệ cốt lõi: **Phân hệ Tích hợ
 - **Tự động phục hồi (Auto-Rollback & Cleanup):** Vì cài đặt qua nhiều hệ thống (DB, n8n, Metabase, Appsmith) là giao dịch phân tán (Distributed Transaction), hệ thống sử dụng cơ chế **Compensating Transaction**. Nếu mạng gặp sự cố khiến việc xóa thất bại, trạng thái Plugin sẽ được đánh dấu là `FAILED_DIRTY`. Một **Tác tử Dọn dẹp (Cleanup Agent)** chạy ngầm định kỳ sẽ tự động quét và xóa rác dữ liệu.
 - **Giao tiếp liên Plugin (Event Bus):** Các Plugin giao tiếp lỏng lẻo với nhau qua một Event Bus trung tâm sử dụng **Redis Pub/Sub**. Plugin A phát sự kiện (Publish), Plugin B lắng nghe (Subscribe) thông qua n8n Webhook, đảm bảo không bị "dính" logic (Decoupled). *(ADR-001: Redis được chọn thay vì RabbitMQ vì nhẹ hơn và phù hợp với use case fire-and-forget notification. Chi tiết tại `docs/architecture.md`)*
 - **Cập nhật & Nâng cấp (Versioning & Migration):** Hỗ trợ vòng đời nâng cấp Plugin. `manifest.yaml` đi kèm thư mục `migrations/` chứa các script SQL để cập nhật schema DB an toàn khi người dùng bấm "Cập nhật" lên phiên bản mới.
+> **Schema đầy đủ của `manifest.yaml`** (metadata, database, workflows, dashboards, roles, event_subscriptions, migrations) xem tại: [`docs/plugin-manifest-spec.md`](./plugin-manifest-spec.md).
+
 - **Tiêu chí nghiệm thu (AC):** Chỉ với 1 thao tác cài đặt, toàn bộ hạ tầng DB, Workflow, Report và UI của nghiệp vụ đó được khởi tạo thành công trong vòng 30 giây. Hỗ trợ đầy đủ luồng nâng cấp và giao tiếp chéo. Nếu có lỗi, hệ thống dọn dẹp ngay lập tức hoặc đưa vào hàng đợi Cleanup.
 
 #### FR6. AI Orchestrator & Workflow DSL (Domain Specific Language)
@@ -168,6 +170,7 @@ Proteus-OS-Monorepo/
 │   ├── erd.md                   # Lược đồ cơ sở dữ liệu cốt lõi (Core ERD)
 │   ├── clarification.md         # Làm rõ kiến trúc Đa khách hàng & Phân quyền
 │   ├── dsl-spec.md              # Đặc tả ngôn ngữ thực thi AI (DX-DSL)
+│   ├── plugin-manifest-spec.md  # Đặc tả đầy đủ schema của manifest.yaml cho Plugin
 │   ├── deployment.md            # Hướng dẫn triển khai, mạng, backup
 │   ├── api-swagger.yaml         # Tài liệu API của Core Engine (OpenAPI 3.1)
 │   └── images/                  # Thư mục chứa hình ảnh tài liệu

@@ -112,7 +112,8 @@ Nếu chạy ở môi trường Local (chưa có tên miền thật), bạn cầ
 ### Bước 4: Kiểm tra trạng thái
 Kiểm tra xem tất cả các container đã `Up` và trạng thái `Healthy` chưa:
 ```bash
-docker-compose ps
+docker compose ps      # Docker Compose v2 (khuyến nghị)
+# Hoặc: docker-compose ps  # nếu dùng Docker Compose v1 (legacy)
 ```
 
 ---
