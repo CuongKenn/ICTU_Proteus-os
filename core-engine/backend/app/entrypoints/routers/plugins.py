@@ -5,6 +5,7 @@
 # Tham chiếu: docs/api-swagger.yaml /plugins/*
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -60,7 +61,7 @@ async def install_plugin(
     body: PluginInstallRequest,
     ctx: TenantContext = Depends(get_current_tenant_context),
     repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
-) -> dict:
+) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin.
     Chỉ tenant_admin hoặc superadmin mới có quyền thực hiện.

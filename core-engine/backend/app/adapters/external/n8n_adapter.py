@@ -60,7 +60,7 @@ class N8nAdapter:
         method: str,
         url: str,
         *,
-        json: dict | None = None,
+        json: dict[str, Any] | None = None,
         timeout: float = _DEFAULT_TIMEOUT,
     ) -> httpx.Response:
         """

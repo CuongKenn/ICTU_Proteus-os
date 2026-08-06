@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,7 +112,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         )
 
     @staticmethod
-    def _to_entity(row: dict) -> PluginEntity:
+    def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(
             id=row["id"],
             code_name=row["code_name"],

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any, cast
 
 import httpx
 from jose import jwt
@@ -29,10 +30,10 @@ class KeycloakAdapter:
     _JWKS_TTL_SECONDS: float = 3600.0
 
     def __init__(self) -> None:
-        self._jwks_cache: dict | None = None
+        self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cached_at: float = 0.0
 
-    async def _get_jwks(self) -> dict:
+    async def _get_jwks(self) -> dict[str, Any]:
         """
         Lấy JWKS từ Keycloak với in-memory cache có TTL.
         Cache expire sau 1 giờ để tự động nhận keys mới khi Keycloak rotate.
@@ -55,7 +56,7 @@ class KeycloakAdapter:
             logger.info("JWKS cache refreshed")
             return self._jwks_cache
 
-    async def verify_and_decode_token(self, token: str) -> dict:
+    async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
         Xác thực Access Token JWT.
         Trả về payload đã decode nếu hợp lệ.
@@ -73,7 +74,7 @@ class KeycloakAdapter:
             "Token verified successfully",
             extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},
         )
-        return payload
+        return cast(dict[str, Any], payload)
 
     async def create_role(
         self,

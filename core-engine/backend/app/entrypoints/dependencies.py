@@ -17,7 +17,8 @@ from jose import JWTError
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain.entities import TenantContext
-from app.infrastructure.database import AsyncSession, get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.infrastructure.database import get_db
 
 logger = logging.getLogger(__name__)
 
