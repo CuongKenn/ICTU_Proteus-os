@@ -71,6 +71,10 @@ jobs:
     name: Vitest Unit Tests
     runs-on: ubuntu-latest
     needs: lint
+    if: needs.detect-changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: core-engine/frontend
 
     steps:
       - name: Checkout code
@@ -97,7 +101,11 @@ jobs:
   build:
     name: Next.js Production Build
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [detect-changes, lint, test]
+    if: needs.detect-changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: core-engine/frontend
 
     steps:
       - name: Checkout code
