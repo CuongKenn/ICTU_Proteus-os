@@ -7,9 +7,15 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
 ### Added
+- **[.github/workflows/pr-check.yml]** Validate PR title (Conventional Commits format), body (không rỗng), và issue link (`closes #N`/`fixes #N`) — tự động comment hướng dẫn lên PR khi fail.
+- **[.github/workflows/plugin-manifest-lint.yml]** YAML syntax check (yamllint) + Python schema validator cho `manifest.yaml` trong `plugins/` — kiểm tra required fields, semver, table prefix, ui_apps paths theo `plugin-manifest-spec.md v1.1.0`.
+- **[.github/workflows/dependency-review.yml]** GitHub native CVE scan trên PR thay đổi dependency files (`requirements.txt`, `package.json`). Fail nếu có CVE severity HIGH/CRITICAL.
+- **[.github/workflows/label-pr.yml]** Auto-label PR theo paths thay đổi. Config trong `.github/labeler.yml` khớp với label taxonomy của 51 issues (backend, frontend, devops, plugin, ai, security, M1–M6).
+- **[.github/labeler.yml]** Config mapping paths → labels cho `actions/labeler@v5`.
 - **[.github/workflows/backend-ci.yml]** GitHub Actions CI cho FastAPI backend: Lint (Black + flake8 + isort), Security scan (Bandit), Alembic migration verification (PostgreSQL service container), Pytest coverage ≥70%. Trigger trên `push`/`PR` vào `main`/`develop` khi có thay đổi trong `core-engine/backend/`.
 - **[.github/workflows/frontend-ci.yml]** GitHub Actions CI cho Next.js frontend: ESLint (`--max-warnings=50`), TypeScript type check (`tsc --noEmit`), Vitest unit tests, Next.js production build + bundle size report. Trigger khi có thay đổi trong `core-engine/frontend/`.
 - **[.github/workflows/docker-ci-cd.yml]** Build & Push Docker images lên GHCR (`ghcr.io/cuongkenn/ictu_proteus-os/backend|frontend`). Sử dụng `dorny/paths-filter` để chỉ build service có thay đổi. Hỗ trợ Deploy Webhook trigger sau khi build thành công trên `main`.
+
 - **[.github/workflows/cleanup-stale-branches.yml]** Tự động xóa branch không hoạt động >90 ngày, chạy lúc 2:00 AM (UTC+7) mỗi Chủ nhật. Bảo vệ `main`, `develop`, `release/*`, `hotfix/*`. Mặc định `dry_run=true` để an toàn.
 - **[.github/workflows/protect-issues.yml]** Tự động reopen issue bị đóng thủ công không qua PR merge. Issue chỉ được đóng khi PR merge vào `main` có từ khóa `closes #N`/`fixes #N`/`resolves #N`.
 - **[deploy/docker-compose.yml]** Full stack Docker Compose với 10 services: Traefik, PostgreSQL 16, Redis 7, Keycloak 25, Qdrant, n8n, Metabase, Appsmith, Outline, core-engine (backend + frontend). Mọi service đều có healthcheck và restart policy.
