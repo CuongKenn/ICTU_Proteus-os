@@ -6,10 +6,11 @@
 
 import logging
 
-from app.infrastructure.database import engine
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import text
+
+from app.infrastructure.database import engine
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

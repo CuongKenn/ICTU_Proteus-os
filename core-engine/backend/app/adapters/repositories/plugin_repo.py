@@ -10,10 +10,11 @@ from __future__ import annotations
 import logging
 import uuid
 
-from app.adapters.repositories.base import AbstractPluginRepository
-from app.core.domain.entities import PluginEntity, PluginStatus
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.adapters.repositories.base import AbstractPluginRepository
+from app.core.domain.entities import PluginEntity, PluginStatus
 
 logger = logging.getLogger(__name__)
 

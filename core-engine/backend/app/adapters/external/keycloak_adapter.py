@@ -10,8 +10,9 @@ import logging
 import time
 
 import httpx
-from app.infrastructure.config import settings
 from jose import JWTError, jwt
+
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 

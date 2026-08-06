@@ -17,6 +17,9 @@ ignore = [
     "N805",  # First argument of method should be named 'self' (conflicts with Pydantic validators)
 ]
 
+[tool.isort]
+profile = "black"
+
 [tool.ruff.format]
 quote-style = "double"
 

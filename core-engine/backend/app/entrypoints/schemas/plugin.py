@@ -6,8 +6,9 @@
 
 import uuid
 
-from app.core.domain.entities import PluginStatus
 from pydantic import BaseModel, Field
+
+from app.core.domain.entities import PluginStatus
 
 
 class PluginResponse(BaseModel):

@@ -7,8 +7,9 @@
 import uuid
 from typing import Any, Literal
 
-from app.core.domain.entities import AICommandStatus
 from pydantic import BaseModel, Field
+
+from app.core.domain.entities import AICommandStatus
 
 
 class AICommandRequest(BaseModel):

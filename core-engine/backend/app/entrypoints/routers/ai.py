@@ -6,10 +6,11 @@
 
 import logging
 
+from fastapi import APIRouter, Depends, status
+
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.entrypoints.dependencies import get_current_tenant_context
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
-from fastapi import APIRouter, Depends, status
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai")
