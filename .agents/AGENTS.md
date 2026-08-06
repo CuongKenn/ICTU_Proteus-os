@@ -77,3 +77,20 @@ Luôn thêm mục mới vào section `## [Unreleased]` ở **đầu file**, phâ
 - **Không để trống** các mục không có thay đổi — xóa hẳn nhóm đó thay vì để `### Added\n(trống)`.
 - Cập nhật đồng thời `docs/api-swagger.yaml` nếu có thay đổi về Endpoint hoặc Schema.
 
+## 7. Nguyên tắc bổ sung (Logging & Data)
+- **Logging Standards**: Tuyệt đối KHÔNG sử dụng `print()`. Bắt buộc sử dụng thư viện `logging` chuẩn của Python/Node.js để log thông tin hệ thống (đặc biệt khi xử lý các API calls, AI tasks và background jobs).
+- **Soft Delete (Xóa mềm)**: Mọi dữ liệu nhạy cảm hoặc cốt lõi (Core Data như Users, Tenants, Plugins) bắt buộc phải triển khai cơ chế Soft Delete (thêm cột `deleted_at`). Không dùng lệnh `DELETE` cứng trực tiếp vào CSDL để tránh mất dữ liệu nghiệp vụ quan trọng.
+
+## 8. Tiêu Chuẩn Viết Code (SOLID & Design Patterns)
+
+Tất cả AI Agents và lập trình viên phải nghiêm ngặt tuân thủ khi viết mã cho hệ thống:
+
+### Tuân thủ Nguyên tắc SOLID
+- **S (Single Responsibility):** Một Class/Function chỉ đảm nhiệm một việc. Ở Frontend, tách logic state ra Custom Hook, Component chỉ để render UI.
+- **O (Open/Closed):** Dễ mở rộng nhưng HẠN CHẾ sửa code cũ. Nếu thêm tính năng mới, hãy dùng giao diện (Interface/Adapter) hoặc tạo Plugin mới thay vì sửa đổi phần lõi (core-engine).
+- **D (Dependency Inversion):** Module cấp cao không phụ thuộc cấp thấp, cả hai cùng phụ thuộc Interface/Abstraction. Tầng Use Case (Backend) chỉ giao tiếp với Repository/Outbound Adapters qua Interface.
+
+### Các Design Patterns Khuyến nghị
+- **Repository Pattern:** Bắt buộc dùng ở tầng Backend Data Layer để giao tiếp với CSDL (Hoàn toàn phù hợp với Hexagonal Architecture).
+- **Strategy Pattern:** Sử dụng để chuyển đổi linh hoạt các chiến lược/thuật toán (Ví dụ: Lựa chọn giữa các nhà cung cấp LLM khác nhau, các cơ chế xác thực).
+- **Factory Pattern:** Sử dụng để khởi tạo các Client giao tiếp với dịch vụ/hạ tầng bên ngoài (như S3, Redis, LLM Client).
