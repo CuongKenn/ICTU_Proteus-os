@@ -11,21 +11,43 @@ const config: Config = {
     extend: {
       colors: {
         // Design Tokens từ docs/ui_ux_design.md §5
-        "bg-primary": "hsl(225, 30%, 8%)",       // --color-bg-primary
-        "bg-secondary": "hsl(225, 25%, 12%)",     // --color-bg-secondary
-        "bg-glass": "hsla(225, 30%, 100%, 0.05)", // --color-bg-glass
-        "accent-primary": "hsl(252, 100%, 67%)",  // --color-accent-primary (Neon Purple)
-        "accent-secondary": "hsl(196, 100%, 50%)",// --color-accent-secondary (Cyan)
-        "text-primary": "hsl(0, 0%, 95%)",        // --color-text-primary
-        "text-secondary": "hsl(225, 15%, 65%)",   // --color-text-secondary
-        "border-subtle": "hsla(225, 30%, 100%, 0.08)", // --color-border-subtle
-        "success": "hsl(142, 71%, 45%)",
-        "warning": "hsl(38, 92%, 50%)",
-        "error": "hsl(0, 84%, 60%)",
+        "bg-base": "var(--color-bg-base)",
+        "bg-surface": "var(--color-bg-surface)",
+        "bg-glass": "var(--color-bg-glass)",
+        "bg-hover": "var(--color-bg-hover)",
+        border: "var(--color-border)",
+        primary: "var(--color-primary)",
+        "primary-hover": "var(--color-primary-hover)",
+        accent: "var(--color-accent)",
+        success: "var(--color-success)",
+        warning: "var(--color-warning)",
+        danger: "var(--color-danger)",
+        "text-primary": "var(--color-text-primary)",
+        "text-secondary": "var(--color-text-secondary)",
+        "text-disabled": "var(--color-text-disabled)",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
+      },
+      fontSize: {
+        xs: ['var(--text-xs)', '1rem'],
+        sm: ['var(--text-sm)', '1.25rem'],
+        base: ['var(--text-base)', '1.5rem'],
+        lg: ['var(--text-lg)', '1.75rem'],
+        xl: ['var(--text-xl)', '1.75rem'],
+        '2xl': ['var(--text-2xl)', '2rem'],
+        '3xl': ['var(--text-3xl)', '2.25rem'],
+      },
+      spacing: {
+        1: 'var(--space-1)',
+        2: 'var(--space-2)',
+        3: 'var(--space-3)',
+        4: 'var(--space-4)',
+        6: 'var(--space-6)',
+        8: 'var(--space-8)',
+        12: 'var(--space-12)',
+        16: 'var(--space-16)',
       },
       backdropBlur: {
         glass: "12px",
