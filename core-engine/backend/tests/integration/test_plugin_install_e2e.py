@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
 
-from app.infrastructure.database import get_db
+from app.infrastructure.database import get_db_readonly, get_db_transactional
 from app.main import app
 
 
@@ -15,8 +15,8 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
     - Full install flow: Tenant → Plugin → status=ACTIVE → bảng hr_employees được tạo
     - Uninstall: status=DELETED → bảng bị DROP
     """
-    # Ghi đè dependency get_db
-    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_db_readonly] = lambda: db_session
+    app.dependency_overrides[get_db_transactional] = lambda: db_session
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         # 1. Tạo Tenant mới
