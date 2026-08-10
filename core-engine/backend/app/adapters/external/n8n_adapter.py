@@ -163,8 +163,8 @@ class N8nAdapter:
         workflow_id = str(raw_id)
 
         logger.info(
-            "Workflow imported successfully",
-            extra={"workflow_id": workflow_id, "name": data.get("name")},
+            "n8n workflow imported successfully",
+            extra={"workflow_id": workflow_id, "workflow_name": data.get("name")},
         )
         return workflow_id
 

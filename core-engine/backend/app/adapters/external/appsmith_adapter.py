@@ -188,7 +188,7 @@ class AppsmithAdapter:
         app_id = str(raw_id)
         logger.info(
             "UI App imported successfully",
-            extra={"app_id": app_id, "name": app_data.get("name")},
+            extra={"app_id": app_id, "app_name": app_data.get("name")},
         )
         return app_id
 
