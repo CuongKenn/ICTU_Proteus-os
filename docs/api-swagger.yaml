@@ -134,6 +134,27 @@ components:
                 type: string
                 example: "Phải là URL hợp lệ (bắt đầu bằng https://)"
 
+    InternalServerErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        error_code:
+          type: string
+          example: "INTERNAL_SERVER_ERROR"
+        message:
+          type: string
+          example: "Lỗi hệ thống nội bộ."
+        details:
+          type: object
+          nullable: true
+          description: "StackTrace nếu ở môi trường dev"
+      required:
+        - status
+        - error_code
+        - message
+
     # ==============================
     # DOMAIN SCHEMAS
     # ==============================
@@ -808,6 +829,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Dữ liệu đầu vào không đúng định dạng (FastAPI trả về)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
 
   /plugins/install/{task_id}/status:
     get:
@@ -957,6 +990,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Dữ liệu đầu vào không đúng định dạng (FastAPI trả về)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
 
   /ai/history:
     get:
@@ -1051,6 +1096,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Dữ liệu đầu vào không đúng định dạng (FastAPI trả về)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
 
   /knowledge/search:
     post:

@@ -5,10 +5,15 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
-
 ### Added
 - **[core-engine/backend/app/infrastructure/config.py]** Thêm các biến cấu hình cho Metabase, Mattermost, Appsmith (METABASE_URL, MATTERMOST_URL, APPSMITH_URL, MATTERMOST_BOT_TOKEN, etc.).
 - **[deploy/.env.example]** Thêm biến cấu hình cho Metabase, Mattermost, Appsmith.
+- **[docs/api-swagger.yaml]** Hoàn thiện OpenAPI 3.1 Spec cho toàn bộ endpoints (BRD NFR4: API First). Bổ sung định nghĩa `422 ValidationError` và `500 InternalServerError` cho các endpoint.
+- **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
+- **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
+- **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+
+### Fixed
 - **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[deploy/keycloak/realm-import.json]** Khởi tạo Keycloak Realm Export file (`realm-import.json`) cho hệ thống `proteus` để import tự động khi khởi động (Zero-touch configuration).
@@ -23,6 +28,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/frontend/src/components/AIChatWidget.tsx]** Triển khai AI Chat Widget (floating) với 4 trạng thái (collapsed, expanded, thinking, awaiting_approval). Hỗ trợ hiển thị DSL preview và chuyển tiếp phê duyệt qua Mattermost (#33).
+- **[core-engine/frontend/src/hooks/useAICommand.ts]** Hook quản lý state cho AI Chat Widget và xử lý BFF API request.
+- **[core-engine/frontend/src/app/api/ai/command]** Thêm BFF API Route xử lý logic cho AI Command (forward request đến FastAPI kèm JWT từ HttpOnly cookie).
 - **[core-engine/frontend/src/app/marketplace]** Xây dựng trang Plugin Marketplace dành riêng cho `tenant_admin` (#32). Hỗ trợ xem, cài đặt, và gỡ cài đặt Plugin. Cung cấp Install Preview Modal hiển thị tài nguyên sẽ tạo (Bảng DB, Workflows, Roles) và Progress bar cập nhật theo thời gian thực (polling cơ chế provisioning n8n). Bổ sung Uninstall Confirm Modal bắt buộc gõ tên để xác nhận.
 - **[core-engine/frontend/src/app/launchpad]** Hoàn thiện giao diện Launchpad (Màn hình chính) với App Icon Grid, hỗ trợ Quick links (Mattermost, Outline, n8n), mở Iframe Overlay toàn màn hình dạng Glassmorphism cho Metabase & n8n, hiển thị Skeleton loading và Empty state khi chưa có plugin (#31).
 - **[core-engine/frontend/src/app/api/embed/metabase]** Thêm API Route (BFF) để proxy và giả lập (mock) việc lấy URL nhúng Metabase an toàn có chứa `tenant_id` từ session (#35).
@@ -31,6 +39,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/frontend]** Implement Theme Store (`themeStore.ts` với `zustand/persist`) và Notification Store (`notificationStore.ts`) tích hợp với `usePlugins` (#28).
 - **[core-engine/frontend/src/components/ui]** Tạo UI Component Library (Button, PluginCard, AppIcon, Toast, Modal, Skeleton, ProgressBar) chuẩn Design System §5.4 và §5.6 (#27).
 - **[core-engine/frontend]** Implement Design System từ docs/ui_ux_design.md §5.1-5.3 (CSS Variables, Typography, Spacing, Glassmorphism) (#26).
+- **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Thêm Metabase BI Adapter để tạo dashboard và quản lý signed embed URL với TTL 60s.
+- **[core-engine/backend/app/adapters/external/appsmith_adapter.py]** Thêm Appsmith UI Adapter để xử lý import/delete UI Apps và kiểm tra PATH_CONFLICT.
+- **[core-engine/backend/app/adapters/external/redis_event_bus.py]** Thêm Redis Event Bus Publisher xử lý publish lifecycle events qua Redis Pub/Sub, tự động inject wrapper cho event envelope.
+- **[core-engine/backend/app/core/use_cases/manifest_validator.py]** Thêm Manifest Validator (Use Case) để parse và validate `manifest.yaml` theo đặc tả v1.1.0, trả về ManifestEntity.
 - **[.github/workflows/pr-check.yml]** Validate PR title (Conventional Commits format), body (không rỗng), và issue link (`closes #N`/`fixes #N`) — tự động comment hướng dẫn lên PR khi fail.
 - **[.github/workflows/plugin-manifest-lint.yml]** YAML syntax check (yamllint) + Python schema validator cho `manifest.yaml` trong `plugins/` — kiểm tra required fields, semver, table prefix, ui_apps paths theo `plugin-manifest-spec.md v1.1.0`.
 - **[.github/workflows/dependency-review.yml]** GitHub native CVE scan trên PR thay đổi dependency files (`requirements.txt`, `package.json`). Fail nếu có CVE severity HIGH/CRITICAL.
