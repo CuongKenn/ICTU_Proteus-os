@@ -45,7 +45,7 @@ async def test_assign_role(role_repo, mock_session):
 
     assert result.user_id == user_id
     assert result.role_id == role_id
-    assert result.granted_by == granted_by
+    assert result.granted_by_user_id == granted_by
     mock_session.add.assert_called_once_with(result)
     mock_session.flush.assert_called_once()
 
