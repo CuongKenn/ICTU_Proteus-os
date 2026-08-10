@@ -17,6 +17,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/frontend/src/components/ui]** Tạo UI Component Library (Button, PluginCard, AppIcon, Toast, Modal, Skeleton, ProgressBar) chuẩn Design System §5.4 và §5.6 (#27).
 - **[core-engine/frontend]** Implement Design System từ docs/ui_ux_design.md §5.1-5.3 (CSS Variables, Typography, Spacing, Glassmorphism) (#26).
 - **[.github/workflows/pr-check.yml]** Validate PR title (Conventional Commits format), body (không rỗng), và issue link (`closes #N`/`fixes #N`) — tự động comment hướng dẫn lên PR khi fail.
 - **[.github/workflows/plugin-manifest-lint.yml]** YAML syntax check (yamllint) + Python schema validator cho `manifest.yaml` trong `plugins/` — kiểm tra required fields, semver, table prefix, ui_apps paths theo `plugin-manifest-spec.md v1.1.0`.
