@@ -59,7 +59,7 @@ def test_manifest_validator_invalid_yaml():
     validator = ManifestValidator()
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
-    assert "cú pháp YAML" in str(exc_info.value)
+    assert "parse error" in str(exc_info.value).lower()
 
 def test_manifest_validator_invalid_version():
     yaml_content = """
@@ -74,7 +74,7 @@ def test_manifest_validator_invalid_version():
     validator = ManifestValidator()
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
-    assert "version" in str(exc_info.value)
+    assert "version" in str(exc_info.value).lower()
 
 def test_manifest_validator_invalid_ui_apps():
     yaml_content = """
