@@ -54,7 +54,7 @@ def test_manifest_validator_invalid_yaml():
     yaml_content = """
     manifest_version: 1.1.0
     name: plugin-demo
-     invalid_indentation
+    invalid: [ yaml: %^&*
     """
     validator = ManifestValidator()
     with pytest.raises(DSLInvalidParametersError) as exc_info:
