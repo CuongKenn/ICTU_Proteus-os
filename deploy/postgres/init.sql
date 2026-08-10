@@ -245,3 +245,35 @@ CREATE TRIGGER set_plugins_updated_at
 CREATE TRIGGER set_tenant_plugins_updated_at
     BEFORE UPDATE ON tenant_plugins
     FOR EACH ROW EXECUTE FUNCTION update_last_updated_at_column();
+
+-- ─────────────────────────────────────────────────────────────
+-- ROW-LEVEL SECURITY (RLS) CHO CORE TABLES
+-- ─────────────────────────────────────────────────────────────
+-- Bật RLS cho tất cả các bảng có tenant_id
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_plugins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_commands ENABLE ROW LEVEL SECURITY;
+
+-- Tạo Policy áp dụng cho toàn bộ thao tác dựa trên biến session
+CREATE POLICY tenant_isolation_policy_users ON users
+    FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+CREATE POLICY tenant_isolation_policy_tenant_plugins ON tenant_plugins
+    FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+CREATE POLICY tenant_isolation_policy_roles ON roles
+    FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+CREATE POLICY tenant_isolation_policy_audit_logs ON audit_logs
+    FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+CREATE POLICY tenant_isolation_policy_ai_commands ON ai_commands
+    FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+

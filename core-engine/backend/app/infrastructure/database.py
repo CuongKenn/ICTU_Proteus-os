@@ -3,15 +3,24 @@
 #
 # Infrastructure Layer — SQLAlchemy Async Database Setup
 
+import contextvars
 import logging
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import event, text
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Session, SessionTransaction
 
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
+
+# ─── ContextVars ──────────────────────────────────────────────
+# Lưu trữ tenant_id trong scope của một async task (tương ứng với 1 request)
+current_tenant_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "current_tenant_id", default=None
+)
 
 # ─── Engine ───────────────────────────────────────────────────
 engine = create_async_engine(
@@ -30,6 +39,26 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
     autocommit=False,
 )
+
+
+# ─── Row-Level Security (RLS) Event Listener ──────────────────
+@event.listens_for(Session, "after_begin")
+def receive_after_begin(
+    session: Session, transaction: SessionTransaction, connection: Connection
+):
+    """
+    Kích hoạt SET LOCAL app.current_tenant_id trước mỗi transaction.
+    Event này chạy đồng bộ (sync) nhưng hoàn toàn an toàn trong môi trường async
+    vì nó được bọc bởi greenlet của SQLAlchemy.
+    """
+    tenant_id = current_tenant_id.get()
+    if tenant_id:
+        logger.debug(f"RLS Enabled: Setting app.current_tenant_id = '{tenant_id}'")
+        connection.execute(text(f"SET LOCAL app.current_tenant_id = '{tenant_id}'"))
+    else:
+        # Quan trọng: Nếu không có tenant_id (VD: background job), có thể set rỗng
+        # để tránh rò rỉ tenant từ session cũ nếu connection được tái sử dụng từ pool.
+        connection.execute(text("SET LOCAL app.current_tenant_id = ''"))
 
 
 # ─── Base Model ───────────────────────────────────────────────
