@@ -5,8 +5,8 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
-
 ### Added
+- **[docs/api-swagger.yaml]** Hoàn thiện OpenAPI 3.1 Spec cho toàn bộ endpoints (BRD NFR4: API First). Bổ sung định nghĩa `422 ValidationError` và `500 InternalServerError` cho các endpoint.
 - **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.
