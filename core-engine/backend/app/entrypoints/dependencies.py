@@ -13,11 +13,11 @@ import uuid
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain.entities import TenantContext
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database import get_db
 
 logger = logging.getLogger(__name__)
