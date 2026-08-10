@@ -111,6 +111,35 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             },
         )
 
+    async def update_status(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        status: PluginStatus,
+        error_log: str | None = None,
+    ) -> None:
+        logger.info(
+            "Updating plugin installation status",
+            extra={
+                "tenant_id": str(tenant_id),
+                "plugin_id": str(plugin_id),
+                "status": status,
+            },
+        )
+        await self._session.execute(
+            text(
+                "UPDATE tenant_plugins "
+                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "status": status.value,
+                "error_log": error_log,
+            },
+        )
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(

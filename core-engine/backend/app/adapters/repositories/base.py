@@ -52,6 +52,17 @@ class AbstractPluginRepository(ABC):
         """Tạo mới hoặc cập nhật bản ghi cài đặt trong bảng tenant_plugins."""
         ...
 
+    @abstractmethod
+    async def update_status(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        status: PluginStatus,
+        error_log: str | None = None,
+    ) -> None:
+        """Chỉ cập nhật trạng thái và error_log cho bản ghi đã tồn tại."""
+        ...
+
 
 class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""
