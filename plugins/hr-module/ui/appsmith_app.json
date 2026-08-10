@@ -1,0 +1,148 @@
+{
+  "applicationVersion": 2,
+  "pages": [
+    {
+      "name": "Leave Requests",
+      "slug": "leave-requests",
+      "layouts": [
+        {
+          "dsl": {
+            "widgetName": "MainContainer",
+            "type": "CANVAS_WIDGET",
+            "children": [
+              {
+                "widgetName": "Tabs1",
+                "type": "TABS_WIDGET",
+                "tabs": [
+                  {
+                    "id": "tab1",
+                    "label": "My Leave Requests",
+                    "widgetId": "my_leaves"
+                  },
+                  {
+                    "id": "tab2",
+                    "label": "Manager View",
+                    "widgetId": "manager_view"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "CANVAS_WIDGET",
+                    "tabId": "tab1",
+                    "children": [
+                      {
+                        "widgetName": "Table1",
+                        "type": "TABLE_WIDGET_V2",
+                        "tableData": "{{get_my_leave_requests.data}}"
+                      },
+                      {
+                        "widgetName": "Form1",
+                        "type": "FORM_WIDGET",
+                        "children": [
+                          {
+                            "widgetName": "DatePicker1",
+                            "type": "DATE_PICKER_WIDGET2",
+                            "label": "Start Date"
+                          },
+                          {
+                            "widgetName": "DatePicker2",
+                            "type": "DATE_PICKER_WIDGET2",
+                            "label": "End Date"
+                          },
+                          {
+                            "widgetName": "Select1",
+                            "type": "SELECT_WIDGET",
+                            "label": "Leave Type",
+                            "options": [
+                              {"label": "Annual Leave", "value": "ANNUAL"},
+                              {"label": "Sick Leave", "value": "SICK"}
+                            ]
+                          },
+                          {
+                            "widgetName": "Input1",
+                            "type": "INPUT_WIDGET_V2",
+                            "label": "Reason"
+                          },
+                          {
+                            "widgetName": "Button1",
+                            "type": "BUTTON_WIDGET",
+                            "text": "Submit",
+                            "onClick": "{{submit_leave_request.run()}}"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "CANVAS_WIDGET",
+                    "tabId": "tab2",
+                    "children": [
+                      {
+                        "widgetName": "Table2",
+                        "type": "TABLE_WIDGET_V2",
+                        "tableData": "{{get_pending_requests.data}}",
+                        "primaryColumns": {
+                          "approve": {
+                            "columnType": "button",
+                            "buttonLabel": "Approve",
+                            "onClick": "{{approve_request.run({id: currentRow.id})}}"
+                          },
+                          "reject": {
+                            "columnType": "button",
+                            "buttonLabel": "Reject",
+                            "onClick": "{{reject_request.run({id: currentRow.id})}}"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "name": "get_my_leave_requests",
+      "datasource": "Proteus_DB",
+      "actionConfiguration": {
+        "body": "SELECT * FROM hr_leave_requests WHERE employee_id = {{appsmith.store.employee_id}};"
+      }
+    },
+    {
+      "name": "get_pending_requests",
+      "datasource": "Proteus_DB",
+      "actionConfiguration": {
+        "body": "SELECT * FROM hr_leave_requests WHERE status = 'PENDING_APPROVAL';"
+      }
+    },
+    {
+      "name": "submit_leave_request",
+      "datasource": "Proteus_API",
+      "actionConfiguration": {
+        "path": "/api/plugins/hr/leave-requests",
+        "httpMethod": "POST",
+        "body": "{\"start_date\": \"{{DatePicker1.selectedDate}}\", \"end_date\": \"{{DatePicker2.selectedDate}}\", \"type\": \"{{Select1.selectedOptionValue}}\", \"reason\": \"{{Input1.text}}\"}"
+      }
+    },
+    {
+      "name": "approve_request",
+      "datasource": "Proteus_API",
+      "actionConfiguration": {
+        "path": "/api/plugins/hr/leave-requests/{{this.params.id}}/approve",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "name": "reject_request",
+      "datasource": "Proteus_API",
+      "actionConfiguration": {
+        "path": "/api/plugins/hr/leave-requests/{{this.params.id}}/reject",
+        "httpMethod": "POST"
+      }
+    }
+  ]
+}
