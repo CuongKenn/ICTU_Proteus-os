@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
@@ -29,6 +32,7 @@ class QdrantAdapter:
         self.dense_model = "intfloat/multilingual-e5-small"
         self.sparse_model = "Qdrant/bm25"
         self.collection_name = "knowledge_base"
+        self._collection_ensured = False
 
         # Cấu hình embedding models
         self.client.set_model(self.dense_model)
@@ -36,6 +40,8 @@ class QdrantAdapter:
 
     async def _ensure_collection_exists(self):
         """Khởi tạo collection nếu chưa tồn tại"""
+        if getattr(self, "_collection_ensured", False):
+            return
         if not await self.client.collection_exists(self.collection_name):
             logger.info(f"Creating Qdrant collection: {self.collection_name}")
             # recreate_collection sẽ tạo collection với cấu hình embedding hiện tại
@@ -45,6 +51,7 @@ class QdrantAdapter:
                 vectors_config=self.client.get_fastembed_vector_params(),
                 sparse_vectors_config=self.client.get_fastembed_sparse_vector_params(),
             )
+        self._collection_ensured = True
 
     async def upsert_vectors(
         self, tenant_id: str, chunks: List[str], metadatas: List[Dict[str, Any]]
