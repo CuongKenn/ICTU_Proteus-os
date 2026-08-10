@@ -4,7 +4,6 @@
 "use client";
 
 import React from "react";
-import clsx from "clsx";
 
 export interface AppIconProps {
   appName: string;
