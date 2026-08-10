@@ -3,4 +3,4 @@ omit =
     app/adapters/external/keycloak_adapter.py
     app/adapters/external/n8n_adapter.py
     app/infrastructure/*
-    main.py
+    app/main.py
