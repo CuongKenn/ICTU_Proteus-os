@@ -7,6 +7,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
 - **[core-engine/backend]** Implement `MattermostAdapter` and `/webhooks/mattermost/callback` for Interactive Message integration (approve/reject).
+- **[core-engine/frontend/src/lib/authOptions.ts]** Bổ sung cơ chế Silent Refresh token an toàn trong JWT callback. Thêm logic rotate refresh_token khi nhận token mới.
+- **[core-engine/frontend/src/store/authStore.ts]** Fix type safety cho Zustand store bằng `StateCreator`, loại bỏ kiểu `any`.
+- **[core-engine/backend/app/entrypoints/routers/health.py]** Cải thiện health check: Dùng `engine.connect()` trực tiếp thay vì `Depends(get_db)` để tránh chiếm connection từ pool khi Traefik/Docker healthcheck polling liên tục.
+- **[core-engine/backend/app/core/domain/exceptions.py]** Refactor `ProteusBaseException` để hỗ trợ truyền `message` linh hoạt, tự động sinh chuỗi lỗi chuẩn cho logging thay vì class rỗng.
+- **[deploy/docker-compose.yml]** Bổ sung cấu hình CORS cho Backend và Priority cho Traefik router; cấu hình lại Keycloak healthcheck dependency cho Backend khởi động an toàn. Thêm ghi chú cấu hình `search_path` cho Outline.
+- **[core-engine/frontend/tailwind.config.ts]** Mở rộng đường dẫn `content` quét toàn bộ thư mục `src/` thay vì các thư mục cụ thể để tránh sót CSS (trong hooks/store/lib).
+- **[core-engine/frontend/next.config.ts]** Tối ưu hóa cấu hình bằng cách xoá bỏ khối `experimental` rỗng không cần thiết, giữ nguyên output `standalone`.
 - **[core-engine/backend/app/infrastructure/config.py]** Thêm các biến cấu hình cho Metabase, Mattermost, Appsmith (METABASE_URL, MATTERMOST_URL, APPSMITH_URL, MATTERMOST_BOT_TOKEN, etc.).
 - **[deploy/.env.example]** Thêm biến cấu hình cho Metabase, Mattermost, Appsmith.
 - **[docs/api-swagger.yaml]** Hoàn thiện OpenAPI 3.1 Spec cho toàn bộ endpoints (BRD NFR4: API First). Bổ sung định nghĩa `422 ValidationError` và `500 InternalServerError` cho các endpoint.
@@ -15,11 +22,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 
 ### Fixed
-<<<<<<< HEAD
 - **[core-engine/backend]** Thêm PostgreSQL Row-Level Security (RLS) Middleware và `current_tenant_id` ContextVar. Bổ sung RLS Policies cho các bảng multi-tenant trong `init.sql`.
-=======
 - **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
->>>>>>> origin/main
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[deploy/keycloak/realm-import.json]** Khởi tạo Keycloak Realm Export file (`realm-import.json`) cho hệ thống `proteus` để import tự động khi khởi động (Zero-touch configuration).
 - **[deploy/docker-compose.yml]** Cấu hình tự động import Realm cho Keycloak (mount volume và flag `--import-realm`).

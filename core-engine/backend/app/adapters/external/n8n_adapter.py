@@ -46,16 +46,13 @@ class N8nAdapter:
     Không chứa business logic — chỉ là translation layer giữa domain và n8n HTTP API.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._base_url: str = settings.N8N_URL.rstrip("/")
         self._headers: dict[str, str] = {
             "X-N8N-API-KEY": settings.N8N_API_KEY,
             "Content-Type": "application/json",
         }
-        # Sử dụng httpx.AsyncClient cục bộ nếu không muốn dùng shared client,
-        # nhưng ở đây ta khởi tạo 1 lần cho mỗi instance (vẫn tốt hơn tạo lại mỗi request).
-        # Tuy nhiên tốt nhất là để Dependency Injection quản lý lifecycle.
-        self._client = httpx.AsyncClient(headers=self._headers)
+        self._client = client or httpx.AsyncClient(headers=self._headers)
 
     async def aclose(self) -> None:
         """Đóng httpx client. Nên được gọi khi application shutdown."""
@@ -86,6 +83,7 @@ class N8nAdapter:
                 response = await self._client.request(
                     method,
                     url,
+                    headers=self._headers,
                     json=json,
                     timeout=timeout,
                     follow_redirects=False,

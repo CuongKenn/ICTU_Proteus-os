@@ -158,6 +158,37 @@ services:
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
   # ────────────────────────────────────────────────────────────
+  # MATTERMOST — Chat & Collaboration
+  # ────────────────────────────────────────────────────────────
+  mattermost:
+    image: mattermost/mattermost-enterprise-edition:9.11.1
+    container_name: proteus-mattermost
+    restart: unless-stopped
+    environment:
+      - MM_SQLSETTINGS_DRIVERNAME=postgres
+      - MM_SQLSETTINGS_DATASOURCE=postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}?sslmode=disable&connect_timeout=10&search_path=mattermost
+      - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
+      - MM_SERVICESETTINGS_SITEURL=http://chat.${DOMAIN}
+      - MM_PLUGINSETTINGS_CLIENTDIRECTORY=/mattermost/client/plugins
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - mattermost-data:/mattermost/data
+      - mattermost-config:/mattermost/config
+      - mattermost-logs:/mattermost/logs
+      - mattermost-plugins:/mattermost/plugins
+      - mattermost-client-plugins:/mattermost/client/plugins
+      - mattermost-bleve-indexes:/mattermost/bleve-indexes
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mattermost.rule=Host(`chat.${DOMAIN}`)"
+      - "traefik.http.routers.mattermost.entrypoints=web"
+      - "traefik.http.services.mattermost.loadbalancer.server.port=8065"
+
+  # ────────────────────────────────────────────────────────────
   # METABASE — Business Intelligence / Dashboard
   # ────────────────────────────────────────────────────────────
   metabase:
@@ -377,3 +408,9 @@ volumes:
   outline-data:
   loki-data:
   grafana-data:
+  mattermost-data:
+  mattermost-config:
+  mattermost-logs:
+  mattermost-plugins:
+  mattermost-client-plugins:
+  mattermost-bleve-indexes:
