@@ -8,8 +8,10 @@ from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class QdrantAdapterError(Exception):
     pass
+
 
 class QdrantAdapter:
     """
@@ -17,16 +19,16 @@ class QdrantAdapter:
     thông qua thư viện qdrant-client với fastembed.
     Tham chiếu: ADR-002
     """
-    
+
     def __init__(self):
         # Khởi tạo AsyncQdrantClient
         self.client = AsyncQdrantClient(url=settings.QDRANT_URL)
         # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
         # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small cho đa ngôn ngữ.
-        self.dense_model = "intfloat/multilingual-e5-small" 
+        self.dense_model = "intfloat/multilingual-e5-small"
         self.sparse_model = "Qdrant/bm25"
         self.collection_name = "knowledge_base"
-        
+
         # Cấu hình embedding models
         self.client.set_model(self.dense_model)
         self.client.set_sparse_model(self.sparse_model)
@@ -40,16 +42,18 @@ class QdrantAdapter:
             await self.client.recreate_collection(
                 collection_name=self.collection_name,
                 vectors_config=self.client.get_fastembed_vector_params(),
-                sparse_vectors_config=self.client.get_fastembed_sparse_vector_params()
+                sparse_vectors_config=self.client.get_fastembed_sparse_vector_params(),
             )
 
-    async def upsert_vectors(self, tenant_id: str, chunks: List[str], metadatas: List[Dict[str, Any]]) -> bool:
+    async def upsert_vectors(
+        self, tenant_id: str, chunks: List[str], metadatas: List[Dict[str, Any]]
+    ) -> bool:
         """
         Lưu embeddings (Dense + Sparse) cùng với metadata `tenant_id`.
         """
         try:
             await self._ensure_collection_exists()
-            
+
             # Gắn tenant_id vào mỗi metadata để đảm bảo data isolation
             for meta in metadatas:
                 meta["tenant_id"] = tenant_id
@@ -59,27 +63,26 @@ class QdrantAdapter:
             await self.client.add(
                 collection_name=self.collection_name,
                 documents=chunks,
-                metadata=metadatas
+                metadata=metadatas,
             )
             return True
         except Exception as e:
             logger.error(f"Error upserting vectors to Qdrant: {e}")
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
 
-    async def hybrid_search(self, tenant_id: str, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def hybrid_search(
+        self, tenant_id: str, query: str, top_k: int = 5
+    ) -> List[Dict[str, Any]]:
         """
         Hybrid Search kết hợp Dense và BM25, filter theo tenant_id (Data Isolation).
         """
         try:
             await self._ensure_collection_exists()
-            
+
             # Khởi tạo filter để chỉ search trong dữ liệu của tenant hiện tại
             tenant_filter = Filter(
                 must=[
-                    FieldCondition(
-                        key="tenant_id",
-                        match=MatchValue(value=tenant_id)
-                    )
+                    FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))
                 ]
             )
 
@@ -88,19 +91,21 @@ class QdrantAdapter:
                 collection_name=self.collection_name,
                 query_text=query,
                 query_filter=tenant_filter,
-                limit=top_k
+                limit=top_k,
             )
-            
+
             # Format kết quả
             formatted_results = []
             for hit in results:
-                formatted_results.append({
-                    "id": hit.id,
-                    "score": hit.score,
-                    "document": hit.document,
-                    "metadata": hit.metadata
-                })
-                
+                formatted_results.append(
+                    {
+                        "id": hit.id,
+                        "score": hit.score,
+                        "document": hit.document,
+                        "metadata": hit.metadata,
+                    }
+                )
+
             return formatted_results
         except Exception as e:
             logger.error(f"Error executing hybrid search in Qdrant: {e}")
@@ -112,19 +117,15 @@ class QdrantAdapter:
         """
         try:
             await self._ensure_collection_exists()
-            
+
             tenant_filter = Filter(
                 must=[
-                    FieldCondition(
-                        key="tenant_id",
-                        match=MatchValue(value=tenant_id)
-                    )
+                    FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))
                 ]
             )
-            
+
             await self.client.delete(
-                collection_name=self.collection_name,
-                points_selector=tenant_filter
+                collection_name=self.collection_name, points_selector=tenant_filter
             )
             return True
         except Exception as e:
