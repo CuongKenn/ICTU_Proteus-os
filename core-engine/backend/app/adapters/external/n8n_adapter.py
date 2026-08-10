@@ -53,7 +53,7 @@ class N8nAdapter:
             "Content-Type": "application/json",
         }
         self._client = client or httpx.AsyncClient(headers=self._headers)
-        
+
     async def aclose(self) -> None:
         """Đóng httpx client. Nên được gọi khi application shutdown."""
         await self._client.aclose()
