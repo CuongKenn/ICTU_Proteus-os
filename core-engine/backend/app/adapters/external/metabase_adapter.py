@@ -193,8 +193,8 @@ class MetabaseAdapter:
 
         dashboard_id = str(raw_id)
         logger.info(
-            "Dashboard created successfully",
-            extra={"dashboard_id": dashboard_id, "name": data.get("name")},
+            "Metabase dashboard created",
+            extra={"dashboard_id": dashboard_id, "dashboard_name": data.get("name")},
         )
         return dashboard_id
 

@@ -17,8 +17,8 @@ from app.infrastructure.config import settings
 from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
-from app.entrypoints.routers import health, plugins, ai
 from app.core.domain import exceptions as domain_exc
+from app.entrypoints.routers import ai, health, mattermost_webhook, plugins
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -68,6 +68,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 
+
 # ─── Tenant Context Middleware ────────────────────────────────
 class TenantIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -79,6 +80,7 @@ class TenantIDMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             current_tenant_id.reset(token)
+
 
 app.add_middleware(TenantIDMiddleware)
 
@@ -106,3 +108,4 @@ async def proteus_exception_handler(request: Request, exc: domain_exc.ProteusBas
 app.include_router(health.router, tags=["System"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
+app.include_router(mattermost_webhook.router, prefix="/api/v1")
