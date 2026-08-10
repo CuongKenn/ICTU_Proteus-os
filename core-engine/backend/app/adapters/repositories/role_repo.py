@@ -31,7 +31,7 @@ class RoleRepository:
         Cấp role cho user.
         """
         user_role = UserRoleModel(
-            user_id=user_id, role_id=role_id, granted_by=granted_by
+            user_id=user_id, role_id=role_id, granted_by_user_id=granted_by
         )
         self.session.add(user_role)
         await self.session.flush()
