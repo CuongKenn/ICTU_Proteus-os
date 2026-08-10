@@ -400,10 +400,6 @@ export const AIChatWidget: React.FC = () => {
         ) : (
           <div className="relative">
             <Bot className="w-7 h-7" />
-            {/* Pulse ring khi awaiting_approval */}
-            {widgetState === "awaiting_approval" && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-warning rounded-full border-2 border-bg-base animate-pulse" />
-            )}
           </div>
         )}
       </button>
