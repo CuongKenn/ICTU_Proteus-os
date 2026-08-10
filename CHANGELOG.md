@@ -6,6 +6,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
+### Added
+- **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
+- **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
+- **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+
 ### Fixed
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.

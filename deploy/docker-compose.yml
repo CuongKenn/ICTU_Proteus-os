@@ -244,6 +244,55 @@ services:
       - "traefik.http.services.outline.loadbalancer.server.port=3000"
 
   # ────────────────────────────────────────────────────────────
+  # OBSERVABILITY — Grafana, Loki, Promtail
+  # ────────────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: proteus-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+    networks:
+      - proteus-net
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: proteus-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - proteus-net
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: proteus-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - proteus-net
+    depends_on:
+      - loki
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`${DOMAIN}`) && PathPrefix(`/monitoring/`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  # ────────────────────────────────────────────────────────────
   # CORE ENGINE — Backend (FastAPI)
   # ────────────────────────────────────────────────────────────
   backend:
@@ -324,3 +373,5 @@ volumes:
   metabase-data:
   appsmith-data:
   outline-data:
+  loki-data:
+  grafana-data:
