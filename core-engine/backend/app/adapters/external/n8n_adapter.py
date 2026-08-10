@@ -52,7 +52,7 @@ class N8nAdapter:
             "X-N8N-API-KEY": settings.N8N_API_KEY,
             "Content-Type": "application/json",
         }
-        # Sử dụng httpx.AsyncClient cục bộ nếu không muốn dùng shared client, 
+        # Sử dụng httpx.AsyncClient cục bộ nếu không muốn dùng shared client,
         # nhưng ở đây ta khởi tạo 1 lần cho mỗi instance (vẫn tốt hơn tạo lại mỗi request).
         # Tuy nhiên tốt nhất là để Dependency Injection quản lý lifecycle.
         self._client = httpx.AsyncClient(headers=self._headers)
