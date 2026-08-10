@@ -35,6 +35,7 @@ AsyncSessionLocal = async_sessionmaker(
 # ─── Base Model ───────────────────────────────────────────────
 class Base(DeclarativeBase):
     """Base class cho tất cả SQLAlchemy ORM Models."""
+
     pass
 
 

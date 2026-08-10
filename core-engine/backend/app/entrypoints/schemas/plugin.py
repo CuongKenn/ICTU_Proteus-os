@@ -5,6 +5,7 @@
 # Dùng để FastAPI tự sinh Swagger documentation
 
 import uuid
+
 from pydantic import BaseModel, Field
 
 from app.core.domain.entities import PluginStatus
@@ -16,7 +17,9 @@ class PluginResponse(BaseModel):
     display_name: str
     version: str
     is_official: bool
-    status: PluginStatus | None = None  # Type-safe: chỉ nhận giá trị PluginStatus hợp lệ
+    status: PluginStatus | None = (
+        None  # Type-safe: chỉ nhận giá trị PluginStatus hợp lệ
+    )
 
     model_config = {"from_attributes": True}
 

@@ -44,7 +44,7 @@ class AICommandRequest(BaseModel):
 class AICommandResponse(BaseModel):
     """Output schema cho POST /ai/command."""
 
-    command_id: uuid.UUID           # Nhất quán với Request — không dùng str
-    status: AICommandStatus         # Dùng Enum từ domain — Swagger tự gen đúng
+    command_id: uuid.UUID  # Nhất quán với Request — không dùng str
+    status: AICommandStatus  # Dùng Enum từ domain — Swagger tự gen đúng
     message: str
     result: dict[str, Any] | None = None

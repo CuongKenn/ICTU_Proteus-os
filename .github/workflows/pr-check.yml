@@ -12,7 +12,7 @@ on:
 
 jobs:
   validate-pr:
-    name: Validate PR Title, Body & Issue Link
+    name: validate-pr
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write  # Để comment lên PR nếu lỗi

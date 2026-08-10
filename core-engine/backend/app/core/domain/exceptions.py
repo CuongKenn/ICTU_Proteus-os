@@ -11,6 +11,7 @@ class ProteusBaseException(Exception):
     Base exception cho mọi Domain Exception trong Proteus OS.
     Luôn truyền message rõ ràng để dễ debug trong logs.
     """
+
     def __init__(self, message: str = "") -> None:
         super().__init__(message)
         self.message = message

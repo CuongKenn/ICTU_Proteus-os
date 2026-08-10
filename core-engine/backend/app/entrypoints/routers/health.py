@@ -22,7 +22,9 @@ class HealthResponse(BaseModel):
     database: str
 
 
-@router.get("/health", response_model=HealthResponse, summary="Kiểm tra trạng thái hệ thống")
+@router.get(
+    "/health", response_model=HealthResponse, summary="Kiểm tra trạng thái hệ thống"
+)
 async def health_check() -> HealthResponse:
     """
     Endpoint kiểm tra trạng thái cơ bản (không cần auth).
