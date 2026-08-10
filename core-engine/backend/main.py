@@ -8,11 +8,13 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.infrastructure.config import settings
 from app.infrastructure.logging_config import setup_logging
+from app.infrastructure.database import current_tenant_id
 from app.entrypoints.routers import health, plugins, ai
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
@@ -54,6 +56,21 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
+
+# ─── Tenant Context Middleware ────────────────────────────────
+class TenantIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        tenant_id = request.headers.get("X-Tenant-ID")
+        # Lưu vào ContextVar để SQLAlchemy Event có thể đọc được
+        token = current_tenant_id.set(tenant_id)
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            current_tenant_id.reset(token)
+
+app.add_middleware(TenantIDMiddleware)
+
 
 # ─── Routers ──────────────────────────────────────────────────
 app.include_router(health.router, tags=["System"])
