@@ -288,6 +288,9 @@ class ManifestValidator:
         database_section = raw.get("database", {}) or {}
         tables = database_section.get("tables", []) or []
         for table_name in tables:
+            if not isinstance(table_name, str):
+                errors.append(f"Tên bảng '{table_name}' phải là chuỗi")
+                continue
             if not table_name.startswith(expected_prefix):
                 errors.append(
                     f"Tên bảng '{table_name}' phải có prefix '{expected_prefix}' "
@@ -297,6 +300,9 @@ class ManifestValidator:
         # ─── 5. Validate ui_apps paths ───
         ui_apps_raw = raw.get("ui_apps", []) or []
         for idx, app in enumerate(ui_apps_raw):
+            if not isinstance(app, dict):
+                errors.append(f"ui_apps[{idx}]: phải là một object (dictionary)")
+                continue
             app_path = app.get("path", "")
             if not app_path:
                 errors.append(f"ui_apps[{idx}]: thiếu trường 'path'")
@@ -329,6 +335,9 @@ class ManifestValidator:
         # ─── 6. Validate workflow cron trigger ───
         workflows_raw = raw.get("workflows", []) or []
         for idx, wf in enumerate(workflows_raw):
+            if not isinstance(wf, dict):
+                errors.append(f"workflows[{idx}]: phải là một object (dictionary)")
+                continue
             trigger = wf.get("trigger", "")
             if trigger == "cron" and not wf.get("cron_expression"):
                 errors.append(
