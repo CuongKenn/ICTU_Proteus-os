@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.infrastructure.models import UserModel
 from app.core.domain.exceptions import NotFoundError
 
+
 class UserRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -19,8 +20,7 @@ class UserRepository:
         Lấy thông tin User dựa vào keycloak_id.
         """
         stmt = select(UserModel).where(
-            UserModel.keycloak_id == keycloak_id,
-            UserModel.deleted_at.is_(None)
+            UserModel.keycloak_id == keycloak_id, UserModel.deleted_at.is_(None)
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
@@ -30,19 +30,18 @@ class UserRepository:
         Thêm mới hoặc cập nhật thông tin User dựa vào keycloak_id (Idempotent).
         """
         stmt = insert(UserModel).values(**user_data)
-        
+
         # Lấy các trường cần update nếu xảy ra conflict
         update_dict = {
             c.name: c
             for c in stmt.excluded
             if c.name not in ["id", "keycloak_id", "created_at"]
         }
-        
+
         stmt = stmt.on_conflict_do_update(
-            index_elements=["keycloak_id"],
-            set_=update_dict
+            index_elements=["keycloak_id"], set_=update_dict
         ).returning(UserModel)
-        
+
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
@@ -51,6 +50,7 @@ class UserRepository:
         Soft delete user.
         """
         from sqlalchemy.sql import func
+
         stmt = (
             update(UserModel)
             .where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
@@ -58,7 +58,9 @@ class UserRepository:
         )
         result = await self.session.execute(stmt)
         if result.rowcount == 0:
-            raise NotFoundError(f"User with ID {user_id} not found or already deactivated")
+            raise NotFoundError(
+                f"User with ID {user_id} not found or already deactivated"
+            )
 
     async def list_by_tenant(
         self, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0
