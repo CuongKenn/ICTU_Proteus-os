@@ -34,10 +34,18 @@ async function proxyHandler(
   });
 
   // Đọc body một lần — request.text() không thể gọi 2 lần
-  const body =
-    request.method !== "GET" && request.method !== "HEAD"
-      ? await request.text()
-      : undefined;
+  let body: string | undefined = undefined;
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    try {
+      body = await request.text();
+    } catch (error) {
+      console.error("[BFF] Lỗi đọc request body:", error);
+      return NextResponse.json(
+        { error: "Invalid request body format or stream interrupted" },
+        { status: 400 }
+      );
+    }
+  }
 
   const response = await fetch(targetUrl, {
     method: request.method,
