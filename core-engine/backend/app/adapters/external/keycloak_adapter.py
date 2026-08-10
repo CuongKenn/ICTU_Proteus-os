@@ -29,9 +29,11 @@ class KeycloakAdapter:
     # JWKS TTL: 1 giờ — Keycloak thường rotate keys định kỳ
     _JWKS_TTL_SECONDS: float = 3600.0
 
-    def __init__(self) -> None:
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cached_at: float = 0.0
+        # Nếu không truyền client (VD: fallback hoặc test), tạo mới nhưng không tối ưu pooling
+        self._client = client or httpx.AsyncClient()
 
     async def _get_jwks(self) -> dict[str, Any]:
         """
@@ -48,13 +50,12 @@ class KeycloakAdapter:
         logger.debug(
             "Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url}
         )
-        async with httpx.AsyncClient() as client:
-            response = await client.get(settings.keycloak_jwks_url, timeout=10.0)
-            response.raise_for_status()
-            self._jwks_cache = response.json()
-            self._jwks_cached_at = now
-            logger.info("JWKS cache refreshed")
-            return self._jwks_cache
+        response = await self._client.get(settings.keycloak_jwks_url, timeout=10.0)
+        response.raise_for_status()
+        self._jwks_cache = response.json()
+        self._jwks_cached_at = now
+        logger.info("JWKS cache refreshed")
+        return self._jwks_cache
 
     async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
@@ -84,22 +85,17 @@ class KeycloakAdapter:
     ) -> None:
         """Tạo Role trong Keycloak Realm của Tenant khi cài Plugin."""
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/roles"
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url,
-                json={"name": role_name},
-                headers={"Authorization": f"Bearer {admin_token}"},
-                timeout=10.0,
-            )
-            if response.status_code == 409:
-                logger.warning(
-                    "Role already exists in Keycloak", extra={"role": role_name}
-                )
-                return
-            response.raise_for_status()
-            logger.info(
-                "Keycloak role created", extra={"role": role_name, "realm": realm}
-            )
+        response = await self._client.post(
+            url,
+            json={"name": role_name},
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        if response.status_code == 409:
+            logger.warning("Role already exists in Keycloak", extra={"role": role_name})
+            return
+        response.raise_for_status()
+        logger.info("Keycloak role created", extra={"role": role_name, "realm": realm})
 
     async def delete_role(
         self,
@@ -109,16 +105,13 @@ class KeycloakAdapter:
     ) -> None:
         """Xóa Role khỏi Keycloak Realm của Tenant khi gỡ Plugin."""
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/roles/{role_name}"
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                url,
-                headers={"Authorization": f"Bearer {admin_token}"},
-                timeout=10.0,
-            )
-            if response.status_code == 404:
-                logger.warning("Role not found in Keycloak", extra={"role": role_name})
-                return
-            response.raise_for_status()
-            logger.info(
-                "Keycloak role deleted", extra={"role": role_name, "realm": realm}
-            )
+        response = await self._client.delete(
+            url,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        if response.status_code == 404:
+            logger.warning("Role not found in Keycloak", extra={"role": role_name})
+            return
+        response.raise_for_status()
+        logger.info("Keycloak role deleted", extra={"role": role_name, "realm": realm})
