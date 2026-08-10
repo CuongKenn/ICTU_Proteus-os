@@ -16,7 +16,9 @@ from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.repositories.base import AbstractPluginRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.domain.entities import TenantContext
 from app.infrastructure.database import get_db
 
@@ -28,9 +30,16 @@ _keycloak_adapter = KeycloakAdapter()
 
 async def get_plugin_repo(
     db: AsyncSession = Depends(get_db),
-) -> SQLAlchemyPluginRepository:
+) -> AbstractPluginRepository:
     """Inject Plugin Repository."""
     return SQLAlchemyPluginRepository(session=db)
+
+
+async def get_plugin_list_use_case(
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+) -> PluginListUseCase:
+    """Inject Plugin List Use Case."""
+    return PluginListUseCase(plugin_repo=repo)
 
 
 async def get_current_tenant_context(
