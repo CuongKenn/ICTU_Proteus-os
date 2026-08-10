@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -71,14 +73,15 @@ class N8nAdapter:
         """
         last_exc: Exception | None = None
 
-        for attempt in range(1, _MAX_RETRIES + 1):
-            try:
-                async with httpx.AsyncClient(headers=self._headers) as client:
+        async with httpx.AsyncClient(headers=self._headers) as client:
+            for attempt in range(1, _MAX_RETRIES + 1):
+                try:
                     response = await client.request(
                         method,
                         url,
                         json=json,
                         timeout=timeout,
+                        follow_redirects=False,
                     )
 
                     # Retry chỉ với 5xx
@@ -95,18 +98,20 @@ class N8nAdapter:
                         last_exc = N8nAdapterError(
                             f"n8n 5xx error: {response.status_code} — attempt {attempt}/{_MAX_RETRIES}"
                         )
+                        await asyncio.sleep(2 ** (attempt - 1))
                         continue  # next attempt
 
                     return response
 
-            except httpx.TransportError as exc:
-                logger.warning(
-                    "n8n connection error, retrying",
-                    extra={"attempt": attempt, "error": str(exc)},
-                )
-                err_msg = f"n8n connection failed: {exc}"
-                last_exc = N8nAdapterError(err_msg)
-                last_exc.__cause__ = exc
+                except httpx.TransportError as exc:
+                    logger.warning(
+                        "n8n connection error, retrying",
+                        extra={"attempt": attempt, "error": str(exc)},
+                    )
+                    err_msg = f"n8n connection failed: {exc}"
+                    last_exc = N8nAdapterError(err_msg)
+                    last_exc.__cause__ = exc
+                    await asyncio.sleep(2 ** (attempt - 1))
 
         # Hết retry
         raise last_exc or N8nAdapterError("n8n request failed after all retries")
@@ -145,10 +150,11 @@ class N8nAdapter:
             )
 
         data = response.json()
-        workflow_id = str(data.get("id", ""))
-
-        if not workflow_id:
+        
+        if not (raw_id := data.get("id")):
             raise N8nAdapterError("n8n import_workflow: response missing 'id' field")
+            
+        workflow_id = str(raw_id)
 
         logger.info(
             "Workflow imported successfully",
@@ -281,11 +287,20 @@ class N8nAdapter:
         )
 
         # Webhook URL là full URL (không dùng _build_url vì đây là endpoint do n8n sinh ra)
-        async with httpx.AsyncClient() as client:
+        parsed = urlparse(webhook_url)
+        n8n_parsed = urlparse(self._base_url)
+        if parsed.netloc != n8n_parsed.netloc:
+            raise N8nAdapterError(
+                f"Security: webhook_url domain '{parsed.netloc}' "
+                f"khong khop voi N8N_URL '{n8n_parsed.netloc}'"
+            )
+
+        async with httpx.AsyncClient(headers=self._headers) as client:
             response = await client.post(
                 webhook_url,
                 json=payload,
                 timeout=timeout,
+                follow_redirects=False,
             )
 
         if response.status_code not in (200, 201):

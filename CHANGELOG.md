@@ -7,6 +7,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
 ### Fixed
+- **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
+- **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.
+- **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Xử lý giá trị `"id"` bằng `0` (integer 0 edge case) trong `import_workflow`.
 - **[.github/workflows/frontend-ci.yml]** Nâng cấp Node.js từ 20 → 22 (LTS) trong tất cả `setup-node` steps để loại bỏ deprecation warning trên GitHub Actions runners (Node 20 bị deprecated từ 2025-09-19, bị force run trên Node 24).
 - **[.github/workflows/backend-ci.yml]** Đổi `name: backend-ci ✅` → `name: backend-ci` để khớp chính xác với required status check context trong Branch Protection Rules của `main` branch.
 - **[.github/workflows/frontend-ci.yml]** Đổi `name: frontend-ci ✅` → `name: frontend-ci` để khớp với Branch Protection required check `frontend-ci`.
