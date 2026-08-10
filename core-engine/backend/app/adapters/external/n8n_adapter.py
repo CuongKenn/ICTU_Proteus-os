@@ -91,34 +91,34 @@ class N8nAdapter:
                     follow_redirects=False,
                 )
 
-                    # Retry chỉ với 5xx
-                    if response.status_code >= 500:
-                        logger.warning(
-                            "n8n returned 5xx, retrying",
-                            extra={
-                                "attempt": attempt,
-                                "max_retries": _MAX_RETRIES,
-                                "status": response.status_code,
-                                "url": url,
-                            },
-                        )
-                        last_exc = N8nAdapterError(
-                            f"n8n 5xx error: {response.status_code} — attempt {attempt}/{_MAX_RETRIES}"
-                        )
-                        await asyncio.sleep(2 ** (attempt - 1))
-                        continue  # next attempt
-
-                    return response
-
-                except httpx.TransportError as exc:
+                # Retry chỉ với 5xx
+                if response.status_code >= 500:
                     logger.warning(
-                        "n8n connection error, retrying",
-                        extra={"attempt": attempt, "error": str(exc)},
+                        "n8n returned 5xx, retrying",
+                        extra={
+                            "attempt": attempt,
+                            "max_retries": _MAX_RETRIES,
+                            "status": response.status_code,
+                            "url": url,
+                        },
                     )
-                    err_msg = f"n8n connection failed: {exc}"
-                    last_exc = N8nAdapterError(err_msg)
-                    last_exc.__cause__ = exc
+                    last_exc = N8nAdapterError(
+                        f"n8n 5xx error: {response.status_code} — attempt {attempt}/{_MAX_RETRIES}"
+                    )
                     await asyncio.sleep(2 ** (attempt - 1))
+                    continue  # next attempt
+
+                return response
+
+            except httpx.TransportError as exc:
+                logger.warning(
+                    "n8n connection error, retrying",
+                    extra={"attempt": attempt, "error": str(exc)},
+                )
+                err_msg = f"n8n connection failed: {exc}"
+                last_exc = N8nAdapterError(err_msg)
+                last_exc.__cause__ = exc
+                await asyncio.sleep(2 ** (attempt - 1))
 
         # Hết retry
         raise last_exc or N8nAdapterError("n8n request failed after all retries")
