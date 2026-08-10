@@ -1,4 +1,4 @@
-fastapi==0.112.0
+﻿fastapi==0.112.0
 uvicorn[standard]==0.30.6
 pydantic==2.8.2
 pydantic-settings==2.4.0
@@ -26,3 +26,6 @@ pytest==8.3.2
 pytest-asyncio==0.23.8
 pytest-cov==5.0.0
 ruff==0.5.7
+qdrant-client[fastembed]==1.10.1
+
+

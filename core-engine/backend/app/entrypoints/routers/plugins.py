@@ -9,9 +9,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
-from app.entrypoints.dependencies import get_current_tenant_context, get_plugin_repo
+from app.core.use_cases.plugin_list import PluginListUseCase
+from app.entrypoints.dependencies import (
+    get_current_tenant_context,
+    get_plugin_list_use_case,
+    get_plugin_repo,
+)
 from app.entrypoints.schemas.plugin import (
     PluginInstallRequest,
     PluginListResponse,
@@ -27,10 +32,10 @@ async def list_marketplace_plugins(
     limit: int = 20,
     offset: int = 0,
     ctx: TenantContext = Depends(get_current_tenant_context),
-    repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
+    use_case: PluginListUseCase = Depends(get_plugin_list_use_case),
 ) -> PluginListResponse:
     """Lấy danh sách Plugin trên Marketplace (chưa cài hoặc đã cài)."""
-    plugins = await repo.list_marketplace(limit=limit, offset=offset)
+    plugins = await use_case.list_marketplace(limit=limit, offset=offset)
     return PluginListResponse(
         items=[PluginResponse.model_validate(p.model_dump()) for p in plugins],
         total=len(plugins),
@@ -42,10 +47,10 @@ async def list_marketplace_plugins(
 )
 async def list_installed_plugins(
     ctx: TenantContext = Depends(get_current_tenant_context),
-    repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
+    use_case: PluginListUseCase = Depends(get_plugin_list_use_case),
 ) -> PluginListResponse:
     """Lấy danh sách Plugin đang ACTIVE của Tenant hiện tại."""
-    plugins = await repo.list_installed(tenant_id=ctx.tenant_id)
+    plugins = await use_case.list_installed(tenant_id=ctx.tenant_id)
     return PluginListResponse(
         items=[PluginResponse.model_validate(p.model_dump()) for p in plugins],
         total=len(plugins),
@@ -60,7 +65,7 @@ async def list_installed_plugins(
 async def install_plugin(
     body: PluginInstallRequest,
     ctx: TenantContext = Depends(get_current_tenant_context),
-    repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
 ) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin.

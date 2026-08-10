@@ -49,6 +49,19 @@ class Settings(BaseSettings):
     # ─── Qdrant (Vector DB) ───────────────────────────────────
     QDRANT_URL: str = "http://localhost:6333"
 
+    # ─── Metabase (BI & Analytics) ────────────────────────────
+    METABASE_URL: str = "http://metabase:3000"
+    METABASE_EMBEDDING_KEY: str = ""
+
+    # ─── Mattermost (ChatOps) ─────────────────────────────────
+    MATTERMOST_URL: str = "http://mattermost:8065"
+    MATTERMOST_BOT_TOKEN: str = ""
+    MATTERMOST_WEBHOOK_SECRET: str = ""
+
+    # ─── Appsmith (Low-code UI) ───────────────────────────────
+    APPSMITH_URL: str = "http://appsmith:8080"
+    APPSMITH_API_KEY: str = ""
+
     # ─── LLM Provider ─────────────────────────────────────────
     LLM_PROVIDER: Literal["openai", "azure_openai", "local_ollama"] = "openai"
     OPENAI_API_KEY: str = ""
