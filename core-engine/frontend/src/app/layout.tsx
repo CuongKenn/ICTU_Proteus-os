@@ -6,6 +6,8 @@
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { ToastContainer } from "@/components/ui/ToastContainer";
 import "../styles/globals.css";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"] });
@@ -22,9 +24,33 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" className="dark">
-      <body className={`${inter.className} bg-bg-primary text-text-primary antialiased`}>
-        {children}
+    <html lang="vi" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var stored = localStorage.getItem('theme-storage');
+                var state = stored ? JSON.parse(stored).state : {};
+                var theme = state.theme || 'system';
+                var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.setAttribute('data-theme', 'light');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
+      <body className={`${inter.className} bg-bg-base text-text-primary antialiased`}>
+        <ThemeProvider>
+          {children}
+          <ToastContainer />
+        </ThemeProvider>
       </body>
     </html>
   );

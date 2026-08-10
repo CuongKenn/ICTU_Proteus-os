@@ -12,15 +12,15 @@ export interface ToastMessage {
   title?: string;
 }
 
-interface ToastState {
+interface NotificationState {
   toasts: ToastMessage[];
-  showToast: (message: string, type?: ToastType, title?: string) => void;
+  addToast: (type: ToastType, message: string, duration?: number, title?: string) => void;
   removeToast: (id: string) => void;
 }
 
-export const useToastStore = create<ToastState>((set) => ({
+export const useNotificationStore = create<NotificationState>((set) => ({
   toasts: [],
-  showToast: (message, type = "info", title) => {
+  addToast: (type, message, duration = 5000, title) => {
     const id = Math.random().toString(36).substring(2, 9);
     set((state) => ({
       toasts: [...state.toasts, { id, type, message, title }],
@@ -29,7 +29,7 @@ export const useToastStore = create<ToastState>((set) => ({
       set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id),
       }));
-    }, 5000);
+    }, duration);
   },
   removeToast: (id) =>
     set((state) => ({

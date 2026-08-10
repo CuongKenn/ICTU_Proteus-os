@@ -4,12 +4,12 @@
 "use client";
 
 import React from "react";
-import { useToastStore } from "@/store/toastStore";
+import { useNotificationStore } from "@/store/notificationStore";
 import { Toast } from "./Toast";
 
 export const ToastContainer: React.FC = () => {
-  const toasts = useToastStore((state) => state.toasts);
-  const removeToast = useToastStore((state) => state.removeToast);
+  const toasts = useNotificationStore((state) => state.toasts);
+  const removeToast = useNotificationStore((state) => state.removeToast);
 
   return (
     <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
@@ -26,3 +26,4 @@ export const ToastContainer: React.FC = () => {
     </div>
   );
 };
+
