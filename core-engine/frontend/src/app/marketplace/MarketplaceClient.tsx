@@ -1,24 +1,21 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useSession";
 import { PluginCard, type PluginData, type PluginStatus } from "@/components/ui/PluginCard";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { Modal } from "@/components/ui/Modal";
 import { InstallPreviewDialog } from "./InstallPreviewDialog";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePlugins } from "@/hooks/usePlugins";
-import { useInstallPlugin } from "@/hooks/useInstallPlugin";
 import { PackageOpen } from "lucide-react";
 
 export const MarketplaceClient: React.FC = () => {
-  const sessionData = useSession();
-  const session = sessionData?.data;
-  const isAdmin = (session?.user as any)?.roles?.includes("tenant_admin") || false;
+  const { hasRole } = useSession();
+  const isAdmin = hasRole("tenant_admin");
 
-  const { plugins: availablePlugins, isLoading: isLoadingAvailable } = useMarketplace();
+  const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
   const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
-  const { installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useInstallPlugin();
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
   const [isInstallPreviewOpen, setIsInstallPreviewOpen] = useState(false);
