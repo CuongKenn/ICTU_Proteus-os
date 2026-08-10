@@ -13,6 +13,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 
+### Added
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Hoàn thiện implementation cho `SQLAlchemyPluginRepository`. Bổ sung method `update_status` để cập nhật trạng thái cài đặt plugin độc lập.
+- **[core-engine/backend/tests/adapters/repositories/test_plugin_repo.py]** Thêm bộ Unit Test cho `SQLAlchemyPluginRepository`.
+
 ### Fixed
 <<<<<<< HEAD
 - **[core-engine/backend]** Thêm PostgreSQL Row-Level Security (RLS) Middleware và `current_tenant_id` ContextVar. Bổ sung RLS Policies cho các bảng multi-tenant trong `init.sql`.
