@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     MATTERMOST_BOT_TOKEN: str = ""
     MATTERMOST_WEBHOOK_SECRET: str = ""
 
+    # ─── Outline (Knowledge Base) ──────────────────────────────────
+    OUTLINE_URL: str = "http://localhost:3000"
+    OUTLINE_API_KEY: str = ""
     # ─── LLM Provider ─────────────────────────────────────────
     LLM_PROVIDER: Literal["openai", "azure_openai", "local_ollama"] = "openai"
     OPENAI_API_KEY: str = ""

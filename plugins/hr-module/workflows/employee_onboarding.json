@@ -1,0 +1,103 @@
+{
+  "name": "HR - Employee Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hr/onboarding",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "hr-onboarding-webhook-uuid"
+    },
+    {
+      "parameters": {
+        "operation": "createUser",
+        "email": "={{$json.body.email}}",
+        "username": "={{$json.body.username}}",
+        "firstName": "={{$json.body.first_name}}",
+        "lastName": "={{$json.body.last_name}}",
+        "password": "Welcome123!"
+      },
+      "name": "Create Mattermost User",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "addUser",
+        "teamId": "={{$json.body.team_id}}",
+        "userId": "={{$json.id}}"
+      },
+      "name": "Add to Mattermost Team",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "addUser",
+        "channelId": "={{$json.body.department_channel_id}}",
+        "userId": "={{$json.id}}"
+      },
+      "name": "Add to Department Channel",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Mattermost User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Mattermost User": {
+      "main": [
+        [
+          {
+            "node": "Add to Mattermost Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Mattermost Team": {
+      "main": [
+        [
+          {
+            "node": "Add to Department Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
