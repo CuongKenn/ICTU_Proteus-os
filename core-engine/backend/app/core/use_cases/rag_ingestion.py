@@ -1,8 +1,7 @@
 import logging
 from typing import Any, Dict, List
 
-from app.adapters.external.outline_adapter import OutlineAdapter
-from app.adapters.external.qdrant_adapter import QdrantAdapter
+from app.core.domain.ports import AbstractDocumentSourcePort, AbstractVectorDBPort
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +13,13 @@ class RAGIngestionUseCase:
     Cron: Chạy 2h sáng hàng đêm (được cấu hình ở scheduler/router).
     """
 
-    def __init__(self, outline_adapter: OutlineAdapter, qdrant_adapter: QdrantAdapter):
-        self.outline_adapter = outline_adapter
-        self.qdrant_adapter = qdrant_adapter
+    def __init__(
+        self,
+        document_source_port: AbstractDocumentSourcePort,
+        vector_db_port: AbstractVectorDBPort,
+    ):
+        self.document_source_port = document_source_port
+        self.vector_db_port = vector_db_port
         self.max_chars_per_chunk = 2000  # Ước lượng ~512 tokens
 
     def _chunk_text(self, text: str) -> List[str]:
@@ -67,7 +70,7 @@ class RAGIngestionUseCase:
 
         try:
             # 1. Fetch documents từ Outline
-            documents = await self.outline_adapter.list_documents()
+            documents = await self.document_source_port.list_documents()
 
             total_docs = len(documents)
             total_chunks = 0
@@ -75,9 +78,8 @@ class RAGIngestionUseCase:
             # 2. Chunking & 3. Upsert Qdrant
             for doc in documents:
                 title = doc.get("title", "Untitled")
-                urlId = doc.get("urlId", "")
+                source_url = doc.get("source_url", "")
                 text = doc.get("text", "")
-                source_url = f"{self.outline_adapter.base_url}/doc/{urlId}"
 
                 chunks = self._chunk_text(text)
 
@@ -96,7 +98,7 @@ class RAGIngestionUseCase:
                 # Upsert to Qdrant
                 # QdrantAdapter sử dụng FastEmbed (Hybrid Search Dense+BM25) bên dưới,
                 # thay thế cho việc gọi thẳng OpenAI API, tối ưu cho RRF.
-                await self.qdrant_adapter.upsert_vectors(
+                await self.vector_db_port.upsert_vectors(
                     tenant_id=tenant_id, chunks=chunks, metadatas=metadatas
                 )
                 total_chunks += len(chunks)

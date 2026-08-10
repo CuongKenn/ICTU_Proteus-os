@@ -27,12 +27,14 @@ async def test_rag_ingestion_success(mock_adapters):
             "id": "doc1",
             "title": "First Doc",
             "urlId": "first-doc-xyz",
+            "source_url": "http://outline.local/doc/first-doc-xyz",
             "text": "This is paragraph 1.\n\nThis is paragraph 2.",
         },
         {
             "id": "doc2",
             "title": "Second Doc",
             "urlId": "second-doc-abc",
+            "source_url": "http://outline.local/doc/second-doc-abc",
             "text": "Short text.",
         },
     ]
