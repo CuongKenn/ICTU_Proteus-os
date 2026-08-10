@@ -4,6 +4,7 @@ from app.core.use_cases.manifest_validator import (
     DSLInvalidParametersError,
 )
 
+
 def test_manifest_validator_valid():
     yaml_content = """
     manifest_version: 1.1.0
@@ -18,9 +19,10 @@ def test_manifest_validator_valid():
     """
     validator = ManifestValidator()
     entity = validator.validate_yaml_string(yaml_content)
-    
+
     assert entity.name == "plugin-demo"
     assert entity.version == "1.0.0"
+
 
 def test_manifest_validator_invalid_name():
     yaml_content = """
@@ -37,8 +39,9 @@ def test_manifest_validator_invalid_name():
     validator = ManifestValidator()
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
-    
+
     assert "kebab-case" in str(exc_info.value)
+
 
 def test_manifest_validator_missing_required_fields():
     yaml_content = """
@@ -48,8 +51,10 @@ def test_manifest_validator_missing_required_fields():
     validator = ManifestValidator()
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
-    
+
     assert "Thiếu trường bắt buộc" in str(exc_info.value)
+
+
 def test_manifest_validator_invalid_yaml():
     yaml_content = """
     manifest_version: 1.1.0
@@ -60,6 +65,7 @@ def test_manifest_validator_invalid_yaml():
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
     assert "parse error" in str(exc_info.value).lower()
+
 
 def test_manifest_validator_invalid_version():
     yaml_content = """
@@ -75,6 +81,7 @@ def test_manifest_validator_invalid_version():
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
     assert "version" in str(exc_info.value).lower()
+
 
 def test_manifest_validator_invalid_ui_apps():
     yaml_content = """

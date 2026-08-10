@@ -57,6 +57,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 
+
 # ─── Tenant Context Middleware ────────────────────────────────
 class TenantIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -68,6 +69,7 @@ class TenantIDMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             current_tenant_id.reset(token)
+
 
 app.add_middleware(TenantIDMiddleware)
 
