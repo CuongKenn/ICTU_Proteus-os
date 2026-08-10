@@ -249,24 +249,24 @@ services:
   # OBSERVABILITY — Grafana, Loki, Promtail
   # ────────────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:2.9.2
+    image: grafana/loki:3.1.0
     container_name: proteus-loki
     restart: unless-stopped
-    ports:
-      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - loki-data:/loki
+      - loki-data:/tmp/loki
     networks:
       - proteus-net
+    labels:
+      - "traefik.enable=false"
 
   promtail:
-    image: grafana/promtail:2.9.2
+    image: grafana/promtail:3.1.0
     container_name: proteus-promtail
     restart: unless-stopped
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
       - proteus-net
@@ -293,6 +293,34 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`${DOMAIN}`) && PathPrefix(`/monitoring/`)"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+=======
+  # MATTERMOST — ChatOps & Collaboration
+  # ────────────────────────────────────────────────────────────
+  mattermost:
+    image: mattermost/mattermost-enterprise-edition:9.9.1
+    container_name: proteus-mattermost
+    restart: unless-stopped
+    environment:
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}?search_path=mattermost
+      MM_SERVICESETTINGS_SITEURL: http://${DOMAIN}/chat/
+      MM_OPENIDSETTINGS_ENABLE: "true"
+      MM_OPENIDSETTINGS_CLIENTID: mattermost
+      MM_OPENIDSETTINGS_SECRET: ${MATTERMOST_OIDC_SECRET}
+      MM_OPENIDSETTINGS_DISCOVERYENDPOINT: http://keycloak:8080/realms/${KEYCLOAK_REALM:-proteus}/.well-known/openid-configuration
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - mattermost-data:/mattermost/data
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mattermost.rule=Host(`${DOMAIN}`) && PathPrefix(`/chat/`)"
+      - "traefik.http.routers.mattermost.entrypoints=web"
+      - "traefik.http.services.mattermost.loadbalancer.server.port=8065"
+>>>>>>> fe6d41a (feat(devops): add mattermost service to docker-compose)
 
   # ────────────────────────────────────────────────────────────
   # CORE ENGINE — Backend (FastAPI)
@@ -377,3 +405,4 @@ volumes:
   outline-data:
   loki-data:
   grafana-data:
+  mattermost-data:
