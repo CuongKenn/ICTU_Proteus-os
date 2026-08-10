@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
+- **[core-engine/backend]** Implement `MattermostAdapter` and `/webhooks/mattermost/callback` for Interactive Message integration (approve/reject).
 - **[core-engine/backend/app/infrastructure/config.py]** Thêm các biến cấu hình cho Metabase, Mattermost, Appsmith (METABASE_URL, MATTERMOST_URL, APPSMITH_URL, MATTERMOST_BOT_TOKEN, etc.).
 - **[deploy/.env.example]** Thêm biến cấu hình cho Metabase, Mattermost, Appsmith.
 - **[docs/api-swagger.yaml]** Hoàn thiện OpenAPI 3.1 Spec cho toàn bộ endpoints (BRD NFR4: API First). Bổ sung định nghĩa `422 ValidationError` và `500 InternalServerError` cho các endpoint.

@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.infrastructure.config import settings
 from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
-from app.entrypoints.routers import health, plugins, ai
+from app.entrypoints.routers import health, plugins, ai, mattermost_webhook
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -76,3 +76,4 @@ app.add_middleware(TenantIDMiddleware)
 app.include_router(health.router, tags=["System"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
+app.include_router(mattermost_webhook.router, prefix="/api/v1")
