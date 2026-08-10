@@ -52,6 +52,14 @@ class N8nAdapter:
             "X-N8N-API-KEY": settings.N8N_API_KEY,
             "Content-Type": "application/json",
         }
+        # Sử dụng httpx.AsyncClient cục bộ nếu không muốn dùng shared client, 
+        # nhưng ở đây ta khởi tạo 1 lần cho mỗi instance (vẫn tốt hơn tạo lại mỗi request).
+        # Tuy nhiên tốt nhất là để Dependency Injection quản lý lifecycle.
+        self._client = httpx.AsyncClient(headers=self._headers)
+
+    async def aclose(self) -> None:
+        """Đóng httpx client. Nên được gọi khi application shutdown."""
+        await self._client.aclose()
 
     def _build_url(self, path: str) -> str:
         """Tạo URL đầy đủ từ base URL và path tương đối."""
@@ -73,16 +81,15 @@ class N8nAdapter:
         """
         last_exc: Exception | None = None
 
-        async with httpx.AsyncClient(headers=self._headers) as client:
-            for attempt in range(1, _MAX_RETRIES + 1):
-                try:
-                    response = await client.request(
-                        method,
-                        url,
-                        json=json,
-                        timeout=timeout,
-                        follow_redirects=False,
-                    )
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                response = await self._client.request(
+                    method,
+                    url,
+                    json=json,
+                    timeout=timeout,
+                    follow_redirects=False,
+                )
 
                     # Retry chỉ với 5xx
                     if response.status_code >= 500:
@@ -151,7 +158,8 @@ class N8nAdapter:
 
         data = response.json()
 
-        if not (raw_id := data.get("id")):
+        raw_id = data.get("id")
+        if raw_id is None or raw_id == "":
             raise N8nAdapterError("n8n import_workflow: response missing 'id' field")
 
         workflow_id = str(raw_id)
@@ -295,13 +303,12 @@ class N8nAdapter:
                 f"khong khop voi N8N_URL '{n8n_parsed.netloc}'"
             )
 
-        async with httpx.AsyncClient(headers=self._headers) as client:
-            response = await client.post(
-                webhook_url,
-                json=payload,
-                timeout=timeout,
-                follow_redirects=False,
-            )
+        response = await self._client.post(
+            webhook_url,
+            json=payload,
+            timeout=timeout,
+            follow_redirects=False,
+        )
 
         if response.status_code not in (200, 201):
             logger.error(
