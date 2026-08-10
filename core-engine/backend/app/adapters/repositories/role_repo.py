@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import Optional, List
-from sqlalchemy import select, and_, delete
+from typing import List, Optional
+
+from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.models import RoleModel, UserRoleModel
 from app.core.domain.exceptions import NotFoundError
+from app.infrastructure.models import RoleModel, UserRoleModel
 
 
 class RoleRepository:

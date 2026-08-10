@@ -1,11 +1,12 @@
 import uuid
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.role_repo import RoleRepository
-from app.infrastructure.models import RoleModel, UserRoleModel
 from app.core.domain.exceptions import NotFoundError
+from app.infrastructure.models import RoleModel, UserRoleModel
 
 
 @pytest.fixture

@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import Optional, List
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert
+from typing import List, Optional
 
-from app.infrastructure.models import UserModel
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.domain.exceptions import NotFoundError
+from app.infrastructure.models import UserModel
 
 
 class UserRepository:
