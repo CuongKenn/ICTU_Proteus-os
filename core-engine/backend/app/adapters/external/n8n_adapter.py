@@ -150,10 +150,10 @@ class N8nAdapter:
             )
 
         data = response.json()
-        
+
         if not (raw_id := data.get("id")):
             raise N8nAdapterError("n8n import_workflow: response missing 'id' field")
-            
+
         workflow_id = str(raw_id)
 
         logger.info(
