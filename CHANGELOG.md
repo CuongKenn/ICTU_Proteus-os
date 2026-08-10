@@ -6,6 +6,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
+### Fixed
+- **[.github/workflows/frontend-ci.yml]** Nâng cấp Node.js từ 20 → 22 (LTS) trong tất cả `setup-node` steps để loại bỏ deprecation warning trên GitHub Actions runners (Node 20 bị deprecated từ 2025-09-19, bị force run trên Node 24).
+
+
 ### Added
 - **[.github/workflows/pr-check.yml]** Validate PR title (Conventional Commits format), body (không rỗng), và issue link (`closes #N`/`fixes #N`) — tự động comment hướng dẫn lên PR khi fail.
 - **[.github/workflows/plugin-manifest-lint.yml]** YAML syntax check (yamllint) + Python schema validator cho `manifest.yaml` trong `plugins/` — kiểm tra required fields, semver, table prefix, ui_apps paths theo `plugin-manifest-spec.md v1.1.0`.
