@@ -79,8 +79,8 @@ class QdrantAdapter(AbstractVectorDBPort):
             logger.error(f"Error upserting vectors to Qdrant: {e}")
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
 
-    async def hybrid_search(
-        self, tenant_id: str, query: str, top_k: int = 5
+    async def search(
+        self, tenant_id: str, query: str, limit: int = 5, filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
         Hybrid Search kết hợp Dense và BM25, filter theo tenant_id (Data Isolation).
@@ -100,7 +100,7 @@ class QdrantAdapter(AbstractVectorDBPort):
                 collection_name=self.collection_name,
                 query_text=query,
                 query_filter=tenant_filter,
-                limit=top_k,
+                limit=limit,
             )
 
             # Format kết quả

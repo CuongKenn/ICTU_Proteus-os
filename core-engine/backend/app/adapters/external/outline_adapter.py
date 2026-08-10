@@ -56,6 +56,6 @@ class OutlineAdapter(AbstractDocumentSourcePort):
                         f"{self.base_url}/doc/{url_id}" if url_id else ""
                     )
                 return data
-            except httpx.RequestError as e:
+            except httpx.HTTPError as e:
                 logger.error(f"Outline API error: {e}")
                 raise OutlineAdapterError(f"Failed to fetch documents: {str(e)}")
