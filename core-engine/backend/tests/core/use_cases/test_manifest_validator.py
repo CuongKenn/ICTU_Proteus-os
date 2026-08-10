@@ -101,3 +101,20 @@ def test_manifest_validator_invalid_ui_apps():
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
     assert "path" in str(exc_info.value)
+
+def test_manifest_validator_invalid_ui_apps_type():
+    yaml_content = """
+    manifest_version: 1.1.0
+    name: plugin-demo
+    display_name: Demo
+    version: 1.0.0
+    description: Demo
+    author: Team
+    license: MIT
+    ui_apps:
+      - invalid_string
+    """
+    validator = ManifestValidator()
+    with pytest.raises(DSLInvalidParametersError) as exc_info:
+        validator.validate_yaml_string(yaml_content)
+    assert "phải là một object (dictionary)" in str(exc_info.value)

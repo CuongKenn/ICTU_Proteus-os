@@ -7,15 +7,16 @@
 
 import logging
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.infrastructure.config import settings
 from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
-from app.entrypoints.routers import health, plugins, ai, mattermost_webhook
+from app.core.domain import exceptions as domain_exc
+from app.entrypoints.routers import ai, health, mattermost_webhook, plugins
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -73,6 +74,25 @@ class TenantIDMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(TenantIDMiddleware)
 
+
+# ─── Exception Handlers ───────────────────────────────────────
+@app.exception_handler(domain_exc.ProteusBaseException)
+async def proteus_exception_handler(request: Request, exc: domain_exc.ProteusBaseException):
+    logger.warning("Domain exception raised", extra={"error": str(exc), "path": request.url.path})
+    
+    status_code = status.HTTP_400_BAD_REQUEST
+    
+    if isinstance(exc, (domain_exc.TenantNotFoundError, domain_exc.PluginNotFoundError)):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, (domain_exc.InsufficientPermissionsError, domain_exc.DSLPermissionDeniedError)):
+        status_code = status.HTTP_403_FORBIDDEN
+    elif isinstance(exc, (domain_exc.PluginAlreadyInstalledError, domain_exc.PathConflictError)):
+        status_code = status.HTTP_409_CONFLICT
+        
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": exc.message},
+    )
 
 # ─── Routers ──────────────────────────────────────────────────
 app.include_router(health.router, tags=["System"])
