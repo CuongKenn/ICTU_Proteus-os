@@ -17,6 +17,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/frontend/src/app/api/embed/metabase]** Thêm API Route (BFF) để proxy và giả lập (mock) việc lấy URL nhúng Metabase an toàn có chứa `tenant_id` từ session (#35).
 - **[core-engine/frontend/src/components]** Phát triển khung giao diện tổng (App Shell) tích hợp Dynamic UI Role-based. Navigation hiển thị linh hoạt theo quyền (ẩn/hiện Marketplace cho `tenant_admin`). Hỗ trợ Responsive Sidebar trên mobile (#30).
 - **[core-engine/frontend/src/app/login]** Xây dựng trang Đăng nhập (`/login`) với phong cách Premium Glassmorphism, tích hợp Keycloak SSO qua `next-auth`, xử lý lỗi hết hạn phiên và phục hồi dữ liệu từ `sessionStorage` (#29).
 - **[core-engine/frontend]** Implement Theme Store (`themeStore.ts` với `zustand/persist`) và Notification Store (`notificationStore.ts`) tích hợp với `usePlugins` (#28).
