@@ -6,7 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
-### Fixed
+### Added
+- **[core-engine/backend/app/infrastructure/config.py]** Thêm các biến cấu hình cho Metabase, Mattermost, Appsmith (METABASE_URL, MATTERMOST_URL, APPSMITH_URL, MATTERMOST_BOT_TOKEN, etc.).
+- **[deploy/.env.example]** Thêm biến cấu hình cho Metabase, Mattermost, Appsmith.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Xử lý giá trị `"id"` bằng `0` (integer 0 edge case) trong `import_workflow`.
