@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { useNotificationStore } from "@/store/notificationStore";
 import type { Plugin, PluginListResponse } from "@/types";
 
 interface UsePluginsReturn {
@@ -40,6 +41,7 @@ export function usePlugins(): UsePluginsReturn {
         }
         if (!cancelled) {
           setError("Không thể tải danh sách Plugin. Vui lòng thử lại.");
+          useNotificationStore.getState().addToast("error", "Không thể tải danh sách Plugin. Vui lòng thử lại.");
         }
       } finally {
         if (!cancelled) {
