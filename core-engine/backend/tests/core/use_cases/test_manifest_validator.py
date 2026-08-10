@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import pytest
+
 from app.core.use_cases.manifest_validator import (
-    ManifestValidator,
     DSLInvalidParametersError,
+    ManifestValidator,
 )
 
 
@@ -104,6 +105,7 @@ def test_manifest_validator_invalid_ui_apps():
     with pytest.raises(DSLInvalidParametersError) as exc_info:
         validator.validate_yaml_string(yaml_content)
     assert "path" in str(exc_info.value)
+
 
 def test_manifest_validator_invalid_ui_apps_type():
     yaml_content = """
