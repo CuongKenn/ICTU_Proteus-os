@@ -80,7 +80,7 @@ services:
     image: quay.io/keycloak/keycloak:25.0
     container_name: proteus-keycloak
     restart: unless-stopped
-    command: start-dev   # Đổi thành "start" + TLS khi production
+    command: start-dev --import-realm   # Đổi thành "start" + TLS khi production
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-proteus}
@@ -95,6 +95,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
       interval: 30s
