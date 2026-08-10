@@ -71,6 +71,7 @@ class AppsmithAdapter:
         }
         self._client = httpx.AsyncClient(headers=self._headers)
 
+
     async def aclose(self) -> None:
         """Đóng httpx client. Nên được gọi khi application shutdown."""
         await self._client.aclose()

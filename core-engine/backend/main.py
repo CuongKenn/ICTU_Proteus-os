@@ -25,12 +25,14 @@ logger = logging.getLogger(__name__)
 # ─── Lifespan (thay thế deprecated @app.on_event) ─────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.entrypoints.dependencies import close_adapters
     logger.info(
         "Proteus OS Backend starting",
         extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
     )
     yield
-    logger.info("Proteus OS Backend shutting down")
+    logger.info("Proteus OS Backend shutting down. Closing adapters...")
+    await close_adapters()
 
 
 # ─── FastAPI Application ──────────────────────────────────────

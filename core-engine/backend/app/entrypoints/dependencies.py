@@ -16,6 +16,10 @@ from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.n8n_adapter import N8nAdapter
+from app.adapters.external.metabase_adapter import MetabaseAdapter
+from app.adapters.external.appsmith_adapter import AppsmithAdapter
+from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain.entities import TenantContext
@@ -25,7 +29,21 @@ from app.infrastructure.database import get_db_readonly
 logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=True)
+
+# Singleton instances cho các Outbound Adapters để tận dụng Connection Pooling
 _keycloak_adapter = KeycloakAdapter()
+_n8n_adapter = N8nAdapter()
+_metabase_adapter = MetabaseAdapter()
+_appsmith_adapter = AppsmithAdapter()
+_redis_event_bus = RedisEventBusPublisher()
+
+async def close_adapters():
+    """Đóng tất cả connections của các adapters khi shutdown."""
+    await _keycloak_adapter.aclose()
+    await _n8n_adapter.aclose()
+    await _metabase_adapter.aclose()
+    await _appsmith_adapter.aclose()
+    await _redis_event_bus.aclose()
 
 
 async def get_plugin_repo(
