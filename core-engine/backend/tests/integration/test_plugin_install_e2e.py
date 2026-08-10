@@ -9,7 +9,9 @@ from main import app
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Pending Task 11 - Plugin Manager Use Case not yet implemented")
+@pytest.mark.skip(
+    reason="Pending Task 11 - Plugin Manager Use Case not yet implemented"
+)
 async def test_plugin_install_e2e(async_db_engine, db_session):
     """
     Integration test end-to-end với PostgreSQL thực (testcontainers).
@@ -44,9 +46,7 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
             # 2. Cài đặt hr-module
             headers = {"X-Tenant-ID": tenant_id}
             res_install = await ac.post(
-                "/api/plugins/install", 
-                json={"plugin_id": plugin_id},
-                headers=headers
+                "/api/plugins/install", json={"plugin_id": plugin_id}, headers=headers
             )
             assert res_install.status_code == 202
             data = res_install.json()
@@ -66,9 +66,7 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
 
             # 4. Gỡ cài đặt
             res_uninstall = await ac.post(
-                "/api/plugins/uninstall",
-                json={"plugin_id": plugin_id},
-                headers=headers
+                "/api/plugins/uninstall", json={"plugin_id": plugin_id}, headers=headers
             )
             assert res_uninstall.status_code == 200
             data_un = res_uninstall.json()
@@ -88,7 +86,9 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Pending Task 11 - Plugin Manager Use Case not yet implemented")
+@pytest.mark.skip(
+    reason="Pending Task 11 - Plugin Manager Use Case not yet implemented"
+)
 async def test_plugin_install_fail_dirty(async_db_engine, db_session):
     """
     Fail: mock n8n 500 → status=FAILED_DIRTY
@@ -114,9 +114,7 @@ async def test_plugin_install_fail_dirty(async_db_engine, db_session):
             plugin_id = "00000000-0000-0000-0000-000000000010"
             headers = {"X-Tenant-ID": tenant_id}
             res_install = await ac.post(
-                "/api/plugins/install", 
-                json={"plugin_id": plugin_id},
-                headers=headers
+                "/api/plugins/install", json={"plugin_id": plugin_id}, headers=headers
             )
 
             # API Install sẽ trả về 500 hoặc 400 và throw lỗi
