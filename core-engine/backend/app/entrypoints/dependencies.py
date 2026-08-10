@@ -37,6 +37,7 @@ _metabase_adapter = MetabaseAdapter()
 _appsmith_adapter = AppsmithAdapter()
 _redis_event_bus = RedisEventBusPublisher()
 
+
 async def close_adapters():
     """Đóng tất cả connections của các adapters khi shutdown."""
     await _keycloak_adapter.aclose()
