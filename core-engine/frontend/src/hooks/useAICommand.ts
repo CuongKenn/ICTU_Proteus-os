@@ -7,8 +7,10 @@
 // Tham chiếu: docs/architecture.md §2.1 (BFF Pattern), docs/dsl-spec.md
 
 import { useState, useCallback, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import { useNotificationStore } from "@/store/notificationStore";
+
+// Helper: dùng native crypto.randomUUID() — không cần package uuid
+const uuid = () => crypto.randomUUID();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,7 +74,7 @@ const MOCK_RESPONSES = {
     status: "pending_approval" as const,
     message: "Lệnh cần phê duyệt từ Ban Giám đốc",
     dsl_preview: {
-      command_id: uuidv4(),
+      command_id: uuid(),
       action: "hr.leave_requests.batch_approve",
       effect: "write" as const,
       approval_message:
@@ -102,7 +104,7 @@ export function useAICommand(): UseAICommandReturn {
   const [widgetState, setWidgetState] = useState<WidgetState>("collapsed");
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: uuidv4(),
+      id: uuid(),
       role: "assistant",
       content: "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn truy vấn dữ liệu hoặc thực hiện các tác vụ quản trị. Hãy nhập lệnh bằng tiếng Việt tự nhiên.",
       timestamp: new Date(),
@@ -110,7 +112,7 @@ export function useAICommand(): UseAICommandReturn {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [dslPreview, setDslPreview] = useState<DslPreview | null>(null);
-  const sessionIdRef = useRef<string>(uuidv4());
+  const sessionIdRef = useRef<string>(uuid());
 
   const { addToast } = useNotificationStore();
 
@@ -128,7 +130,7 @@ export function useAICommand(): UseAICommandReturn {
   const appendMessage = useCallback((role: MessageRole, content: string) => {
     setMessages((prev) => [
       ...prev,
-      { id: uuidv4(), role, content, timestamp: new Date() },
+      { id: uuid(), role, content, timestamp: new Date() },
     ]);
   }, []);
 
@@ -191,7 +193,7 @@ export function useAICommand(): UseAICommandReturn {
         const detectedEffect = detectEffectFromInput(trimmed);
         const mockData = MOCK_RESPONSES[detectedEffect];
         if (mockData.status === "pending_approval" && "dsl_preview" in mockData && mockData.dsl_preview) {
-          setDslPreview({ ...mockData.dsl_preview, command_id: uuidv4() });
+          setDslPreview({ ...mockData.dsl_preview, command_id: uuid() });
           appendMessage(
             "assistant",
             `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${mockData.dsl_preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
