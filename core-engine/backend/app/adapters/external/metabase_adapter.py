@@ -54,14 +54,14 @@ class MetabaseAdapter:
     Tham khảo: docs/clarification.md §4.2 — Metabase OSS embedding
     """
 
-    def __init__(self) -> None:
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._base_url: str = settings.METABASE_URL.rstrip("/")
         self._embedding_key: str = settings.METABASE_EMBEDDING_KEY
         self._headers: dict[str, str] = {
             "Content-Type": "application/json",
         }
         self._session_token: str | None = None
-        self._client = httpx.AsyncClient(headers=self._headers)
+        self._client = client or httpx.AsyncClient(headers=self._headers)
 
     async def aclose(self) -> None:
         """Đóng httpx client. Nên được gọi khi application shutdown."""
@@ -100,11 +100,16 @@ class MetabaseAdapter:
 
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
+                # Gắn API Key (nếu có)
+                headers = dict(self._headers)
+                if session_token:
+                    headers["X-Metabase-Session"] = session_token
+
                 response = await self._client.request(
                     method,
                     url,
+                    headers=headers,
                     json=json_data,
-                    headers={"X-Metabase-Session": session_token},
                     timeout=timeout,
                     follow_redirects=False,
                 )

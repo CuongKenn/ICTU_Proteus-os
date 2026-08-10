@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Depends, HTTPException, Security, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,11 +29,6 @@ from app.infrastructure.database import get_db_readonly
 logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=True)
-_keycloak_adapter = KeycloakAdapter()
-_n8n_adapter = N8nAdapter()
-_metabase_adapter = MetabaseAdapter()
-_appsmith_adapter = AppsmithAdapter()
-_redis_event_bus = RedisEventBusPublisher()
 
 
 async def get_plugin_repo(
@@ -43,24 +38,29 @@ async def get_plugin_repo(
     return SQLAlchemyPluginRepository(session=db)
 
 
-async def get_n8n_adapter() -> N8nAdapter:
-    """Inject N8nAdapter as Singleton."""
-    return _n8n_adapter
+async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
+    """Inject KeycloakAdapter."""
+    return KeycloakAdapter(client=request.app.state.http_client)
 
 
-async def get_metabase_adapter() -> MetabaseAdapter:
-    """Inject MetabaseAdapter as Singleton."""
-    return _metabase_adapter
+async def get_n8n_adapter(request: Request) -> N8nAdapter:
+    """Inject N8nAdapter."""
+    return N8nAdapter(client=request.app.state.http_client)
 
 
-async def get_appsmith_adapter() -> AppsmithAdapter:
-    """Inject AppsmithAdapter as Singleton."""
-    return _appsmith_adapter
+async def get_metabase_adapter(request: Request) -> MetabaseAdapter:
+    """Inject MetabaseAdapter."""
+    return MetabaseAdapter(client=request.app.state.http_client)
 
 
-async def get_redis_event_bus() -> RedisEventBusPublisher:
-    """Inject RedisEventBusPublisher as Singleton."""
-    return _redis_event_bus
+async def get_appsmith_adapter(request: Request) -> AppsmithAdapter:
+    """Inject AppsmithAdapter."""
+    return AppsmithAdapter(client=request.app.state.http_client)
+
+
+async def get_redis_event_bus(request: Request) -> RedisEventBusPublisher:
+    """Inject RedisEventBusPublisher."""
+    return request.app.state.redis_event_bus
 
 
 async def get_plugin_list_use_case(

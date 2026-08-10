@@ -29,10 +29,11 @@ class KeycloakAdapter:
     # JWKS TTL: 1 giờ — Keycloak thường rotate keys định kỳ
     _JWKS_TTL_SECONDS: float = 3600.0
 
-    def __init__(self) -> None:
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cached_at: float = 0.0
-        self._client = httpx.AsyncClient()
+        # Nếu không truyền client (VD: fallback hoặc test), tạo mới nhưng không tối ưu pooling
+        self._client = client or httpx.AsyncClient()
 
     async def _get_jwks(self) -> dict[str, Any]:
         """

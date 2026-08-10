@@ -8,6 +8,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
+import httpx
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -15,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.infrastructure.config import settings
 from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
+from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.entrypoints.routers import health, plugins, ai
 from app.core.domain import exceptions as domain_exc
 
@@ -30,7 +32,15 @@ async def lifespan(app: FastAPI):
         "Proteus OS Backend starting",
         extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
     )
+    # Khởi tạo các global clients
+    app.state.http_client = httpx.AsyncClient(timeout=10.0)
+    app.state.redis_event_bus = RedisEventBusPublisher()
+    
     yield
+    
+    # Đóng kết nối
+    await app.state.http_client.aclose()
+    await app.state.redis_event_bus.aclose()
     logger.info("Proteus OS Backend shutting down")
 
 
