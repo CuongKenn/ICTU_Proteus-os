@@ -37,6 +37,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/frontend]** Implement Theme Store (`themeStore.ts` với `zustand/persist`) và Notification Store (`notificationStore.ts`) tích hợp với `usePlugins` (#28).
 - **[core-engine/frontend/src/components/ui]** Tạo UI Component Library (Button, PluginCard, AppIcon, Toast, Modal, Skeleton, ProgressBar) chuẩn Design System §5.4 và §5.6 (#27).
 - **[core-engine/frontend]** Implement Design System từ docs/ui_ux_design.md §5.1-5.3 (CSS Variables, Typography, Spacing, Glassmorphism) (#26).
+- **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Thêm Metabase BI Adapter để tạo dashboard và quản lý signed embed URL với TTL 60s.
+- **[core-engine/backend/app/adapters/external/appsmith_adapter.py]** Thêm Appsmith UI Adapter để xử lý import/delete UI Apps và kiểm tra PATH_CONFLICT.
+- **[core-engine/backend/app/adapters/external/redis_event_bus.py]** Thêm Redis Event Bus Publisher xử lý publish lifecycle events qua Redis Pub/Sub, tự động inject wrapper cho event envelope.
+- **[core-engine/backend/app/core/use_cases/manifest_validator.py]** Thêm Manifest Validator (Use Case) để parse và validate `manifest.yaml` theo đặc tả v1.1.0, trả về ManifestEntity.
 - **[.github/workflows/pr-check.yml]** Validate PR title (Conventional Commits format), body (không rỗng), và issue link (`closes #N`/`fixes #N`) — tự động comment hướng dẫn lên PR khi fail.
 - **[.github/workflows/plugin-manifest-lint.yml]** YAML syntax check (yamllint) + Python schema validator cho `manifest.yaml` trong `plugins/` — kiểm tra required fields, semver, table prefix, ui_apps paths theo `plugin-manifest-spec.md v1.1.0`.
 - **[.github/workflows/dependency-review.yml]** GitHub native CVE scan trên PR thay đổi dependency files (`requirements.txt`, `package.json`). Fail nếu có CVE severity HIGH/CRITICAL.
