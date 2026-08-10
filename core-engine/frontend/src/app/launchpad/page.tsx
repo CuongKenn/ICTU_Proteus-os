@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function LaunchpadPage() {
   return (
-    <main className="min-h-screen bg-bg-primary">
+    <main className="min-h-screen bg-bg-base">
       {/* TODO: Member implement Launchpad UI ở đây */}
       {/* Tham chiếu thiết kế: docs/ui_ux_design.md §4 */}
       <div className="flex items-center justify-center min-h-screen">
