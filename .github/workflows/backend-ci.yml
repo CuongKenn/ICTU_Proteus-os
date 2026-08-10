@@ -296,7 +296,7 @@ jobs:
           retention-days: 7
 
   backend-ci:
-    name: backend-ci ✅
+    name: backend-ci
     runs-on: ubuntu-latest
     # Luôn chạy — kể cả khi không có thay đổi backend (tránh PR stuck "waiting")
     if: always()

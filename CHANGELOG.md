@@ -8,6 +8,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ### Fixed
 - **[.github/workflows/frontend-ci.yml]** Nâng cấp Node.js từ 20 → 22 (LTS) trong tất cả `setup-node` steps để loại bỏ deprecation warning trên GitHub Actions runners (Node 20 bị deprecated từ 2025-09-19, bị force run trên Node 24).
+- **[.github/workflows/backend-ci.yml]** Đổi `name: backend-ci ✅` → `name: backend-ci` để khớp chính xác với required status check context trong Branch Protection Rules của `main` branch.
+- **[.github/workflows/frontend-ci.yml]** Đổi `name: frontend-ci ✅` → `name: frontend-ci` để khớp với Branch Protection required check `frontend-ci`.
+- **[.github/workflows/pr-check.yml]** Đổi `name: Validate PR Title, Body & Issue Link` → `name: validate-pr` để khớp với Branch Protection required check `validate-pr`. Khi `name:` không khớp, GitHub báo trạng thái "Expected — Waiting for status to be reported" dù check đã pass.
 
 
 ### Added
