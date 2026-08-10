@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
+import { AIChatWidget } from "@/components/AIChatWidget";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -167,6 +168,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           {children}
         </main>
       </div>
+      
+      {/* AI Chat Widget (Floating) */}
+      <AIChatWidget />
     </div>
   );
 };
+
