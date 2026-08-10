@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 import httpx
 import pytest
@@ -22,8 +22,9 @@ def adapter():
 @pytest.mark.asyncio
 async def test_send_message_success(adapter):
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value.json.return_value = {"id": "msg_123"}
-        mock_post.return_value.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"id": "msg_123"}
+        mock_post.return_value = mock_response
 
         result = await adapter.send_message("chan_123", "Hello World")
 
@@ -51,8 +52,9 @@ async def test_send_message_http_error(adapter):
 @pytest.mark.asyncio
 async def test_send_interactive_message_success(adapter):
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value.json.return_value = {"id": "msg_456"}
-        mock_post.return_value.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"id": "msg_456"}
+        mock_post.return_value = mock_response
 
         result = await adapter.send_interactive_message(
             channel_id="chan_123",
