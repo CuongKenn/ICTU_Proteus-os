@@ -9,6 +9,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Added
 - **[core-engine/backend/app/infrastructure/config.py]** Thêm các biến cấu hình cho Metabase, Mattermost, Appsmith (METABASE_URL, MATTERMOST_URL, APPSMITH_URL, MATTERMOST_BOT_TOKEN, etc.).
 - **[deploy/.env.example]** Thêm biến cấu hình cho Metabase, Mattermost, Appsmith.
+- **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Xử lý giá trị `"id"` bằng `0` (integer 0 edge case) trong `import_workflow`.
@@ -19,6 +20,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/frontend/src/app/launchpad]** Hoàn thiện giao diện Launchpad (Màn hình chính) với App Icon Grid, hỗ trợ Quick links (Mattermost, Outline, n8n), mở Iframe Overlay toàn màn hình dạng Glassmorphism cho Metabase & n8n, hiển thị Skeleton loading và Empty state khi chưa có plugin (#31).
+- **[core-engine/frontend/src/app/api/embed/metabase]** Thêm API Route (BFF) để proxy và giả lập (mock) việc lấy URL nhúng Metabase an toàn có chứa `tenant_id` từ session (#35).
 - **[core-engine/frontend/src/components]** Phát triển khung giao diện tổng (App Shell) tích hợp Dynamic UI Role-based. Navigation hiển thị linh hoạt theo quyền (ẩn/hiện Marketplace cho `tenant_admin`). Hỗ trợ Responsive Sidebar trên mobile (#30).
 - **[core-engine/frontend/src/app/login]** Xây dựng trang Đăng nhập (`/login`) với phong cách Premium Glassmorphism, tích hợp Keycloak SSO qua `next-auth`, xử lý lỗi hết hạn phiên và phục hồi dữ liệu từ `sessionStorage` (#29).
 - **[core-engine/frontend]** Implement Theme Store (`themeStore.ts` với `zustand/persist`) và Notification Store (`notificationStore.ts`) tích hợp với `usePlugins` (#28).
