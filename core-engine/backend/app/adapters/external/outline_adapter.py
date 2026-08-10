@@ -52,7 +52,9 @@ class OutlineAdapter(AbstractDocumentSourcePort):
                 data = response.json().get("data", [])
                 for doc in data:
                     url_id = doc.get("urlId", "")
-                    doc["source_url"] = f"{self.base_url}/doc/{url_id}" if url_id else ""
+                    doc["source_url"] = (
+                        f"{self.base_url}/doc/{url_id}" if url_id else ""
+                    )
                 return data
             except httpx.RequestError as e:
                 logger.error(f"Outline API error: {e}")
