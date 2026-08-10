@@ -65,8 +65,12 @@
 [data-theme="light"] {
   --color-bg-base: hsl(210, 40%, 98%);
   --color-bg-surface: hsl(0, 0%, 100%);
+  --color-bg-glass: hsla(0, 0%, 100%, 0.6);
+  --color-bg-hover: hsl(210, 40%, 94%);
+  --color-border: hsla(215, 25%, 65%, 0.3);
   --color-text-primary: hsl(222, 47%, 11%);
   --color-text-secondary: hsl(215, 16%, 47%);
+  --color-text-disabled: hsl(215, 20%, 65%);
 }
 
 /* ─── Base Styles ───────────────────────────────────────────── */
