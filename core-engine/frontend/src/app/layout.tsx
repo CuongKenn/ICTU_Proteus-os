@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { ToastContainer } from "@/components/ui/ToastContainer";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import "../styles/globals.css";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"] });
@@ -47,10 +48,12 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} bg-bg-base text-text-primary antialiased`}>
-        <ThemeProvider>
-          {children}
-          <ToastContainer />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            {children}
+            <ToastContainer />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
