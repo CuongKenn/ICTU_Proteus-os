@@ -28,5 +28,6 @@ pytest-asyncio==0.23.8
 pytest-cov==5.0.0
 ruff==0.5.7
 qdrant-client[fastembed]==1.10.1
+testcontainers[postgres]==4.7.2
 
 
