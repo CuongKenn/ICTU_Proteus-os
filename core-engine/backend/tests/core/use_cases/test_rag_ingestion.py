@@ -39,6 +39,7 @@ async def test_rag_ingestion_success(mock_adapters):
     outline_adapter.list_documents.return_value = mock_docs
 
     use_case = RAGIngestionUseCase(outline_adapter, qdrant_adapter)
+    use_case.max_chars_per_chunk = 25  # Small enough to force splitting doc1 into 2 chunks
     result = await use_case.execute("tenant-1")
 
     assert result["status"] == "success"
@@ -68,9 +69,9 @@ def test_chunking_long_paragraph():
     text = "Line 1 is short.\nLine 2 is also short but together they are long.\nLine 3 is here."
     chunks = use_case._chunk_text(text)
 
-    assert len(chunks) == 2
+    assert len(chunks) == 3
     assert "Line 1 is short." in chunks[0]
-    assert "Line 3 is here." in chunks[1]
+    assert "Line 3 is here." in chunks[2]
 
 
 @pytest.mark.asyncio
