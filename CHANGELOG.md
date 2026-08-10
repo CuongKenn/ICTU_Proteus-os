@@ -9,16 +9,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/infrastructure/config.py]** Thêm các biến cấu hình cho Metabase, Mattermost, Appsmith (METABASE_URL, MATTERMOST_URL, APPSMITH_URL, MATTERMOST_BOT_TOKEN, etc.).
 - **[deploy/.env.example]** Thêm biến cấu hình cho Metabase, Mattermost, Appsmith.
 - **[docs/api-swagger.yaml]** Hoàn thiện OpenAPI 3.1 Spec cho toàn bộ endpoints (BRD NFR4: API First). Bổ sung định nghĩa `422 ValidationError` và `500 InternalServerError` cho các endpoint.
+- **[deploy/docker-compose.yml]** Thêm service Mattermost Enterprise Edition cho ChatOps & Collaboration.
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 
 ### Fixed
-<<<<<<< HEAD
 - **[core-engine/backend]** Thêm PostgreSQL Row-Level Security (RLS) Middleware và `current_tenant_id` ContextVar. Bổ sung RLS Policies cho các bảng multi-tenant trong `init.sql`.
-=======
 - **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
->>>>>>> origin/main
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
 - **[deploy/keycloak/realm-import.json]** Khởi tạo Keycloak Realm Export file (`realm-import.json`) cho hệ thống `proteus` để import tự động khi khởi động (Zero-touch configuration).
 - **[deploy/docker-compose.yml]** Cấu hình tự động import Realm cho Keycloak (mount volume và flag `--import-realm`).
