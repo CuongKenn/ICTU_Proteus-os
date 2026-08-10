@@ -72,6 +72,7 @@ async def get_plugin_list_use_case(
 
 async def get_current_tenant_context(
     credentials: HTTPAuthorizationCredentials = Security(bearer_scheme),
+    keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
 ) -> TenantContext:
     """
     Extract và validate JWT Token.
@@ -83,7 +84,7 @@ async def get_current_tenant_context(
     """
     # Bước 1: Verify JWT signature — chỉ catch JWTError, không catch HTTPException
     try:
-        payload = await _keycloak_adapter.verify_and_decode_token(
+        payload = await keycloak_adapter.verify_and_decode_token(
             credentials.credentials
         )
     except JWTError as exc:
