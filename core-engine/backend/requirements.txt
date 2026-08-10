@@ -1,4 +1,4 @@
-﻿fastapi==0.112.0
+fastapi==0.112.0
 uvicorn[standard]==0.30.6
 pydantic==2.8.2
 pydantic-settings==2.4.0
@@ -17,6 +17,7 @@ redis[hiredis]==5.0.8
 
 # YAML (Manifest Validator)
 pyyaml==6.0.2
+jsonschema==4.23.0
 
 # Logging & Monitoring
 structlog==24.4.0
