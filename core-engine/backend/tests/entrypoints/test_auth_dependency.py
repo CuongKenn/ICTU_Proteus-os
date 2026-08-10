@@ -47,9 +47,11 @@ async def test_get_current_tenant_context_invalid_jwt(mock_keycloak, valid_crede
     assert "Token khA'ng h" in str(exc_info.value.detail) or "Token" in str(exc_info.value.detail)
 
 @pytest.mark.asyncio
-async def test_get_current_tenant_context_invalid_jwt(mock_keycloak, valid_credentials):
+async def test_get_current_tenant_context_missing_tenant(mock_keycloak, valid_credentials):
     mock_keycloak.verify_and_decode_token = AsyncMock(
-        side_effect=JWTError("Invalid token")
+        return_value={
+            "sub": str(uuid.uuid4()),
+        }
     )
 
     with pytest.raises(HTTPException) as exc_info:
