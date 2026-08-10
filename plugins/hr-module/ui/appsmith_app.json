@@ -1,0 +1,40 @@
+{
+  "name": "HR Management App",
+  "version": 1,
+  "pages": [
+    {
+      "name": "Employee View",
+      "widgets": [
+        {
+          "type": "FORM_WIDGET",
+          "name": "LeaveRequestForm",
+          "children": [
+            { "type": "DATE_PICKER_WIDGET2", "name": "StartDate" },
+            { "type": "DATE_PICKER_WIDGET2", "name": "EndDate" },
+            { "type": "SELECT_WIDGET", "name": "LeaveType", "options": ["annual", "sick", "personal"] },
+            { "type": "INPUT_WIDGET_V2", "name": "Reason" },
+            { "type": "TEXT_WIDGET", "name": "BalanceWarning" }
+          ]
+        },
+        {
+          "type": "TABLE_WIDGET_V2",
+          "name": "MyLeaveRequestsTable"
+        }
+      ]
+    },
+    {
+      "name": "Manager View",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "name": "PendingRequestsTable",
+          "primaryColumns": {
+            "approve": { "type": "ICON_BUTTON", "onClick": "approveRequest" },
+            "reject": { "type": "ICON_BUTTON", "onClick": "rejectRequest" }
+          }
+        }
+      ]
+    }
+  ],
+  "_comment": "This is a dummy Appsmith UI App export structure. In a real environment, this file is exported from Appsmith API."
+}

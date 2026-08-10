@@ -1,0 +1,42 @@
+{
+  "name": "HR Overview Dashboard",
+  "description": "Tổng quan nhân sự: headcount, nghỉ phép, chấm công theo phòng ban",
+  "cards": [
+    {
+      "name": "Tổng nghỉ phép theo tháng",
+      "display": "line",
+      "dataset_query": {
+        "database": 1,
+        "type": "query",
+        "query": {
+          "source-table": 1,
+          "aggregation": [["count"]],
+          "breakout": [
+            ["field", 1, {"temporal-unit": "month"}]
+          ]
+        }
+      }
+    },
+    {
+      "name": "Top nhân viên nghỉ nhiều",
+      "display": "table"
+    },
+    {
+      "name": "Đơn chờ duyệt",
+      "display": "scalar"
+    },
+    {
+      "name": "Tổng nhân viên active",
+      "display": "scalar"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "tenant_id",
+      "slug": "tenant_id",
+      "id": "tenant_id",
+      "type": "category"
+    }
+  ],
+  "_comment": "This is a dummy Metabase dashboard export structure. In a real environment, this file is exported from Metabase API."
+}
