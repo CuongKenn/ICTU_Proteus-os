@@ -18,8 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
-from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.domain.entities import TenantContext
+from app.core.use_cases.plugin_list import PluginListUseCase
 from app.infrastructure.database import get_db
 
 logger = logging.getLogger(__name__)

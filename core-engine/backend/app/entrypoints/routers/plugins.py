@@ -9,10 +9,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_list import PluginListUseCase
-from app.entrypoints.dependencies import get_current_tenant_context, get_plugin_list_use_case, get_plugin_repo
-from app.adapters.repositories.base import AbstractPluginRepository
+from app.entrypoints.dependencies import (
+    get_current_tenant_context,
+    get_plugin_list_use_case,
+    get_plugin_repo,
+)
 from app.entrypoints.schemas.plugin import (
     PluginInstallRequest,
     PluginListResponse,

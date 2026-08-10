@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from __future__ import annotations
-import uuid
+
 import logging
+import uuid
 
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import PluginEntity
 
 logger = logging.getLogger(__name__)
+
 
 class PluginListUseCase:
     """
@@ -19,7 +21,9 @@ class PluginListUseCase:
     def __init__(self, plugin_repo: AbstractPluginRepository):
         self.plugin_repo = plugin_repo
 
-    async def list_marketplace(self, limit: int = 20, offset: int = 0) -> list[PluginEntity]:
+    async def list_marketplace(
+        self, limit: int = 20, offset: int = 0
+    ) -> list[PluginEntity]:
         """Liệt kê tất cả Plugin trên Marketplace."""
         logger.info(f"Listing marketplace plugins (limit={limit}, offset={offset})")
         return await self.plugin_repo.list_marketplace(limit=limit, offset=offset)
