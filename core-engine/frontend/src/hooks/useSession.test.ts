@@ -37,7 +37,7 @@ describe('useSession', () => {
   it('should return authenticated state and check roles', () => {
     vi.mocked(nextAuthReact.useSession).mockReturnValue({
       data: {
-        user: { name: 'Admin User', roles: ['tenant_admin', 'editor'] },
+        user: { name: 'Admin User', roles: ['tenant_admin', 'editor'] } as any,
         expires: '2026-12-31T00:00:00Z',
       },
       status: 'authenticated',

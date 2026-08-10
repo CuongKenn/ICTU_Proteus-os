@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useMarketplace } from "./useMarketplace";
+import api from "@/lib/api";
 
 vi.mock("@/lib/api");
 vi.mock("@/store/notificationStore", () => ({
@@ -21,7 +22,6 @@ vi.mock("@/hooks/usePlugins", () => ({
   }),
 }));
 
-const api = await import("@/lib/api");
 
 const mockPlugins = [
   {
@@ -42,7 +42,7 @@ describe("useMarketplace", () => {
   });
 
   it("fetches and returns marketplace plugin list", async () => {
-    (api.default.get as any) = vi.fn().mockResolvedValue({ data: { data: mockPlugins } });
+    (api.get as any) = vi.fn().mockResolvedValue({ data: { data: mockPlugins } });
 
     const { result } = renderHook(() => useMarketplace());
 
@@ -58,7 +58,7 @@ describe("useMarketplace", () => {
   it("falls back to mock data in development on error", async () => {
     const originalEnv = process.env.NODE_ENV;
     (process.env as any).NODE_ENV = "development";
-    (api.default.get as any) = vi.fn().mockRejectedValue(new Error("network error"));
+    (api.get as any) = vi.fn().mockRejectedValue(new Error("network error"));
 
     const { result } = renderHook(() => useMarketplace());
 
@@ -74,7 +74,7 @@ describe("useMarketplace", () => {
   });
 
   it("starts with correct install state machine values", () => {
-    (api.default.get as any) = vi.fn().mockResolvedValue({ data: { data: [] } });
+    (api.get as any) = vi.fn().mockResolvedValue({ data: { data: [] } });
 
     const { result } = renderHook(() => useMarketplace());
 

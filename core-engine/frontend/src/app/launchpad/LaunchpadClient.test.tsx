@@ -30,6 +30,10 @@ describe("LaunchpadClient", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -47,6 +51,10 @@ describe("LaunchpadClient", () => {
       isLoading: true,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     const { container } = render(<LaunchpadClient />);
@@ -60,6 +68,10 @@ describe("LaunchpadClient", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -81,6 +93,10 @@ describe("LaunchpadClient", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -94,6 +110,10 @@ describe("LaunchpadClient", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -111,6 +131,10 @@ describe("LaunchpadClient", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -130,6 +154,10 @@ describe("LaunchpadClient", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
     });
 
     vi.mocked(global.fetch).mockResolvedValueOnce({

@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { usePlugins } from "./usePlugins";
+import api from "@/lib/api";
 
 vi.mock("@/lib/api");
 vi.mock("@/store/notificationStore", () => ({
@@ -9,7 +10,6 @@ vi.mock("@/store/notificationStore", () => ({
   },
 }));
 
-const api = await import("@/lib/api");
 
 describe("usePlugins", () => {
   const mockItems = [
@@ -21,7 +21,7 @@ describe("usePlugins", () => {
   });
 
   it("fetches and returns plugin list", async () => {
-    (api.default.get as any) = vi.fn().mockResolvedValue({ data: { items: mockItems } });
+    (api.get as any) = vi.fn().mockResolvedValue({ data: { items: mockItems } });
 
     const { result } = renderHook(() => usePlugins());
 
@@ -37,7 +37,7 @@ describe("usePlugins", () => {
   it("sets error when fetch fails in production", async () => {
     const originalEnv = process.env.NODE_ENV;
     (process.env as any).NODE_ENV = "production";
-    (api.default.get as any) = vi.fn().mockRejectedValue(new Error("network error"));
+    (api.get as any) = vi.fn().mockRejectedValue(new Error("network error"));
 
     const { result } = renderHook(() => usePlugins());
 
@@ -51,7 +51,7 @@ describe("usePlugins", () => {
 
   it("refetch increments trigger and re-fetches", async () => {
     const mockGet = vi.fn().mockResolvedValue({ data: { items: mockItems } });
-    (api.default.get as any) = mockGet;
+    (api.get as any) = mockGet;
 
     const { result } = renderHook(() => usePlugins());
 
@@ -65,8 +65,8 @@ describe("usePlugins", () => {
   });
 
   it("install returns task_id", async () => {
-    (api.default.get as any) = vi.fn().mockResolvedValue({ data: { items: [] } });
-    (api.default.post as any) = vi.fn().mockResolvedValue({ data: { data: { task_id: "abc-123" } } });
+    (api.get as any) = vi.fn().mockResolvedValue({ data: { items: [] } });
+    (api.post as any) = vi.fn().mockResolvedValue({ data: { data: { task_id: "abc-123" } } });
 
     const { result } = renderHook(() => usePlugins());
 
