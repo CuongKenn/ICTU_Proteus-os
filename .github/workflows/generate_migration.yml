@@ -46,6 +46,7 @@ jobs:
       - name: Generate Migration
         run: |
           cd core-engine/backend
+          mkdir -p migrations/versions
           export DATABASE_URL="postgresql+asyncpg://postgres:password@localhost:5432/proteus"
           export DATABASE_URL_SYNC="postgresql://postgres:password@localhost:5432/proteus"
           alembic revision --autogenerate -m "Initial migration"
