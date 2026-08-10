@@ -20,10 +20,11 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         # 1. Tạo Tenant mới
+        tenant_id = "00000000-0000-0000-0000-000000000001"
         async with async_db_engine.begin() as conn:
             await conn.execute(
                 text(
-                    "INSERT INTO tenants (id, name, domain) VALUES ('tenant-e2e-1', 'E2E Tenant', 'e2e.proteus.local') ON CONFLICT DO NOTHING"
+                    f"INSERT INTO tenants (id, name, domain) VALUES ('{tenant_id}', 'E2E Tenant', 'e2e.proteus.local') ON CONFLICT DO NOTHING"
                 )
             )
 
@@ -39,7 +40,7 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
             }
 
             # 2. Cài đặt hr-module
-            headers = {"X-Tenant-ID": "tenant-e2e-1"}
+            headers = {"X-Tenant-ID": tenant_id}
             res_install = await ac.post(
                 "/api/plugins/hr-module/install", headers=headers
             )
@@ -89,10 +90,11 @@ async def test_plugin_install_fail_dirty(async_db_engine, db_session):
     app.dependency_overrides[get_db_transactional] = lambda: db_session
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
+        tenant_id = "00000000-0000-0000-0000-000000000002"
         async with async_db_engine.begin() as conn:
             await conn.execute(
                 text(
-                    "INSERT INTO tenants (id, name, domain) VALUES ('tenant-e2e-2', 'E2E Tenant 2', 'e2e2.proteus.local') ON CONFLICT DO NOTHING"
+                    f"INSERT INTO tenants (id, name, domain) VALUES ('{tenant_id}', 'E2E Tenant 2', 'e2e2.proteus.local') ON CONFLICT DO NOTHING"
                 )
             )
         # Mock lỗi khi import workflow (gây ra lỗi trong workflow phase)
