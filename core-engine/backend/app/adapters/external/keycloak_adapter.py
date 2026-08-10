@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any, cast
 
 import httpx
-from jose import JWTError, jwt
+from jose import jwt
 
 from app.infrastructure.config import settings
 
@@ -29,10 +30,10 @@ class KeycloakAdapter:
     _JWKS_TTL_SECONDS: float = 3600.0
 
     def __init__(self) -> None:
-        self._jwks_cache: dict | None = None
+        self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cached_at: float = 0.0
 
-    async def _get_jwks(self) -> dict:
+    async def _get_jwks(self) -> dict[str, Any]:
         """
         Lấy JWKS từ Keycloak với in-memory cache có TTL.
         Cache expire sau 1 giờ để tự động nhận keys mới khi Keycloak rotate.
@@ -44,7 +45,9 @@ class KeycloakAdapter:
         ):
             return self._jwks_cache
 
-        logger.debug("Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url})
+        logger.debug(
+            "Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url}
+        )
         async with httpx.AsyncClient() as client:
             response = await client.get(settings.keycloak_jwks_url, timeout=10.0)
             response.raise_for_status()
@@ -53,7 +56,7 @@ class KeycloakAdapter:
             logger.info("JWKS cache refreshed")
             return self._jwks_cache
 
-    async def verify_and_decode_token(self, token: str) -> dict:
+    async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
         Xác thực Access Token JWT.
         Trả về payload đã decode nếu hợp lệ.
@@ -71,7 +74,7 @@ class KeycloakAdapter:
             "Token verified successfully",
             extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},
         )
-        return payload
+        return cast(dict[str, Any], payload)
 
     async def create_role(
         self,
@@ -89,10 +92,14 @@ class KeycloakAdapter:
                 timeout=10.0,
             )
             if response.status_code == 409:
-                logger.warning("Role already exists in Keycloak", extra={"role": role_name})
+                logger.warning(
+                    "Role already exists in Keycloak", extra={"role": role_name}
+                )
                 return
             response.raise_for_status()
-            logger.info("Keycloak role created", extra={"role": role_name, "realm": realm})
+            logger.info(
+                "Keycloak role created", extra={"role": role_name, "realm": realm}
+            )
 
     async def delete_role(
         self,
@@ -112,4 +119,6 @@ class KeycloakAdapter:
                 logger.warning("Role not found in Keycloak", extra={"role": role_name})
                 return
             response.raise_for_status()
-            logger.info("Keycloak role deleted", extra={"role": role_name, "realm": realm})
+            logger.info(
+                "Keycloak role deleted", extra={"role": role_name, "realm": realm}
+            )

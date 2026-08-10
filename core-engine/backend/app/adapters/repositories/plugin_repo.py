@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +37,9 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             return None
         return self._to_entity(dict(row))
 
-    async def list_marketplace(self, limit: int = 20, offset: int = 0) -> list[PluginEntity]:
+    async def list_marketplace(
+        self, limit: int = 20, offset: int = 0
+    ) -> list[PluginEntity]:
         result = await self._session.execute(
             text(
                 "SELECT * FROM plugins WHERE deleted_at IS NULL "
@@ -109,7 +112,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         )
 
     @staticmethod
-    def _to_entity(row: dict) -> PluginEntity:
+    def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(
             id=row["id"],
             code_name=row["code_name"],

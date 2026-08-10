@@ -5,6 +5,7 @@
 # Tham chiếu: docs/api-swagger.yaml /plugins/*
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -36,7 +37,9 @@ async def list_marketplace_plugins(
     )
 
 
-@router.get("/installed", response_model=PluginListResponse, summary="Liệt kê Plugin đã cài")
+@router.get(
+    "/installed", response_model=PluginListResponse, summary="Liệt kê Plugin đã cài"
+)
 async def list_installed_plugins(
     ctx: TenantContext = Depends(get_current_tenant_context),
     repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
@@ -58,7 +61,7 @@ async def install_plugin(
     body: PluginInstallRequest,
     ctx: TenantContext = Depends(get_current_tenant_context),
     repo: SQLAlchemyPluginRepository = Depends(get_plugin_repo),
-) -> dict:
+) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin.
     Chỉ tenant_admin hoặc superadmin mới có quyền thực hiện.

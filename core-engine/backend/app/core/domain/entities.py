@@ -14,10 +14,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ─────────────────────────────────────────────────────────────
 # ENUMS
 # ─────────────────────────────────────────────────────────────
+
 
 class PluginStatus(StrEnum):
     INSTALLING = "INSTALLING"
@@ -54,11 +54,13 @@ class ActorType(StrEnum):
 # DOMAIN ENTITIES (Pure Pydantic — no DB dependency)
 # ─────────────────────────────────────────────────────────────
 
+
 class TenantContext(BaseModel):
     """
     JWT Context của request hiện tại.
     Được inject vào mọi Use Case từ tầng Entrypoint.
     """
+
     tenant_id: uuid.UUID
     user_id: uuid.UUID
     roles: list[str] = Field(default_factory=list)
@@ -79,6 +81,7 @@ class TenantEntity(BaseModel):
     Domain Entity cho Tenant (Tổ chức).
     Lưu metadata của Organization trong hệ thống.
     """
+
     id: uuid.UUID
     name: str
     slug: str
@@ -102,11 +105,13 @@ class AICommandEntity(BaseModel):
 
 class InstallRequest(BaseModel):
     """Input cho Use Case cài đặt Plugin."""
+
     plugin_id: uuid.UUID
     tenant_context: TenantContext
 
 
 class AICommandInput(BaseModel):
     """Input cho Use Case xử lý DX-DSL Command. (Khác với schema AICommandRequest ở entrypoints)"""
+
     dsl_payload: dict[str, Any]
     tenant_context: TenantContext
