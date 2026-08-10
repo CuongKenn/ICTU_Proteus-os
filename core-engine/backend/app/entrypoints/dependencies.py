@@ -14,10 +14,13 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+from app.adapters.external.n8n_adapter import N8nAdapter
+from app.adapters.external.metabase_adapter import MetabaseAdapter
+from app.adapters.external.appsmith_adapter import AppsmithAdapter
+from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.infrastructure.database import get_db_readonly
@@ -26,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=True)
 _keycloak_adapter = KeycloakAdapter()
+_n8n_adapter = N8nAdapter()
+_metabase_adapter = MetabaseAdapter()
+_appsmith_adapter = AppsmithAdapter()
+_redis_event_bus = RedisEventBusPublisher()
 
 
 async def get_plugin_repo(
@@ -33,6 +40,26 @@ async def get_plugin_repo(
 ) -> AbstractPluginRepository:
     """Inject Plugin Repository."""
     return SQLAlchemyPluginRepository(session=db)
+
+
+async def get_n8n_adapter() -> N8nAdapter:
+    """Inject N8nAdapter as Singleton."""
+    return _n8n_adapter
+
+
+async def get_metabase_adapter() -> MetabaseAdapter:
+    """Inject MetabaseAdapter as Singleton."""
+    return _metabase_adapter
+
+
+async def get_appsmith_adapter() -> AppsmithAdapter:
+    """Inject AppsmithAdapter as Singleton."""
+    return _appsmith_adapter
+
+
+async def get_redis_event_bus() -> RedisEventBusPublisher:
+    """Inject RedisEventBusPublisher as Singleton."""
+    return _redis_event_bus
 
 
 async def get_plugin_list_use_case(
