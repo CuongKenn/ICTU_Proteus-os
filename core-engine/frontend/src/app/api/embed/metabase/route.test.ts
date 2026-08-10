@@ -31,7 +31,7 @@ describe("GET /api/embed/metabase", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     global.fetch = mockFetch;
-    process.env.NODE_ENV = "development"; // Ensure we can hit the mock fallback
+    vi.stubEnv("NODE_ENV", "development"); // Ensure we can hit the mock fallback
   });
 
   it("should return 401 if user is not authenticated", async () => {
@@ -111,7 +111,7 @@ describe("GET /api/embed/metabase", () => {
   });
 
   it("should return 500 if backend fetch fails (production mode)", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     const fakeToken = createFakeJwt({ tenant_id: "tenant-1" });
     vi.mocked(getServerSession).mockResolvedValue({
       accessToken: fakeToken,
@@ -129,6 +129,6 @@ describe("GET /api/embed/metabase", () => {
     expect(data.error).toContain("Backend Error");
     
     // Restore
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
   });
 });
