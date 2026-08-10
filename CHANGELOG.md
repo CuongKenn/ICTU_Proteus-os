@@ -14,6 +14,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Fixed
 - **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
+- **[deploy/keycloak/realm-import.json]** Khởi tạo Keycloak Realm Export file (`realm-import.json`) cho hệ thống `proteus` để import tự động khi khởi động (Zero-touch configuration).
+- **[deploy/docker-compose.yml]** Cấu hình tự động import Realm cho Keycloak (mount volume và flag `--import-realm`).
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Hoàn thiện implementation cho `SQLAlchemyPluginRepository`. Bổ sung method `update_status` để cập nhật trạng thái cài đặt plugin độc lập.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Xử lý giá trị `"id"` bằng `0` (integer 0 edge case) trong `import_workflow`.
 - **[.github/workflows/frontend-ci.yml]** Nâng cấp Node.js từ 20 → 22 (LTS) trong tất cả `setup-node` steps để loại bỏ deprecation warning trên GitHub Actions runners (Node 20 bị deprecated từ 2025-09-19, bị force run trên Node 24).
@@ -23,6 +26,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/frontend/src/app/marketplace]** Xây dựng trang Plugin Marketplace dành riêng cho `tenant_admin` (#32). Hỗ trợ xem, cài đặt, và gỡ cài đặt Plugin. Cung cấp Install Preview Modal hiển thị tài nguyên sẽ tạo (Bảng DB, Workflows, Roles) và Progress bar cập nhật theo thời gian thực (polling cơ chế provisioning n8n). Bổ sung Uninstall Confirm Modal bắt buộc gõ tên để xác nhận.
 - **[core-engine/frontend/src/app/launchpad]** Hoàn thiện giao diện Launchpad (Màn hình chính) với App Icon Grid, hỗ trợ Quick links (Mattermost, Outline, n8n), mở Iframe Overlay toàn màn hình dạng Glassmorphism cho Metabase & n8n, hiển thị Skeleton loading và Empty state khi chưa có plugin (#31).
 - **[core-engine/frontend/src/app/api/embed/metabase]** Thêm API Route (BFF) để proxy và giả lập (mock) việc lấy URL nhúng Metabase an toàn có chứa `tenant_id` từ session (#35).
 - **[core-engine/frontend/src/components]** Phát triển khung giao diện tổng (App Shell) tích hợp Dynamic UI Role-based. Navigation hiển thị linh hoạt theo quyền (ẩn/hiện Marketplace cho `tenant_admin`). Hỗ trợ Responsive Sidebar trên mobile (#30).
