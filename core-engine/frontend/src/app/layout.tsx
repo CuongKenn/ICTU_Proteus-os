@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" className="dark">
-      <body className={`${inter.className} bg-bg-primary text-text-primary antialiased`}>
+      <body className={`${inter.className} bg-bg-base text-text-primary antialiased`}>
         {children}
       </body>
     </html>
