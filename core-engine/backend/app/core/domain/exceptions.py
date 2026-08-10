@@ -24,6 +24,10 @@ class TenantNotFoundError(ProteusBaseException):
     """Tenant không tồn tại hoặc đã bị xóa."""
 
 
+class NotFoundError(ProteusBaseException):
+    """Resource không tồn tại."""
+
+
 class PluginNotFoundError(ProteusBaseException):
     """Plugin không tồn tại trong Marketplace."""
 
