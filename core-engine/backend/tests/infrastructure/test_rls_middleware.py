@@ -9,7 +9,6 @@ from sqlalchemy import text
 from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
 
 
-
 @pytest.mark.asyncio
 async def test_rls_middleware_sets_tenant_id():
     """

@@ -24,12 +24,14 @@ class AbstractPluginRepository(ABC):
     @abstractmethod
     async def list_marketplace(
         self, limit: int = 20, offset: int = 0
-    ) -> list[PluginEntity]:
+    ) -> tuple[list[PluginEntity], int]:
         """Liệt kê tất cả Plugin trên Marketplace (không lọc theo Tenant)."""
         ...
 
     @abstractmethod
-    async def list_installed(self, tenant_id: uuid.UUID) -> list[PluginEntity]:
+    async def list_installed(
+        self, tenant_id: uuid.UUID
+    ) -> tuple[list[PluginEntity], int]:
         """Liệt kê Plugin đã cài đặt của một Tenant."""
         ...
 
