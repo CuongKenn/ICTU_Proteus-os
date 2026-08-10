@@ -6,9 +6,21 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 
+### Added
+- **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
+- **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
+- **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+
 ### Fixed
+<<<<<<< HEAD
 - **[core-engine/backend]** Thêm PostgreSQL Row-Level Security (RLS) Middleware và `current_tenant_id` ContextVar. Bổ sung RLS Policies cho các bảng multi-tenant trong `init.sql`.
+=======
+- **[deploy/setup.sh]** Thêm script triển khai tự động (1-click deploy), kiểm tra prerequisites, tự động tạo secret, nhắc cấu hình hosts file, khởi chạy docker compose và kiểm tra healthchecks.
+>>>>>>> origin/main
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi SSRF Risk và thiếu Auth Header trong `trigger_webhook`.
+- **[deploy/keycloak/realm-import.json]** Khởi tạo Keycloak Realm Export file (`realm-import.json`) cho hệ thống `proteus` để import tự động khi khởi động (Zero-touch configuration).
+- **[deploy/docker-compose.yml]** Cấu hình tự động import Realm cho Keycloak (mount volume và flag `--import-realm`).
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Hoàn thiện implementation cho `SQLAlchemyPluginRepository`. Bổ sung method `update_status` để cập nhật trạng thái cài đặt plugin độc lập.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Bổ sung exponential backoff cho cơ chế retry và tái sử dụng `AsyncClient`.
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Xử lý giá trị `"id"` bằng `0` (integer 0 edge case) trong `import_workflow`.
 - **[.github/workflows/frontend-ci.yml]** Nâng cấp Node.js từ 20 → 22 (LTS) trong tất cả `setup-node` steps để loại bỏ deprecation warning trên GitHub Actions runners (Node 20 bị deprecated từ 2025-09-19, bị force run trên Node 24).
@@ -18,6 +30,17 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/frontend/src/components/AIChatWidget.tsx]** Triển khai AI Chat Widget (floating) với 4 trạng thái (collapsed, expanded, thinking, awaiting_approval). Hỗ trợ hiển thị DSL preview và chuyển tiếp phê duyệt qua Mattermost (#33).
+- **[core-engine/frontend/src/hooks/useAICommand.ts]** Hook quản lý state cho AI Chat Widget và xử lý BFF API request.
+- **[core-engine/frontend/src/app/api/ai/command]** Thêm BFF API Route xử lý logic cho AI Command (forward request đến FastAPI kèm JWT từ HttpOnly cookie).
+- **[core-engine/frontend/src/app/marketplace]** Xây dựng trang Plugin Marketplace dành riêng cho `tenant_admin` (#32). Hỗ trợ xem, cài đặt, và gỡ cài đặt Plugin. Cung cấp Install Preview Modal hiển thị tài nguyên sẽ tạo (Bảng DB, Workflows, Roles) và Progress bar cập nhật theo thời gian thực (polling cơ chế provisioning n8n). Bổ sung Uninstall Confirm Modal bắt buộc gõ tên để xác nhận.
+- **[core-engine/frontend/src/app/launchpad]** Hoàn thiện giao diện Launchpad (Màn hình chính) với App Icon Grid, hỗ trợ Quick links (Mattermost, Outline, n8n), mở Iframe Overlay toàn màn hình dạng Glassmorphism cho Metabase & n8n, hiển thị Skeleton loading và Empty state khi chưa có plugin (#31).
+- **[core-engine/frontend/src/app/api/embed/metabase]** Thêm API Route (BFF) để proxy và giả lập (mock) việc lấy URL nhúng Metabase an toàn có chứa `tenant_id` từ session (#35).
+- **[core-engine/frontend/src/components]** Phát triển khung giao diện tổng (App Shell) tích hợp Dynamic UI Role-based. Navigation hiển thị linh hoạt theo quyền (ẩn/hiện Marketplace cho `tenant_admin`). Hỗ trợ Responsive Sidebar trên mobile (#30).
+- **[core-engine/frontend/src/app/login]** Xây dựng trang Đăng nhập (`/login`) với phong cách Premium Glassmorphism, tích hợp Keycloak SSO qua `next-auth`, xử lý lỗi hết hạn phiên và phục hồi dữ liệu từ `sessionStorage` (#29).
+- **[core-engine/frontend]** Implement Theme Store (`themeStore.ts` với `zustand/persist`) và Notification Store (`notificationStore.ts`) tích hợp với `usePlugins` (#28).
+- **[core-engine/frontend/src/components/ui]** Tạo UI Component Library (Button, PluginCard, AppIcon, Toast, Modal, Skeleton, ProgressBar) chuẩn Design System §5.4 và §5.6 (#27).
+- **[core-engine/frontend]** Implement Design System từ docs/ui_ux_design.md §5.1-5.3 (CSS Variables, Typography, Spacing, Glassmorphism) (#26).
 - **[.github/workflows/pr-check.yml]** Validate PR title (Conventional Commits format), body (không rỗng), và issue link (`closes #N`/`fixes #N`) — tự động comment hướng dẫn lên PR khi fail.
 - **[.github/workflows/plugin-manifest-lint.yml]** YAML syntax check (yamllint) + Python schema validator cho `manifest.yaml` trong `plugins/` — kiểm tra required fields, semver, table prefix, ui_apps paths theo `plugin-manifest-spec.md v1.1.0`.
 - **[.github/workflows/dependency-review.yml]** GitHub native CVE scan trên PR thay đổi dependency files (`requirements.txt`, `package.json`). Fail nếu có CVE severity HIGH/CRITICAL.

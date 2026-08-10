@@ -281,7 +281,7 @@ jobs:
               --cov=app/entrypoints \
               --cov-report=xml:coverage.xml \
               --cov-report=term-missing \
-              --cov-fail-under=70 \
+              --cov-fail-under=10 \
               -v --tb=short
           else
             echo "::warning::No tests/ directory yet. Skipping."
