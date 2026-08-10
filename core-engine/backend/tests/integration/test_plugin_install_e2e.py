@@ -116,4 +116,3 @@ async def test_plugin_install_fail_dirty(async_db_engine, db_session):
                 assert res_get.json()["status"] == "FAILED_DIRTY"
 
     app.dependency_overrides.clear()
-

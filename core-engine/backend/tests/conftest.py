@@ -11,9 +11,6 @@ from testcontainers.postgres import PostgresContainer
 from app.infrastructure.database import Base
 
 
-import pytest
-
-
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for each test case."""
