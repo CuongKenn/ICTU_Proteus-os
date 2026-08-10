@@ -5,8 +5,8 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
-
 ### Added
+- **[docs/api-swagger.yaml]** Hoàn thiện OpenAPI 3.1 Spec cho toàn bộ endpoints (BRD NFR4: API First). Bổ sung định nghĩa `422 ValidationError` và `500 InternalServerError` cho các endpoint.
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
