@@ -69,11 +69,19 @@ class Base(DeclarativeBase):
 
 
 # ─── Dependency ───────────────────────────────────────────────
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_readonly() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI Depends()-compatible async generator.
-    Tự động commit khi thành công, rollback khi có exception.
-    Dùng trực tiếp AsyncSessionLocal — không wrap thêm context manager.
+    Chỉ dùng cho các API đọc (Read-only). KHÔNG tự động commit.
+    """
+    async with AsyncSessionLocal() as session:
+        yield session
+
+
+async def get_db_transactional() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI Depends()-compatible async generator.
+    Dùng cho các API ghi (Transactional). Tự động commit khi thành công, rollback khi có exception.
     """
     async with AsyncSessionLocal() as session:
         try:
