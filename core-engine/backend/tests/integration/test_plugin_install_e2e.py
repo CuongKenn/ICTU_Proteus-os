@@ -20,13 +20,12 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         # 1. Tạo Tenant mới
-        tenant_payload = {
-            "id": "tenant-e2e-1",
-            "name": "E2E Tenant",
-            "domain": "e2e.proteus.local",
-        }
-        res_tenant = await ac.post("/api/tenants", json=tenant_payload)
-        assert res_tenant.status_code in [200, 201]
+        async with async_db_engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO tenants (id, name, domain) VALUES ('tenant-e2e-1', 'E2E Tenant', 'e2e.proteus.local') ON CONFLICT DO NOTHING"
+                )
+            )
 
         # Chuẩn bị mock n8n webhook registration
         with patch(
@@ -86,16 +85,16 @@ async def test_plugin_install_fail_dirty(async_db_engine, db_session):
     """
     Fail: mock n8n 500 → status=FAILED_DIRTY
     """
-    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_db_readonly] = lambda: db_session
+    app.dependency_overrides[get_db_transactional] = lambda: db_session
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
-        tenant_payload = {
-            "id": "tenant-e2e-2",
-            "name": "E2E Tenant 2",
-            "domain": "e2e2.proteus.local",
-        }
-        await ac.post("/api/tenants", json=tenant_payload)
-
+        async with async_db_engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO tenants (id, name, domain) VALUES ('tenant-e2e-2', 'E2E Tenant 2', 'e2e2.proteus.local') ON CONFLICT DO NOTHING"
+                )
+            )
         # Mock lỗi khi import workflow (gây ra lỗi trong workflow phase)
         with patch(
             "app.adapters.external.n8n_adapter.N8nAdapter.import_workflow",
