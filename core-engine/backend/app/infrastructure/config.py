@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     N8N_URL: str = "http://localhost:5678"
     N8N_API_KEY: str = ""
 
+    # ─── Metabase (BI & Reports) ──────────────────────────────
+    METABASE_URL: str = "http://localhost:3001"
+    METABASE_EMBEDDING_KEY: str = ""
+
+    # ─── Appsmith (Low-code UI) ───────────────────────────────
+    APPSMITH_URL: str = "http://localhost:8085"
+    APPSMITH_API_KEY: str = ""
+
     # ─── Qdrant (Vector DB) ───────────────────────────────────
     QDRANT_URL: str = "http://localhost:6333"
 
