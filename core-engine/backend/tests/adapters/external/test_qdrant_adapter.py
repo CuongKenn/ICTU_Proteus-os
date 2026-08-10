@@ -51,10 +51,10 @@ async def test_upsert_vectors(mock_qdrant_client):
 
 
 @pytest.mark.asyncio
-async def test_hybrid_search(mock_qdrant_client):
+async def test_search(mock_qdrant_client):
     adapter = QdrantAdapter()
 
-    results = await adapter.hybrid_search("tenant-1", "test query", top_k=3)
+    results = await adapter.search("tenant-1", "test query", limit=3)
 
     assert len(results) == 1
     assert results[0]["document"] == "Document content"

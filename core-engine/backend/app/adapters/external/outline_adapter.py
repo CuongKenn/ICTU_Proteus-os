@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from app.core.domain.ports import AbstractDocumentSourcePort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ class OutlineAdapterError(Exception):
     pass
 
 
-class OutlineAdapter:
+class OutlineAdapter(AbstractDocumentSourcePort):
     """
     Adapter để tương tác với Outline API.
     Sử dụng để lấy danh sách tài liệu cho RAG Ingestion Pipeline.
@@ -48,8 +49,13 @@ class OutlineAdapter:
                     url, headers=self.headers, json=payload, timeout=10.0
                 )
                 response.raise_for_status()
-                data = response.json()
-                return data.get("data", [])
+                data = response.json().get("data", [])
+                for doc in data:
+                    url_id = doc.get("urlId", "")
+                    doc["source_url"] = (
+                        f"{self.base_url}/doc/{url_id}" if url_id else ""
+                    )
+                return data
             except httpx.HTTPError as e:
                 logger.error(f"Outline API error: {e}")
                 raise OutlineAdapterError(f"Failed to fetch documents: {str(e)}")
