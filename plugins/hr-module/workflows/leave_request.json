@@ -1,0 +1,52 @@
+{
+  "name": "HR Leave Request Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [ 250, 300 ]
+    },
+    {
+      "parameters": {},
+      "name": "Validate Balance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [ 450, 300 ]
+    },
+    {
+      "parameters": {},
+      "name": "Notify Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [ 650, 300 ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Balance": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
