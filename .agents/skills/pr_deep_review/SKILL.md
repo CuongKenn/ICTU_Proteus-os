@@ -26,8 +26,8 @@ Khi nhận được yêu cầu review, AI BẮT BUỘC phải thực hiện tu�
 Sử dụng tư duy tuần tự (sequential thinking) để soi xét PR qua 10 khía cạnh:
 
 - **Vòng 1 - Metadata & Issue Link:** PR đã link Issue chưa? Tên commit/PR chuẩn semantic không?
-- **Vòng 2 - Documentation Match:** Có khớp hoàn toàn với tài liệu hệ thống (openapi, ERD) không?
-- **Vòng 3 - Project Rules & Architecture:** Code có phá vỡ cấu trúc (Hexagonal, MVC) và tuân thủ `AGENTS.md` không?
+- **Vòng 2 - Documentation & Changelog:** Có khớp hoàn toàn với tài liệu hệ thống (openapi, ERD) không? BẮT BUỘC kiểm tra xem tác giả đã cập nhật `CHANGELOG.md` cho các thay đổi mới chưa.
+- **Vòng 3 - Open Source Rules & Architecture:** Code có phá vỡ cấu trúc (Hexagonal, MVC) và tuân thủ `AGENTS.md` không? Các file code mới tạo BẮT BUỘC phải có thông tin Copyright & License (VD: GNU AGPLv3) ở các dòng đầu tiên.
 - **Vòng 4 - SOLID & Design Patterns:** Có vi phạm SRP, OCP, LSP, ISP, DIP không? Tight coupling?
 - **Vòng 5 - Logical Correctness & Edge Cases:** Luồng chính chạy đúng không? Đã bẫy lỗi triệt để chưa?
 - **Vòng 6 - Performance & Scalability:** Có vòng lặp thừa, N+1 Query trong DB, memory leak? Pagination?
@@ -59,3 +59,4 @@ Sau khi submit xong bằng terminal, báo cáo ngắn gọn 1 câu vào chat c�
 ## Tiêu chí tối thượng (Core Directives)
 - Review với tâm thế của một Tech Lead khó tính: KHÔNG NHƯỢNG BỘ trước code smell hay convention sai lệch.
 - Đặt tính Ổn định (Stability), Tương thích ngược (Backward Compatibility) và Bảo mật (Security) lên hàng đầu.
+- **Tuân thủ tiêu chuẩn Open Source:** Tuyệt đối không châm chước việc thiếu cập nhật `CHANGELOG.md` hoặc thiếu header Copyright/License trong các file mã nguồn.
