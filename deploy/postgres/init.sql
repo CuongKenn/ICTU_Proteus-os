@@ -24,6 +24,7 @@ CREATE SCHEMA IF NOT EXISTS keycloak;
 CREATE SCHEMA IF NOT EXISTS n8n;
 CREATE SCHEMA IF NOT EXISTS metabase;
 CREATE SCHEMA IF NOT EXISTS outline;
+CREATE SCHEMA IF NOT EXISTS mattermost;
 
 -- ─────────────────────────────────────────────────────────────
 -- BẢNG: TENANTS

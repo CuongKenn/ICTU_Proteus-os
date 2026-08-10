@@ -1,0 +1,120 @@
+{
+  "name": "HR Dashboard",
+  "description": "Thống kê nghỉ phép và nhân sự",
+  "parameters": [
+    {
+      "id": "tenant_id",
+      "name": "Tenant ID",
+      "slug": "tenant_id",
+      "type": "string/=",
+      "default": null,
+      "locked": true
+    }
+  ],
+  "dashcards": [
+    {
+      "id": 1,
+      "card": {
+        "name": "Tổng nhân viên active",
+        "dataset_query": {
+          "type": "native",
+          "native": {
+            "query": "SELECT count(*) FROM hr_employees WHERE status = 'ACTIVE' AND tenant_id = {{tenant_id}};",
+            "template-tags": {
+              "tenant_id": {
+                "id": "tenant_id",
+                "name": "tenant_id",
+                "display-name": "Tenant Id",
+                "type": "text",
+                "required": true
+              }
+            }
+          }
+        },
+        "display": "scalar"
+      },
+      "row": 0,
+      "col": 0,
+      "size_x": 4,
+      "size_y": 4
+    },
+    {
+      "id": 2,
+      "card": {
+        "name": "Đơn xin nghỉ chờ duyệt",
+        "dataset_query": {
+          "type": "native",
+          "native": {
+            "query": "SELECT count(*) FROM hr_leave_requests WHERE status = 'PENDING_APPROVAL' AND tenant_id = {{tenant_id}};",
+            "template-tags": {
+              "tenant_id": {
+                "id": "tenant_id",
+                "name": "tenant_id",
+                "display-name": "Tenant Id",
+                "type": "text",
+                "required": true
+              }
+            }
+          }
+        },
+        "display": "scalar"
+      },
+      "row": 0,
+      "col": 4,
+      "size_x": 4,
+      "size_y": 4
+    },
+    {
+      "id": 3,
+      "card": {
+        "name": "Tổng số ngày nghỉ theo tháng",
+        "dataset_query": {
+          "type": "native",
+          "native": {
+            "query": "SELECT date_trunc('month', start_date) as month, sum(duration_days) FROM hr_leave_requests WHERE status = 'APPROVED' AND tenant_id = {{tenant_id}} GROUP BY month ORDER BY month;",
+            "template-tags": {
+              "tenant_id": {
+                "id": "tenant_id",
+                "name": "tenant_id",
+                "display-name": "Tenant Id",
+                "type": "text",
+                "required": true
+              }
+            }
+          }
+        },
+        "display": "line"
+      },
+      "row": 4,
+      "col": 0,
+      "size_x": 8,
+      "size_y": 6
+    },
+    {
+      "id": 4,
+      "card": {
+        "name": "Top nhân viên nghỉ nhiều nhất",
+        "dataset_query": {
+          "type": "native",
+          "native": {
+            "query": "SELECT e.first_name || ' ' || e.last_name as employee, sum(r.duration_days) as total_days FROM hr_leave_requests r JOIN hr_employees e ON r.employee_id = e.id WHERE r.status = 'APPROVED' AND r.tenant_id = {{tenant_id}} GROUP BY employee ORDER BY total_days DESC LIMIT 5;",
+            "template-tags": {
+              "tenant_id": {
+                "id": "tenant_id",
+                "name": "tenant_id",
+                "display-name": "Tenant Id",
+                "type": "text",
+                "required": true
+              }
+            }
+          }
+        },
+        "display": "bar"
+      },
+      "row": 4,
+      "col": 8,
+      "size_x": 8,
+      "size_y": 6
+    }
+  ]
+}
