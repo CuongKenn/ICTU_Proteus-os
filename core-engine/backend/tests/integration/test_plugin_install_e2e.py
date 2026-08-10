@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.infrastructure.database import get_db_readonly, get_db_transactional
-from app.main import app
+from main import app
 
 
 @pytest.mark.asyncio
