@@ -54,3 +54,34 @@ export interface AICommandResponse {
   message: string;
   result?: Record<string, unknown>;
 }
+
+export interface PluginInfo {
+  id: string;
+  code_name: string;
+  display_name: string;
+  description: string;
+  version: string;
+  author: string;
+  icon_url?: string;
+  is_official: boolean;
+  download_count: number;
+}
+
+export type InstallTaskOverallStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "ROLLING_BACK";
+
+export type InstallTaskStepStatus = "PENDING" | "RUNNING" | "DONE" | "FAILED";
+
+export interface InstallTaskStep {
+  step_name: string;
+  status: InstallTaskStepStatus;
+  message?: string | null;
+}
+
+export interface InstallTaskStatus {
+  task_id: string;
+  plugin_code_name: string;
+  overall_status: InstallTaskOverallStatus;
+  steps: InstallTaskStep[];
+  started_at: string;
+  completed_at?: string | null;
+}
