@@ -15,10 +15,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
-from app.adapters.external.n8n_adapter import N8nAdapter
-from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
+from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.metabase_adapter import MetabaseAdapter
+from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository

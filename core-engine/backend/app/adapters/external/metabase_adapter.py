@@ -277,7 +277,7 @@ class MetabaseAdapter:
         token = f"{token_payload}.{signature}"
 
         embed_url = (
-            f"{self._base_url}/embed/dashboard/{token}" "#bordered=true&titled=true"
+            f"{self._base_url}/embed/dashboard/{token}#bordered=true&titled=true"
         )
 
         logger.debug(

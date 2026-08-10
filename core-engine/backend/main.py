@@ -12,10 +12,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.entrypoints.routers import ai, health, plugins
 from app.infrastructure.config import settings
-from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
-from app.entrypoints.routers import health, plugins, ai
+from app.infrastructure.logging_config import setup_logging
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.entrypoints.dependencies import close_adapters
+
     logger.info(
         "Proteus OS Backend starting",
         extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
@@ -59,6 +60,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 
+
 # ─── Tenant Context Middleware ────────────────────────────────
 class TenantIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -70,6 +72,7 @@ class TenantIDMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             current_tenant_id.reset(token)
+
 
 app.add_middleware(TenantIDMiddleware)
 

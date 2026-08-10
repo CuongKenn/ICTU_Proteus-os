@@ -4,6 +4,8 @@
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes (unused imports, undefined names)
@@ -15,6 +17,11 @@ select = [
 ]
 ignore = [
     "N805",  # First argument of method should be named 'self' (conflicts with Pydantic validators)
+    "E501",  # Line too long
+    "B008",  # Depends() call in FastAPI
+    "E402",  # Module level import not at top of file
+    "B904",
+    "N818",
 ]
 
 [tool.isort]
