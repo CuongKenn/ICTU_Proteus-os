@@ -35,10 +35,10 @@ async def list_marketplace_plugins(
     use_case: PluginListUseCase = Depends(get_plugin_list_use_case),
 ) -> PluginListResponse:
     """Lấy danh sách Plugin trên Marketplace (chưa cài hoặc đã cài)."""
-    plugins = await use_case.list_marketplace(limit=limit, offset=offset)
+    plugins, total = await use_case.list_marketplace(limit=limit, offset=offset)
     return PluginListResponse(
         items=[PluginResponse.model_validate(p.model_dump()) for p in plugins],
-        total=len(plugins),
+        total=total,
     )
 
 
@@ -50,10 +50,10 @@ async def list_installed_plugins(
     use_case: PluginListUseCase = Depends(get_plugin_list_use_case),
 ) -> PluginListResponse:
     """Lấy danh sách Plugin đang ACTIVE của Tenant hiện tại."""
-    plugins = await use_case.list_installed(tenant_id=ctx.tenant_id)
+    plugins, total = await use_case.list_installed(tenant_id=ctx.tenant_id)
     return PluginListResponse(
         items=[PluginResponse.model_validate(p.model_dump()) for p in plugins],
-        total=len(plugins),
+        total=total,
     )
 
 

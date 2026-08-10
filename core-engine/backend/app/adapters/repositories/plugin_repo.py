@@ -39,7 +39,12 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
 
     async def list_marketplace(
         self, limit: int = 20, offset: int = 0
-    ) -> list[PluginEntity]:
+    ) -> tuple[list[PluginEntity], int]:
+        count_result = await self._session.execute(
+            text("SELECT COUNT(*) FROM plugins WHERE deleted_at IS NULL")
+        )
+        total = count_result.scalar() or 0
+
         result = await self._session.execute(
             text(
                 "SELECT * FROM plugins WHERE deleted_at IS NULL "
@@ -48,9 +53,23 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             ),
             {"limit": limit, "offset": offset},
         )
-        return [self._to_entity(dict(row)) for row in result.mappings()]
+        plugins = [self._to_entity(dict(row)) for row in result.mappings()]
+        return plugins, total
 
-    async def list_installed(self, tenant_id: uuid.UUID) -> list[PluginEntity]:
+    async def list_installed(
+        self, tenant_id: uuid.UUID
+    ) -> tuple[list[PluginEntity], int]:
+        count_result = await self._session.execute(
+            text(
+                "SELECT COUNT(*) FROM tenant_plugins tp "
+                "JOIN plugins p ON p.id = tp.plugin_id "
+                "WHERE tp.tenant_id = :tenant_id AND tp.status = 'ACTIVE' "
+                "AND p.deleted_at IS NULL"
+            ),
+            {"tenant_id": tenant_id},
+        )
+        total = count_result.scalar() or 0
+
         result = await self._session.execute(
             text(
                 "SELECT p.*, tp.status "
@@ -61,7 +80,8 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             ),
             {"tenant_id": tenant_id},
         )
-        return [self._to_entity(dict(row)) for row in result.mappings()]
+        plugins = [self._to_entity(dict(row)) for row in result.mappings()]
+        return plugins, total
 
     async def get_installation_status(
         self, tenant_id: uuid.UUID, plugin_id: uuid.UUID

@@ -1,10 +1,12 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import pytest
 import contextvars
+
+import pytest
 from sqlalchemy import text
-from app.infrastructure.database import current_tenant_id, AsyncSessionLocal
+
+from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
 
 
 @pytest.mark.asyncio
