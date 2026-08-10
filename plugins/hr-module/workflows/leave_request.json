@@ -1,0 +1,153 @@
+{
+  "name": "HR - Leave Request Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hr/leave-request",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "hr-leave-request-webhook-uuid"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM hr_leave_balances WHERE employee_id = $1 AND year = extract(year from current_date);",
+        "additionalFields": {
+          "queryParams": "={{$json.body.employee_id}}"
+        }
+      },
+      "name": "Check Leave Balance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.remaining_days}}",
+              "operation": "largerEqual",
+              "value2": "={{$('Webhook').item.json.body.duration_days}}"
+            }
+          ]
+        }
+      },
+      "name": "Has Enough Balance?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$('Webhook').item.json.body.manager_channel_id}}",
+        "message": "=Nhân viên {{$('Webhook').item.json.body.employee_name}} xin nghỉ {{$('Webhook').item.json.body.duration_days}} ngày.\nVui lòng phê duyệt."
+      },
+      "name": "Notify Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [
+        850,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$('Webhook').item.json.body.employee_channel_id}}",
+        "message": "Không đủ ngày phép còn lại để xin nghỉ."
+      },
+      "name": "Notify Insufficient Balance",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [
+        850,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hr_leave_requests SET status = 'PENDING_APPROVAL' WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook').item.json.body.request_id}}"
+        }
+      },
+      "name": "Update Status Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        1050,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Leave Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Leave Balance": {
+      "main": [
+        [
+          {
+            "node": "Has Enough Balance?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Enough Balance?": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Insufficient Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Manager": {
+      "main": [
+        [
+          {
+            "node": "Update Status Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
