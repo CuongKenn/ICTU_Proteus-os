@@ -7,7 +7,7 @@ import React from "react";
 import clsx from "clsx";
 import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
-import { CheckCircle2, ArrowUpCircle, XCircle } from "lucide-react";
+import { CheckCircle2, ArrowUpCircle, XCircle, Trash2 } from "lucide-react";
 
 export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
 
@@ -31,6 +31,7 @@ export interface PluginCardProps {
   onOpen?: (id: string) => void;
   onRetry?: (id: string) => void;
   onEnable?: (id: string) => void;
+  onUninstall?: (id: string) => void;
 }
 
 export const PluginCard: React.FC<PluginCardProps> = ({
@@ -42,6 +43,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   onOpen,
   onRetry,
   onEnable,
+  onUninstall,
 }) => {
   const isDisabled = status === "disabled";
   
@@ -83,8 +85,8 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
       {/* Action Area */}
       <div className="mt-auto pt-4 flex items-center justify-between min-h-[3rem]">
-        {status === "available" && (
-          <Button onClick={() => onInstall?.(plugin.id)}>INSTALL</Button>
+        {status === "available" && onInstall && (
+          <Button onClick={() => onInstall(plugin.id)}>INSTALL</Button>
         )}
         
         {status === "installing" && (
@@ -95,9 +97,16 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         {status === "active" && (
           <div className="flex items-center justify-between w-full">
-            <Button variant="ghost" onClick={() => onOpen?.(plugin.id)} className="text-success border-success/30 hover:border-success">
-              OPEN
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => onOpen?.(plugin.id)} className="text-success border-success/30 hover:border-success">
+                OPEN
+              </Button>
+              {onUninstall && (
+                <Button variant="ghost" onClick={() => onUninstall(plugin.id)} className="text-danger border-danger/30 hover:border-danger p-2" title="Gỡ cài đặt">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <span className="flex items-center text-xs text-success bg-success/10 px-2 py-1 rounded-full border border-success/20">
               <CheckCircle2 className="w-3 h-3 mr-1" /> Đã cài
             </span>
@@ -112,7 +121,14 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         {status === "failed" && (
           <div className="flex items-center justify-between w-full">
-            <Button variant="danger" onClick={() => onRetry?.(plugin.id)}>RETRY</Button>
+            <div className="flex items-center gap-2">
+              <Button variant="danger" onClick={() => onRetry?.(plugin.id)}>RETRY</Button>
+              {onUninstall && (
+                <Button variant="ghost" onClick={() => onUninstall(plugin.id)} className="text-danger border-danger/30 hover:border-danger p-2" title="Gỡ cài đặt">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <span className="flex items-center text-xs text-danger bg-danger/10 px-2 py-1 rounded-full border border-danger/20">
               <XCircle className="w-3 h-3 mr-1" /> FAILED
             </span>
@@ -120,7 +136,14 @@ export const PluginCard: React.FC<PluginCardProps> = ({
         )}
 
         {status === "disabled" && (
-          <Button variant="secondary" onClick={() => onEnable?.(plugin.id)}>ENABLE</Button>
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" onClick={() => onEnable?.(plugin.id)}>ENABLE</Button>
+            {onUninstall && (
+              <Button variant="ghost" onClick={() => onUninstall(plugin.id)} className="text-danger border-danger/30 hover:border-danger p-2" title="Gỡ cài đặt">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>
