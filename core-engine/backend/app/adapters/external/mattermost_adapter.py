@@ -1,13 +1,16 @@
 import logging
+from typing import Any, Dict
+
 import httpx
-from typing import Dict, Any
 
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class MattermostAdapterError(Exception):
     pass
+
 
 class MattermostAdapter:
     def __init__(self):
@@ -17,7 +20,9 @@ class MattermostAdapter:
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
-        self.client = httpx.AsyncClient(base_url=self.base_url, headers=self.headers, timeout=10.0)
+        self.client = httpx.AsyncClient(
+            base_url=self.base_url, headers=self.headers, timeout=10.0
+        )
 
     async def close(self):
         await self.client.aclose()
@@ -25,14 +30,13 @@ class MattermostAdapter:
     async def send_message(self, channel_id: str, text: str) -> Dict[str, Any]:
         """Gửi tin nhắn thông thường tới Mattermost."""
         if not self.token:
-            logger.warning("MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_message.")
+            logger.warning(
+                "MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_message."
+            )
             return {}
 
-        payload = {
-            "channel_id": channel_id,
-            "message": text
-        }
-        
+        payload = {"channel_id": channel_id, "message": text}
+
         try:
             response = await self.client.post("/api/v4/posts", json=payload)
             response.raise_for_status()
@@ -44,24 +48,28 @@ class MattermostAdapter:
             logger.error(f"Lỗi kết nối Mattermost: {e}")
             raise MattermostAdapterError(str(e))
 
-    async def send_interactive_message(self, channel_id: str, text: str, action_id: str, extra_context: dict = None) -> Dict[str, Any]:
+    async def send_interactive_message(
+        self, channel_id: str, text: str, action_id: str, extra_context: dict = None
+    ) -> Dict[str, Any]:
         """
         Gửi tin nhắn có chứa nút Interactive (Phê duyệt / Từ chối).
         - action_id: ID của lệnh (ví dụ: AI Command ID)
         """
         if not self.token:
-            logger.warning("MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_interactive_message.")
+            logger.warning(
+                "MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_interactive_message."
+            )
             return {}
 
         context = extra_context or {}
         context["action_id"] = action_id
 
         # Webhook callback URL mà Mattermost sẽ gọi về
-        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình qua biến môi trường ở thực tế, 
+        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình qua biến môi trường ở thực tế,
         # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
         # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
         # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định Mattermost có thể phân giải được URL backend.
-        backend_url = "http://proteus-backend:8000" # URL nội bộ trong docker network
+        backend_url = "http://proteus-backend:8000"  # URL nội bộ trong docker network
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
 
         payload = {
@@ -78,11 +86,8 @@ class MattermostAdapter:
                                 "name": "Phê duyệt",
                                 "integration": {
                                     "url": webhook_url,
-                                    "context": {
-                                        **context,
-                                        "action": "approve"
-                                    }
-                                }
+                                    "context": {**context, "action": "approve"},
+                                },
                             },
                             {
                                 "id": "rejectButton",
@@ -90,18 +95,15 @@ class MattermostAdapter:
                                 "style": "danger",
                                 "integration": {
                                     "url": webhook_url,
-                                    "context": {
-                                        **context,
-                                        "action": "reject"
-                                    }
-                                }
-                            }
-                        ]
+                                    "context": {**context, "action": "reject"},
+                                },
+                            },
+                        ],
                     }
                 ]
-            }
+            },
         }
-        
+
         try:
             response = await self.client.post("/api/v4/posts", json=payload)
             response.raise_for_status()
