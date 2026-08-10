@@ -91,14 +91,10 @@ class KeycloakAdapter:
             timeout=10.0,
         )
         if response.status_code == 409:
-            logger.warning(
-                "Role already exists in Keycloak", extra={"role": role_name}
-            )
+            logger.warning("Role already exists in Keycloak", extra={"role": role_name})
             return
         response.raise_for_status()
-        logger.info(
-            "Keycloak role created", extra={"role": role_name, "realm": realm}
-        )
+        logger.info("Keycloak role created", extra={"role": role_name, "realm": realm})
 
     async def delete_role(
         self,
@@ -117,6 +113,4 @@ class KeycloakAdapter:
             logger.warning("Role not found in Keycloak", extra={"role": role_name})
             return
         response.raise_for_status()
-        logger.info(
-            "Keycloak role deleted", extra={"role": role_name, "realm": realm}
-        )
+        logger.info("Keycloak role deleted", extra={"role": role_name, "realm": realm})
