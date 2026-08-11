@@ -11,8 +11,12 @@ from fastapi import APIRouter, Depends, status
 from app.adapters.external.outline_adapter import OutlineAdapter
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.core.domain.entities import AICommandStatus, TenantContext
+from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
-from app.entrypoints.dependencies import get_current_tenant_context
+from app.entrypoints.dependencies import (
+    get_ai_command_use_case,
+    get_current_tenant_context,
+)
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
 
 logger = logging.getLogger(__name__)
@@ -28,6 +32,7 @@ router = APIRouter(prefix="/ai")
 async def submit_ai_command(
     body: AICommandRequest,
     ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: AICommandUseCase = Depends(get_ai_command_use_case),
 ) -> AICommandResponse:
     """
     Nhận DX-DSL command từ AI Layer, validate và xử lý.
@@ -37,8 +42,6 @@ async def submit_ai_command(
       trả về PENDING_APPROVAL (Human-in-the-loop).
 
     Tham chiếu: docs/dsl-spec.md §4 (Effect Levels & Approval Rules)
-
-    TODO: Member sẽ implement DSLValidatorUseCase và AICommandUseCase ở đây.
     """
     logger.info(
         "AI command received",
@@ -50,14 +53,13 @@ async def submit_ai_command(
         },
     )
 
-    # TODO: Implement DSL validation và routing logic
-    # 1. Gọi DSLValidatorUseCase.validate(body, ctx)
-    # 2. Nếu effect=read → execute ngay và trả về result
-    # 3. Nếu effect=write/critical → gửi Mattermost approval request
+    status_code, message, result = await use_case.execute(body, ctx)
+
     return AICommandResponse(
-        command_id=body.command_id,  # Dùng UUID từ request, không hardcode
-        status=AICommandStatus.PENDING_APPROVAL,
-        message="Command đã được nhận. Đang chờ phê duyệt từ quản trị viên.",
+        command_id=body.command_id,
+        status=status_code,
+        message=message,
+        execution_result=result if status_code == AICommandStatus.COMPLETED else None,
     )
 
 

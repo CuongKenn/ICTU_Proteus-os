@@ -21,17 +21,20 @@ from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.base import (
     AbstractPluginRepository,
     AbstractTenantRepository,
     AbstractUserRepository,
 )
+from app.adapters.repositories.dsl_dry_run_repo import SQLAlchemyDSLDryRunRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.role_repo import RoleRepository
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import InsufficientPermissionsError
+from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -278,6 +281,37 @@ async def get_role_repo(
 ) -> RoleRepository:
     """Inject Role Repository."""
     return RoleRepository(session=db)
+
+
+async def get_ai_command_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> AbstractAICommandRepository:
+    """Inject AI Command Repository."""
+    return SQLAlchemyAICommandRepository(session=db)
+
+
+async def get_dsl_dry_run_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> AbstractDSLDryRunRepository:
+    """Inject DSL Dry Run Repository."""
+    return SQLAlchemyDSLDryRunRepository(session=db)
+
+
+async def get_ai_command_use_case(
+    plugin_repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    ai_command_repo: AbstractAICommandRepository = Depends(get_ai_command_repo),
+    dsl_dry_run_repo: AbstractDSLDryRunRepository = Depends(get_dsl_dry_run_repo),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+) -> AICommandUseCase:
+    """Inject AICommandUseCase."""
+    return AICommandUseCase(
+        plugin_repo=plugin_repo,
+        ai_command_repo=ai_command_repo,
+        dsl_dry_run_repo=dsl_dry_run_repo,
+        mattermost_adapter=mattermost_adapter,
+        n8n_adapter=n8n_adapter,
+    )
 
 
 def require_permission(permission: str):
