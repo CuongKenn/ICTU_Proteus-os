@@ -23,6 +23,7 @@ from app.entrypoints.routers import (
     keycloak_webhook,
     mattermost_webhook,
     plugins,
+    tenants,
 )
 from app.infrastructure.config import settings
 from app.infrastructure.database import current_tenant_id
@@ -129,5 +130,6 @@ app.include_router(health.router, tags=["System"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
+app.include_router(tenants.router, prefix="/api/v1", tags=["Tenants"])
 app.include_router(mattermost_webhook.router, prefix="/api/v1")
 app.include_router(keycloak_webhook.router, prefix="/api/v1")

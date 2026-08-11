@@ -98,6 +98,21 @@ class AbstractTenantRepository(ABC):
         """Lấy Tenant theo slug. Trả về None nếu không tìm thấy."""
         ...
 
+    @abstractmethod
+    async def create(self, tenant: TenantEntity) -> TenantEntity:
+        """Tạo Tenant mới."""
+        ...
+
+    @abstractmethod
+    async def update(self, tenant_id: uuid.UUID, data: dict) -> TenantEntity:
+        """Cập nhật Tenant."""
+        ...
+
+    @abstractmethod
+    async def soft_delete(self, tenant_id: uuid.UUID) -> None:
+        """Soft delete Tenant."""
+        ...
+
 
 class AbstractUserRepository(ABC):
     """Port: Giao tiếp với User data store."""
