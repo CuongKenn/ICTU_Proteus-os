@@ -57,7 +57,7 @@ dashboards:
   - id: "dash_meeting_stats"
     name: "Thống kê Cuộc họp"
     file: "dashboards/meeting_stats.json"
-    
+
   - id: "dash_action_item_tracker"
     name: "Theo dõi Action Items"
     file: "dashboards/action_item_tracker.json"
