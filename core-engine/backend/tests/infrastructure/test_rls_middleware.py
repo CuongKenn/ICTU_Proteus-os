@@ -15,7 +15,8 @@ async def test_rls_middleware_sets_tenant_id():
     Test kiểm tra xem RLS event listener có tự động SET LOCAL app.current_tenant_id hay không.
     """
     # 1. Set context_var
-    token = current_tenant_id.set("test-tenant-123")
+    valid_uuid = "12345678-1234-5678-1234-567812345678"
+    token = current_tenant_id.set(valid_uuid)
 
     try:
         async with AsyncSessionLocal() as session:
@@ -27,8 +28,8 @@ async def test_rls_middleware_sets_tenant_id():
             tenant_id = result.scalar()
 
             assert (
-                tenant_id == "test-tenant-123"
-            ), f"Expected 'test-tenant-123', got '{tenant_id}'"
+                tenant_id == valid_uuid
+            ), f"Expected '{valid_uuid}', got '{tenant_id}'"
     finally:
         current_tenant_id.reset(token)
 
