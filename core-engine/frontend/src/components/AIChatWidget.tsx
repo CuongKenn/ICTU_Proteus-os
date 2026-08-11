@@ -199,6 +199,7 @@ export const AIChatWidget: React.FC = () => {
     widgetState,
     messages,
     inputValue,
+    dslPreview,
     sessionId,
     setInputValue,
     openWidget,
@@ -377,7 +378,7 @@ export const AIChatWidget: React.FC = () => {
         id="ai-widget-fab"
         aria-label={isExpanded ? "Thu nhỏ Proteus AI" : "Mở Proteus AI"}
         aria-expanded={isExpanded}
-        onClick={isExpanded ? closeWidget : openWidget}
+        onClick={isExpanded ? resetAndClose : openWidget}
         className={clsx(
           "w-16 h-16 rounded-2xl flex items-center justify-center",
           "transition-all duration-300 ease-out",
