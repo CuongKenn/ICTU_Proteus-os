@@ -37,6 +37,19 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             return None
         return self._to_entity(dict(row))
 
+    async def get_by_code_name(self, code_name: str) -> PluginEntity | None:
+        logger.debug("Fetching plugin by code_name", extra={"code_name": code_name})
+        result = await self._session.execute(
+            text(
+                "SELECT * FROM plugins WHERE code_name = :code_name AND deleted_at IS NULL"
+            ),
+            {"code_name": code_name},
+        )
+        row = result.mappings().first()
+        if not row:
+            return None
+        return self._to_entity(dict(row))
+
     async def list_marketplace(
         self, limit: int = 20, offset: int = 0
     ) -> tuple[list[PluginEntity], int]:

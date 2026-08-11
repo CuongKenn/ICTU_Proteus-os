@@ -36,8 +36,11 @@ class Settings(BaseSettings):
     KEYCLOAK_WEBHOOK_SECRET: str = ""
 
     # ─── n8n (Workflow Engine) ────────────────────────────────
-    N8N_URL: str = "http://localhost:5678"
+    N8N_URL: str = "http://n8n:5678"
     N8N_API_KEY: str = ""
+
+    # Plugins Directory
+    PLUGINS_DIR: str = "/plugins"  # Container path
 
     # ─── Metabase (BI & Reports) ──────────────────────────────
     METABASE_URL: str = "http://localhost:3001"
