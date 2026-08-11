@@ -65,6 +65,13 @@ class AbstractPluginRepository(ABC):
         """Chỉ cập nhật trạng thái và error_log cho bản ghi đã tồn tại."""
         ...
 
+    @abstractmethod
+    async def get_tenant_plugin_status_by_code(
+        self, tenant_id: str | uuid.UUID, plugin_code: str
+    ) -> PluginStatus | None:
+        """Lấy trạng thái cài đặt của plugin theo plugin_code."""
+        ...
+
 
 class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""

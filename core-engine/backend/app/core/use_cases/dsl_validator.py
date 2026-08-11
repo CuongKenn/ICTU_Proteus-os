@@ -9,6 +9,9 @@ from typing import Any, Dict
 
 import jsonschema
 
+from app.adapters.repositories.base import AbstractPluginRepository
+from app.core.domain.entities import PluginStatus
+
 
 class DSLValidationError(Exception):
     pass
@@ -35,11 +38,11 @@ class DSLVersionCompatError(DSLValidationError):
 
 
 class DSLValidator:
-    def __init__(self, db_session, tenant_id: str, user_id: str):
+    def __init__(self, plugin_repo: AbstractPluginRepository, tenant_id: str, user_id: str):
         """
-        Khởi tạo Validator với session database để kiểm tra DB constraint.
+        Khởi tạo Validator với Plugin Repository để kiểm tra DB constraint.
         """
-        self.db = db_session
+        self.plugin_repo = plugin_repo
         self.tenant_id = tenant_id
         self.user_id = user_id
 
@@ -79,18 +82,10 @@ class DSLValidator:
 
         # Rule 3: Plugin installed + ACTIVE
         if plugin_code != "core":
-            from sqlalchemy import text
-
-            sql = text("""
-                SELECT status FROM tenant_plugins tp
-                JOIN plugins p ON p.id = tp.plugin_id
-                WHERE tp.tenant_id = :tenant AND p.code_name = :plugin
-            """)
-            res = await self.db.execute(
-                sql, {"tenant": self.tenant_id, "plugin": plugin_code}
+            status = await self.plugin_repo.get_tenant_plugin_status_by_code(
+                tenant_id=self.tenant_id, plugin_code=plugin_code
             )
-            row = res.fetchone()
-            if not row or row.status != "ACTIVE":
+            if not status or status.value != "ACTIVE":
                 raise DSLPluginNotActiveError(
                     f"Plugin {plugin_code} is not installed or not ACTIVE."
                 )
