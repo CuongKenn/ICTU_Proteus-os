@@ -5,22 +5,28 @@
 # Tham chiếu: docs/api-swagger.yaml /plugins/*
 
 import logging
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
+from app.core.use_cases.plugin_install import PluginInstallError, PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.plugin_uninstall import (
+    PluginUninstallError,
+    PluginUninstallUseCase,
+)
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
+    get_plugin_install_use_case,
     get_plugin_list_use_case,
-    get_plugin_repo,
+    get_plugin_uninstall_use_case,
 )
 from app.entrypoints.schemas.plugin import (
-    PluginInstallRequest,
     PluginListResponse,
     PluginResponse,
+    PluginUninstallRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,8 +64,8 @@ async def list_installed_plugins(
 
 
 @router.post(
-    "/install",
-    status_code=status.HTTP_202_ACCEPTED,
+    "/{plugin_code_name}/install",
+    response_model=PluginResponse,
     summary="Cài đặt Plugin",
 )
 async def install_plugin(
