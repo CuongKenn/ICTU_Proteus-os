@@ -32,7 +32,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+- **[core-engine/frontend]** Bổ sung các trang placeholder cho các route còn thiếu (`/chat`, `/files`, `/wiki`, `/settings`) để khắc phục lỗi 404 khi truy cập từ thanh điều hướng (Issue #179).
 - **[core-engine/backend]** Xóa tham số `request: Request = None` không sử dụng trong `dependencies.py` để tuân thủ chuẩn typing (Issue #184).
+
 - **[core-engine/frontend]** Sửa lỗi gọi sai API endpoint trong `useMarketplace` (`/plugins` thay vì `/plugins/marketplace`) và cập nhật type schema response để danh sách Plugin load đúng từ backend (Issue #180).
 
 - **[core-engine/frontend]** Cập nhật `AIChatWidget` phân tách chức năng của nút Thu nhỏ (chỉ ẩn panel) và nút Đóng (reset toàn bộ tin nhắn), sửa lỗi UI gọi chung 1 hàm `closeWidget` (Issue #175).
