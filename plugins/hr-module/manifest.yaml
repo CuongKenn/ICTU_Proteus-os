@@ -9,7 +9,7 @@
 # ════════════════════════════════════════════════
 name: "hr-module"
 display_name: "HR Core"
-version: "1.0.0"
+version: "1.1.0"
 description: |
   Quản lý nhân sự toàn diện: hồ sơ nhân viên, chấm công, quản lý nghỉ phép.
 author: "ICTU Team"
@@ -31,9 +31,13 @@ compatibility:
 database:
   # Plugin Manager tự động thêm tenant_id + áp RLS cho các bảng này
   tables:
+    - "hr_departments"
     - "hr_employees"
+    - "hr_leave_balances"
     - "hr_leave_requests"
     - "hr_attendance_logs"
+    - "hr_payroll_records"
+    - "hr_onboarding_tasks"
 
   # Chạy một lần khi cài đặt lần đầu
   seed_file: "db/seed_data.sql"

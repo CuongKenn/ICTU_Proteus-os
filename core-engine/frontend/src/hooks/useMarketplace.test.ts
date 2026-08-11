@@ -42,7 +42,7 @@ describe("useMarketplace", () => {
   });
 
   it("fetches and returns marketplace plugin list", async () => {
-    (api.get as any) = vi.fn().mockResolvedValue({ data: { data: mockPlugins } });
+    (api.get as any) = vi.fn().mockResolvedValue({ data: { items: mockPlugins, total: 1 } });
 
     const { result } = renderHook(() => useMarketplace());
 
@@ -74,7 +74,7 @@ describe("useMarketplace", () => {
   });
 
   it("starts with correct install state machine values", () => {
-    (api.get as any) = vi.fn().mockResolvedValue({ data: { data: [] } });
+    (api.get as any) = vi.fn().mockResolvedValue({ data: { items: [], total: 0 } });
 
     const { result } = renderHook(() => useMarketplace());
 
