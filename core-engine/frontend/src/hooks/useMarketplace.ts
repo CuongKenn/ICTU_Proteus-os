@@ -55,9 +55,9 @@ export function useMarketplace(): UseMarketplaceReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await api.get<{ data: PluginInfo[] }>("/plugins/marketplace");
+        const response = await api.get<{ items: PluginInfo[]; total: number }>("/plugins");
         if (!cancelled) {
-          setPlugins(response.data.data || []);
+          setPlugins(response.data.items || []);
         }
       } catch (err: unknown) {
         if (process.env.NODE_ENV === "development") {
