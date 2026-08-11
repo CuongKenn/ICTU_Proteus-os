@@ -8,17 +8,25 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.adapters.external.mattermost_adapter import MattermostAdapter
+from app.adapters.repositories.base import (
+    AbstractAICommandRepository,
+    AbstractAuditLogRepository,
+)
+from app.core.domain.entities import AICommandStatus
 
 logger = logging.getLogger(__name__)
 
 
 class AITimeoutWorker:
-    def __init__(self, db: AsyncSession, mattermost_adapter: MattermostAdapter):
-        self.db = db
+    def __init__(
+        self,
+        ai_command_repo: AbstractAICommandRepository,
+        audit_log_repo: AbstractAuditLogRepository,
+        mattermost_adapter: MattermostAdapter,
+    ):
+        self.ai_command_repo = ai_command_repo
+        self.audit_log_repo = audit_log_repo
         self.mattermost_adapter = mattermost_adapter
 
     async def execute(self):
@@ -31,50 +39,33 @@ class AITimeoutWorker:
 
         try:
             # 1. Tìm các lệnh đã quá hạn
-            sql_find = text("""
-                SELECT id, action, tenant_id, requested_by
-                FROM ai_commands
-                WHERE status = 'PENDING_APPROVAL'
-                  AND approval_deadline < :now
-            """)
-            result = await self.db.execute(sql_find, {"now": now})
-            expired_commands = result.fetchall()
+            expired_commands = await self.ai_command_repo.get_expired_pending_commands()
 
             if not expired_commands:
                 logger.debug("[AI Timeout Worker] Không có lệnh nào quá hạn.")
                 return
 
             for cmd in expired_commands:
-                cmd_id = cmd.id
-                action = cmd.action
-                tenant_id = cmd.tenant_id
-                requested_by = cmd.requested_by
+                cmd_id = cmd["id"]
+                action = cmd["action"]
+                tenant_id = cmd["tenant_id"]
+                requested_by = cmd["requested_by"]
 
                 # 2. Cập nhật trạng thái thành TIMEOUT
-                sql_update = text("""
-                    UPDATE ai_commands
-                    SET status = 'TIMEOUT', updated_at = :now
-                    WHERE id = :cmd_id
-                """)
-                await self.db.execute(sql_update, {"now": now, "cmd_id": cmd_id})
+                await self.ai_command_repo.update_status(
+                    cmd_id, AICommandStatus.TIMEOUT
+                )
 
                 # 3. Ghi audit_logs
-                sql_audit = text("""
-                    INSERT INTO audit_logs (
-                        tenant_id, actor_type, action, resource_type, resource_id, command_id, metadata, created_at
-                    ) VALUES (
-                        :tenant_id, 'SYSTEM', 'ai_command.timeout', 'AI_COMMAND', :cmd_id, :cmd_id, :metadata, :now
-                    )
-                """)
                 metadata = '{"reason": "Approval deadline exceeded"}'
-                await self.db.execute(
-                    sql_audit,
-                    {
-                        "tenant_id": tenant_id,
-                        "cmd_id": cmd_id,
-                        "metadata": metadata,
-                        "now": now,
-                    },
+                await self.audit_log_repo.insert_log(
+                    tenant_id=tenant_id,
+                    actor_type="SYSTEM",
+                    action="ai_command.timeout",
+                    resource_type="AI_COMMAND",
+                    resource_id=cmd_id,
+                    command_id=cmd_id,
+                    metadata_json=metadata,
                 )
 
                 # 4. Gửi thông báo Mattermost
@@ -91,11 +82,11 @@ class AITimeoutWorker:
                     f"[AI Timeout Worker] Đã hủy lệnh {cmd_id} (action: {action})"
                 )
 
-            await self.db.commit()
+            await self.ai_command_repo.commit()
             logger.info(
                 f"[AI Timeout Worker] Đã xử lý {len(expired_commands)} lệnh quá hạn."
             )
 
         except Exception as e:
-            await self.db.rollback()
+            await self.ai_command_repo.rollback()
             logger.error(f"[AI Timeout Worker] Lỗi khi xử lý lệnh quá hạn: {e}")

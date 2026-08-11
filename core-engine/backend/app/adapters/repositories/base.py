@@ -10,7 +10,12 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 
-from app.core.domain.entities import PluginEntity, PluginStatus, TenantEntity
+from app.core.domain.entities import (
+    AICommandStatus,
+    PluginEntity,
+    PluginStatus,
+    TenantEntity,
+)
 
 
 class AbstractPluginRepository(ABC):
@@ -98,6 +103,44 @@ class AbstractAICommandRepository(ABC):
     @abstractmethod
     async def get_pending_commands_expiring_soon(self, minutes: int) -> list[dict]:
         """Lấy các command sắp hết hạn."""
+        ...
+
+    @abstractmethod
+    async def get_expired_pending_commands(self) -> list[dict]:
+        """Lấy các lệnh PENDING_APPROVAL đã quá hạn."""
+        ...
+
+    @abstractmethod
+    async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
+        """Cập nhật trạng thái của lệnh."""
+        ...
+
+    @abstractmethod
+    async def commit(self) -> None:
+        """Commit transaction."""
+        ...
+
+    @abstractmethod
+    async def rollback(self) -> None:
+        """Rollback transaction."""
+        ...
+
+
+class AbstractAuditLogRepository(ABC):
+    """Port: Giao tiếp với bảng audit_logs."""
+
+    @abstractmethod
+    async def insert_log(
+        self,
+        tenant_id: uuid.UUID,
+        actor_type: str,
+        action: str,
+        resource_type: str,
+        resource_id: uuid.UUID,
+        command_id: uuid.UUID,
+        metadata_json: str,
+    ) -> None:
+        """Thêm một audit log."""
         ...
 
 
