@@ -1,15 +1,17 @@
+import uuid
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock
+
 from app.adapters.external.n8n_adapter import N8nAdapterError
-from main import app
 from app.core.domain.entities import TenantContext
-import uuid
 from app.entrypoints.dependencies import (
-    require_permission,
     get_current_tenant_context,
     get_role_repo,
+    require_permission,
 )
+from main import app
 
 
 async def mock_get_current_tenant_context():

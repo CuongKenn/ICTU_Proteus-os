@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
+from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_install import PluginInstallUseCase
@@ -31,13 +32,12 @@ from app.entrypoints.dependencies import (
     require_permission,
 )
 from app.entrypoints.schemas.plugin import (
+    PluginCredentialPayload,
     PluginListResponse,
     PluginResponse,
     PluginSynthesizeRequest,
     PluginUninstallRequest,
-    PluginCredentialPayload,
 )
-from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins")
