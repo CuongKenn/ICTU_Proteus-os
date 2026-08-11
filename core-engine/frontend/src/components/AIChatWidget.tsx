@@ -308,6 +308,10 @@ export const AIChatWidget: React.FC = () => {
         {/* Messages Area */}
         <div
           id="ai-chat-messages"
+          role="log"
+          aria-live="polite"
+          aria-atomic="false"
+          aria-label="Lịch sử hội thoại với Proteus AI"
           className="flex-1 overflow-y-auto px-3 pt-3"
           style={{ height: "calc(480px - 52px - 64px)" }}
         >
@@ -316,7 +320,11 @@ export const AIChatWidget: React.FC = () => {
           ))}
 
           {/* Thinking state */}
-          {widgetState === "thinking" && <ThinkingIndicator />}
+          {widgetState === "thinking" && (
+            <div aria-hidden="true">
+              <ThinkingIndicator />
+            </div>
+          )}
 
           {/* DSL Preview Panel */}
           {widgetState === "awaiting_approval" && dslPreview && (
