@@ -16,8 +16,10 @@ from app.core.use_cases.dsl_validator import (
 
 class MockPluginRepo:
     async def get_tenant_plugin_status_by_code(self, tenant_id, plugin_code):
-        if plugin_code == "finance":
+        if plugin_code == "finance" and tenant_id == "t1":
             return None  # Not installed
+        elif plugin_code == "finance" and tenant_id == "t_finance":
+            return PluginStatus.ACTIVE
         elif plugin_code == "hr":
             return PluginStatus.ACTIVE
         return None
@@ -81,3 +83,43 @@ async def test_validate_invalid_parameters(validator):
     }
     with pytest.raises(DSLInvalidParametersError):
         await validator.validate(payload)
+
+
+@pytest.mark.asyncio
+async def test_validate_z3_tenant_mismatch(validator):
+    payload = {
+        "version": "1.0",
+        "action": "hr.leave_requests.batch_approve",
+        "tenant_id": "malicious_tenant",
+        "parameters": {"request_ids": ["req1"]},
+    }
+    with pytest.raises(DSLInvalidParametersError) as exc:
+        await validator.validate(payload)
+    assert "Formal Verification Failed" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_validate_z3_finance_negative_amount(mock_plugin_repo):
+    validator_finance = DSLValidator(plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1")
+    payload = {
+        "version": "1.0",
+        "action": "finance.invoices.create",
+        "tenant_id": "t_finance",
+        "parameters": {"amount": -50.0, "tax_rate": 0.1},
+    }
+    with pytest.raises(DSLInvalidParametersError) as exc:
+        await validator_finance.validate(payload)
+    assert "Formal Verification Failed" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_validate_z3_finance_valid(mock_plugin_repo):
+    validator_finance = DSLValidator(plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1")
+    payload = {
+        "version": "1.0",
+        "action": "finance.invoices.create",
+        "tenant_id": "t_finance",
+        "parameters": {"amount": 100.5, "tax_rate": 0.1},
+    }
+    result = await validator_finance.validate(payload)
+    assert result is True

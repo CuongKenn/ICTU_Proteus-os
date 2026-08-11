@@ -33,4 +33,5 @@ ruff==0.5.7
 qdrant-client[fastembed]==1.10.1
 testcontainers[postgres]==4.7.2
 
-
+# Formal Verification
+z3-solver==4.13.0.0
