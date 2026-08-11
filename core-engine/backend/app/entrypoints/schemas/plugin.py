@@ -34,3 +34,9 @@ class PluginUninstallRequest(BaseModel):
         ...,
         description="Xác nhận tên Plugin (code_name) để tránh xóa nhầm",
     )
+
+class PluginSynthesizeRequest(BaseModel):
+    prompt: str = Field(
+        ...,
+        description="Yêu cầu bằng ngôn ngữ tự nhiên để AI tự động sinh Plugin",
+    )

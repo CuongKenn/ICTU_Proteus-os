@@ -131,6 +131,12 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     logger.info("Đã khởi động APScheduler, Plugin Cleanup Agent và AI Timeout Worker.")
 
+    # Load Python extensions for plugins
+    from app.core.dynamic_loader import DynamicPluginLoader
+    loader = DynamicPluginLoader(app)
+    app.state.plugin_loader = loader
+    loader.load_all_plugins()
+
     yield
 
     # Đóng kết nối
