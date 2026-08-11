@@ -174,8 +174,19 @@ class PluginInstallUseCase:
             if seed_path.exists():
                 with open(seed_path, "r", encoding="utf-8") as f:
                     sql = f.read()
+
+                # Validation: Cấm các lệnh SQL nguy hiểm để chống SQL Injection và phá hoại dữ liệu
+                import re
+
+                forbidden_pattern = re.compile(
+                    r"\b(DROP|DELETE|UPDATE|TRUNCATE)\b", re.IGNORECASE
+                )
+                if forbidden_pattern.search(sql):
+                    raise PluginInstallError(
+                        "Seed file chứa các lệnh SQL không được phép (DROP, DELETE, UPDATE, TRUNCATE)"
+                    )
+
                 # Execute raw SQL
-                # WARNING: In real production, we must inject RLS policies here or sanitize.
                 await self.session.execute(text(sql))
                 # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
         # Chúng ta tạm thiết kế DB adapter bằng session execute.

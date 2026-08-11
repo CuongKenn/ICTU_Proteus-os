@@ -218,3 +218,30 @@ async def test_execute_rollback_on_failure(
         status=PluginStatus.FAILED_DIRTY,
         error_log="DB Error",
     )
+
+
+@pytest.mark.asyncio
+async def test_execute_fails_with_malicious_sql(
+    plugin_install_use_case,
+    mock_plugin_repo,
+    mock_manifest_parser,
+    mock_session,
+    tenant_context,
+    sample_plugin,
+    sample_manifest,
+):
+    mock_plugin_repo.get_by_code_name.return_value = sample_plugin
+    mock_plugin_repo.get_installation_status.return_value = None
+    mock_manifest_parser.parse.return_value = sample_manifest
+
+    # Provide malicious SQL with DROP TABLE
+    m_open = mock_open(read_data="DROP TABLE users;")
+    with patch("builtins.open", m_open):
+        with patch("pathlib.Path.exists", return_value=True):
+            with pytest.raises(
+                PluginInstallError, match="Seed file chứa các lệnh SQL không được phép"
+            ):
+                await plugin_install_use_case.execute(tenant_context, "hr-module")
+
+    # Assert execute was never called
+    mock_session.execute.assert_not_called()
