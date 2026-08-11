@@ -8,10 +8,8 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.adapters.external.mattermost_adapter import MattermostAdapter
+from app.adapters.repositories.base import AbstractAICommandRepository
 from app.adapters.external.n8n_adapter import N8nAdapter
 
 logger = logging.getLogger(__name__)
@@ -20,11 +18,11 @@ logger = logging.getLogger(__name__)
 class AICommandUseCase:
     def __init__(
         self,
-        db: AsyncSession,
+        ai_command_repo: AbstractAICommandRepository,
         mattermost_adapter: MattermostAdapter,
         n8n_adapter: N8nAdapter,
     ):
-        self.db = db
+        self.ai_command_repo = ai_command_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
 
@@ -51,28 +49,21 @@ class AICommandUseCase:
             # ... mock execution
             result_data = {"status": "success", "data": "Dữ liệu trả về từ hệ thống"}
 
-            sql_insert = text("""
-                INSERT INTO ai_commands (
-                    tenant_id, issued_by_user_id, session_id, dsl_payload, action, effect, status, execution_result, executed_at, created_at
-                ) VALUES (
-                    :tenant_id, :user_id, :session_id, :payload, :action, :effect, 'COMPLETED', :result, :now, :now
-                ) RETURNING id
-            """)
-            res = await self.db.execute(
-                sql_insert,
+            cmd_id = await self.ai_command_repo.create_command(
                 {
                     "tenant_id": tenant_id,
-                    "user_id": user_id,
+                    "issued_by_user_id": user_id,
                     "session_id": session_id,
-                    "payload": str(dsl_payload).replace("'", '"'),
+                    "dsl_payload": str(dsl_payload).replace("'", '"'),
                     "action": action,
                     "effect": effect,
-                    "result": str(result_data).replace("'", '"'),
-                    "now": now,
-                },
+                    "status": "COMPLETED",
+                    "execution_result": str(result_data).replace("'", '"'),
+                    "executed_at": now,
+                    "created_at": now,
+                }
             )
-            cmd_id = res.scalar()
-            await self.db.commit()
+            await self.ai_command_repo.commit()
 
             return {
                 "status": "completed",
@@ -89,28 +80,20 @@ class AICommandUseCase:
             # Dry run (mock)
             dry_run_result = {"affected_count": 5, "preview": ["item 1", "item 2"]}
 
-            sql_insert = text("""
-                INSERT INTO ai_commands (
-                    tenant_id, issued_by_user_id, session_id, dsl_payload, action, effect, status, dry_run_result, approval_deadline, created_at
-                ) VALUES (
-                    :tenant_id, :user_id, :session_id, :payload, :action, :effect, 'PENDING_APPROVAL', :dry_run, :deadline, :now
-                ) RETURNING id
-            """)
-            res = await self.db.execute(
-                sql_insert,
+            cmd_id = await self.ai_command_repo.create_command(
                 {
                     "tenant_id": tenant_id,
-                    "user_id": user_id,
+                    "issued_by_user_id": user_id,
                     "session_id": session_id,
-                    "payload": str(dsl_payload).replace("'", '"'),
+                    "dsl_payload": str(dsl_payload).replace("'", '"'),
                     "action": action,
                     "effect": effect,
-                    "dry_run": str(dry_run_result).replace("'", '"'),
-                    "deadline": deadline,
-                    "now": now,
-                },
+                    "status": "PENDING_APPROVAL",
+                    "dry_run_result": str(dry_run_result).replace("'", '"'),
+                    "approval_deadline": deadline,
+                    "created_at": now,
+                }
             )
-            cmd_id = res.scalar()
 
             # Gửi tin nhắn Mattermost Interactive (mock interactive)
             approver_req = (
@@ -128,7 +111,7 @@ class AICommandUseCase:
                 channel="approval-requests", text=msg
             )
 
-            await self.db.commit()
+            await self.ai_command_repo.commit()
 
             return {
                 "status": "pending_approval",
@@ -151,45 +134,32 @@ class AICommandUseCase:
         """
         now = datetime.now(timezone.utc)
 
-        sql_find = text("""
-            SELECT id, effect, status, approved_by, second_approver
-            FROM ai_commands
-            WHERE id = :cmd_id
-        """)
-        res = await self.db.execute(sql_find, {"cmd_id": cmd_id})
-        cmd = res.fetchone()
+        cmd = await self.ai_command_repo.get_command_by_id(cmd_id)
 
-        if not cmd or cmd.status != "PENDING_APPROVAL":
+        if not cmd or cmd["status"] != "PENDING_APPROVAL":
             return False
 
         if action_taken == "reject":
-            sql_reject = text(
-                "UPDATE ai_commands SET status = 'REJECTED', updated_at = :now WHERE id = :cmd_id"
+            await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id, status="REJECTED"
             )
-            await self.db.execute(sql_reject, {"now": now, "cmd_id": cmd_id})
-            await self.db.commit()
+            await self.ai_command_repo.commit()
             return True
 
         # process approve
-        if cmd.effect == "critical":
-            if not cmd.approved_by:
-                sql_update = text(
-                    "UPDATE ai_commands SET approved_by = :approver, updated_at = :now WHERE id = :cmd_id"
+        if cmd["effect"] == "critical":
+            if not cmd["approved_by"]:
+                await self.ai_command_repo.update_command_approval(
+                    cmd_id=cmd_id, approved_by=approver_id
                 )
-                await self.db.execute(
-                    sql_update, {"approver": approver_id, "now": now, "cmd_id": cmd_id}
-                )
-                await self.db.commit()
+                await self.ai_command_repo.commit()
                 return True
-            elif cmd.approved_by != approver_id:
+            elif cmd["approved_by"] != approver_id:
                 # Có đủ 2 approvers
-                sql_update = text(
-                    "UPDATE ai_commands SET second_approver = :approver, status = 'APPROVED', updated_at = :now WHERE id = :cmd_id"
+                await self.ai_command_repo.update_command_approval(
+                    cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
                 )
-                await self.db.execute(
-                    sql_update, {"approver": approver_id, "now": now, "cmd_id": cmd_id}
-                )
-                await self.db.commit()
+                await self.ai_command_repo.commit()
                 # trigger execute queue here...
                 return True
             else:
@@ -197,12 +167,9 @@ class AICommandUseCase:
                 return False
         else:
             # write effect
-            sql_update = text(
-                "UPDATE ai_commands SET approved_by = :approver, status = 'APPROVED', updated_at = :now WHERE id = :cmd_id"
+            await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id, approved_by=approver_id, status="APPROVED"
             )
-            await self.db.execute(
-                sql_update, {"approver": approver_id, "now": now, "cmd_id": cmd_id}
-            )
-            await self.db.commit()
+            await self.ai_command_repo.commit()
             # trigger execute queue here...
             return True

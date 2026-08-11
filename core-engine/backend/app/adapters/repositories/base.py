@@ -116,6 +116,27 @@ class AbstractAICommandRepository(ABC):
         ...
 
     @abstractmethod
+    async def create_command(self, command_data: dict) -> uuid.UUID:
+        """Tạo một command mới và trả về ID."""
+        ...
+
+    @abstractmethod
+    async def get_command_by_id(self, cmd_id: uuid.UUID) -> dict | None:
+        """Lấy thông tin command."""
+        ...
+
+    @abstractmethod
+    async def update_command_approval(
+        self,
+        cmd_id: uuid.UUID,
+        status: str | None = None,
+        approved_by: str | None = None,
+        second_approver: str | None = None,
+    ) -> None:
+        """Cập nhật thông tin phê duyệt của lệnh."""
+        ...
+
+    @abstractmethod
     async def commit(self) -> None:
         """Commit transaction."""
         ...
