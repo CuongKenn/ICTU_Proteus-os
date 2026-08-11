@@ -1,0 +1,99 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — asset-module (Quản lý Tài sản Thiết bị)
+
+name: "asset-module"
+display_name: "Quản lý Tài sản Thiết bị"
+version: "1.0.0"
+description: |
+  Quản lý tài sản cố định, cấp phát, bảo trì, khấu hao và thanh lý tài sản cho tổ chức.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/asset-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "asset_categories"
+    - "asset_items"
+    - "asset_assignments"
+    - "asset_maintenance_logs"
+    - "asset_depreciation"
+    - "asset_disposal_requests"
+
+  seed_file: "db/seed_data.sql"
+
+workflows:
+  - id: "wf_asset_request"
+    name: "Đề xuất cấp phát"
+    trigger: "webhook"
+    file: "workflows/asset_request.json"
+
+  - id: "wf_maintenance_schedule"
+    name: "Lịch bảo trì định kỳ"
+    trigger: "cron"
+    cron_expression: "0 8 1 * *"
+    file: "workflows/maintenance_schedule.json"
+
+  - id: "wf_asset_inventory_check"
+    name: "Nhắc kiểm kê tài sản (Tháng 1, 7)"
+    trigger: "cron"
+    cron_expression: "0 8 1 1,7 *"
+    file: "workflows/asset_inventory_check.json"
+
+  - id: "wf_depreciation_calc"
+    name: "Tính khấu hao hàng tháng"
+    trigger: "cron"
+    cron_expression: "0 1 1 * *"
+    file: "workflows/depreciation_calc.json"
+
+dashboards:
+  - id: "dash_asset_overview"
+    name: "Tổng quan Tài sản"
+    file: "dashboards/asset_overview.json"
+    
+  - id: "dash_maintenance_schedule"
+    name: "Bảo trì & Chi phí"
+    file: "dashboards/maintenance_schedule.json"
+
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+
+roles:
+  - name: "asset_admin"
+    description: "Quản trị Tài sản"
+    permissions:
+      - "asset:items:read"
+      - "asset:items:write"
+      - "asset:items:delete"
+      - "asset:assignments:write"
+      - "asset:maintenance:write"
+      - "asset:disposal:approve"
+      - "asset:reports:read"
+
+  - name: "asset_user"
+    description: "Nhân viên sử dụng"
+    permissions:
+      - "asset:items:read"
+      - "asset:requests:write"
+
+  - name: "asset_viewer"
+    description: "Xem Tài sản"
+    permissions:
+      - "asset:items:read"
+      - "asset:assignments:read"
+
+events:
+  consumes:
+    - "hr.employee.deactivated"
+    - "finance.expense_request.approved"
+  produces:
+    - "asset.assignment.created"
+    - "asset.maintenance.due"
+    - "asset.disposal.approved"
