@@ -23,6 +23,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+- **[core-engine/backend]** Triển khai toàn bộ logic thực thi cho `PluginInstallUseCase` (Issue #167): 
+  - Tích hợp `n8n_adapter`, `metabase_adapter`, `appsmith_adapter`, `keycloak_adapter` vào bước cài đặt plugin thay vì để `pass` như trước.
+  - Sửa lỗi phantom install: thu thập `created_assets` ID trong quá trình chạy.
+  - Implement logic `_rollback` thực sự bằng cách gọi các hàm `delete_*` theo thứ tự ngược lại nếu có lỗi xảy ra.
 - **[core-engine/frontend]** Implement Custom Hooks (`usePlugins`, `useMarketplace`, `useSession`, `useDraftRestore`) (PR #159)
 - **[core-engine/backend]** `AITimeoutWorker` — Tự động hủy AI commands chưa duyệt quá hạn (PR #158)
 - **[core-engine/frontend]** Thêm Next.js API Routes làm BFF proxy (`/api/plugins`, `/api/plugins/install`, `/api/plugins/[id]/uninstall`) để ẩn token JWT khỏi trình duyệt và proxy request sang FastAPI backend an toàn.
