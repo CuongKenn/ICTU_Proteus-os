@@ -27,9 +27,11 @@ from app.adapters.repositories.base import (
     AbstractUserRepository,
 )
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+from app.adapters.repositories.role_repo import RoleRepository
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
+from app.core.domain.exceptions import InsufficientPermissionsError
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -246,3 +248,33 @@ async def get_keycloak_webhook_use_case(
         user_repo=user_repo,
         mattermost_adapter=mattermost_adapter,
     )
+
+
+async def get_role_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> RoleRepository:
+    """Inject Role Repository."""
+    return RoleRepository(session=db)
+
+
+def require_permission(permission: str):
+    """
+    Middleware kiểm tra quyền hạn (RBAC) dựa trên Permission String.
+    Bypass kiểm tra nếu user có role 'superadmin' hoặc 'tenant_admin'.
+    """
+
+    async def check_permission(
+        context: TenantContext = Depends(get_current_tenant_context),
+        role_repo: RoleRepository = Depends(get_role_repo),
+    ) -> TenantContext:
+        if any(r in context.roles for r in ["superadmin", "tenant_admin"]):
+            return context
+
+        user_permissions = await role_repo.get_user_permissions(context.user_id)
+        if permission not in user_permissions:
+            raise InsufficientPermissionsError(
+                f"Cần quyền '{permission}' để thực hiện hành động này."
+            )
+        return context
+
+    return check_permission

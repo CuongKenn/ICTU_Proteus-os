@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_install import PluginInstallError, PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -21,9 +22,11 @@ from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_plugin_install_use_case,
     get_plugin_list_use_case,
+    get_plugin_repo,
     get_plugin_uninstall_use_case,
 )
 from app.entrypoints.schemas.plugin import (
+    PluginInstallRequest,
     PluginListResponse,
     PluginResponse,
     PluginUninstallRequest,
@@ -64,8 +67,8 @@ async def list_installed_plugins(
 
 
 @router.post(
-    "/{plugin_code_name}/install",
-    response_model=PluginResponse,
+    "/install",
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Cài đặt Plugin",
 )
 async def install_plugin(
@@ -102,3 +105,33 @@ async def install_plugin(
         "plugin_id": str(body.plugin_id),
         "status": "INSTALLING",
     }
+
+
+@router.delete(
+    "/{plugin_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Gỡ cài đặt Plugin",
+)
+async def uninstall_plugin(
+    plugin_id: uuid.UUID,
+    body: PluginUninstallRequest,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: PluginUninstallUseCase = Depends(get_plugin_uninstall_use_case),
+) -> dict[str, str]:
+    """
+    Gỡ cài đặt Plugin. Xóa các Workflow, Dashboard, DB Table liên quan.
+    Yêu cầu xác nhận tên Plugin bằng `confirm_name`.
+    """
+    try:
+        await use_case.uninstall_plugin(
+            context=ctx,
+            plugin_id=plugin_id,
+            confirm_name=body.confirm_name,
+        )
+    except PluginUninstallError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return {"message": "Gỡ cài đặt Plugin thành công."}
