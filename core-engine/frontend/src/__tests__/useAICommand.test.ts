@@ -39,8 +39,9 @@ describe("useAICommand", () => {
     expect(result.current.widgetState).toBe("expanded");
 
     act(() => {
-      result.current.closeWidget();
+      result.current.resetAndClose();
     });
+
     expect(result.current.widgetState).toBe("collapsed");
   });
 
