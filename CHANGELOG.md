@@ -29,6 +29,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
   - Implement logic `_rollback` thực sự bằng cách gọi các hàm `delete_*` theo thứ tự ngược lại nếu có lỗi xảy ra.
 - **[core-engine/frontend]** Implement Custom Hooks (`usePlugins`, `useMarketplace`, `useSession`, `useDraftRestore`) (PR #159)
 - **[core-engine/backend]** `AITimeoutWorker` — Tự động hủy AI commands chưa duyệt quá hạn (PR #158)
+- **[core-engine/backend]** Fix lỗi app crash khi khởi động do thiếu import `AbstractAICommandRepository` trong `dependencies.py` (Issue #165)
 - **[core-engine/frontend]** Thêm Next.js API Routes làm BFF proxy (`/api/plugins`, `/api/plugins/install`, `/api/plugins/[id]/uninstall`) để ẩn token JWT khỏi trình duyệt và proxy request sang FastAPI backend an toàn.
 - **[core-engine/backend]** `AI Command Use Case` (Read, Write, Critical paths) (PR #156)
 - **[core-engine/frontend]** Cập nhật `usePlugins.ts` để gọi trực tiếp các BFF proxy routes mới thay vì sử dụng proxy generic.
