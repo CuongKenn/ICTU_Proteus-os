@@ -56,7 +56,7 @@ dashboards:
   - id: "dash_helpdesk_overview"
     name: "Tổng quan Helpdesk & SLA"
     file: "dashboards/helpdesk_overview.json"
-    
+
   - id: "dash_it_team_performance"
     name: "Hiệu suất IT Team"
     file: "dashboards/it_team_performance.json"
