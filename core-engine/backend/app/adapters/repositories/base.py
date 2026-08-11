@@ -3,7 +3,8 @@
 #
 # Core Domain — Abstract Repository Interfaces (Ports)
 # Đây là phần "Port" của Hexagonal Architecture.
-# Use Cases chỉ phụ thuộc vào các interface này, không phụ thuộc implementation.
+# Use Cases chỉ phụ thuộc vào các interface này,
+# không phụ thuộc implementation.
 
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from app.core.domain.entities import (
     PluginEntity,
     PluginStatus,
     TenantEntity,
+    UserEntity,
 )
 
 
@@ -71,7 +73,9 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
+    async def get_dirty_installations_older_than(
+        self, hours: int
+    ) -> list[dict]:
         """Lấy danh sách các plugin bị lỗi (FAILED_DIRTY) quá thời gian."""
         ...
 
@@ -97,11 +101,46 @@ class AbstractTenantRepository(ABC):
         ...
 
 
+class AbstractUserRepository(ABC):
+    """Port: Giao tiếp với User data store."""
+
+    @abstractmethod
+    async def get_by_keycloak_id(
+        self, keycloak_id: uuid.UUID
+    ) -> UserEntity | None:
+        """Lấy User theo keycloak_id."""
+        ...
+
+    @abstractmethod
+    async def upsert(self, user_data: dict) -> UserEntity:
+        """Thêm mới hoặc cập nhật thông tin User dựa vào keycloak_id."""
+        ...
+
+    @abstractmethod
+    async def deactivate(self, user_id: uuid.UUID) -> None:
+        """Soft delete user."""
+        ...
+
+    @abstractmethod
+    async def list_by_tenant(
+        self, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0
+    ) -> list[UserEntity]:
+        """Liệt kê danh sách users của một tenant cụ thể."""
+        ...
+
+    @abstractmethod
+    async def commit(self) -> None:
+        """Commit transaction."""
+        ...
+
+
 class AbstractAICommandRepository(ABC):
     """Port: Giao tiếp với bảng ai_commands."""
 
     @abstractmethod
-    async def get_pending_commands_expiring_soon(self, minutes: int) -> list[dict]:
+    async def get_pending_commands_expiring_soon(
+        self, minutes: int
+    ) -> list[dict]:
         """Lấy các command sắp hết hạn."""
         ...
 
@@ -111,7 +150,9 @@ class AbstractAICommandRepository(ABC):
         ...
 
     @abstractmethod
-    async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
+    async def update_status(
+        self, cmd_id: uuid.UUID, status: AICommandStatus
+    ) -> None:
         """Cập nhật trạng thái của lệnh."""
         ...
 
@@ -169,7 +210,9 @@ class AbstractHRLeaveRepository(ABC):
     """Port: Giao tiếp với bảng hr_leave_requests (của HR Plugin)."""
 
     @abstractmethod
-    async def get_pending_leaves_older_than(self, days: int) -> list[dict] | None:
+    async def get_pending_leaves_older_than(
+        self, days: int
+    ) -> list[dict] | None:
         """Lấy các đơn xin nghỉ phép chưa duyệt quá hạn."""
         ...
 

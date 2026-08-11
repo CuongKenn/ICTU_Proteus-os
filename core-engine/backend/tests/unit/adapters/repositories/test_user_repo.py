@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.repositories.user_repo import UserRepository
+from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.exceptions import NotFoundError
 from app.infrastructure.models import UserModel
 
@@ -16,7 +16,7 @@ def mock_session():
 
 @pytest.fixture
 def user_repo(mock_session):
-    return UserRepository(mock_session)
+    return SQLAlchemyUserRepository(mock_session)
 
 
 @pytest.mark.asyncio

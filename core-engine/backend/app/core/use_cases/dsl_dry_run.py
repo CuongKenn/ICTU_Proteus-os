@@ -46,16 +46,12 @@ class DSLDryRunEngine:
             # Fallback mock nếu không parse được
             return {
                 "affected_count": 5,
-                "preview": [
-                    {"mock": "data", "reason": "No target table mapped"}
-                ],
+                "preview": [{"mock": "data", "reason": "No target table mapped"}],
                 "message": "Cảnh báo: Không thể map target_table cho dry_run.",
             }
 
         try:
-            res = await self.dry_run_repo.execute_dry_run(
-                tenant_id, target_table
-            )
+            res = await self.dry_run_repo.execute_dry_run(tenant_id, target_table)
             affected_count = res.get("affected_count", 0)
             preview = res.get("preview", [])
 
@@ -64,8 +60,7 @@ class DSLDryRunEngine:
                     "affected_count": 0,
                     "preview": [],
                     "message": (
-                        "Không có bản ghi bị ảnh hưởng "
-                        "(hoặc bảng không tồn tại)."
+                        "Không có bản ghi bị ảnh hưởng " "(hoặc bảng không tồn tại)."
                     ),
                 }
 
@@ -84,9 +79,7 @@ class DSLDryRunEngine:
                 "message": "Có lỗi khi chạy preview.",
             }
 
-    def format_mattermost_message(
-        self, dry_run_result: dict, action: str
-    ) -> str:
+    def format_mattermost_message(self, dry_run_result: dict, action: str) -> str:
         """
         Đưa kết quả dry run vào Mattermost approval message.
         """
