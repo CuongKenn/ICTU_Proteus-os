@@ -1,0 +1,100 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — finance-module (Tài chính Kế toán)
+
+name: "finance-module"
+display_name: "Tài chính Kế toán"
+version: "1.0.0"
+description: |
+  Quản lý tài chính kế toán: theo dõi thu chi, lập ngân sách, xử lý hóa đơn, báo cáo tài chính.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/finance-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "finance_accounts"
+    - "finance_transactions"
+    - "finance_invoices"
+    - "finance_budgets"
+    - "finance_expense_requests"
+
+  seed_file: "db/seed_data.sql"
+
+workflows:
+  - id: "wf_expense_approval"
+    name: "Duyệt chi phí"
+    trigger: "webhook"
+    file: "workflows/expense_approval.json"
+
+  - id: "wf_invoice_processing"
+    name: "Xử lý hóa đơn"
+    trigger: "webhook"
+    file: "workflows/invoice_processing.json"
+
+  - id: "wf_monthly_report_gen"
+    name: "Sinh báo cáo tháng"
+    trigger: "cron"
+    cron_expression: "0 6 1 * *"
+    file: "workflows/monthly_report_gen.json"
+
+  - id: "wf_budget_alert"
+    name: "Cảnh báo ngân sách"
+    trigger: "cron"
+    cron_expression: "0 8 * * *"
+    file: "workflows/budget_alert.json"
+
+dashboards:
+  - id: "dash_finance_overview"
+    name: "Tổng quan tài chính"
+    file: "dashboards/finance_overview.json"
+    
+  - id: "dash_budget_vs_actual"
+    name: "Ngân sách vs Thực tế"
+    file: "dashboards/budget_vs_actual.json"
+
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+
+roles:
+  - name: "finance_accountant"
+    description: "Kế toán viên"
+    permissions:
+      - "finance:transactions:read"
+      - "finance:transactions:write"
+      - "finance:invoices:read"
+      - "finance:invoices:write"
+      - "finance:reports:read"
+
+  - name: "finance_manager"
+    description: "Kế toán trưởng / Quản lý tài chính"
+    permissions:
+      - "finance:transactions:read"
+      - "finance:transactions:write"
+      - "finance:invoices:read"
+      - "finance:invoices:write"
+      - "finance:reports:read"
+      - "finance:budgets:write"
+      - "finance:expense_requests:approve"
+
+  - name: "finance_viewer"
+    description: "Xem báo cáo (Ban Giám đốc)"
+    permissions:
+      - "finance:transactions:read"
+      - "finance:reports:read"
+
+events:
+  consumes:
+    - "hr.employee.created"
+    - "hr.employee.deactivated"
+  produces:
+    - "finance.expense_request.approved"
+    - "finance.payroll.processed"
+    - "finance.invoice.overdue"
