@@ -253,6 +253,7 @@ export const AIChatWidget: React.FC = () => {
           "bg-bg-glass backdrop-blur-[16px]",
           "shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(108,99,255,0.1)]",
           "transition-all duration-300 ease-out origin-bottom-right",
+          "flex flex-col",
           isExpanded
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 translate-y-4 pointer-events-none"
@@ -313,7 +314,6 @@ export const AIChatWidget: React.FC = () => {
           aria-atomic="false"
           aria-label="Lịch sử hội thoại với Proteus AI"
           className="flex-1 overflow-y-auto px-3 pt-3"
-          style={{ height: "calc(480px - 52px - 64px)" }}
         >
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />

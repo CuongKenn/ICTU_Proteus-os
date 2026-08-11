@@ -116,7 +116,6 @@ async def get_plugin_install_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
-    request: Request = None,
 ) -> PluginInstallUseCase:
     """Inject Plugin Install Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -141,7 +140,6 @@ async def get_plugin_uninstall_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
-    request: Request = None,
 ) -> PluginUninstallUseCase:
     """Inject Plugin Uninstall Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
