@@ -24,6 +24,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 - **[core-engine/frontend]** Thêm Next.js API Routes làm BFF proxy (`/api/plugins`, `/api/plugins/install`, `/api/plugins/[id]/uninstall`) để ẩn token JWT khỏi trình duyệt và proxy request sang FastAPI backend an toàn.
+- **[core-engine/backend]** `AI Command Use Case` (Read, Write, Critical paths) (PR #156)
 - **[core-engine/frontend]** Cập nhật `usePlugins.ts` để gọi trực tiếp các BFF proxy routes mới thay vì sử dụng proxy generic.
 - **[core-engine/backend]** `Plugin Toggle Use Case` & `Plugin Upgrade Use Case` (PR #149)
 - **[core-engine/backend]** Full API Endpoints cho Plugins (PR #150)
