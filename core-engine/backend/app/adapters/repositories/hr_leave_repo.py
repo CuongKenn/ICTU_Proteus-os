@@ -1,7 +1,7 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,7 @@ class SQLAlchemyHRLeaveRepository(AbstractHRLeaveRepository):
         if not has_hr:
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         day_ago = now - timedelta(days=days)
 
         sql_leaves = text("""

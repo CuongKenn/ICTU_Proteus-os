@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         self._session = session
 
     async def get_pending_commands_expiring_soon(self, minutes: int) -> list[dict]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         soon = now + timedelta(minutes=minutes)
 
         sql = text("""
@@ -33,7 +33,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         return [dict(row) for row in rows]
 
     async def get_expired_pending_commands(self) -> list[dict]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sql_find = text("""
             SELECT id, action, tenant_id, issued_by_user_id
             FROM ai_commands
@@ -45,7 +45,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         return [dict(row) for row in rows]
 
     async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sql_update = text("""
             UPDATE ai_commands
             SET status = :status, updated_at = :now
@@ -56,7 +56,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         )
 
     async def create_command(self, command_data: dict) -> uuid.UUID:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if "created_at" not in command_data:
             command_data["created_at"] = now
 
@@ -81,7 +81,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         approved_by: str | None = None,
         second_approver: str | None = None,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         updates = ["updated_at = :now"]
         params = {"now": now, "cmd_id": str(cmd_id)}
 

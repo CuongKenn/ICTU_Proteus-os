@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class AbstractDocumentSourcePort(ABC):
@@ -13,8 +13,8 @@ class AbstractDocumentSourcePort(ABC):
 
     @abstractmethod
     async def list_documents(
-        self, collection_id: Optional[str] = None, offset: int = 0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection_id: str | None = None, offset: int = 0, limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Lấy danh sách documents từ nguồn."""
         pass
 
@@ -27,7 +27,7 @@ class AbstractVectorDBPort(ABC):
 
     @abstractmethod
     async def upsert_vectors(
-        self, tenant_id: str, chunks: List[str], metadatas: List[Dict[str, Any]]
+        self, tenant_id: str, chunks: list[str], metadatas: list[dict[str, Any]]
     ) -> None:
         """Upsert vectors vào database."""
         pass
@@ -38,7 +38,7 @@ class AbstractVectorDBPort(ABC):
         tenant_id: str,
         query: str,
         limit: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """Tìm kiếm hybrid (vector + text)."""
         pass

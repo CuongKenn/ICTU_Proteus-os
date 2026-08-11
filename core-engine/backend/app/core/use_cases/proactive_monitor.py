@@ -10,7 +10,7 @@
 # - Luôn phải đính kèm link để người dùng (Human-in-the-loop) tự click xử lý.
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.base import (
@@ -43,7 +43,7 @@ class ProactiveMonitorAgent:
         - Quét Plugin trạng thái FAILED_DIRTY > 1h
         """
         logger.info("[Proactive Monitor] Bắt đầu scan_and_alert_every_30m")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # 1. Quét Plugin FAILED_DIRTY > 1h
         try:
@@ -88,7 +88,7 @@ class ProactiveMonitorAgent:
         - Alert đơn nghỉ phép chưa duyệt > 24h.
         """
         logger.info("[Proactive Monitor] Bắt đầu morning_report")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Quét đơn nghỉ phép chưa duyệt > 24h (Dành cho HR Plugin)
         try:
@@ -111,10 +111,10 @@ class ProactiveMonitorAgent:
         # Báo cáo hệ thống chung
         try:
             msg = (
-                f"🌞 **Chào buổi sáng! Báo cáo Hệ thống Proteus OS**\n\n"
-                f"- Trạng thái API: `Healthy` ✅\n"
-                f"- Scheduler: `Active` ⏱️\n\n"
-                f"Chúc mọi người một ngày làm việc hiệu quả!"
+                "🌞 **Chào buổi sáng! Báo cáo Hệ thống Proteus OS**\n\n"
+                "- Trạng thái API: `Healthy` ✅\n"
+                "- Scheduler: `Active` ⏱️\n\n"
+                "Chúc mọi người một ngày làm việc hiệu quả!"
             )
             await self.mattermost_adapter.send_message(channel="general", text=msg)
         except Exception as e:

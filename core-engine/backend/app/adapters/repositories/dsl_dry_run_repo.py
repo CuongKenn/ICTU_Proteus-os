@@ -43,7 +43,7 @@ class SQLAlchemyDSLDryRunRepository(AbstractDSLDryRunRepository):
         preview_res = await self._session.execute(sql_preview, {"tenant_id": tenant_id})
 
         cols = preview_res.keys()
-        preview = [dict(zip(cols, row)) for row in preview_res.fetchall()]
+        preview = [dict(zip(cols, row, strict=False)) for row in preview_res.fetchall()]
 
         for record in preview:
             for key, val in record.items():

@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import List
 
 from pydantic import BaseModel
 
@@ -13,7 +12,7 @@ class UserProfileResponse(BaseModel):
     keycloak_id: uuid.UUID
     email: str
     full_name: str
-    roles: List[str]
+    roles: list[str]
     is_active: bool
 
     model_config = {"from_attributes": True}

@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
+
 import pytest
 from sqlalchemy import text
+
 from app.infrastructure.database import current_tenant_id
 
 

@@ -129,7 +129,7 @@ class PluginUpgradeUseCase:
             return
 
         for _, file_path in migrations_to_run:
-            with open(file_path, "r", encoding="utf-8") as file:
+            with open(file_path, encoding="utf-8") as file:
                 sql_content = file.read()
                 upper_sql = sql_content.upper()
                 if "DROP TABLE" in upper_sql or "DROP COLUMN" in upper_sql:
@@ -144,7 +144,7 @@ class PluginUpgradeUseCase:
                 text(f"SET LOCAL app.current_tenant = '{context.tenant_id}'")
             )
             for _, file_path in migrations_to_run:
-                with open(file_path, "r", encoding="utf-8") as file:
+                with open(file_path, encoding="utf-8") as file:
                     sql_content = file.read()
                     await self.session.execute(text(sql_content))
 

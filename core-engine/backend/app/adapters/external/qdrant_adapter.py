@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchValue, PointStruct
+from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from app.core.domain.ports import AbstractVectorDBPort
 from app.infrastructure.config import settings
@@ -55,7 +54,7 @@ class QdrantAdapter(AbstractVectorDBPort):
         self._collection_ensured = True
 
     async def upsert_vectors(
-        self, tenant_id: str, chunks: List[str], metadatas: List[Dict[str, Any]]
+        self, tenant_id: str, chunks: list[str], metadatas: list[dict[str, Any]]
     ) -> bool:
         """
         Lưu embeddings (Dense + Sparse) cùng với metadata `tenant_id`.
@@ -84,8 +83,8 @@ class QdrantAdapter(AbstractVectorDBPort):
         tenant_id: str,
         query: str,
         limit: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Hybrid Search kết hợp Dense và BM25, filter theo tenant_id (Data Isolation).
         """

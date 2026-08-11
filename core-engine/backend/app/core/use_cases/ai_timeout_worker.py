@@ -6,7 +6,7 @@
 # Tham chiếu: docs/dsl-spec.md §4
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.base import (
@@ -35,7 +35,7 @@ class AITimeoutWorker:
         Cập nhật thành EXPIRED (hoặc TIMEOUT), ghi audit log và báo Mattermost.
         """
         logger.info("[AI Timeout Worker] Bắt đầu quét lệnh quá hạn...")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         try:
             # 1. Tìm các lệnh đã quá hạn
