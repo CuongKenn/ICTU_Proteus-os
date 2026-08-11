@@ -28,6 +28,7 @@ from app.entrypoints.dependencies import (
     get_plugin_toggle_use_case,
     get_plugin_uninstall_use_case,
     get_plugin_upgrade_use_case,
+    require_permission,
 )
 from app.entrypoints.schemas.plugin import (
     PluginListResponse,
@@ -77,7 +78,7 @@ async def list_installed_plugins(
 async def install_plugin(
     plugin_id: uuid.UUID,
     background_tasks: BackgroundTasks,
-    ctx: TenantContext = Depends(get_current_tenant_context),
+    ctx: TenantContext = Depends(require_permission("plugins.install")),
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
     use_case: PluginInstallUseCase = Depends(get_plugin_install_use_case),
 ) -> dict[str, Any]:
@@ -86,12 +87,6 @@ async def install_plugin(
     Chỉ tenant_admin hoặc superadmin mới có quyền thực hiện.
     Trả về HTTP 202 Accepted — việc cài đặt chạy ngầm.
     """
-    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ tenant_admin hoặc superadmin mới có thể cài đặt Plugin.",
-        )
-
     plugin = await repo.get_by_id(plugin_id)
     if not plugin:
         raise HTTPException(
@@ -129,20 +124,13 @@ async def install_plugin(
 async def uninstall_plugin(
     plugin_id: uuid.UUID,
     body: PluginUninstallRequest,
-    ctx: TenantContext = Depends(get_current_tenant_context),
+    ctx: TenantContext = Depends(require_permission("plugins.uninstall")),
     use_case: PluginUninstallUseCase = Depends(get_plugin_uninstall_use_case),
 ) -> dict[str, str]:
     """
     Gỡ cài đặt Plugin. Xóa các Workflow, Dashboard, DB Table liên quan.
     Yêu cầu xác nhận tên Plugin bằng `confirm_name`.
     """
-    # Kiểm tra quyền
-    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
-        )
-
     try:
         await use_case.uninstall_plugin(
             context=ctx,
@@ -165,15 +153,9 @@ async def uninstall_plugin(
 )
 async def disable_plugin(
     plugin_id: uuid.UUID,
-    ctx: TenantContext = Depends(get_current_tenant_context),
+    ctx: TenantContext = Depends(require_permission("plugins.disable")),
     use_case: PluginToggleUseCase = Depends(get_plugin_toggle_use_case),
 ) -> dict[str, str]:
-    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
-        )
-
     try:
         await use_case.disable_plugin(context=ctx, plugin_id=plugin_id)
     except PluginToggleError as e:
@@ -192,15 +174,9 @@ async def disable_plugin(
 )
 async def enable_plugin(
     plugin_id: uuid.UUID,
-    ctx: TenantContext = Depends(get_current_tenant_context),
+    ctx: TenantContext = Depends(require_permission("plugins.enable")),
     use_case: PluginToggleUseCase = Depends(get_plugin_toggle_use_case),
 ) -> dict[str, str]:
-    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
-        )
-
     try:
         await use_case.enable_plugin(context=ctx, plugin_id=plugin_id)
     except PluginToggleError as e:
@@ -219,15 +195,9 @@ async def enable_plugin(
 )
 async def upgrade_plugin(
     plugin_id: uuid.UUID,
-    ctx: TenantContext = Depends(get_current_tenant_context),
+    ctx: TenantContext = Depends(require_permission("plugins.upgrade")),
     use_case: PluginUpgradeUseCase = Depends(get_plugin_upgrade_use_case),
 ) -> dict[str, str]:
-    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
-        )
-
     try:
         await use_case.upgrade_plugin(context=ctx, plugin_id=plugin_id)
     except PluginUpgradeError as e:
