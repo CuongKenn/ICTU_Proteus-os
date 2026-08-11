@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
+- **[plugins/document-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Văn bản (document-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #194).
 - **[core-engine/backend/app/infrastructure/models.py]** Thêm các ORM Models cho bảng Tenants, Users, Roles, Plugins, AI Commands.
 - **[core-engine/backend/migrations]** Khởi tạo cấu hình Alembic và file migration đầu tiên cho DB Schema.
 - **[core-engine/backend/app/adapters/repositories]** Thêm Abstract Classes và SQLAlchemy Repositories implementation cho User và Role.
@@ -24,6 +25,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 - **[core-engine/frontend]** Tách mock data (`MOCK_RESPONSES`) trong `useAICommand` sang file riêng (`__mocks__/useAICommand.mock.ts`) và sử dụng dynamic import, ngăn chặn việc bundle dữ liệu giả và giảm dung lượng bundle ở production (Issue #176).
+- **[core-engine/frontend]** Cập nhật `AIChatWidget` phân tách chức năng của nút Thu nhỏ (chỉ ẩn panel) và nút Đóng (reset toàn bộ tin nhắn), sửa lỗi UI gọi chung 1 hàm `closeWidget` (Issue #175).
+
 - **[core-engine/backend]** Fix lỗi vi phạm Hexagonal Architecture tại `RAGIngestionUseCase`: chuyển việc khởi tạo `OutlineAdapter` và `QdrantAdapter` từ Router sang Dependency Injection Container (Issue #169).
 
 - **[core-engine/frontend]** Cập nhật `AIChatWidget` thêm thuộc tính `aria-live` và `role="log"` giúp tương thích với Screen Reader (WCAG 2.1) (Issue #174).
@@ -33,10 +36,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Bổ sung `SoftDeleteMixin` (`deleted_at`) cho `AuditLogModel` và `UserRoleModel` để tuân thủ quy tắc dữ liệu cốt lõi (Issue #178).
 
 - **[core-engine/frontend]** Khắc phục lỗi Memory leak trong `useMarketplace`: đảm bảo `setInterval` được clear đúng cách khi unmount component hoặc khi cài đặt lại plugin (Issue #170).
+- **[core-engine/backend]** Fix lỗi Plugin write use cases (`Install`, `Uninstall`, `Upgrade`) sử dụng read-only DB session, dẫn đến transaction không được commit và dữ liệu không persist (Issue #168).
 - **[core-engine/backend]** Triển khai toàn bộ logic thực thi cho `PluginInstallUseCase` (Issue #167): 
   - Tích hợp `n8n_adapter`, `metabase_adapter`, `appsmith_adapter`, `keycloak_adapter` vào bước cài đặt plugin thay vì để `pass` như trước.
   - Sửa lỗi phantom install: thu thập `created_assets` ID trong quá trình chạy.
   - Implement logic `_rollback` thực sự bằng cách gọi các hàm `delete_*` theo thứ tự ngược lại nếu có lỗi xảy ra.
+
 - **[core-engine/backend]** Refactor: Loại bỏ code kiểm tra RBAC (Quyền) lặp lại ở 5 API endpoints trong `plugins.py`, chuyển sang dùng `require_permission` từ `dependencies.py` (Issue #172).
 - **[core-engine/frontend]** Cập nhật `next-auth` type definition để hỗ trợ `roles` an toàn, loại bỏ ép kiểu `as any` tại `AppShell.tsx` (Issue #171).
 
