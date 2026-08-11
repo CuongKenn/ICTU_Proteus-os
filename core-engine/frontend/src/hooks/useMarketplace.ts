@@ -39,6 +39,16 @@ export function useMarketplace(): UseMarketplaceReturn {
   const { install, uninstall } = usePlugins();
 
   useEffect(() => {
+    return () => {
+      // Cleanup interval when hook unmounts
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     const fetchPlugins = async () => {
@@ -158,6 +168,12 @@ export function useMarketplace(): UseMarketplaceReturn {
   }, []);
 
   const installPlugin = useCallback(async (codeName: string) => {
+    // Clear interval cũ nếu có
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+
     setInstallingId(codeName);
     setInstallProgress(0);
     setInstallStatus("installing");
