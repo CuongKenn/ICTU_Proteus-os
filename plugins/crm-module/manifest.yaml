@@ -57,7 +57,7 @@ dashboards:
   - id: "dash_sales_pipeline"
     name: "Phễu bán hàng (Pipeline)"
     file: "dashboards/sales_pipeline.json"
-    
+
   - id: "dash_customer_health"
     name: "Sức khỏe Khách hàng & SLA"
     file: "dashboards/customer_health.json"
