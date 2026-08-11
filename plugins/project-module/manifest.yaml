@@ -1,0 +1,99 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — project-module (Quản lý Dự án Công việc)
+
+name: "project-module"
+display_name: "Quản lý Dự án Công việc"
+version: "1.0.0"
+description: |
+  Quản lý dự án, theo dõi tiến độ, phân công công việc, milestone và KPIs.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/project-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "project_projects"
+    - "project_milestones"
+    - "project_tasks"
+    - "project_task_comments"
+    - "project_time_logs"
+    - "project_members"
+
+  seed_file: "db/seed_data.sql"
+
+workflows:
+  - id: "wf_task_assignment"
+    name: "Giao task & Nhắc nhở"
+    trigger: "webhook"
+    file: "workflows/task_assignment.json"
+
+  - id: "wf_overdue_task_alert"
+    name: "Cảnh báo task quá hạn"
+    trigger: "cron"
+    cron_expression: "0 9 * * *"
+    file: "workflows/overdue_task_alert.json"
+
+  - id: "wf_milestone_reminder"
+    name: "Nhắc nhở milestone sắp tới"
+    trigger: "cron"
+    cron_expression: "0 8 * * *"
+    file: "workflows/milestone_reminder.json"
+
+  - id: "wf_project_status_report"
+    name: "Báo cáo tiến độ dự án"
+    trigger: "cron"
+    cron_expression: "0 7 * * 1"
+    file: "workflows/project_status_report.json"
+
+dashboards:
+  - id: "dash_project_overview"
+    name: "Tổng quan dự án"
+    file: "dashboards/project_overview.json"
+
+  - id: "dash_team_workload"
+    name: "Phân bổ công việc"
+    file: "dashboards/team_workload.json"
+
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+
+roles:
+  - name: "project_manager"
+    description: "Quản lý dự án"
+    permissions:
+      - "project:projects:read"
+      - "project:projects:write"
+      - "project:tasks:read"
+      - "project:tasks:write"
+      - "project:tasks:assign"
+      - "project:milestones:write"
+      - "project:reports:read"
+
+  - name: "project_member"
+    description: "Thành viên dự án"
+    permissions:
+      - "project:tasks:read"
+      - "project:tasks:write"
+      - "project:time_logs:write"
+
+  - name: "project_viewer"
+    description: "Khách / Người xem"
+    permissions:
+      - "project:projects:read"
+      - "project:tasks:read"
+
+events:
+  consumes:
+    - "hr.employee.deactivated"
+  produces:
+    - "project.task.completed"
+    - "project.project.completed"
+    - "project.milestone.reached"
