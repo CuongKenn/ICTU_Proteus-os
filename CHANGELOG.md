@@ -24,8 +24,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 - **[core-engine/backend]** Fix lỗi vi phạm Hexagonal Architecture tại `RAGIngestionUseCase`: chuyển việc khởi tạo `OutlineAdapter` và `QdrantAdapter` từ Router sang Dependency Injection Container (Issue #169).
+- **[core-engine/backend]** Bổ sung error handling (try/catch), logging, và tự động gửi thông báo (alert) qua Mattermost cho các APScheduler background jobs (`run_plugin_cleanup`, `run_ai_timeout_worker`) để tránh silent failures (Issue #181).
+- **[core-engine/frontend]** Khắc phục lỗi Memory leak trong `useMarketplace`: đảm bảo `setInterval` được clear đúng cách khi unmount component hoặc khi cài đặt lại plugin (Issue #170).
+- **[core-engine/backend]** Refactor: Loại bỏ code kiểm tra RBAC (Quyền) lặp lại ở 5 API endpoints trong `plugins.py`, chuyển sang dùng `require_permission` từ `dependencies.py` (Issue #172).
+- **[core-engine/frontend]** Cập nhật `next-auth` type definition để hỗ trợ `roles` an toàn, loại bỏ ép kiểu `as any` tại `AppShell.tsx` (Issue #171).
 - **[core-engine/frontend]** Implement Custom Hooks (`usePlugins`, `useMarketplace`, `useSession`, `useDraftRestore`) (PR #159)
 - **[core-engine/backend]** `AITimeoutWorker` — Tự động hủy AI commands chưa duyệt quá hạn (PR #158)
+- **[core-engine/backend]** Fix SQL Injection trong `PluginInstallUseCase._step_1_database` bằng Regex Validation cấm lệnh nguy hiểm (DROP, DELETE, UPDATE, TRUNCATE)
+- **[core-engine/backend]** Fix lỗi SQL Injection tiềm ẩn trong RLS Middleware bằng cách dùng UUID validation và parameterized query `set_config` (Issue #166)
 - **[core-engine/backend]** Fix lỗi app crash khi khởi động do thiếu import `AbstractAICommandRepository` trong `dependencies.py` (Issue #165)
 - **[core-engine/frontend]** Thêm Next.js API Routes làm BFF proxy (`/api/plugins`, `/api/plugins/install`, `/api/plugins/[id]/uninstall`) để ẩn token JWT khỏi trình duyệt và proxy request sang FastAPI backend an toàn.
 - **[core-engine/backend]** `AI Command Use Case` (Read, Write, Critical paths) (PR #156)
