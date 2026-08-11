@@ -18,7 +18,7 @@ from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.core.domain import exceptions as domain_exc
-from app.entrypoints.routers import ai, health, mattermost_webhook, plugins
+from app.entrypoints.routers import ai, health, mattermost_webhook, plugins, auth
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -35,9 +35,9 @@ async def lifespan(app: FastAPI):
     # Khởi tạo các global clients
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
     app.state.redis_event_bus = RedisEventBusPublisher()
-    
+
     yield
-    
+
     # Đóng kết nối
     await app.state.http_client.aclose()
     await app.state.redis_event_bus.aclose()
@@ -87,25 +87,38 @@ app.add_middleware(TenantIDMiddleware)
 
 # ─── Exception Handlers ───────────────────────────────────────
 @app.exception_handler(domain_exc.ProteusBaseException)
-async def proteus_exception_handler(request: Request, exc: domain_exc.ProteusBaseException):
-    logger.warning("Domain exception raised", extra={"error": str(exc), "path": request.url.path})
-    
+async def proteus_exception_handler(
+    request: Request, exc: domain_exc.ProteusBaseException
+):
+    logger.warning(
+        "Domain exception raised", extra={"error": str(exc), "path": request.url.path}
+    )
+
     status_code = status.HTTP_400_BAD_REQUEST
-    
-    if isinstance(exc, (domain_exc.TenantNotFoundError, domain_exc.PluginNotFoundError)):
+
+    if isinstance(
+        exc, (domain_exc.TenantNotFoundError, domain_exc.PluginNotFoundError)
+    ):
         status_code = status.HTTP_404_NOT_FOUND
-    elif isinstance(exc, (domain_exc.InsufficientPermissionsError, domain_exc.DSLPermissionDeniedError)):
+    elif isinstance(
+        exc,
+        (domain_exc.InsufficientPermissionsError, domain_exc.DSLPermissionDeniedError),
+    ):
         status_code = status.HTTP_403_FORBIDDEN
-    elif isinstance(exc, (domain_exc.PluginAlreadyInstalledError, domain_exc.PathConflictError)):
+    elif isinstance(
+        exc, (domain_exc.PluginAlreadyInstalledError, domain_exc.PathConflictError)
+    ):
         status_code = status.HTTP_409_CONFLICT
-        
+
     return JSONResponse(
         status_code=status_code,
         content={"detail": exc.message},
     )
 
+
 # ─── Routers ──────────────────────────────────────────────────
 app.include_router(health.router, tags=["System"])
+app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
 app.include_router(mattermost_webhook.router, prefix="/api/v1")

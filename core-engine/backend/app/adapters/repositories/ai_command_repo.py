@@ -56,10 +56,12 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         now = datetime.now(timezone.utc)
         if "created_at" not in command_data:
             command_data["created_at"] = now
-            
+
         columns = ", ".join(command_data.keys())
         placeholders = ", ".join(f":{k}" for k in command_data.keys())
-        sql = text(f"INSERT INTO ai_commands ({columns}) VALUES ({placeholders}) RETURNING id")
+        sql = text(
+            f"INSERT INTO ai_commands ({columns}) VALUES ({placeholders}) RETURNING id"
+        )
         result = await self._session.execute(sql, command_data)
         return result.scalar()
 
@@ -79,7 +81,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         now = datetime.now(timezone.utc)
         updates = ["updated_at = :now"]
         params = {"now": now, "cmd_id": str(cmd_id)}
-        
+
         if status is not None:
             updates.append("status = :status")
             params["status"] = status
@@ -89,8 +91,10 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         if second_approver is not None:
             updates.append("second_approver = :second_approver")
             params["second_approver"] = second_approver
-            
-        sql_update = text(f"UPDATE ai_commands SET {', '.join(updates)} WHERE id = :cmd_id")
+
+        sql_update = text(
+            f"UPDATE ai_commands SET {', '.join(updates)} WHERE id = :cmd_id"
+        )
         await self._session.execute(sql_update, params)
 
     async def commit(self) -> None:

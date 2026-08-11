@@ -26,9 +26,7 @@ class SQLAlchemyDSLDryRunRepository(AbstractDSLDryRunRepository):
             f"SELECT COUNT(*) FROM {target_table} "
             f"WHERE tenant_id = :tenant_id AND status = 'pending'"
         )
-        count_res = await self._session.execute(
-            sql_count, {"tenant_id": tenant_id}
-        )
+        count_res = await self._session.execute(sql_count, {"tenant_id": tenant_id})
         affected_count = count_res.scalar() or 0
 
         if affected_count == 0:
@@ -39,9 +37,7 @@ class SQLAlchemyDSLDryRunRepository(AbstractDSLDryRunRepository):
             f"SELECT * FROM {target_table} "
             f"WHERE tenant_id = :tenant_id AND status = 'pending' LIMIT 3"
         )
-        preview_res = await self._session.execute(
-            sql_preview, {"tenant_id": tenant_id}
-        )
+        preview_res = await self._session.execute(sql_preview, {"tenant_id": tenant_id})
 
         cols = preview_res.keys()
         preview = [dict(zip(cols, row)) for row in preview_res.fetchall()]

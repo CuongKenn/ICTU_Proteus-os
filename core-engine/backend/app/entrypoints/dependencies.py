@@ -22,8 +22,11 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.infrastructure.database import get_db_readonly
 
 logger = logging.getLogger(__name__)
@@ -79,10 +82,13 @@ async def get_current_tenant_context(
     Trả về TenantContext để truyền vào Use Cases.
 
     Notes:
-        - Token được Next.js BFF inject vào header "Authorization: Bearer <token>"
-        - Browser KHÔNG bao giờ gọi trực tiếp endpoint này với token tự mang theo
+        - Token được Next.js BFF inject vào
+          header "Authorization: Bearer <token>"
+        - Browser KHÔNG bao giờ gọi trực tiếp endpoint này
+          với token tự mang theo
     """
-    # Bước 1: Verify JWT signature — chỉ catch JWTError, không catch HTTPException
+    # Bước 1: Verify JWT signature
+    # (chỉ catch JWTError, không catch HTTPException)
     try:
         payload = await keycloak_adapter.verify_and_decode_token(
             credentials.credentials
@@ -122,10 +128,28 @@ async def get_current_tenant_context(
 
     realm_access = payload.get("realm_access", {})
     roles = realm_access.get("roles", [])
+    name_claim = payload.get("name")
+    pref_username = payload.get("preferred_username")
+    full_name = name_claim or pref_username or "Unknown"
 
     return TenantContext(
         tenant_id=tenant_id,
         user_id=user_id,
         roles=roles,
         email=payload.get("email", ""),
+        full_name=full_name,
     )
+
+
+async def get_user_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> AbstractUserRepository:
+    """Inject User Repository."""
+    return SQLAlchemyUserRepository(session=db)
+
+
+async def get_user_provisioning_use_case(
+    repo: AbstractUserRepository = Depends(get_user_repo),
+) -> UserProvisioningUseCase:
+    """Inject User Provisioning Use Case."""
+    return UserProvisioningUseCase(user_repo=repo)

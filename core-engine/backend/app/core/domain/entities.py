@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Core Domain — Domain Entities
-# ⚠️  TUYỆT ĐỐI KHÔNG import FastAPI, SQLAlchemy, hay bất kỳ thư viện bên ngoài nào vào đây.
+# ⚠️  TUYỆT ĐỐI KHÔNG import FastAPI, SQLAlchemy,
+# hay bất kỳ thư viện bên ngoài nào vào đây.
 # Layer này chỉ chứa logic nghiệp vụ thuần túy (Pure Python).
 
 from __future__ import annotations
@@ -65,6 +66,7 @@ class TenantContext(BaseModel):
     user_id: uuid.UUID
     roles: list[str] = Field(default_factory=list)
     email: str = ""
+    full_name: str = ""
 
 
 class PluginEntity(BaseModel):
@@ -90,6 +92,20 @@ class TenantEntity(BaseModel):
     is_active: bool = True
 
 
+class UserEntity(BaseModel):
+    """
+    Domain Entity cho User.
+    """
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    keycloak_id: uuid.UUID
+    email: str
+    full_name: str
+    roles: list[str] = Field(default_factory=list)
+    is_active: bool = True
+
+
 class AICommandEntity(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
@@ -111,7 +127,10 @@ class InstallRequest(BaseModel):
 
 
 class AICommandInput(BaseModel):
-    """Input cho Use Case xử lý DX-DSL Command. (Khác với schema AICommandRequest ở entrypoints)"""
+    """
+    Input cho Use Case xử lý DX-DSL Command.
+    (Khác với schema AICommandRequest ở entrypoints)
+    """
 
     dsl_payload: dict[str, Any]
     tenant_context: TenantContext
