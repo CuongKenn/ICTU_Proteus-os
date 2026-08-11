@@ -29,5 +29,8 @@ class PluginListResponse(BaseModel):
     total: int
 
 
-class PluginInstallRequest(BaseModel):
-    plugin_id: uuid.UUID = Field(..., description="ID của Plugin muốn cài đặt")
+class PluginUninstallRequest(BaseModel):
+    confirm_name: str = Field(
+        ...,
+        description="Xác nhận tên Plugin (code_name) để tránh xóa nhầm",
+    )
