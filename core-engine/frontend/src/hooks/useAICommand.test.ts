@@ -36,9 +36,10 @@ describe('useAICommand', () => {
     expect(result.current.widgetState).toBe('expanded');
 
     act(() => {
-      result.current.closeWidget();
+      result.current.resetAndClose();
     });
-    expect(result.current.widgetState).toBe('collapsed');
+
+    expect(result.current.widgetState).toBe("collapsed");
   });
 
   it('sends command and updates state accordingly', async () => {
