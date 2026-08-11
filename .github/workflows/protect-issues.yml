@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Reopen issue if closed manually
-        if: steps.check_pr.outputs.closed_via_pr == 'false'
+        if: steps.check_pr.outputs.closed_via_pr == 'false' && !contains(github.event.issue.labels.*.name, 'invalid') && !contains(github.event.issue.labels.*.name, 'wontfix')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
