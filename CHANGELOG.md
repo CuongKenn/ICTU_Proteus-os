@@ -23,6 +23,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+- **[core-engine/backend]** Fix lỗi vi phạm Hexagonal Architecture tại `RAGIngestionUseCase`: chuyển việc khởi tạo `OutlineAdapter` và `QdrantAdapter` từ Router sang Dependency Injection Container (Issue #169).
 - **[core-engine/frontend]** Implement Custom Hooks (`usePlugins`, `useMarketplace`, `useSession`, `useDraftRestore`) (PR #159)
 - **[core-engine/backend]** `AITimeoutWorker` — Tự động hủy AI commands chưa duyệt quá hạn (PR #158)
 - **[core-engine/backend]** Fix lỗi app crash khi khởi động do thiếu import `AbstractAICommandRepository` trong `dependencies.py` (Issue #165)
