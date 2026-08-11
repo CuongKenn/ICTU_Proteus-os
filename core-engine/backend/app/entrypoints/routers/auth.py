@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, status
+
 from app.core.domain.entities import TenantContext
+from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_user_provisioning_use_case,
 )
-from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.entrypoints.schemas.user import UserProfileResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -22,9 +23,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 )
 async def get_me(
     tenant_context: TenantContext = Depends(get_current_tenant_context),
-    use_case: UserProvisioningUseCase = Depends(
-        get_user_provisioning_use_case
-    ),
+    use_case: UserProvisioningUseCase = Depends(get_user_provisioning_use_case),
 ):
     user_entity = await use_case.sync_user_profile(tenant_context)
     return user_entity

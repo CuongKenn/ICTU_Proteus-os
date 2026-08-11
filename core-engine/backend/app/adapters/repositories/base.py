@@ -73,9 +73,7 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_dirty_installations_older_than(
-        self, hours: int
-    ) -> list[dict]:
+    async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
         """Lấy danh sách các plugin bị lỗi (FAILED_DIRTY) quá thời gian."""
         ...
 
@@ -105,9 +103,7 @@ class AbstractUserRepository(ABC):
     """Port: Giao tiếp với User data store."""
 
     @abstractmethod
-    async def get_by_keycloak_id(
-        self, keycloak_id: uuid.UUID
-    ) -> UserEntity | None:
+    async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> UserEntity | None:
         """Lấy User theo keycloak_id."""
         ...
 
@@ -138,9 +134,7 @@ class AbstractAICommandRepository(ABC):
     """Port: Giao tiếp với bảng ai_commands."""
 
     @abstractmethod
-    async def get_pending_commands_expiring_soon(
-        self, minutes: int
-    ) -> list[dict]:
+    async def get_pending_commands_expiring_soon(self, minutes: int) -> list[dict]:
         """Lấy các command sắp hết hạn."""
         ...
 
@@ -150,9 +144,7 @@ class AbstractAICommandRepository(ABC):
         ...
 
     @abstractmethod
-    async def update_status(
-        self, cmd_id: uuid.UUID, status: AICommandStatus
-    ) -> None:
+    async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
         """Cập nhật trạng thái của lệnh."""
         ...
 
@@ -210,9 +202,7 @@ class AbstractHRLeaveRepository(ABC):
     """Port: Giao tiếp với bảng hr_leave_requests (của HR Plugin)."""
 
     @abstractmethod
-    async def get_pending_leaves_older_than(
-        self, days: int
-    ) -> list[dict] | None:
+    async def get_pending_leaves_older_than(self, days: int) -> list[dict] | None:
         """Lấy các đơn xin nghỉ phép chưa duyệt quá hạn."""
         ...
 

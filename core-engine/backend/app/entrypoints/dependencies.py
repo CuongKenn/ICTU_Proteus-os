@@ -17,14 +17,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
-from app.adapters.repositories.base import AbstractPluginRepository
+from app.adapters.repositories.base import (
+    AbstractPluginRepository,
+    AbstractUserRepository,
+)
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
-from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.entities import TenantContext
+from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.infrastructure.database import get_db_readonly
@@ -153,3 +157,19 @@ async def get_user_provisioning_use_case(
 ) -> UserProvisioningUseCase:
     """Inject User Provisioning Use Case."""
     return UserProvisioningUseCase(user_repo=repo)
+
+
+async def get_mattermost_adapter() -> MattermostAdapter:
+    """Inject MattermostAdapter."""
+    return MattermostAdapter()
+
+
+async def get_keycloak_webhook_use_case(
+    user_repo: AbstractUserRepository = Depends(get_user_repo),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
+) -> KeycloakWebhookUseCase:
+    """Inject KeycloakWebhookUseCase."""
+    return KeycloakWebhookUseCase(
+        user_repo=user_repo,
+        mattermost_adapter=mattermost_adapter,
+    )

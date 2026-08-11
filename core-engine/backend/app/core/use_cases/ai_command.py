@@ -9,8 +9,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from app.adapters.external.mattermost_adapter import MattermostAdapter
-from app.adapters.repositories.base import AbstractAICommandRepository
 from app.adapters.external.n8n_adapter import N8nAdapter
+from app.adapters.repositories.base import AbstractAICommandRepository
 
 logger = logging.getLogger(__name__)
 
