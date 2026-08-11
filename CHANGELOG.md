@@ -30,7 +30,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/frontend]** Cập nhật `next-auth` type definition để hỗ trợ `roles` an toàn, loại bỏ ép kiểu `as any` tại `AppShell.tsx` (Issue #171).
 - **[core-engine/frontend]** Implement Custom Hooks (`usePlugins`, `useMarketplace`, `useSession`, `useDraftRestore`) (PR #159)
 - **[core-engine/backend]** `AITimeoutWorker` — Tự động hủy AI commands chưa duyệt quá hạn (PR #158)
+- **[core-engine/frontend]** Fix lỗi BFF proxy gọi sai endpoint `/ai/execute` thay vì `/ai/command` khiến AI Chat Widget bị lỗi 404 (Issue #161)
 - **[core-engine/backend]** Fix SQL Injection trong `PluginInstallUseCase._step_1_database` bằng Regex Validation cấm lệnh nguy hiểm (DROP, DELETE, UPDATE, TRUNCATE)
+
 - **[core-engine/backend]** Fix lỗi SQL Injection tiềm ẩn trong RLS Middleware bằng cách dùng UUID validation và parameterized query `set_config` (Issue #166)
 - **[core-engine/backend]** Fix lỗi app crash khi khởi động do thiếu import `AbstractAICommandRepository` trong `dependencies.py` (Issue #165)
 - **[core-engine/frontend]** Thêm Next.js API Routes làm BFF proxy (`/api/plugins`, `/api/plugins/install`, `/api/plugins/[id]/uninstall`) để ẩn token JWT khỏi trình duyệt và proxy request sang FastAPI backend an toàn.
