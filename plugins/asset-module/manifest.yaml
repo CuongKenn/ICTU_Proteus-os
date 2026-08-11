@@ -57,7 +57,7 @@ dashboards:
   - id: "dash_asset_overview"
     name: "Tổng quan Tài sản"
     file: "dashboards/asset_overview.json"
-    
+
   - id: "dash_maintenance_schedule"
     name: "Bảo trì & Chi phí"
     file: "dashboards/maintenance_schedule.json"
