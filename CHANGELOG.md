@@ -24,6 +24,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 - **[core-engine/frontend]** Bổ sung các trang placeholder cho các route còn thiếu (`/chat`, `/files`, `/wiki`, `/settings`) để khắc phục lỗi 404 khi truy cập từ thanh điều hướng (Issue #179).
+- **[core-engine/frontend]** Cập nhật `AIChatWidget` thêm thuộc tính `aria-live` và `role="log"` giúp tương thích với Screen Reader (WCAG 2.1) (Issue #174).
+
 - **[core-engine/backend]** Bổ sung error handling (try/catch), logging, và tự động gửi thông báo (alert) qua Mattermost cho các APScheduler background jobs (`run_plugin_cleanup`, `run_ai_timeout_worker`) để tránh silent failures (Issue #181).
 - **[core-engine/frontend]** Khắc phục lỗi Memory leak trong `useMarketplace`: đảm bảo `setInterval` được clear đúng cách khi unmount component hoặc khi cài đặt lại plugin (Issue #170).
 - **[core-engine/backend]** Refactor: Loại bỏ code kiểm tra RBAC (Quyền) lặp lại ở 5 API endpoints trong `plugins.py`, chuyển sang dùng `require_permission` từ `dependencies.py` (Issue #172).
