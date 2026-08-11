@@ -1,7 +1,7 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.entities import TenantContext, UserEntity
@@ -27,7 +27,7 @@ class UserProvisioningUseCase:
             "keycloak_id": tenant_context.user_id,
             "email": tenant_context.email,
             "full_name": tenant_context.full_name,
-            "last_login_at": datetime.now(timezone.utc),
+            "last_login_at": datetime.now(UTC),
             "is_active": True,
         }
 

@@ -5,7 +5,6 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
-from sqlalchemy import text
 
 from app.core.domain.entities import PluginEntity, PluginStatus, TenantContext
 from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeUseCase

@@ -7,7 +7,6 @@ from app.core.domain.entities import PluginStatus
 from app.core.use_cases.dsl_validator import (
     DSLInvalidActionError,
     DSLInvalidParametersError,
-    DSLPermissionDeniedError,
     DSLPluginNotActiveError,
     DSLValidator,
     DSLVersionCompatError,

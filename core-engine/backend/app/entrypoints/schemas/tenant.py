@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,9 +19,9 @@ class TenantCreateRequest(BaseModel):
 
 
 class TenantUpdateRequest(BaseModel):
-    name: Optional[str] = Field(None, description="Tên của tổ chức")
-    plan: Optional[str] = Field(None, description="Gói dịch vụ")
-    is_active: Optional[bool] = Field(None, description="Trạng thái hoạt động")
+    name: str | None = Field(None, description="Tên của tổ chức")
+    plan: str | None = Field(None, description="Gói dịch vụ")
+    is_active: bool | None = Field(None, description="Trạng thái hoạt động")
 
 
 class TenantResponse(BaseModel):

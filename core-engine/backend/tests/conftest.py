@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
-import os
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

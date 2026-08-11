@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC
 from typing import Any
 
 from sqlalchemy import text
@@ -174,9 +175,9 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         )
 
     async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sql = text("""
             SELECT p.tenant_id, p.plugin_name, p.status, p.updated_at
             FROM plugin_installations p

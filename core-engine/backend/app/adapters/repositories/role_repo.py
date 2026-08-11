@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +47,7 @@ class RoleRepository:
         if result.rowcount == 0:
             raise NotFoundError(f"User {user_id} does not have Role {role_id}")
 
-    async def list_by_tenant(self, tenant_id: uuid.UUID) -> List[RoleModel]:
+    async def list_by_tenant(self, tenant_id: uuid.UUID) -> list[RoleModel]:
         """
         Lấy danh sách các Roles của một Tenant.
         """
@@ -56,7 +55,7 @@ class RoleRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_user_permissions(self, user_id: uuid.UUID) -> List[str]:
+    async def get_user_permissions(self, user_id: uuid.UUID) -> list[str]:
         """
         Lấy danh sách các permission strings (ví dụ: ["plugins:read", "users:write"])
         thuộc các roles mà user đang nắm giữ.

@@ -35,3 +35,7 @@ testcontainers[postgres]==4.7.2
 
 # Formal Verification
 z3-solver==4.13.0.0
+
+# AI Synthesizer
+langchain==0.2.14
+langchain-openai==0.1.22
