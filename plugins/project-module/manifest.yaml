@@ -57,7 +57,7 @@ dashboards:
   - id: "dash_project_overview"
     name: "Tổng quan dự án"
     file: "dashboards/project_overview.json"
-    
+
   - id: "dash_team_workload"
     name: "Phân bổ công việc"
     file: "dashboards/team_workload.json"
