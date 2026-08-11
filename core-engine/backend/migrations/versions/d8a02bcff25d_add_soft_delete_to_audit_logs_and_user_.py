@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """add soft delete to audit_logs and user_roles
 
 Revision ID: d8a02bcff25d
