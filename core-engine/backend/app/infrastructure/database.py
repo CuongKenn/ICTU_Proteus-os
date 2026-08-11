@@ -5,6 +5,7 @@
 
 import contextvars
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import event, text
@@ -54,7 +55,19 @@ def receive_after_begin(
     tenant_id = current_tenant_id.get()
     if tenant_id:
         logger.debug(f"RLS Enabled: Setting app.current_tenant_id = '{tenant_id}'")
-        connection.execute(text(f"SET LOCAL app.current_tenant_id = '{tenant_id}'"))
+        # Validate UUID format trước — chặn injection
+        try:
+            validated = str(uuid.UUID(str(tenant_id)))
+        except ValueError:
+            logger.error(f"Invalid tenant_id format in RLS: {tenant_id!r}")
+            connection.execute(text("SET LOCAL app.current_tenant_id = ''"))
+            return
+
+        # Dùng parameterized statement (SQLAlchemy text với bindparams)
+        connection.execute(
+            text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+            {"tid": validated},
+        )
     else:
         # Quan trọng: Nếu không có tenant_id (VD: background job), có thể set rỗng
         # để tránh rò rỉ tenant từ session cũ nếu connection được tái sử dụng từ pool.
