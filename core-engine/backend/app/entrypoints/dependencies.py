@@ -26,6 +26,8 @@ from app.adapters.repositories.base import (
     AbstractPluginRepository,
     AbstractTenantRepository,
     AbstractUserRepository,
+    AbstractAICommandRepository,
+    AbstractDSLDryRunRepository,
 )
 from app.adapters.repositories.dsl_dry_run_repo import SQLAlchemyDSLDryRunRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
