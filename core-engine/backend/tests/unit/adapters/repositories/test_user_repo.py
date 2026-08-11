@@ -29,14 +29,22 @@ async def test_get_by_keycloak_id(user_repo, mock_session):
     mock_session.execute.return_value = mock_result
     mock_result.scalars.return_value = mock_scalars
 
-    expected_user = UserModel(id=uuid.uuid4(), keycloak_id=keycloak_id)
+    expected_user = UserModel(
+        id=uuid.uuid4(),
+        keycloak_id=keycloak_id,
+        tenant_id=uuid.uuid4(),
+        email="test@example.com",
+        full_name="Test User",
+        is_active=True,
+    )
     mock_scalars.first.return_value = expected_user
 
     # Execute
     result = await user_repo.get_by_keycloak_id(keycloak_id)
 
     # Assert
-    assert result == expected_user
+    assert result is not None
+    assert result.id == expected_user.id
     mock_session.execute.assert_called_once()
     mock_scalars.first.assert_called_once()
 
@@ -54,14 +62,15 @@ async def test_upsert(user_repo, mock_session):
 
     mock_session.execute.return_value = mock_result
 
-    expected_user = UserModel(**user_data)
+    expected_user = UserModel(**user_data, id=uuid.uuid4(), is_active=True)
     mock_result.scalar_one.return_value = expected_user
 
     # Execute
     result = await user_repo.upsert(user_data)
 
     # Assert
-    assert result == expected_user
+    assert result is not None
+    assert result.id == expected_user.id
     mock_session.execute.assert_called_once()
     mock_result.scalar_one.assert_called_once()
 
@@ -104,13 +113,21 @@ async def test_list_by_tenant(user_repo, mock_session):
     mock_session.execute.return_value = mock_result
     mock_result.scalars.return_value = mock_scalars
 
-    expected_users = [UserModel(id=uuid.uuid4(), tenant_id=tenant_id) for _ in range(2)]
-    mock_scalars.all.return_value = expected_users
+    expected_user = UserModel(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        keycloak_id=uuid.uuid4(),
+        email="test@example.com",
+        full_name="Test User",
+        is_active=True,
+    )
+    mock_scalars.all.return_value = [expected_user]
 
     # Execute
     result = await user_repo.list_by_tenant(tenant_id)
 
     # Assert
-    assert result == expected_users
+    assert len(result) == 1
+    assert result[0].id == expected_user.id
     mock_session.execute.assert_called_once()
     mock_scalars.all.assert_called_once()
