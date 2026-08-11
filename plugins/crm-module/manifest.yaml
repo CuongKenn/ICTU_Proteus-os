@@ -1,0 +1,116 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — crm-module (Quản lý Khách hàng - CRM)
+
+name: "crm-module"
+display_name: "Quản lý Khách hàng - CRM"
+version: "1.0.0"
+description: |
+  Quản lý toàn bộ vòng đời quan hệ khách hàng: từ tiếp nhận lead, nuôi dưỡng cơ hội bán hàng, quản lý hợp đồng đến chăm sóc sau bán và xử lý phản ánh.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/crm-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "crm_customers"
+    - "crm_contacts"
+    - "crm_leads"
+    - "crm_opportunities"
+    - "crm_activities"
+    - "crm_tickets"
+    - "crm_ticket_comments"
+
+  seed_file: "db/seed_data.sql"
+
+workflows:
+  - id: "wf_lead_capture"
+    name: "Tiếp nhận Lead Mới"
+    trigger: "webhook"
+    file: "workflows/lead_capture.json"
+
+  - id: "wf_opportunity_followup"
+    name: "Nhắc nhở Follow-up Cơ hội"
+    trigger: "cron"
+    cron_expression: "0 9 * * *"
+    file: "workflows/opportunity_followup.json"
+
+  - id: "wf_ticket_assignment"
+    name: "Phân công Ticket & SLA"
+    trigger: "webhook"
+    file: "workflows/ticket_assignment.json"
+
+  - id: "wf_customer_satisfaction"
+    name: "Khảo sát NPS Khách hàng"
+    trigger: "cron"
+    cron_expression: "0 10 * * *" # Run daily to check closed contracts instead of webhook+wait
+    file: "workflows/customer_satisfaction.json"
+
+dashboards:
+  - id: "dash_sales_pipeline"
+    name: "Phễu bán hàng (Pipeline)"
+    file: "dashboards/sales_pipeline.json"
+
+  - id: "dash_customer_health"
+    name: "Sức khỏe Khách hàng & SLA"
+    file: "dashboards/customer_health.json"
+
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+
+roles:
+  - name: "crm_sales"
+    description: "Nhân viên Kinh doanh"
+    permissions:
+      - "crm:leads:read"
+      - "crm:leads:write"
+      - "crm:opportunities:read"
+      - "crm:opportunities:write"
+      - "crm:activities:write"
+      - "crm:customers:read"
+
+  - name: "crm_support"
+    description: "Nhân viên Hỗ trợ Khách hàng"
+    permissions:
+      - "crm:tickets:read"
+      - "crm:tickets:write"
+      - "crm:ticket_comments:write"
+      - "crm:customers:read"
+
+  - name: "crm_manager"
+    description: "Quản lý CRM"
+    permissions:
+      - "crm:leads:read"
+      - "crm:leads:write"
+      - "crm:opportunities:read"
+      - "crm:opportunities:write"
+      - "crm:activities:write"
+      - "crm:tickets:read"
+      - "crm:tickets:write"
+      - "crm:ticket_comments:write"
+      - "crm:customers:read"
+      - "crm:customers:write"
+      - "crm:reports:read"
+      - "crm:assign:all"
+
+  - name: "crm_viewer"
+    description: "Khách / Người xem (BGĐ)"
+    permissions:
+      - "crm:customers:read"
+      - "crm:opportunities:read"
+
+events:
+  consumes:
+    - "finance.contract.signed"
+    - "hr.employee.deactivated"
+  produces:
+    - "crm.customer.created"
+    - "crm.opportunity.won"
+    - "crm.ticket.resolved"

@@ -6,6 +6,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
+<<<<<<< HEAD
+=======
+- **[plugins/crm-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Quan hệ Khách hàng (crm-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #195).
+>>>>>>> 3cf797235f34de8dfc7e0c8e7af951e8ca04b05c
 - **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
 - **[plugins/finance-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài chính Kế toán (finance-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #190).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
@@ -42,7 +46,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+- **[core-engine/backend]** Sửa lỗi `MattermostAdapter` không tái sử dụng HTTP Client, gây lãng phí tài nguyên connection pool (Issue #173).
 - **[core-engine/frontend]** Tách mock data (`MOCK_RESPONSES`) trong `useAICommand` sang file riêng (`__mocks__/useAICommand.mock.ts`) và sử dụng dynamic import, ngăn chặn việc bundle dữ liệu giả và giảm dung lượng bundle ở production (Issue #176).
+
 - **[core-engine/frontend]** Bổ sung các trang placeholder cho các route còn thiếu (`/chat`, `/files`, `/wiki`, `/settings`) để khắc phục lỗi 404 khi truy cập từ thanh điều hướng (Issue #179).
 
 - **[core-engine/backend]** Xóa tham số `request: Request = None` không sử dụng trong `dependencies.py` để tuân thủ chuẩn typing (Issue #184).
