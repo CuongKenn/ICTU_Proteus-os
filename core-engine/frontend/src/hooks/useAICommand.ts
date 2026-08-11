@@ -55,7 +55,8 @@ interface UseAICommandReturn {
   sessionId: string;
   setInputValue: (value: string) => void;
   openWidget: () => void;
-  closeWidget: () => void;
+  minimizeWidget: () => void;
+  resetAndClose: () => void;
   sendCommand: () => Promise<void>;
   openMattermostApproval: () => void;
   cancelApproval: () => void;
@@ -122,9 +123,21 @@ export function useAICommand(): UseAICommandReturn {
     setWidgetState("expanded");
   }, []);
 
-  const closeWidget = useCallback(() => {
+  const minimizeWidget = useCallback(() => {
+    setWidgetState("collapsed");
+  }, []);
+
+  const resetAndClose = useCallback(() => {
     setWidgetState("collapsed");
     setDslPreview(null);
+    setMessages([
+      {
+        id: uuid(),
+        role: "assistant",
+        content: "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn truy vấn dữ liệu hoặc thực hiện các tác vụ quản trị. Hãy nhập lệnh bằng tiếng Việt tự nhiên.",
+        timestamp: new Date(),
+      },
+    ]);
   }, []);
 
   const appendMessage = useCallback((role: MessageRole, content: string) => {
@@ -244,7 +257,8 @@ export function useAICommand(): UseAICommandReturn {
     sessionId: sessionIdRef.current,
     setInputValue,
     openWidget,
-    closeWidget,
+    minimizeWidget,
+    resetAndClose,
     sendCommand,
     openMattermostApproval,
     cancelApproval,
