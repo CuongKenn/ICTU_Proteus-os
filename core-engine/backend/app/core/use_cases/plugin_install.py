@@ -5,6 +5,7 @@
 # Xử lý 6 bước cài đặt Plugin theo mô hình Saga (Compensating Transaction).
 
 import logging
+import re
 from typing import Any
 
 from sqlalchemy import text
@@ -176,8 +177,6 @@ class PluginInstallUseCase:
                     sql = f.read()
 
                 # Validation: Cấm các lệnh SQL nguy hiểm để chống SQL Injection và phá hoại dữ liệu
-                import re
-
                 forbidden_pattern = re.compile(
                     r"\b(DROP|DELETE|UPDATE|TRUNCATE)\b", re.IGNORECASE
                 )
