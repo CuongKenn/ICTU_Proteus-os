@@ -62,6 +62,11 @@ async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
     return KeycloakAdapter(client=request.app.state.http_client)
 
 
+async def get_mattermost_adapter(request: Request) -> MattermostAdapter:
+    """Inject MattermostAdapter."""
+    return MattermostAdapter(client=request.app.state.http_client)
+
+
 async def get_n8n_adapter(request: Request) -> N8nAdapter:
     """Inject N8nAdapter."""
     return N8nAdapter(client=request.app.state.http_client)
@@ -95,12 +100,12 @@ async def get_plugin_install_use_case(
     metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_readonly),
     request: Request = None,
 ) -> PluginInstallUseCase:
     """Inject Plugin Install Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
-    from app.adapters.external.mattermost_adapter import MattermostAdapter
 
     return PluginInstallUseCase(
         plugin_repo=repo,
@@ -109,7 +114,7 @@ async def get_plugin_install_use_case(
         metabase_adapter=metabase_adapter,
         appsmith_adapter=appsmith_adapter,
         keycloak_adapter=keycloak_adapter,
-        mattermost_adapter=MattermostAdapter(),
+        mattermost_adapter=mattermost_adapter,
         session=db,
     )
 
@@ -120,12 +125,12 @@ async def get_plugin_uninstall_use_case(
     metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_readonly),
     request: Request = None,
 ) -> PluginUninstallUseCase:
     """Inject Plugin Uninstall Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
-    from app.adapters.external.mattermost_adapter import MattermostAdapter
 
     return PluginUninstallUseCase(
         plugin_repo=repo,
@@ -134,7 +139,7 @@ async def get_plugin_uninstall_use_case(
         metabase_adapter=metabase_adapter,
         appsmith_adapter=appsmith_adapter,
         keycloak_adapter=keycloak_adapter,
-        mattermost_adapter=MattermostAdapter(),
+        mattermost_adapter=mattermost_adapter,
         session=db,
     )
 
