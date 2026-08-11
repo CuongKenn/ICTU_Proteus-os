@@ -66,6 +66,11 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
+        """Lấy danh sách các plugin bị lỗi (FAILED_DIRTY) quá thời gian."""
+        ...
+
+    @abstractmethod
     async def get_tenant_plugin_status_by_code(
         self, tenant_id: str | uuid.UUID, plugin_code: str
     ) -> PluginStatus | None:
@@ -84,4 +89,22 @@ class AbstractTenantRepository(ABC):
     @abstractmethod
     async def get_by_slug(self, slug: str) -> TenantEntity | None:
         """Lấy Tenant theo slug. Trả về None nếu không tìm thấy."""
+        ...
+
+
+class AbstractAICommandRepository(ABC):
+    """Port: Giao tiếp với bảng ai_commands."""
+
+    @abstractmethod
+    async def get_pending_commands_expiring_soon(self, minutes: int) -> list[dict]:
+        """Lấy các command sắp hết hạn."""
+        ...
+
+
+class AbstractHRLeaveRepository(ABC):
+    """Port: Giao tiếp với bảng hr_leave_requests (của HR Plugin)."""
+
+    @abstractmethod
+    async def get_pending_leaves_older_than(self, days: int) -> list[dict] | None:
+        """Lấy các đơn xin nghỉ phép chưa duyệt quá hạn."""
         ...

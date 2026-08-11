@@ -12,18 +12,28 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.adapters.external.mattermost_adapter import MattermostAdapter
+from app.adapters.repositories.base import (
+    AbstractAICommandRepository,
+    AbstractHRLeaveRepository,
+    AbstractPluginRepository,
+)
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class ProactiveMonitorAgent:
-    def __init__(self, db: AsyncSession, mattermost_adapter: MattermostAdapter):
-        self.db = db
+    def __init__(
+        self,
+        plugin_repo: AbstractPluginRepository,
+        ai_command_repo: AbstractAICommandRepository,
+        hr_leave_repo: AbstractHRLeaveRepository,
+        mattermost_adapter: MattermostAdapter,
+    ):
+        self.plugin_repo = plugin_repo
+        self.ai_command_repo = ai_command_repo
+        self.hr_leave_repo = hr_leave_repo
         self.mattermost_adapter = mattermost_adapter
 
     async def scan_and_alert_every_30m(self):
@@ -36,24 +46,13 @@ class ProactiveMonitorAgent:
         now = datetime.now(timezone.utc)
 
         # 1. Quét Plugin FAILED_DIRTY > 1h
-        # (Chỉ check các plugin trong marketplace_plugins nếu có lưu trạng thái installation)
         try:
-            # Query tuỳ thuộc vào schema thực tế của bảng plugin_installations
-            # Ở đây mock logic kiểm tra. Giả sử schema có plugin_installations
-            sql_plugins = text("""
-                SELECT p.tenant_id, p.plugin_name, p.status, p.updated_at
-                FROM plugin_installations p
-                WHERE p.status = 'FAILED_DIRTY' 
-                  AND p.updated_at < :one_hour_ago
-            """)
-            result = await self.db.execute(
-                sql_plugins, {"one_hour_ago": now - timedelta(hours=1)}
+            dirty_plugins = await self.plugin_repo.get_dirty_installations_older_than(
+                hours=1
             )
-            dirty_plugins = result.fetchall()
-
             for p in dirty_plugins:
                 msg = (
-                    f"🚨 **[Cảnh báo Hệ thống]** Plugin `{p.plugin_name}` (Tenant: {p.tenant_id}) "
+                    f"🚨 **[Cảnh báo Hệ thống]** Plugin `{p['plugin_name']}` (Tenant: {p['tenant_id']}) "
                     f"đã ở trạng thái `FAILED_DIRTY` hơn 1 giờ.\n\n"
                     f"Vui lòng vào Dashboard quản trị để chạy Cleanup Agent: "
                     f"[Quản lý Plugin]({settings.FRONTEND_URL}/admin/plugins)"
@@ -67,22 +66,13 @@ class ProactiveMonitorAgent:
 
         # 2. Quét ai_commands sắp hết hạn (ví dụ còn < 5 phút)
         try:
-            sql_cmds = text("""
-                SELECT c.id, c.action, c.expires_at, c.requested_by
-                FROM ai_commands c
-                WHERE c.status = 'PENDING_APPROVAL'
-                  AND c.expires_at > :now
-                  AND c.expires_at < :soon
-            """)
-            result_cmds = await self.db.execute(
-                sql_cmds, {"now": now, "soon": now + timedelta(minutes=5)}
+            soon_expired_cmds = (
+                await self.ai_command_repo.get_pending_commands_expiring_soon(minutes=5)
             )
-            soon_expired_cmds = result_cmds.fetchall()
-
             for c in soon_expired_cmds:
                 msg = (
-                    f"⚠️ **[Nhắc nhở phê duyệt]** Lệnh `{c.action}` (ID: {c.id}) "
-                    f"do <@{c.requested_by}> yêu cầu sẽ HẾT HẠN trong vòng 5 phút nữa!\n\n"
+                    f"⚠️ **[Nhắc nhở phê duyệt]** Lệnh `{c['action']}` (ID: {c['id']}) "
+                    f"do <@{c['requested_by']}> yêu cầu sẽ HẾT HẠN trong vòng 5 phút nữa!\n\n"
                     f"Nếu không có ai phê duyệt, lệnh này sẽ bị huỷ bỏ tự động."
                 )
                 await self.mattermost_adapter.send_message(
@@ -102,36 +92,19 @@ class ProactiveMonitorAgent:
 
         # Quét đơn nghỉ phép chưa duyệt > 24h (Dành cho HR Plugin)
         try:
-            # Kiểm tra xem bảng hr_leave_requests có tồn tại không trước khi query
-            check_table = await self.db.execute(
-                text(
-                    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'hr_leave_requests')"
-                )
+            pending_leaves = await self.hr_leave_repo.get_pending_leaves_older_than(
+                days=1
             )
-            has_hr = check_table.scalar()
-
-            if has_hr:
-                sql_leaves = text("""
-                    SELECT employee_id, created_at, days_count 
-                    FROM hr_leave_requests
-                    WHERE status = 'pending'
-                      AND created_at < :day_ago
-                """)
-                res_leaves = await self.db.execute(
-                    sql_leaves, {"day_ago": now - timedelta(days=1)}
+            if pending_leaves:
+                msg = (
+                    f"📊 **Báo Cáo Sáng (HR)**\n\n"
+                    f"Hiện có **{len(pending_leaves)}** đơn nghỉ phép đã chờ duyệt hơn 24 giờ.\n"
+                    f"Vui lòng các Manager xem xét duyệt đơn: "
+                    f"[Duyệt Nghỉ Phép]({settings.FRONTEND_URL}/apps/hr)"
                 )
-                pending_leaves = res_leaves.fetchall()
-
-                if pending_leaves:
-                    msg = (
-                        f"📊 **Báo Cáo Sáng (HR)**\n\n"
-                        f"Hiện có **{len(pending_leaves)}** đơn nghỉ phép đã chờ duyệt hơn 24 giờ.\n"
-                        f"Vui lòng các Manager xem xét duyệt đơn: "
-                        f"[Duyệt Nghỉ Phép]({settings.FRONTEND_URL}/apps/hr)"
-                    )
-                    await self.mattermost_adapter.send_message(
-                        channel="hr-alerts", text=msg
-                    )
+                await self.mattermost_adapter.send_message(
+                    channel="hr-alerts", text=msg
+                )
         except Exception as e:
             logger.error(f"[Proactive Monitor] Lỗi quét HR leaves: {e}")
 
