@@ -14,6 +14,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 >>>>>>> 3cf797235f34de8dfc7e0c8e7af951e8ca04b05c
 - **[plugins/finance-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài chính Kế toán (finance-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #190).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
+
 - **[plugins/asset-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài sản Thiết bị (asset-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #196).
 - **[plugins/crm-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Quan hệ Khách hàng (crm-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #195).
 - **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
@@ -27,9 +28,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/it-helpdesk-module]** Khởi tạo cấu trúc scaffolding cho plugin IT Service Desk nội bộ (it-helpdesk-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #198).
 
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
+>>>>>>> 021ed5f9a2667e8c9a0bec4111c5298959869567
 - **[plugins/procurement-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Mua sắm & Hợp đồng (procurement-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #192).
 
 - **[plugins/document-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Văn bản (document-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #194).
+
 - **[core-engine/backend/app/infrastructure/models.py]** Thêm các ORM Models cho bảng Tenants, Users, Roles, Plugins, AI Commands.
 - **[core-engine/backend/migrations]** Khởi tạo cấu hình Alembic và file migration đầu tiên cho DB Schema.
 - **[core-engine/backend/app/adapters/repositories]** Thêm Abstract Classes và SQLAlchemy Repositories implementation cho User và Role.

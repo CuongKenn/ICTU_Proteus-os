@@ -1,0 +1,109 @@
+name: "procurement-module"
+display_name: "Procurement & Contract Management"
+version: "1.0.0"
+description: |
+  Quản lý Mua sắm (Purchase Request, PO) và Quản lý Hợp đồng, Nhà cung cấp (Vendor).
+author: "ICTU Team"
+license: "AGPL-3.0"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "procurement_requests"
+    - "procurement_vendors"
+    - "procurement_contracts"
+    - "procurement_purchase_orders"
+    - "procurement_deliveries"
+  seed_file: "db/seed_data.sql"
+  default_config:
+    require_board_approval_threshold: 50000000
+
+workflows:
+  - file: "workflows/purchase_request.json"
+    name: "Purchase Request Workflow"
+    description: "Duyệt đề xuất mua hàng"
+    trigger: "webhook"
+
+  - file: "workflows/po_approval.json"
+    name: "Purchase Order Approval Workflow"
+    description: "Duyệt Purchase Order"
+    trigger: "webhook"
+
+  - file: "workflows/contract_expiry_alert.json"
+    name: "Contract Expiry Alert"
+    description: "Cảnh báo hợp đồng sắp hết hạn"
+    trigger: "cron"
+    cron_expression: "0 9 * * 1"
+
+  - file: "workflows/vendor_evaluation.json"
+    name: "Vendor Evaluation"
+    description: "Đánh giá nhà cung cấp"
+    trigger: "manual"
+
+dashboards:
+  - file: "dashboards/procurement_overview.json"
+    name: "Procurement Overview"
+    description: "Tổng quan mua sắm"
+
+  - file: "dashboards/contract_tracker.json"
+    name: "Contract Tracker"
+    description: "Theo dõi hợp đồng"
+
+ui_apps:
+  - file: "ui/appsmith_app.json"
+    name: "Procurement App"
+    path: "/apps/procurement"
+
+roles:
+  - name: "procurement_staff"
+    display_name: "Procurement Staff"
+    description: "Nhân viên mua sắm"
+    permissions:
+      - "procurement:requests:read"
+      - "procurement:requests:write"
+      - "procurement:vendors:read"
+
+  - name: "procurement_manager"
+    display_name: "Procurement Manager"
+    description: "Quản lý mua sắm"
+    permissions:
+      - "procurement:requests:read"
+      - "procurement:requests:write"
+      - "procurement:vendors:read"
+      - "procurement:requests:approve"
+      - "procurement:contracts:write"
+      - "procurement:po:approve"
+
+  - name: "procurement_viewer"
+    display_name: "Procurement Viewer"
+    description: "Người xem thông tin mua sắm"
+    permissions:
+      - "procurement:requests:read"
+      - "procurement:contracts:read"
+
+event_subscriptions:
+  - source_plugin: "finance-module"
+    event_types:
+      - "finance.expense_request.approved"
+    handler_workflow: "workflows/sync_payment_status.json"
+
+event_publications:
+  - event_type: "procurement.purchase_order.approved"
+    description: "Khi PO được duyệt"
+    payload_schema:
+      po_id: "uuid"
+
+  - event_type: "procurement.contract.signed"
+    description: "Khi hợp đồng được ký"
+    payload_schema:
+      contract_id: "uuid"
+
+  - event_type: "procurement.delivery.received"
+    description: "Khi nhận hàng hoàn tất"
+    payload_schema:
+      delivery_id: "uuid"
