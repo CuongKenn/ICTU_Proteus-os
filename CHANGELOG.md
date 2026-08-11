@@ -6,29 +6,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
-<<<<<<< HEAD
-=======
+- **[core-engine/backend/app/core/formal_verification]** Đột phá 1 (IEEE Paper): Nhúng thành công thư viện Z3 SMT Solver để thực hiện Kiểm chứng tĩnh (Static Formal Verification) toán học cho DX-DSL. Ngăn chặn triệt để lỗi logic về RLS Tenant Boundary và các quy tắc tài chính trước khi thực thi (Issue #235).
 - **[plugins/crm-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Quan hệ Khách hàng (crm-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #195).
->>>>>>> 3cf797235f34de8dfc7e0c8e7af951e8ca04b05c
 - **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
->>>>>>> 3cf797235f34de8dfc7e0c8e7af951e8ca04b05c
 - **[plugins/finance-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài chính Kế toán (finance-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #190).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
-
 - **[plugins/asset-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài sản Thiết bị (asset-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #196).
-- **[plugins/crm-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Quan hệ Khách hàng (crm-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #195).
-- **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
-- **[plugins/finance-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài chính Kế toán (finance-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #190).
-
 - **[plugins/meeting-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Cuộc họp Phòng họp (meeting-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #197).
-- **[plugins/asset-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài sản Thiết bị (asset-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #196).
-- **[plugins/crm-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Quan hệ Khách hàng (crm-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #195).
-- **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
-
 - **[plugins/it-helpdesk-module]** Khởi tạo cấu trúc scaffolding cho plugin IT Service Desk nội bộ (it-helpdesk-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #198).
-
-- **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
->>>>>>> 021ed5f9a2667e8c9a0bec4111c5298959869567
 - **[plugins/procurement-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Mua sắm & Hợp đồng (procurement-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #192).
 
 - **[plugins/document-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Văn bản (document-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #194).
