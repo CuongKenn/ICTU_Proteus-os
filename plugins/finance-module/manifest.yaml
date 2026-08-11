@@ -55,7 +55,7 @@ dashboards:
   - id: "dash_finance_overview"
     name: "Tổng quan tài chính"
     file: "dashboards/finance_overview.json"
-    
+
   - id: "dash_budget_vs_actual"
     name: "Ngân sách vs Thực tế"
     file: "dashboards/budget_vs_actual.json"
