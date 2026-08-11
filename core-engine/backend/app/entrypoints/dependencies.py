@@ -43,7 +43,7 @@ from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
 from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
 from app.core.use_cases.tenant_onboarding import TenantOnboardingUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
-from app.infrastructure.database import get_db_readonly
+from app.infrastructure.database import get_db_readonly, get_db_transactional
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ async def get_plugin_install_use_case(
     metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
-    db: AsyncSession = Depends(get_db_readonly),
+    db: AsyncSession = Depends(get_db_transactional),
     request: Request = None,
 ) -> PluginInstallUseCase:
     """Inject Plugin Install Use Case."""
@@ -120,7 +120,7 @@ async def get_plugin_uninstall_use_case(
     metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
-    db: AsyncSession = Depends(get_db_readonly),
+    db: AsyncSession = Depends(get_db_transactional),
     request: Request = None,
 ) -> PluginUninstallUseCase:
     """Inject Plugin Uninstall Use Case."""
@@ -148,7 +148,7 @@ async def get_plugin_toggle_use_case(
 
 async def get_plugin_upgrade_use_case(
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
-    db: AsyncSession = Depends(get_db_readonly),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> PluginUpgradeUseCase:
     """Inject Plugin Upgrade Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
