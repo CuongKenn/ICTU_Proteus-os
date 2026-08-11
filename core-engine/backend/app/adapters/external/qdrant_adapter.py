@@ -92,11 +92,17 @@ class QdrantAdapter(AbstractVectorDBPort):
             await self._ensure_collection_exists()
 
             # Khởi tạo filter để chỉ search trong dữ liệu của tenant hiện tại
-            tenant_filter = Filter(
-                must=[
-                    FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))
-                ]
-            )
+            must_conditions = [
+                FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))
+            ]
+
+            if filters:
+                for k, v in filters.items():
+                    must_conditions.append(
+                        FieldCondition(key=k, match=MatchValue(value=v))
+                    )
+
+            tenant_filter = Filter(must=must_conditions)
 
             # query method của fastembed client hỗ trợ query_text và tự động tính hybrid RRF
             results = await self.client.query(
