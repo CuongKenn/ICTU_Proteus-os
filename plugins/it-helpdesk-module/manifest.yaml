@@ -1,0 +1,103 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — it-helpdesk-module (IT Service Desk nội bộ)
+
+name: "it-helpdesk-module"
+display_name: "IT Service Desk nội bộ"
+version: "1.0.0"
+description: |
+  Hỗ trợ CNTT nội bộ, quản lý ticket, phân công kỹ thuật viên, theo dõi SLA và tự động hóa quy trình onboarding/offboarding IT.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/it-helpdesk-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "it_categories"
+    - "it_sla_policies"
+    - "it_tickets"
+    - "it_ticket_updates"
+    - "it_knowledge_base"
+
+  seed_file: "db/seed_data.sql"
+
+workflows:
+  - id: "wf_ticket_create"
+    name: "Tạo Ticket & Phân công"
+    trigger: "webhook"
+    file: "workflows/ticket_create.json"
+
+  - id: "wf_sla_escalation"
+    name: "Cảnh báo SLA"
+    trigger: "cron"
+    cron_expression: "*/30 * * * *"
+    file: "workflows/sla_escalation.json"
+
+  - id: "wf_ticket_feedback"
+    name: "Gửi khảo sát sau Resolve"
+    trigger: "cron"
+    cron_expression: "0 * * * *" # Backup thay cho node Wait
+    file: "workflows/ticket_feedback.json"
+
+  - id: "wf_weekly_it_report"
+    name: "Báo cáo IT hàng tuần"
+    trigger: "cron"
+    cron_expression: "0 8 * * 1"
+    file: "workflows/weekly_it_report.json"
+
+dashboards:
+  - id: "dash_helpdesk_overview"
+    name: "Tổng quan Helpdesk & SLA"
+    file: "dashboards/helpdesk_overview.json"
+
+  - id: "dash_it_team_performance"
+    name: "Hiệu suất IT Team"
+    file: "dashboards/it_team_performance.json"
+
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+
+roles:
+  - name: "it_staff"
+    description: "Nhân viên IT"
+    permissions:
+      - "it:tickets:read"
+      - "it:tickets:write"
+      - "it:tickets:resolve"
+      - "it:knowledge_base:read"
+      - "it:knowledge_base:write"
+
+  - name: "it_manager"
+    description: "Quản lý IT"
+    permissions:
+      - "it:tickets:read_all"
+      - "it:tickets:write"
+      - "it:tickets:resolve"
+      - "it:sla_policies:write"
+      - "it:knowledge_base:read"
+      - "it:knowledge_base:write"
+      - "it:reports:read"
+      - "it:assign:all"
+
+  - name: "it_requester"
+    description: "Người dùng (Nhân viên)"
+    permissions:
+      - "it:tickets:read"
+      - "it:tickets:write"
+      - "it:knowledge_base:read"
+
+events:
+  consumes:
+    - "hr.employee.created"
+    - "hr.employee.deactivated"
+  produces:
+    - "it.ticket.created"
+    - "it.ticket.resolved"
+    - "it.sla.violated"

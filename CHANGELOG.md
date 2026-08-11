@@ -9,6 +9,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
 - **[plugins/finance-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài chính Kế toán (finance-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #190).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
+- **[plugins/it-helpdesk-module]** Khởi tạo cấu trúc scaffolding cho plugin IT Service Desk nội bộ (it-helpdesk-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #198).
+
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
 - **[plugins/procurement-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Mua sắm & Hợp đồng (procurement-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #192).
 
@@ -30,7 +32,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+- **[core-engine/backend]** Xóa tham số `request: Request = None` không sử dụng trong `dependencies.py` để tuân thủ chuẩn typing (Issue #184).
 - **[core-engine/frontend]** Sửa lỗi gọi sai API endpoint trong `useMarketplace` (`/plugins` thay vì `/plugins/marketplace`) và cập nhật type schema response để danh sách Plugin load đúng từ backend (Issue #180).
+
 - **[core-engine/frontend]** Cập nhật `AIChatWidget` phân tách chức năng của nút Thu nhỏ (chỉ ẩn panel) và nút Đóng (reset toàn bộ tin nhắn), sửa lỗi UI gọi chung 1 hàm `closeWidget` (Issue #175).
 
 - **[core-engine/backend]** Fix lỗi vi phạm Hexagonal Architecture tại `RAGIngestionUseCase`: chuyển việc khởi tạo `OutlineAdapter` và `QdrantAdapter` từ Router sang Dependency Injection Container (Issue #169).
