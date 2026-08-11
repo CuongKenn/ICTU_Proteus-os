@@ -68,7 +68,9 @@ class PluginUninstallUseCase:
             )
 
         if confirm_name != plugin.code_name:
-            raise PluginUninstallError("Tên xác nhận không khớp với mã plugin (code_name).")
+            raise PluginUninstallError(
+                "Tên xác nhận không khớp với mã plugin (code_name)."
+            )
 
         # Lấy code_name
         plugin_code_name = plugin.code_name
