@@ -156,3 +156,7 @@ Trả lời **TẤT CẢ** câu hỏi dưới đây trước khi viết bất k�
 
 > **Tóm lại:** Agent không được phép bắt đầu implement issue khi issue đó bị **block bởi dependency chưa hoàn thành**. Đây là quy tắc bất khả xâm phạm để đảm bảo kiến trúc được xây dựng đúng thứ tự từ tầng thấp lên cao.
 
+## 10. Quy tắc Code Review và Merge Pull Request (Bắt buộc)
+- **Không bao giờ được merge PR vào `main` khi PR chưa được approve.**
+- Bạn **phải fix hết** tất cả các code review comments trước khi có thể merge PR.
+- Tuyệt đối cấm sử dụng force-push (`git push -f`) hoặc force-merge vào nhánh `main` khi PR đã được approve. Luôn sử dụng standard merge hoặc rebase an toàn.
