@@ -14,16 +14,20 @@ from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_install import PluginInstallError, PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.plugin_toggle import PluginToggleError, PluginToggleUseCase
 from app.core.use_cases.plugin_uninstall import (
     PluginUninstallError,
     PluginUninstallUseCase,
 )
+from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeUseCase
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_plugin_install_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
+    get_plugin_toggle_use_case,
     get_plugin_uninstall_use_case,
+    get_plugin_upgrade_use_case,
 )
 from app.entrypoints.schemas.plugin import (
     PluginInstallRequest,
@@ -122,6 +126,13 @@ async def uninstall_plugin(
     Gỡ cài đặt Plugin. Xóa các Workflow, Dashboard, DB Table liên quan.
     Yêu cầu xác nhận tên Plugin bằng `confirm_name`.
     """
+    # Kiểm tra quyền
+    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
+        )
+
     try:
         await use_case.uninstall_plugin(
             context=ctx,
@@ -135,3 +146,84 @@ async def uninstall_plugin(
         )
 
     return {"message": "Gỡ cài đặt Plugin thành công."}
+
+
+@router.post(
+    "/{plugin_id}/disable",
+    status_code=status.HTTP_200_OK,
+    summary="Vô hiệu hóa Plugin",
+)
+async def disable_plugin(
+    plugin_id: uuid.UUID,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: PluginToggleUseCase = Depends(get_plugin_toggle_use_case),
+) -> dict[str, str]:
+    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
+        )
+
+    try:
+        await use_case.disable_plugin(context=ctx, plugin_id=plugin_id)
+    except PluginToggleError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return {"message": "Plugin đã được vô hiệu hóa."}
+
+
+@router.post(
+    "/{plugin_id}/enable",
+    status_code=status.HTTP_200_OK,
+    summary="Bật lại Plugin",
+)
+async def enable_plugin(
+    plugin_id: uuid.UUID,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: PluginToggleUseCase = Depends(get_plugin_toggle_use_case),
+) -> dict[str, str]:
+    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
+        )
+
+    try:
+        await use_case.enable_plugin(context=ctx, plugin_id=plugin_id)
+    except PluginToggleError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return {"message": "Plugin đã được bật lại."}
+
+
+@router.post(
+    "/{plugin_id}/upgrade",
+    status_code=status.HTTP_200_OK,
+    summary="Nâng cấp Plugin",
+)
+async def upgrade_plugin(
+    plugin_id: uuid.UUID,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: PluginUpgradeUseCase = Depends(get_plugin_upgrade_use_case),
+) -> dict[str, str]:
+    if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ tenant_admin hoặc superadmin mới có thể thao tác.",
+        )
+
+    try:
+        await use_case.upgrade_plugin(context=ctx, plugin_id=plugin_id)
+    except PluginUpgradeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return {"message": "Nâng cấp Plugin thành công."}

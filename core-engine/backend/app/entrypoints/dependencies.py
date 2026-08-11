@@ -35,7 +35,9 @@ from app.core.domain.exceptions import InsufficientPermissionsError
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.plugin_toggle import PluginToggleUseCase
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
+from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
 from app.core.use_cases.tenant_onboarding import TenantOnboardingUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.infrastructure.database import get_db_readonly
@@ -130,6 +132,27 @@ async def get_plugin_uninstall_use_case(
         appsmith_adapter=appsmith_adapter,
         keycloak_adapter=keycloak_adapter,
         mattermost_adapter=MattermostAdapter(),
+        session=db,
+    )
+
+
+async def get_plugin_toggle_use_case(
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+) -> PluginToggleUseCase:
+    """Inject Plugin Toggle Use Case."""
+    return PluginToggleUseCase(plugin_repo=repo)
+
+
+async def get_plugin_upgrade_use_case(
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    db: AsyncSession = Depends(get_db_readonly),
+) -> PluginUpgradeUseCase:
+    """Inject Plugin Upgrade Use Case."""
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+
+    return PluginUpgradeUseCase(
+        plugin_repo=repo,
+        manifest_parser=LocalManifestParser(),
         session=db,
     )
 

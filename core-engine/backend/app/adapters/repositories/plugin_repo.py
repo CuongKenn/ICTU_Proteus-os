@@ -203,6 +203,19 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         row = result.first()
         return PluginStatus(row[0]) if row else None
 
+    async def get_installed_version(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> str | None:
+        result = await self._session.execute(
+            text(
+                "SELECT installed_version FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        row = result.first()
+        return str(row[0]) if row and row[0] else None
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(
