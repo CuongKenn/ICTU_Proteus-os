@@ -20,6 +20,8 @@ from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
+from app.adapters.external.outline_adapter import OutlineAdapter
+from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.base import (
@@ -43,6 +45,7 @@ from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.plugin_toggle import PluginToggleUseCase
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
 from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
+from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.core.use_cases.tenant_onboarding import TenantOnboardingUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.infrastructure.database import get_db_readonly, get_db_transactional
@@ -89,6 +92,15 @@ async def get_plugin_list_use_case(
 ) -> PluginListUseCase:
     """Inject Plugin List Use Case."""
     return PluginListUseCase(plugin_repo=repo)
+
+
+async def get_rag_ingestion_use_case(
+    request: Request,
+) -> RAGIngestionUseCase:
+    """Inject RAG Ingestion Use Case."""
+    outline_adapter = OutlineAdapter(client=request.app.state.http_client)
+    qdrant_adapter = QdrantAdapter(client=request.app.state.http_client)
+    return RAGIngestionUseCase(outline_adapter, qdrant_adapter)
 
 
 async def get_plugin_install_use_case(

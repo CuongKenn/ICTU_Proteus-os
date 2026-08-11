@@ -45,7 +45,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const targetUrl = `${BACKEND_URL}/api/v1/ai/execute`;
+  const targetUrl = `${BACKEND_URL}/api/v1/ai/command`;
 
   try {
     const backendResponse = await fetch(targetUrl, {
