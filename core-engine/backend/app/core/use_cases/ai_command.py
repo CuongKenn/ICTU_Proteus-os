@@ -10,130 +10,175 @@ from datetime import datetime, timedelta, timezone
 
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
-from app.adapters.repositories.base import AbstractAICommandRepository
+from app.adapters.repositories.base import (
+    AbstractAICommandRepository,
+    AbstractDSLDryRunRepository,
+    AbstractPluginRepository,
+)
+from app.core.domain.entities import AICommandStatus, TenantContext
+from app.core.use_cases.dsl_validator import DSLValidator
+from app.entrypoints.schemas.ai_command import AICommandRequest
 
 logger = logging.getLogger(__name__)
 
 
 class AICommandUseCase:
+    """
+    Xử lý vòng đời của một AI Command (DX-DSL).
+    Tuân thủ quy tắc phê duyệt theo effect (AGENTS.md §4).
+    """
+
     def __init__(
         self,
+        plugin_repo: AbstractPluginRepository,
         ai_command_repo: AbstractAICommandRepository,
+        dsl_dry_run_repo: AbstractDSLDryRunRepository,
         mattermost_adapter: MattermostAdapter,
         n8n_adapter: N8nAdapter,
     ):
+        self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
+        self.dsl_dry_run_repo = dsl_dry_run_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
 
-    async def execute_command(
-        self, tenant_id: str, user_id: str, session_id: str, dsl_payload: dict
-    ) -> dict:
+    async def execute(
+        self, body: AICommandRequest, ctx: TenantContext
+    ) -> tuple[AICommandStatus, str, dict | None]:
         """
-        Xử lý AI command dựa trên mức độ effect:
-        - read: chạy luôn qua n8n webhook (nếu cần) hoặc query và trả về kết quả
-        - write: validate -> PENDING_APPROVAL (30m) -> gửi Mattermost
-        - critical: validate -> PENDING_APPROVAL (15m) -> gửi Mattermost (yêu cầu 2 approvers)
+        Thực thi lệnh. Trả về (status, message, result).
         """
-        action = dsl_payload.get("action", "")
-        effect = dsl_payload.get("effect", "read")
+        payload = {
+            "version": body.dsl_version,
+            "action": body.action,
+            "effect": body.effect,
+            "parameters": body.parameters,
+        }
+
+        # 1. Validate DSL
+        dsl_validator = DSLValidator(
+            plugin_repo=self.plugin_repo,
+            tenant_id=str(ctx.tenant_id),
+            user_id=str(ctx.user_id),
+        )
+        await dsl_validator.validate(payload)
+
         now = datetime.now(timezone.utc)
 
-        logger.info(
-            f"[AI Command] Bắt đầu xử lý lệnh: {action} (effect={effect}) bởi user={user_id}"
+        # 2. Xử lý theo effect
+        if body.effect == "read":
+            # Chạy ngay lập tức thông qua n8n webhook
+            try:
+                # Giả sử webhook URL mapping được cấu hình trong DB, ở đây dùng mock cho action
+                webhook_url = f"http://n8n:5678/webhook/{body.action.replace('.', '-')}"
+                response = await self.n8n_adapter.trigger_webhook(
+                    webhook_url=webhook_url, payload=body.parameters
+                )
+
+                # Ghi log command thành công
+                await self.ai_command_repo.create_command(
+                    {
+                        "id": body.command_id,
+                        "tenant_id": ctx.tenant_id,
+                        "issued_by_user_id": ctx.user_id,
+                        "session_id": body.session_id,
+                        "dsl_version": body.dsl_version,
+                        "action": body.action,
+                        "effect": body.effect,
+                        "parameters": str(body.parameters).replace("'", '"'),
+                        "status": AICommandStatus.COMPLETED.value,
+                        "execution_result": str(response).replace("'", '"'),
+                        "executed_at": now,
+                        "created_at": now,
+                    }
+                )
+                await self.ai_command_repo.commit()
+                return (
+                    AICommandStatus.COMPLETED,
+                    "Lệnh đọc dữ liệu đã thực thi thành công.",
+                    response,
+                )
+            except Exception as e:
+                logger.error(f"Read command execution failed: {e}")
+                # Ghi log thất bại
+                await self.ai_command_repo.create_command(
+                    {
+                        "id": body.command_id,
+                        "tenant_id": ctx.tenant_id,
+                        "issued_by_user_id": ctx.user_id,
+                        "session_id": body.session_id,
+                        "dsl_version": body.dsl_version,
+                        "action": body.action,
+                        "effect": body.effect,
+                        "parameters": str(body.parameters).replace("'", '"'),
+                        "status": AICommandStatus.FAILED.value,
+                        "execution_result": str({"error": str(e)}).replace("'", '"'),
+                        "executed_at": now,
+                        "created_at": now,
+                    }
+                )
+                await self.ai_command_repo.commit()
+                return AICommandStatus.FAILED, f"Lỗi khi thực thi: {e}", None
+
+        # Write or Critical → Cần phê duyệt (Human-in-the-loop)
+        deadline_minutes = 30 if body.effect == "write" else 15
+        approval_deadline = now + timedelta(minutes=deadline_minutes)
+
+        # Dry run preview
+        try:
+            target_table = (
+                body.action.split(".")[1] if "." in body.action else "unknown"
+            )
+            dry_run_res = await self.dsl_dry_run_repo.execute_dry_run(
+                tenant_id=str(ctx.tenant_id), target_table=target_table
+            )
+        except Exception:
+            dry_run_res = {"preview": "Không thể thực hiện dry run"}
+
+        # Lưu DB
+        await self.ai_command_repo.create_command(
+            {
+                "id": body.command_id,
+                "tenant_id": ctx.tenant_id,
+                "issued_by_user_id": ctx.user_id,
+                "session_id": body.session_id,
+                "dsl_version": body.dsl_version,
+                "action": body.action,
+                "effect": body.effect,
+                "parameters": str(body.parameters).replace("'", '"'),
+                "status": AICommandStatus.PENDING_APPROVAL.value,
+                "approval_deadline": approval_deadline,
+                "dry_run_result": str(dry_run_res).replace("'", '"'),
+                "created_at": now,
+            }
         )
+        await self.ai_command_repo.commit()
 
-        if effect == "read":
-            # 1. READ: Thực thi luôn
-            # Ví dụ query trực tiếp hoặc gọi n8n
-            # ... mock execution
-            result_data = {"status": "success", "data": "Dữ liệu trả về từ hệ thống"}
-
-            cmd_id = await self.ai_command_repo.create_command(
-                {
-                    "tenant_id": tenant_id,
-                    "issued_by_user_id": user_id,
-                    "session_id": session_id,
-                    "dsl_payload": str(dsl_payload).replace("'", '"'),
-                    "action": action,
-                    "effect": effect,
-                    "status": "COMPLETED",
-                    "execution_result": str(result_data).replace("'", '"'),
-                    "executed_at": now,
-                    "created_at": now,
-                }
-            )
-            await self.ai_command_repo.commit()
-
-            return {
-                "status": "completed",
-                "message": "Đã xử lý thành công",
-                "result": result_data,
-                "command_id": str(cmd_id),
-            }
-
-        else:
-            # 2. WRITE / CRITICAL: Yêu cầu phê duyệt
-            timeout_minutes = 15 if effect == "critical" else 30
-            deadline = now + timedelta(minutes=timeout_minutes)
-
-            # Dry run (mock)
-            dry_run_result = {"affected_count": 5, "preview": ["item 1", "item 2"]}
-
-            cmd_id = await self.ai_command_repo.create_command(
-                {
-                    "tenant_id": tenant_id,
-                    "issued_by_user_id": user_id,
-                    "session_id": session_id,
-                    "dsl_payload": str(dsl_payload).replace("'", '"'),
-                    "action": action,
-                    "effect": effect,
-                    "status": "PENDING_APPROVAL",
-                    "dry_run_result": str(dry_run_result).replace("'", '"'),
-                    "approval_deadline": deadline,
-                    "created_at": now,
-                }
-            )
-
-            # Gửi tin nhắn Mattermost Interactive (mock interactive)
-            approver_req = (
-                "2 Người Quản Lý" if effect == "critical" else "1 Người Quản Lý"
-            )
-            msg = (
-                f"🔒 **[Yêu Cầu Phê Duyệt]** ({effect.upper()})\n"
-                f"Người yêu cầu: <@{user_id}>\n"
-                f"Hành động: `{action}`\n"
-                f"Yêu cầu phê duyệt từ: {approver_req}\n"
-                f"Hạn duyệt: `{deadline.strftime('%H:%M:%S %d/%m/%Y')} UTC`\n"
-            )
-            # Dùng interactive button trong thực tế
+        # Gửi thông báo phê duyệt qua Mattermost
+        msg_text = (
+            f"**[AI Command Approval Required]**\n"
+            f"- **Action:** `{body.action}`\n"
+            f"- **Effect:** {body.effect.upper()}\n"
+            f"- **User:** {ctx.user_id}\n"
+            f"- **Deadline:** {deadline_minutes} phút\n"
+            f"Vui lòng phê duyệt hoặc từ chối tại Dashboard."
+        )
+        try:
             await self.mattermost_adapter.send_message(
-                channel="approval-requests", text=msg
+                channel="admin-channel", text=msg_text
             )
+        except Exception as e:
+            logger.warning(f"Could not send Mattermost approval request: {e}")
 
-            await self.ai_command_repo.commit()
-
-            return {
-                "status": "pending_approval",
-                "message": "Lệnh cần phê duyệt",
-                "dsl_preview": {
-                    "command_id": str(cmd_id),
-                    "action": action,
-                    "effect": effect,
-                    "approval_deadline": deadline.isoformat(),
-                    "dry_run_result": dry_run_result,
-                },
-            }
+        msg = f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau {deadline_minutes} phút."
+        return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res
 
     async def process_approval(
         self, cmd_id: str, approver_id: str, action_taken: str
     ) -> bool:
         """
-        Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ] trên Mattermost.
-        Hàm này sẽ được gọi từ Mattermost Webhook Router (Task 36).
+        Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ].
         """
-        now = datetime.now(timezone.utc)
-
         cmd = await self.ai_command_repo.get_command_by_id(cmd_id)
 
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
@@ -146,7 +191,6 @@ class AICommandUseCase:
             await self.ai_command_repo.commit()
             return True
 
-        # process approve
         if cmd["effect"] == "critical":
             if not cmd["approved_by"]:
                 await self.ai_command_repo.update_command_approval(
@@ -154,22 +198,17 @@ class AICommandUseCase:
                 )
                 await self.ai_command_repo.commit()
                 return True
-            elif cmd["approved_by"] != approver_id:
-                # Có đủ 2 approvers
+            elif str(cmd["approved_by"]) != str(approver_id):
                 await self.ai_command_repo.update_command_approval(
                     cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
                 )
                 await self.ai_command_repo.commit()
-                # trigger execute queue here...
                 return True
             else:
-                # 1 người ko thể duyệt 2 lần
                 return False
         else:
-            # write effect
             await self.ai_command_repo.update_command_approval(
                 cmd_id=cmd_id, approved_by=approver_id, status="APPROVED"
             )
             await self.ai_command_repo.commit()
-            # trigger execute queue here...
             return True
