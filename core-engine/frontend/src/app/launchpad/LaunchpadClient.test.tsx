@@ -37,6 +37,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -58,6 +59,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     const { container } = render(<LaunchpadClient />);
@@ -75,6 +77,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -100,6 +103,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -117,6 +121,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -138,6 +143,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     render(<LaunchpadClient />);
@@ -161,6 +167,7 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      configureCredentials: vi.fn(),
     });
 
     vi.mocked(global.fetch).mockResolvedValueOnce({

@@ -325,14 +325,11 @@ class N8nAdapter:
         return result
 
     async def create_credential(
-        self,
-        credential_type: str,
-        credential_name: str,
-        data: dict[str, Any]
+        self, credential_type: str, credential_name: str, data: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Tạo Credentials mới trên n8n.
-        
+
         Args:
             credential_type: Loại credentials (e.g., 'smtp', 'githubApi')
             credential_name: Tên credential (Nên kèm prefix tenant_id để phân tách)
@@ -349,22 +346,18 @@ class N8nAdapter:
             "Creating n8n credential",
             extra={
                 "credential_name": credential_name,
-                "credential_type": credential_type
-            }
+                "credential_type": credential_type,
+            },
         )
 
-        payload = {
-            "name": credential_name,
-            "type": credential_type,
-            "data": data
-        }
+        payload = {"name": credential_name, "type": credential_type, "data": data}
 
         response = await self._request_with_retry("POST", url, json=payload)
 
         if response.status_code not in (200, 201):
             logger.error(
                 "Failed to create n8n credential",
-                extra={"status": response.status_code, "body": response.text[:200]}
+                extra={"status": response.status_code, "body": response.text[:200]},
             )
             raise N8nAdapterError(
                 f"n8n create_credential failed: HTTP {response.status_code} — {response.text[:200]}"
@@ -373,6 +366,6 @@ class N8nAdapter:
         result = response.json()
         logger.info(
             "n8n credential created successfully",
-            extra={"credential_id": result.get("id")}
+            extra={"credential_id": result.get("id")},
         )
         return result

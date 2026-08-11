@@ -286,18 +286,18 @@ async def configure_plugin_credentials(
         adapter = N8nAdapter()
         # RLS Prefix: tenant_{tenant_id}_name
         safe_name = f"tenant_{ctx.tenant_id}_{payload.credential_name}"
-        
+
         result = await adapter.create_credential(
             credential_type=payload.credential_type,
             credential_name=safe_name,
-            data=payload.data
+            data=payload.data,
         )
         await adapter.aclose()
-        
+
         return {
             "message": "Credential tạo thành công",
             "credential_id": result.get("id"),
-            "safe_name": safe_name
+            "safe_name": safe_name,
         }
     except N8nAdapterError as e:
         raise HTTPException(
