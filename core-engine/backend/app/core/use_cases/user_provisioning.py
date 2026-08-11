@@ -13,9 +13,7 @@ class UserProvisioningUseCase:
     def __init__(self, user_repo: AbstractUserRepository):
         self.user_repo = user_repo
 
-    async def sync_user_profile(
-        self, tenant_context: TenantContext
-    ) -> UserEntity:
+    async def sync_user_profile(self, tenant_context: TenantContext) -> UserEntity:
         """
         Thực hiện First Login Provisioning:
         - Nếu chưa có trong DB: INSERT mới.
