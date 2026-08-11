@@ -1,3 +1,6 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { renderHook } from '@testing-library/react';
 import { useSession } from './useSession';
 import { describe, it, expect, vi } from 'vitest';
