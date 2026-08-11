@@ -23,11 +23,15 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Thêm ngăn xếp giám sát (Observability Stack) bao gồm Promtail, Loki, và Grafana.
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
+- **[core-engine/frontend]** Cập nhật `AIChatWidget` phân tách chức năng của nút Thu nhỏ (chỉ ẩn panel) và nút Đóng (reset toàn bộ tin nhắn), sửa lỗi UI gọi chung 1 hàm `closeWidget` (Issue #175).
 - **[core-engine/backend]** Fix lỗi vi phạm Hexagonal Architecture tại `RAGIngestionUseCase`: chuyển việc khởi tạo `OutlineAdapter` và `QdrantAdapter` từ Router sang Dependency Injection Container (Issue #169).
+
 - **[core-engine/frontend]** Cập nhật `AIChatWidget` thêm thuộc tính `aria-live` và `role="log"` giúp tương thích với Screen Reader (WCAG 2.1) (Issue #174).
 
 - **[core-engine/backend]** Bổ sung error handling (try/catch), logging, và tự động gửi thông báo (alert) qua Mattermost cho các APScheduler background jobs (`run_plugin_cleanup`, `run_ai_timeout_worker`) để tránh silent failures (Issue #181).
+
 - **[core-engine/backend]** Bổ sung `SoftDeleteMixin` (`deleted_at`) cho `AuditLogModel` và `UserRoleModel` để tuân thủ quy tắc dữ liệu cốt lõi (Issue #178).
+
 - **[core-engine/frontend]** Khắc phục lỗi Memory leak trong `useMarketplace`: đảm bảo `setInterval` được clear đúng cách khi unmount component hoặc khi cài đặt lại plugin (Issue #170).
 - **[core-engine/backend]** Fix lỗi Plugin write use cases (`Install`, `Uninstall`, `Upgrade`) sử dụng read-only DB session, dẫn đến transaction không được commit và dữ liệu không persist (Issue #168).
 - **[core-engine/backend]** Triển khai toàn bộ logic thực thi cho `PluginInstallUseCase` (Issue #167): 
