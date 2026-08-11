@@ -76,3 +76,45 @@ async def trigger_rag_ingestion(
     """
     result = await use_case.execute(str(ctx.tenant_id))
     return result
+
+
+@router.post(
+    "/ipc/transmit",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="POC: Kích hoạt truyền tải KV-Cache qua Event Bus",
+)
+async def transmit_kv_cache_ipc(
+    body: dict,  # tạm dùng dict thay vì schema nếu chưa import
+    ctx: TenantContext = Depends(get_current_tenant_context),
+):
+    """
+    Kích hoạt giao tiếp IPC giữa 2 AI Agents, sử dụng State Pointer (UUID)
+    thay vì gửi toàn bộ Context Text qua Event Bus.
+    """
+    from app.entrypoints.schemas.ai_ipc import (
+        KVCacheTransmitRequest,
+        KVCacheTransmitResponse,
+    )
+    from app.ai.kv_cache_ipc import KVCacheIPCManager
+    from app.adapters.external.qdrant_adapter import QdrantAdapter
+    from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+
+    req = KVCacheTransmitRequest(**body)
+
+    manager = KVCacheIPCManager(
+        qdrant_adapter=QdrantAdapter(), redis_publisher=RedisEventBusPublisher()
+    )
+
+    pointer_uuid, latency_ms = await manager.transmit_context(
+        tenant_id=str(ctx.tenant_id),
+        source_agent=req.source_agent,
+        target_agent=req.target_agent,
+        context_text=req.context_data,
+    )
+
+    return KVCacheTransmitResponse(
+        pointer_uuid=pointer_uuid,
+        latency_ms=latency_ms,
+        message="Đã truyền tải Context Pointer thành công",
+    )

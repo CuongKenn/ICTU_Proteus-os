@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import text
 from app.infrastructure.database import current_tenant_id
 
+
 @pytest.mark.asyncio
 async def test_rls_context_is_set(db_session):
     """Verify RLS SET LOCAL được gọi đúng cách cho AsyncSession."""
@@ -18,5 +19,5 @@ async def test_rls_context_is_set(db_session):
         text("SELECT current_setting('app.current_tenant_id', true)")
     )
     value = result.scalar()
-    
+
     assert value == tenant_id, f"RLS context không được set: got {value!r}"

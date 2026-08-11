@@ -87,8 +87,7 @@ async def lifespan(app: FastAPI):
             try:
                 mm = MattermostAdapter()
                 await mm.send_message(
-                    "system-alerts",
-                    f"🚨 Plugin Cleanup Job thất bại: `{e}`"
+                    "system-alerts", f"🚨 Plugin Cleanup Job thất bại: `{e}`"
                 )
             except Exception:
                 pass
@@ -116,8 +115,7 @@ async def lifespan(app: FastAPI):
             try:
                 mm = MattermostAdapter()
                 await mm.send_message(
-                    "system-alerts",
-                    f"🚨 AI timeout worker thất bại: `{e}`"
+                    "system-alerts", f"🚨 AI timeout worker thất bại: `{e}`"
                 )
             except Exception:
                 pass
