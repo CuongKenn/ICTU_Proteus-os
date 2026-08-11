@@ -34,7 +34,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   // MOCK: Assuming roles are stored in session.user.roles or similar structure.
   // In a real NextAuth Keycloak setup, this comes from the JWT payload.
-  const userRoles: string[] = (session?.user as any)?.roles || [];
+  const userRoles: string[] = session?.user?.roles ?? [];
   const isTenantAdmin = userRoles.includes("tenant_admin");
 
   const navigationLinks = [
