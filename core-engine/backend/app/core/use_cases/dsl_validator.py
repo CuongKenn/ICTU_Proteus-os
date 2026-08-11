@@ -11,6 +11,7 @@ import jsonschema
 
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import PluginStatus
+from app.core.formal_verification import Z3FormalVerifier, Z3VerificationError
 
 
 class DSLValidationError(Exception):
@@ -123,5 +124,12 @@ class DSLValidator:
             jsonschema.validate(instance=params, schema=schema)
         except jsonschema.exceptions.ValidationError as e:
             raise DSLInvalidParametersError(f"Parameter validation failed: {e.message}")
+
+        # Rule 6: Mathematical & Logical Invariant Verification (Formal Verification)
+        try:
+            verifier = Z3FormalVerifier(tenant_id=self.tenant_id, user_id=self.user_id)
+            verifier.verify_dsl(dsl_payload)
+        except Z3VerificationError as e:
+            raise DSLInvalidParametersError(str(e))
 
         return True
