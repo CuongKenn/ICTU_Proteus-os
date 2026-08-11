@@ -29,10 +29,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Bổ sung error handling (try/catch), logging, và tự động gửi thông báo (alert) qua Mattermost cho các APScheduler background jobs (`run_plugin_cleanup`, `run_ai_timeout_worker`) để tránh silent failures (Issue #181).
 - **[core-engine/backend]** Bổ sung `SoftDeleteMixin` (`deleted_at`) cho `AuditLogModel` và `UserRoleModel` để tuân thủ quy tắc dữ liệu cốt lõi (Issue #178).
 - **[core-engine/frontend]** Khắc phục lỗi Memory leak trong `useMarketplace`: đảm bảo `setInterval` được clear đúng cách khi unmount component hoặc khi cài đặt lại plugin (Issue #170).
+- **[core-engine/backend]** Fix lỗi Plugin write use cases (`Install`, `Uninstall`, `Upgrade`) sử dụng read-only DB session, dẫn đến transaction không được commit và dữ liệu không persist (Issue #168).
 - **[core-engine/backend]** Triển khai toàn bộ logic thực thi cho `PluginInstallUseCase` (Issue #167): 
   - Tích hợp `n8n_adapter`, `metabase_adapter`, `appsmith_adapter`, `keycloak_adapter` vào bước cài đặt plugin thay vì để `pass` như trước.
   - Sửa lỗi phantom install: thu thập `created_assets` ID trong quá trình chạy.
   - Implement logic `_rollback` thực sự bằng cách gọi các hàm `delete_*` theo thứ tự ngược lại nếu có lỗi xảy ra.
+
 - **[core-engine/backend]** Refactor: Loại bỏ code kiểm tra RBAC (Quyền) lặp lại ở 5 API endpoints trong `plugins.py`, chuyển sang dùng `require_permission` từ `dependencies.py` (Issue #172).
 - **[core-engine/frontend]** Cập nhật `next-auth` type definition để hỗ trợ `roles` an toàn, loại bỏ ép kiểu `as any` tại `AppShell.tsx` (Issue #171).
 
