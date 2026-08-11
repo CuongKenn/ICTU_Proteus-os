@@ -38,7 +38,9 @@ class DSLVersionCompatError(DSLValidationError):
 
 
 class DSLValidator:
-    def __init__(self, plugin_repo: AbstractPluginRepository, tenant_id: str, user_id: str):
+    def __init__(
+        self, plugin_repo: AbstractPluginRepository, tenant_id: str, user_id: str
+    ):
         """
         Khởi tạo Validator với Plugin Repository để kiểm tra DB constraint.
         """
