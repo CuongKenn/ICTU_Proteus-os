@@ -11,6 +11,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/crm-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Quan hệ Khách hàng (crm-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #195).
 >>>>>>> 3cf797235f34de8dfc7e0c8e7af951e8ca04b05c
 - **[plugins/project-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Dự án (project-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #193).
+>>>>>>> 3cf797235f34de8dfc7e0c8e7af951e8ca04b05c
 - **[plugins/finance-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài chính Kế toán (finance-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #190).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
 - **[plugins/asset-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Tài sản Thiết bị (asset-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #196).
