@@ -49,7 +49,7 @@ class AITimeoutWorker:
                 cmd_id = cmd["id"]
                 action = cmd["action"]
                 tenant_id = cmd["tenant_id"]
-                requested_by = cmd["requested_by"]
+                issued_by_user_id = cmd["issued_by_user_id"]
 
                 # 2. Cập nhật trạng thái thành TIMEOUT
                 await self.ai_command_repo.update_status(
@@ -71,7 +71,7 @@ class AITimeoutWorker:
                 # 4. Gửi thông báo Mattermost
                 msg = (
                     f"🚫 **[Hủy Lệnh Tự Động]**\n"
-                    f"Lệnh `{action}` do <@{requested_by}> yêu cầu đã hết hạn phê duyệt.\n"
+                    f"Lệnh `{action}` do <@{issued_by_user_id}> yêu cầu đã hết hạn phê duyệt.\n"
                     f"Trạng thái: `TIMEOUT`. Hệ thống đã tự động hủy lệnh này để đảm bảo an toàn."
                 )
                 await self.mattermost_adapter.send_message(
