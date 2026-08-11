@@ -98,7 +98,6 @@ async def get_plugin_install_use_case(
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     db: AsyncSession = Depends(get_db_readonly),
-    request: Request = None,
 ) -> PluginInstallUseCase:
     """Inject Plugin Install Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -123,7 +122,6 @@ async def get_plugin_uninstall_use_case(
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     db: AsyncSession = Depends(get_db_readonly),
-    request: Request = None,
 ) -> PluginUninstallUseCase:
     """Inject Plugin Uninstall Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
