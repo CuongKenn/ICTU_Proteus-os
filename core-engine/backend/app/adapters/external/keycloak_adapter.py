@@ -115,3 +115,27 @@ class KeycloakAdapter:
             return
         response.raise_for_status()
         logger.info("Keycloak role deleted", extra={"role": role_name, "realm": realm})
+
+    async def create_tenant_group(
+        self,
+        realm: str,
+        group_name: str,
+        admin_token: str,
+    ) -> None:
+        """Tạo Group cho Tenant trong Keycloak Realm."""
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/groups"
+        response = await self._client.post(
+            url,
+            json={"name": group_name},
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        if response.status_code == 409:
+            logger.warning(
+                "Group already exists in Keycloak", extra={"group": group_name}
+            )
+            return
+        response.raise_for_status()
+        logger.info(
+            "Keycloak group created", extra={"group": group_name, "realm": realm}
+        )

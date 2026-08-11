@@ -23,14 +23,17 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.base import (
     AbstractPluginRepository,
+    AbstractTenantRepository,
     AbstractUserRepository,
 )
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.tenant_onboarding import TenantOnboardingUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.infrastructure.database import get_db_readonly
 
@@ -176,6 +179,24 @@ async def get_user_repo(
 ) -> AbstractUserRepository:
     """Inject User Repository."""
     return SQLAlchemyUserRepository(session=db)
+
+
+async def get_tenant_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> AbstractTenantRepository:
+    """Inject Tenant Repository."""
+    return SQLAlchemyTenantRepository(session=db)
+
+
+async def get_tenant_onboarding_use_case(
+    repo: AbstractTenantRepository = Depends(get_tenant_repo),
+    keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    db: AsyncSession = Depends(get_db_readonly),
+) -> TenantOnboardingUseCase:
+    """Inject Tenant Onboarding Use Case."""
+    return TenantOnboardingUseCase(
+        tenant_repo=repo, keycloak_adapter=keycloak_adapter, session=db
+    )
 
 
 async def get_user_provisioning_use_case(
