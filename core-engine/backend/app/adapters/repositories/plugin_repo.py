@@ -160,6 +160,22 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             },
         )
 
+    async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        sql = text("""
+            SELECT p.tenant_id, p.plugin_name, p.status, p.updated_at
+            FROM plugin_installations p
+            WHERE p.status = 'FAILED_DIRTY' 
+              AND p.updated_at < :time_ago
+        """)
+        result = await self._session.execute(
+            sql, {"time_ago": now - timedelta(hours=hours)}
+        )
+        rows = result.mappings().all()
+        return [dict(row) for row in rows]
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(
