@@ -18,7 +18,14 @@ from app.infrastructure.logging_config import setup_logging
 from app.infrastructure.database import current_tenant_id
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.core.domain import exceptions as domain_exc
-from app.entrypoints.routers import ai, health, mattermost_webhook, plugins, auth
+from app.entrypoints.routers import (
+    ai,
+    health,
+    mattermost_webhook,
+    plugins,
+    auth,
+    keycloak_webhook,
+)
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -122,3 +129,4 @@ app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
 app.include_router(mattermost_webhook.router, prefix="/api/v1")
+app.include_router(keycloak_webhook.router, prefix="/api/v1")

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     KEYCLOAK_URL: str = "http://localhost:8080"
     KEYCLOAK_REALM: str = "proteus"
     KEYCLOAK_CLIENT_ID: str = "proteus-bff"
+    KEYCLOAK_WEBHOOK_SECRET: str = ""
 
     # ─── n8n (Workflow Engine) ────────────────────────────────
     N8N_URL: str = "http://localhost:5678"
@@ -53,6 +54,7 @@ class Settings(BaseSettings):
     MATTERMOST_URL: str = "http://mattermost:8065"
     MATTERMOST_BOT_TOKEN: str = ""
     MATTERMOST_WEBHOOK_SECRET: str = ""
+    MATTERMOST_SYSTEM_CHANNEL_ID: str = ""
 
     # ─── Outline (Knowledge Base) ──────────────────────────────────
     OUTLINE_URL: str = "http://localhost:3000"

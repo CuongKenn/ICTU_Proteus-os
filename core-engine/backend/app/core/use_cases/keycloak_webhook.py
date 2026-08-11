@@ -1,0 +1,59 @@
+import logging
+import uuid
+
+from app.adapters.external.mattermost_adapter import MattermostAdapter
+from app.adapters.repositories.base import AbstractUserRepository
+from app.core.domain.exceptions import NotFoundError
+from app.infrastructure.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class KeycloakWebhookUseCase:
+    """
+    Use Case: Xử lý Webhook từ Keycloak.
+    """
+
+    def __init__(
+        self,
+        user_repo: AbstractUserRepository,
+        mattermost_adapter: MattermostAdapter,
+    ):
+        self.user_repo = user_repo
+        self.mattermost_adapter = mattermost_adapter
+
+    async def handle_user_disabled(self, keycloak_user_id: uuid.UUID) -> None:
+        """
+        Xử lý sự kiện user bị vô hiệu hóa trên Keycloak.
+        Thực hiện soft delete trong DB và thông báo qua Mattermost.
+        """
+        logger.info(f"Processing USER_DISABLED event for {keycloak_user_id}")
+
+        # 1. Tìm user trong DB
+        user = await self.user_repo.get_by_keycloak_id(keycloak_user_id)
+        if not user:
+            logger.warning(
+                f"User with keycloak_id {keycloak_user_id} not found in DB. "
+                "Skipping."
+            )
+            return
+
+        # 2. Soft delete user
+        try:
+            await self.user_repo.deactivate(user.id)
+            await self.user_repo.commit()
+            logger.info(f"Successfully deactivated user {user.id}")
+        except NotFoundError:
+            logger.warning(f"User {user.id} already deactivated.")
+        except Exception as e:
+            logger.error(f"Failed to deactivate user {user.id}: {e}")
+            raise
+
+        # 3. Gửi thông báo Mattermost
+        channel_id = settings.MATTERMOST_SYSTEM_CHANNEL_ID
+        if channel_id:
+            msg = (
+                f"**Bảo mật:** Đã vô hiệu hóa tài khoản {user.full_name} "
+                f"(`{user.email}`) theo yêu cầu từ hệ thống SSO (Keycloak)."
+            )
+            await self.mattermost_adapter.send_message(channel_id, msg)
