@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
+- **[plugins/it-helpdesk-module]** Khởi tạo cấu trúc scaffolding cho plugin IT Service Desk nội bộ (it-helpdesk-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #198).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
 - **[plugins/procurement-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Mua sắm & Hợp đồng (procurement-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #192).
 - **[plugins/document-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Văn bản (document-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #194).
