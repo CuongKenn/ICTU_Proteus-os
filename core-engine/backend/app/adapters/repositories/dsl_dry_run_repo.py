@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
