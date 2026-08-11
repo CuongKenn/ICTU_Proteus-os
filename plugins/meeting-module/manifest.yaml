@@ -1,0 +1,103 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Plugin Manifest — meeting-module (Quản lý Cuộc họp Phòng họp)
+
+name: "meeting-module"
+display_name: "Quản lý Cuộc họp & Phòng họp"
+version: "1.0.0"
+description: |
+  Quản lý đặt phòng họp, gửi thư mời, ghi biên bản (meeting minutes) và theo dõi action items sau cuộc họp.
+author: "ICTU Team"
+license: "AGPL-3.0"
+icon_url: "/plugins/meeting-module/icon.png"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "meeting_rooms"
+    - "meeting_bookings"
+    - "meeting_attendees"
+    - "meeting_agendas"
+    - "meeting_minutes"
+    - "meeting_action_items"
+
+  seed_file: "db/seed_data.sql"
+
+workflows:
+  - id: "wf_meeting_booking"
+    name: "Đặt phòng & Gửi invite"
+    trigger: "webhook"
+    file: "workflows/meeting_booking.json"
+
+  - id: "wf_meeting_reminder"
+    name: "Nhắc họp trước 30 phút"
+    trigger: "cron"
+    cron_expression: "*/15 * * * *"
+    file: "workflows/meeting_reminder.json"
+
+  - id: "wf_action_item_followup"
+    name: "Follow-up Action Items"
+    trigger: "cron"
+    cron_expression: "0 9 * * 1"
+    file: "workflows/action_item_followup.json"
+
+  - id: "wf_room_release"
+    name: "Tự động giải phóng phòng"
+    trigger: "cron"
+    cron_expression: "*/5 * * * *"
+    file: "workflows/room_release.json"
+
+dashboards:
+  - id: "dash_meeting_stats"
+    name: "Thống kê Cuộc họp"
+    file: "dashboards/meeting_stats.json"
+    
+  - id: "dash_action_item_tracker"
+    name: "Theo dõi Action Items"
+    file: "dashboards/action_item_tracker.json"
+
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+
+roles:
+  - name: "meeting_organizer"
+    description: "Người Tổ chức Cuộc họp"
+    permissions:
+      - "meeting:bookings:read"
+      - "meeting:bookings:write"
+      - "meeting:bookings:cancel"
+      - "meeting:rooms:read"
+      - "meeting:minutes:write"
+      - "meeting:action_items:write"
+
+  - name: "meeting_admin"
+    description: "Quản trị Phòng họp"
+    permissions:
+      - "meeting:bookings:read_all"
+      - "meeting:bookings:write"
+      - "meeting:bookings:cancel"
+      - "meeting:rooms:read"
+      - "meeting:rooms:write"
+      - "meeting:minutes:write"
+      - "meeting:action_items:write"
+      - "meeting:reports:read"
+
+  - name: "meeting_viewer"
+    description: "Người Tham dự Cuộc họp"
+    permissions:
+      - "meeting:bookings:read"
+      - "meeting:rooms:read"
+
+events:
+  consumes:
+    - "hr.employee.deactivated"
+  produces:
+    - "meeting.booking.created"
+    - "meeting.action_item.created"
+    - "meeting.booking.cancelled"
