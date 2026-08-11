@@ -203,9 +203,7 @@ class TenantPluginModel(BaseModel, SoftDeleteMixin):
     )
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     installed_version: Mapped[str] = mapped_column(String(50), nullable=False)
-    config_override: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True
-    )
+    config_override: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     install_error_log: Mapped[str | None] = mapped_column(Text, nullable=True)
     installed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -274,9 +272,7 @@ class AICommandModel(BaseModel, SoftDeleteMixin):
     action: Mapped[str] = mapped_column(String(255), nullable=False)
     effect: Mapped[str] = mapped_column(String(50), nullable=False)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    dry_run_result: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True
-    )
+    dry_run_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     approved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
