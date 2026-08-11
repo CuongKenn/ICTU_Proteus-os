@@ -25,6 +25,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 - **[core-engine/frontend]** Thêm Next.js API Routes làm BFF proxy (`/api/plugins`, `/api/plugins/install`, `/api/plugins/[id]/uninstall`) để ẩn token JWT khỏi trình duyệt và proxy request sang FastAPI backend an toàn.
 - **[core-engine/frontend]** Cập nhật `usePlugins.ts` để gọi trực tiếp các BFF proxy routes mới thay vì sử dụng proxy generic.
+- **[core-engine/backend]** `Plugin Toggle Use Case` & `Plugin Upgrade Use Case` (PR #149)
+- **[core-engine/backend]** Full API Endpoints cho Plugins (PR #150)
+- **[core-engine/backend]** `Permission Middleware` (PR #146)
+- **[core-engine/backend]** `Plugin Uninstall Use Case (6-step reverse)` (PR #145)
+- **[core-engine/backend]** `Plugin Install Use Case (6-step Saga)` (PR #141)
+- **[core-engine/backend]** `Tenant Onboarding Use Case` (PR #143)
+- **[core-engine/backend]** API `POST /webhooks/keycloak/events` (Webhook xử lý vô hiệu hóa user) (PR #138)
+- **[core-engine/backend]** `Plugin Cleanup Agent (APScheduler background job)` (PR #152)
 
 ### Added
 - **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Hoàn thiện implementation cho `SQLAlchemyPluginRepository`. Bổ sung method `update_status` để cập nhật trạng thái cài đặt plugin độc lập.
