@@ -4,13 +4,11 @@
 # Use Case — DSL Validator Engine
 # Xác thực 5 quy tắc trước khi chạy AI Command theo dsl-spec.md §6.
 
-import json
-from typing import Any, Dict
+from typing import Any
 
 import jsonschema
 
 from app.adapters.repositories.base import AbstractPluginRepository
-from app.core.domain.entities import PluginStatus
 from app.core.formal_verification import Z3FormalVerifier, Z3VerificationError
 
 
@@ -49,7 +47,7 @@ class DSLValidator:
         self.tenant_id = tenant_id
         self.user_id = user_id
 
-    async def validate(self, dsl_payload: Dict[str, Any]):
+    async def validate(self, dsl_payload: dict[str, Any]):
         """
         Kiểm tra 5 quy tắc theo đặc tả DSL.
         """

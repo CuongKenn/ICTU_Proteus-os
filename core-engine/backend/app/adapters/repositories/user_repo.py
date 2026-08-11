@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -31,7 +30,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> Optional[UserEntity]:
+    async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> UserEntity | None:
         """
         Lấy thông tin User dựa vào keycloak_id.
         """
@@ -85,7 +84,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
 
     async def list_by_tenant(
         self, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0
-    ) -> List[UserEntity]:
+    ) -> list[UserEntity]:
         """
         Liệt kê danh sách users của một tenant cụ thể.
         """

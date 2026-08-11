@@ -7,7 +7,6 @@
 import json
 import logging
 import re
-from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -186,7 +185,7 @@ class PluginInstallUseCase:
                 / manifest.database.seed_file
             )
             if seed_path.exists():
-                with open(seed_path, "r", encoding="utf-8") as f:
+                with open(seed_path, encoding="utf-8") as f:
                     sql = f.read()
 
                 # Validation: Cấm các lệnh SQL nguy hiểm để chống SQL Injection và phá hoại dữ liệu
@@ -211,8 +210,7 @@ class PluginInstallUseCase:
         for wf in manifest.workflows:
             wf_path = self.manifest_parser._plugins_dir / plugin_code_name / wf.file
             if wf_path.exists() and hasattr(self.n8n_adapter, "import_workflow"):
-
-                with open(wf_path, "r", encoding="utf-8") as f:
+                with open(wf_path, encoding="utf-8") as f:
                     wf_json = json.load(f)
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
@@ -227,8 +225,7 @@ class PluginInstallUseCase:
         for db in manifest.dashboards:
             db_path = self.manifest_parser._plugins_dir / plugin_code_name / db.file
             if db_path.exists() and hasattr(self.metabase_adapter, "create_dashboard"):
-
-                with open(db_path, "r", encoding="utf-8") as f:
+                with open(db_path, encoding="utf-8") as f:
                     db_json = json.load(f)
                 did = await self.metabase_adapter.create_dashboard(db_json)
                 dashboard_ids.append(did)
@@ -242,8 +239,7 @@ class PluginInstallUseCase:
         for app in manifest.ui_apps:
             app_path = self.manifest_parser._plugins_dir / plugin_code_name / app.file
             if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
-
-                with open(app_path, "r", encoding="utf-8") as f:
+                with open(app_path, encoding="utf-8") as f:
                     app_json = json.load(f)
                 aid = await self.appsmith_adapter.import_app(app_json)
                 app_ids.append(aid)

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -109,7 +109,7 @@ class RedisEventBusPublisher:
             "event_type": event_type,
             "tenant_id": tenant_id,
             "plugin_source": plugin_source,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "payload": payload,
         }
 

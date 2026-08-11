@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,7 @@ class SQLAlchemyAuditLogRepository(AbstractAuditLogRepository):
         command_id: uuid.UUID,
         metadata_json: str,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sql_audit = text("""
             INSERT INTO audit_logs (
                 tenant_id, actor_type, action, resource_type, resource_id, command_id, metadata, created_at

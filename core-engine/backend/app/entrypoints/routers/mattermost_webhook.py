@@ -3,12 +3,10 @@
 
 import hashlib
 import hmac
-import json
 import logging
-from typing import Any, Dict
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.infrastructure.config import settings
 

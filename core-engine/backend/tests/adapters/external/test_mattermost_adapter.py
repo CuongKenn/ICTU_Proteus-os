@@ -10,7 +10,6 @@ from app.adapters.external.mattermost_adapter import (
     MattermostAdapter,
     MattermostAdapterError,
 )
-from app.infrastructure.config import settings
 
 
 @pytest.fixture

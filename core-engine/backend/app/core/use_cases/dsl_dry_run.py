@@ -6,7 +6,7 @@
 # Tham chiếu: docs/dsl-spec.md §2, §6
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from app.adapters.repositories.base import AbstractDSLDryRunRepository
 
@@ -19,7 +19,7 @@ class DSLDryRunEngine:
 
     async def execute_dry_run(
         self, tenant_id: str, dsl_payload: dict
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Thực hiện dry run cho lệnh DSL (effect=write/critical).
         Truy vấn DB lấy affected_count và preview (3-5 bản ghi)

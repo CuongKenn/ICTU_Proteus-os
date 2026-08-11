@@ -7,7 +7,6 @@ from app.core.domain.entities import PluginStatus
 from app.core.use_cases.dsl_validator import (
     DSLInvalidActionError,
     DSLInvalidParametersError,
-    DSLPermissionDeniedError,
     DSLPluginNotActiveError,
     DSLValidator,
     DSLVersionCompatError,
@@ -100,7 +99,9 @@ async def test_validate_z3_tenant_mismatch(validator):
 
 @pytest.mark.asyncio
 async def test_validate_z3_finance_negative_amount(mock_plugin_repo):
-    validator_finance = DSLValidator(plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1")
+    validator_finance = DSLValidator(
+        plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1"
+    )
     payload = {
         "version": "1.0",
         "action": "finance.invoices.create",
@@ -114,7 +115,9 @@ async def test_validate_z3_finance_negative_amount(mock_plugin_repo):
 
 @pytest.mark.asyncio
 async def test_validate_z3_finance_valid(mock_plugin_repo):
-    validator_finance = DSLValidator(plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1")
+    validator_finance = DSLValidator(
+        plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1"
+    )
     payload = {
         "version": "1.0",
         "action": "finance.invoices.create",
