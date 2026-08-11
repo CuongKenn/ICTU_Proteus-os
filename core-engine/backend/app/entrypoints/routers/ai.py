@@ -92,13 +92,13 @@ async def transmit_kv_cache_ipc(
     Kích hoạt giao tiếp IPC giữa 2 AI Agents, sử dụng State Pointer (UUID)
     thay vì gửi toàn bộ Context Text qua Event Bus.
     """
+    from app.adapters.external.qdrant_adapter import QdrantAdapter
+    from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+    from app.ai.kv_cache_ipc import KVCacheIPCManager
     from app.entrypoints.schemas.ai_ipc import (
         KVCacheTransmitRequest,
         KVCacheTransmitResponse,
     )
-    from app.ai.kv_cache_ipc import KVCacheIPCManager
-    from app.adapters.external.qdrant_adapter import QdrantAdapter
-    from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 
     req = KVCacheTransmitRequest(**body)
 
