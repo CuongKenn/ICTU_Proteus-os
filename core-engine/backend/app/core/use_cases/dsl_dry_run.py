@@ -8,15 +8,14 @@
 import logging
 from typing import Any, Dict
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.adapters.repositories.base import AbstractDSLDryRunRepository
 
 logger = logging.getLogger(__name__)
 
 
 class DSLDryRunEngine:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, dry_run_repo: AbstractDSLDryRunRepository):
+        self.dry_run_repo = dry_run_repo
 
     async def execute_dry_run(
         self, tenant_id: str, dsl_payload: dict
@@ -51,49 +50,16 @@ class DSLDryRunEngine:
             }
 
         try:
-            # Kiểm tra xem table có tồn tại không
-            check_table = await self.db.execute(
-                text(
-                    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = :table_name)"
-                ),
-                {"table_name": target_table},
-            )
-            if not check_table.scalar():
-                return {
-                    "affected_count": 0,
-                    "preview": [],
-                    "message": "Không có bản ghi bị ảnh hưởng (Bảng không tồn tại)",
-                }
-
-            # Lấy số lượng bị ảnh hưởng
-            # Tuỳ theo DSL conditions, ở đây query mock
-            sql_count = text(
-                f"SELECT COUNT(*) FROM {target_table} WHERE tenant_id = :tenant_id AND status = 'pending'"
-            )
-            count_res = await self.db.execute(sql_count, {"tenant_id": tenant_id})
-            affected_count = count_res.scalar() or 0
+            res = await self.dry_run_repo.execute_dry_run(tenant_id, target_table)
+            affected_count = res.get("affected_count", 0)
+            preview = res.get("preview", [])
 
             if affected_count == 0:
                 return {
                     "affected_count": 0,
                     "preview": [],
-                    "message": "Không có bản ghi bị ảnh hưởng.",
+                    "message": "Không có bản ghi bị ảnh hưởng (hoặc bảng không tồn tại).",
                 }
-
-            # Lấy preview (limit 3)
-            sql_preview = text(
-                f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id AND status = 'pending' LIMIT 3"
-            )
-            preview_res = await self.db.execute(sql_preview, {"tenant_id": tenant_id})
-            # Convert record to dict (Mock columns)
-            cols = preview_res.keys()
-            preview = [dict(zip(cols, row)) for row in preview_res.fetchall()]
-
-            # Đảm bảo datetime etc convertable sang JSON
-            for record in preview:
-                for key, val in record.items():
-                    if hasattr(val, "isoformat"):
-                        record[key] = val.isoformat()
 
             return {
                 "affected_count": affected_count,
