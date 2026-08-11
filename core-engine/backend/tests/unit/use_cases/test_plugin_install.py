@@ -139,11 +139,12 @@ async def test_execute_success(
     mock_plugin_repo.get_installation_status.return_value = None
     mock_manifest_parser.parse.return_value = sample_manifest
 
-    # Mock file reading
+    # Mock file reading and json loading
     m_open = mock_open(read_data="SELECT 1;")
     with patch("builtins.open", m_open):
         with patch("pathlib.Path.exists", return_value=True):
-            await plugin_install_use_case.execute(tenant_context, "hr-module")
+            with patch("json.load", return_value={"mocked": "json"}):
+                await plugin_install_use_case.execute(tenant_context, "hr-module")
 
     # Assert
     mock_plugin_repo.upsert_installation.assert_called_once_with(
