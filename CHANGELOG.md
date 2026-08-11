@@ -104,6 +104,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[docs/plugin-manifest-spec.md §9]** Thêm `approved_by_user_id` vào `payload_schema` của `hr.leave_request.approved` (thiếu so với ERD).
 - **[docs/plugin-manifest-spec.md]** Nâng phiên bản spec: `1.0.0` → `1.1.0`. Thêm mục §7 Lịch sử Phiên bản.
 - **[docs/clarification.md §6.8]** Đồng bộ `handler_workflow` format: `finance_sync_workflow.json` → `"workflows/finance_sync_workflow.json"` (đường dẫn tương đối từ thư mục gốc plugin).
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi vi phạm Hexagonal Architecture, dùng Repository thay cho việc gọi trực tiếp cơ sở dữ liệu.
+- **[core-engine/backend/app/core/use_cases/ai_timeout_worker.py]** Sửa lỗi vi phạm Hexagonal Architecture, dùng Repository thay cho việc gọi trực tiếp cơ sở dữ liệu.
+- **[core-engine/backend/app/core/use_cases/dsl_dry_run.py]** Sửa lỗi vi phạm Hexagonal Architecture, dùng Repository thay cho việc gọi trực tiếp cơ sở dữ liệu.
+- **[core-engine/backend/app/core/use_cases/proactive_monitor.py]** Sửa lỗi vi phạm Hexagonal Architecture, dùng Repository thay cho việc gọi trực tiếp cơ sở dữ liệu.
+- **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Sửa lỗi vi phạm Hexagonal Architecture, dùng AbstractPluginRepository thay cho AsyncSession trực tiếp.
 
 ### Fixed
 - **[docs/plugin-manifest-spec.md §9]** Fix: `event_publications.payload_schema` chỉ khai báo phần bên trong `payload{}`. Thêm ghi chú rõ ràng: wrapper chuẩn (`event_id`, `event_type`, `tenant_id`, `plugin_source`, `created_at`) do Plugin Manager tự inject — Plugin không cần khai báo.
