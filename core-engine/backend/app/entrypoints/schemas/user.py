@@ -1,8 +1,9 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import List
 import uuid
+from typing import List
+
 from pydantic import BaseModel
 
 
@@ -16,4 +17,3 @@ class UserProfileResponse(BaseModel):
     is_active: bool
 
     model_config = {"from_attributes": True}
-

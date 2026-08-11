@@ -31,9 +31,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_keycloak_id(
-        self, keycloak_id: uuid.UUID
-    ) -> Optional[UserEntity]:
+    async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> Optional[UserEntity]:
         """
         Lấy thông tin User dựa vào keycloak_id.
         """

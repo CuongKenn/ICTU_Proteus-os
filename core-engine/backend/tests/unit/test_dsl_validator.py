@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.domain.entities import PluginStatus
 from app.core.use_cases.dsl_validator import (
     DSLInvalidActionError,
     DSLInvalidParametersError,
@@ -8,9 +9,6 @@ from app.core.use_cases.dsl_validator import (
     DSLValidator,
     DSLVersionCompatError,
 )
-
-
-from app.core.domain.entities import PluginStatus
 
 
 class MockPluginRepo:

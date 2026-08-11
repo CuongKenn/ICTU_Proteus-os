@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-import pytest
 from unittest.mock import AsyncMock
-from app.core.use_cases.user_provisioning import UserProvisioningUseCase
+
+import pytest
+
 from app.core.domain.entities import TenantContext, UserEntity
+from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 
 
 @pytest.fixture
@@ -51,4 +53,3 @@ async def test_sync_user_profile(use_case, mock_user_repo):
 
     assert result.email == "test@example.com"
     assert result.roles == ["admin"]  # Roles should be merged from context
-

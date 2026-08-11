@@ -20,10 +20,12 @@ from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
-from app.adapters.repositories.base import AbstractPluginRepository
+from app.adapters.repositories.base import (
+    AbstractPluginRepository,
+    AbstractUserRepository,
+)
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
-from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
