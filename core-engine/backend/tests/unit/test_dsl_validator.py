@@ -10,32 +10,26 @@ from app.core.use_cases.dsl_validator import (
 )
 
 
-class MockResult:
-    def __init__(self, row):
-        self.row = row
-
-    def fetchone(self):
-        return self.row
+from app.core.domain.entities import PluginStatus
 
 
-class MockDB:
-    async def execute(self, sql, params):
-        plugin = params.get("plugin")
-        if plugin == "finance":
-            return MockResult(None)  # Not installed
-        elif plugin == "hr":
-            return MockResult(type("obj", (object,), {"status": "ACTIVE"}))
-        return MockResult(None)
+class MockPluginRepo:
+    async def get_tenant_plugin_status_by_code(self, tenant_id, plugin_code):
+        if plugin_code == "finance":
+            return None  # Not installed
+        elif plugin_code == "hr":
+            return PluginStatus.ACTIVE
+        return None
 
 
 @pytest.fixture
-def mock_db():
-    return MockDB()
+def mock_plugin_repo():
+    return MockPluginRepo()
 
 
 @pytest.fixture
-def validator(mock_db):
-    return DSLValidator(db_session=mock_db, tenant_id="t1", user_id="u1")
+def validator(mock_plugin_repo):
+    return DSLValidator(plugin_repo=mock_plugin_repo, tenant_id="t1", user_id="u1")
 
 
 @pytest.mark.asyncio

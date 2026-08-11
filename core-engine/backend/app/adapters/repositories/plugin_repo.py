@@ -176,6 +176,20 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         rows = result.mappings().all()
         return [dict(row) for row in rows]
 
+    async def get_tenant_plugin_status_by_code(
+        self, tenant_id: str | uuid.UUID, plugin_code: str
+    ) -> PluginStatus | None:
+        result = await self._session.execute(
+            text(
+                "SELECT tp.status FROM tenant_plugins tp "
+                "JOIN plugins p ON p.id = tp.plugin_id "
+                "WHERE tp.tenant_id = :tenant AND p.code_name = :plugin"
+            ),
+            {"tenant": str(tenant_id), "plugin": plugin_code},
+        )
+        row = result.first()
+        return PluginStatus(row[0]) if row else None
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(

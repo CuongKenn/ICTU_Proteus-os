@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue, PointStruct
 
+from app.core.domain.ports import AbstractVectorDBPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class QdrantAdapterError(Exception):
     pass
 
 
-class QdrantAdapter:
+class QdrantAdapter(AbstractVectorDBPort):
     """
     Adapter cho Qdrant Vector Database sử dụng tính năng Hybrid Search (Dense + BM25)
     thông qua thư viện qdrant-client với fastembed.
@@ -78,8 +79,12 @@ class QdrantAdapter:
             logger.error(f"Error upserting vectors to Qdrant: {e}")
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
 
-    async def hybrid_search(
-        self, tenant_id: str, query: str, top_k: int = 5
+    async def search(
+        self,
+        tenant_id: str,
+        query: str,
+        limit: int = 5,
+        filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Hybrid Search kết hợp Dense và BM25, filter theo tenant_id (Data Isolation).
@@ -99,7 +104,7 @@ class QdrantAdapter:
                 collection_name=self.collection_name,
                 query_text=query,
                 query_filter=tenant_filter,
-                limit=top_k,
+                limit=limit,
             )
 
             # Format kết quả
