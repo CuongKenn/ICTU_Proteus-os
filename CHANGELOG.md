@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
+- **[plugins/document-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Văn bản (document-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #194).
 - **[core-engine/backend/app/infrastructure/models.py]** Thêm các ORM Models cho bảng Tenants, Users, Roles, Plugins, AI Commands.
 - **[core-engine/backend/migrations]** Khởi tạo cấu hình Alembic và file migration đầu tiên cho DB Schema.
 - **[core-engine/backend/app/adapters/repositories]** Thêm Abstract Classes và SQLAlchemy Repositories implementation cho User và Role.

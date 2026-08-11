@@ -1,0 +1,130 @@
+name: "document-module"
+display_name: "Document Management System"
+version: "1.0.0"
+description: |
+  Quản lý Văn bản Công văn (Văn thư số, Luồng ký duyệt, Lưu trữ) cho cơ quan, tổ chức.
+author: "ICTU Team"
+license: "AGPL-3.0"
+is_official: true
+homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+
+compatibility:
+  proteus_os_min_version: "1.0.0"
+  dsl_spec_version: "1.0"
+
+database:
+  tables:
+    - "document_incoming"
+    - "document_outgoing"
+    - "document_internal"
+    - "document_approvals"
+    - "document_distributions"
+    - "document_categories"
+  seed_file: "db/seed_data.sql"
+  default_config:
+    archive_after_years: 5
+    notify_channel: "van-phong"
+
+workflows:
+  - file: "workflows/incoming_document.json"
+    name: "Incoming Document Workflow"
+    description: "Tiếp nhận & phân phối công văn đến"
+    trigger: "webhook"
+
+  - file: "workflows/document_approval.json"
+    name: "Document Approval Workflow"
+    description: "Luồng ký duyệt văn bản đi (sequential)"
+    trigger: "webhook"
+
+  - file: "workflows/document_expiry_check.json"
+    name: "Document Expiry Check"
+    description: "Kiểm tra văn bản sắp hết hiệu lực"
+    trigger: "cron"
+    cron_expression: "0 7 * * 1"
+
+  - file: "workflows/archive_old_docs.json"
+    name: "Archive Old Documents"
+    description: "Lưu trữ hồ sơ cũ"
+    trigger: "cron"
+    cron_expression: "0 2 1 * *"
+
+  - file: "workflows/reassign_document.json"
+    name: "Reassign Document Tasks"
+    description: "Reassign documents when employee leaves"
+    trigger: "webhook"
+
+dashboards:
+  - file: "dashboards/document_stats.json"
+    name: "Document Statistics"
+    description: "Thống kê công văn theo tháng/loại"
+
+  - file: "dashboards/processing_time.json"
+    name: "Processing Time"
+    description: "Thời gian xử lý trung bình theo phòng ban"
+
+ui_apps:
+  - file: "ui/appsmith_app.json"
+    name: "Document Management App"
+    path: "/apps/document"
+
+roles:
+  - name: "document_clerk"
+    display_name: "Document Clerk"
+    description: "Văn thư: tiếp nhận và ban hành văn bản"
+    permissions:
+      - "document:incoming:read"
+      - "document:incoming:write"
+      - "document:outgoing:read"
+      - "document:outgoing:write"
+
+  - name: "document_approver"
+    display_name: "Document Approver"
+    description: "Người ký duyệt văn bản"
+    permissions:
+      - "document:incoming:read"
+      - "document:incoming:write"
+      - "document:outgoing:read"
+      - "document:outgoing:write"
+      - "document:approvals:sign"
+
+  - name: "document_manager"
+    display_name: "Document Manager"
+    description: "Quản lý hệ thống văn bản"
+    permissions:
+      - "document:incoming:read"
+      - "document:incoming:write"
+      - "document:outgoing:read"
+      - "document:outgoing:write"
+      - "document:approvals:sign"
+      - "document:categories:write"
+      - "document:archive:write"
+
+  - name: "document_viewer"
+    display_name: "Document Viewer"
+    description: "Người xem văn bản"
+    permissions:
+      - "document:incoming:read"
+      - "document:internal:read"
+
+event_subscriptions:
+  - source_plugin: "hr-module"
+    event_types:
+      - "hr.employee.deactivated"
+    handler_workflow: "workflows/reassign_document.json"
+
+event_publications:
+  - event_type: "document.incoming.received"
+    description: "Khi công văn đến được tiếp nhận"
+    payload_schema:
+      document_id: "uuid"
+      so_van_ban: "string"
+
+  - event_type: "document.outgoing.published"
+    description: "Khi văn bản đi được phát hành chính thức"
+    payload_schema:
+      document_id: "uuid"
+
+  - event_type: "document.approval.completed"
+    description: "Khi luồng ký duyệt hoàn tất"
+    payload_schema:
+      document_id: "uuid"
