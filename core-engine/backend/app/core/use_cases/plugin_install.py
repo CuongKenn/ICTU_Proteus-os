@@ -4,6 +4,7 @@
 # Core Domain — Plugin Install Use Case
 # Xử lý 6 bước cài đặt Plugin theo mô hình Saga (Compensating Transaction).
 
+import json
 import logging
 from typing import Any
 
@@ -196,7 +197,6 @@ class PluginInstallUseCase:
         for wf in manifest.workflows:
             wf_path = self.manifest_parser._plugins_dir / plugin_code_name / wf.file
             if wf_path.exists() and hasattr(self.n8n_adapter, "import_workflow"):
-                import json
 
                 with open(wf_path, "r", encoding="utf-8") as f:
                     wf_json = json.load(f)
@@ -213,7 +213,6 @@ class PluginInstallUseCase:
         for db in manifest.dashboards:
             db_path = self.manifest_parser._plugins_dir / plugin_code_name / db.file
             if db_path.exists() and hasattr(self.metabase_adapter, "create_dashboard"):
-                import json
 
                 with open(db_path, "r", encoding="utf-8") as f:
                     db_json = json.load(f)
@@ -229,7 +228,6 @@ class PluginInstallUseCase:
         for app in manifest.ui_apps:
             app_path = self.manifest_parser._plugins_dir / plugin_code_name / app.file
             if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
-                import json
 
                 with open(app_path, "r", encoding="utf-8") as f:
                     app_json = json.load(f)

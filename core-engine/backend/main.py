@@ -62,31 +62,65 @@ async def lifespan(app: FastAPI):
     app.state.scheduler = scheduler
 
     async def run_plugin_cleanup() -> None:
-        async with AsyncSessionLocal() as session:
-            plugin_repo = SQLAlchemyPluginRepository(session=session)
-            agent = PluginCleanupAgent(
-                plugin_repo=plugin_repo,
-                manifest_parser=LocalManifestParser(),
-                n8n_adapter=N8nAdapter(),
-                metabase_adapter=MetabaseAdapter(),
-                appsmith_adapter=AppsmithAdapter(),
-                keycloak_adapter=KeycloakAdapter(),
-                mattermost_adapter=MattermostAdapter(),
-                session=session,
+        """Plugin cleanup job với error handling và alerting."""
+        try:
+            async with AsyncSessionLocal() as session:
+                plugin_repo = SQLAlchemyPluginRepository(session=session)
+                agent = PluginCleanupAgent(
+                    plugin_repo=plugin_repo,
+                    manifest_parser=LocalManifestParser(),
+                    n8n_adapter=N8nAdapter(),
+                    metabase_adapter=MetabaseAdapter(),
+                    appsmith_adapter=AppsmithAdapter(),
+                    keycloak_adapter=KeycloakAdapter(),
+                    mattermost_adapter=MattermostAdapter(),
+                    session=session,
+                )
+                await agent.run()
+                logger.info("Plugin cleanup job completed successfully.")
+        except Exception as e:
+            logger.error(
+                "Plugin cleanup job FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
             )
-            await agent.run()
+            try:
+                mm = MattermostAdapter()
+                await mm.send_message(
+                    "system-alerts",
+                    f"🚨 Plugin Cleanup Job thất bại: `{e}`"
+                )
+            except Exception:
+                pass
 
     async def run_ai_timeout_worker() -> None:
-        async with AsyncSessionLocal() as session:
-            ai_command_repo = SQLAlchemyAICommandRepository(session=session)
-            audit_log_repo = SQLAlchemyAuditLogRepository(session=session)
-            mattermost_adapter = MattermostAdapter()
-            worker = AITimeoutWorker(
-                ai_command_repo=ai_command_repo,
-                audit_log_repo=audit_log_repo,
-                mattermost_adapter=mattermost_adapter,
+        """AI timeout worker với error handling."""
+        try:
+            async with AsyncSessionLocal() as session:
+                ai_command_repo = SQLAlchemyAICommandRepository(session=session)
+                audit_log_repo = SQLAlchemyAuditLogRepository(session=session)
+                mattermost_adapter = MattermostAdapter()
+                worker = AITimeoutWorker(
+                    ai_command_repo=ai_command_repo,
+                    audit_log_repo=audit_log_repo,
+                    mattermost_adapter=mattermost_adapter,
+                )
+                await worker.execute()
+                logger.info("AI timeout worker completed successfully.")
+        except Exception as e:
+            logger.error(
+                "AI timeout worker FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
             )
-            await worker.execute()
+            try:
+                mm = MattermostAdapter()
+                await mm.send_message(
+                    "system-alerts",
+                    f"🚨 AI timeout worker thất bại: `{e}`"
+                )
+            except Exception:
+                pass
 
     # Chạy cleanup mỗi 10 phút
     scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
