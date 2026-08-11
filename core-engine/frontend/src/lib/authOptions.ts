@@ -62,8 +62,9 @@ export const authOptions: NextAuthOptions = {
       // Lần đầu login — lưu access_token, refresh_token và expiry vào JWT session
       if (account) {
         let roles: string[] = [];
-        if (profile?.realm_access?.roles) {
-          roles = profile.realm_access.roles;
+        const kcProfile = profile as any;
+        if (kcProfile?.realm_access?.roles) {
+          roles = kcProfile.realm_access.roles;
         }
 
         return {
