@@ -6,7 +6,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
-- **[core-engine/backend]** Implement `MattermostAdapter` and `/webhooks/mattermost/callback` for Interactive Message integration (approve/reject).
+- **[core-engine/backend/app/infrastructure/models.py]** Thêm các ORM Models cho bảng Tenants, Users, Roles, Plugins, AI Commands.
+- **[core-engine/backend/migrations]** Khởi tạo cấu hình Alembic và file migration đầu tiên cho DB Schema.
+- **[core-engine/backend/app/adapters/repositories]** Thêm Abstract Classes và SQLAlchemy Repositories implementation cho User và Role.
+- **[core-engine/backend]** Implement `MattermostAdapter` và `/webhooks/mattermost/callback` for Interactive Message integration (approve/reject).
 - **[core-engine/frontend/src/lib/authOptions.ts]** Bổ sung cơ chế Silent Refresh token an toàn trong JWT callback. Thêm logic rotate refresh_token khi nhận token mới.
 - **[core-engine/frontend/src/store/authStore.ts]** Fix type safety cho Zustand store bằng `StateCreator`, loại bỏ kiểu `any`.
 - **[core-engine/backend/app/entrypoints/routers/health.py]** Cải thiện health check: Dùng `engine.connect()` trực tiếp thay vì `Depends(get_db)` để tránh chiếm connection từ pool khi Traefik/Docker healthcheck polling liên tục.
