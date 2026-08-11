@@ -109,12 +109,7 @@ async def get_plugin_install_use_case(
     metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
     appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
-<<<<<<< HEAD
-    db: AsyncSession = Depends(get_db_readonly),
-=======
     db: AsyncSession = Depends(get_db_transactional),
-    request: Request = None,
->>>>>>> 92b1c092ae35c755e68a90fdde9f33b1083747c3
 ) -> PluginInstallUseCase:
     """Inject Plugin Install Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
