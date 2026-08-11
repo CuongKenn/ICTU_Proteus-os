@@ -18,7 +18,7 @@ export const MarketplaceClient: React.FC = () => {
   const isAdmin = hasRole("tenant_admin");
 
   const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
-  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
+  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled, configureCredentials } = usePlugins();
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
   const [isInstallPreviewOpen, setIsInstallPreviewOpen] = useState(false);
@@ -90,14 +90,17 @@ export const MarketplaceClient: React.FC = () => {
     }
   };
 
-  const handleConfirmInstall = async () => {
+  const handleConfirmInstall = async (credentials?: { credential_type: string, credential_name: string, data: Record<string, string> }) => {
     if (previewPlugin && isAdmin) {
+      if (credentials) {
+        try {
+          await configureCredentials(previewPlugin.id, credentials);
+        } catch (e) {
+          // If credentials configuration fails, do not proceed with installation
+          return;
+        }
+      }
       setIsInstallPreviewOpen(false);
-      // We pass code_name or id, but hook expects codeName. Let's pass codeName? 
-      // For mock, id or code_name doesn't matter much as long as it matches.
-      // We'll pass previewPlugin.id as code_name for this mock implementation
-      // But actually, we should pass code_name. In PluginData, we don't have code_name.
-      // Let's just pass id (which we assume is code_name in this context).
       await installPlugin(previewPlugin.id);
     }
   };

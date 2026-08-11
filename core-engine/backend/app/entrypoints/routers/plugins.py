@@ -35,7 +35,9 @@ from app.entrypoints.schemas.plugin import (
     PluginResponse,
     PluginSynthesizeRequest,
     PluginUninstallRequest,
+    PluginCredentialPayload,
 )
+from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins")
@@ -261,4 +263,50 @@ async def synthesize_plugin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi sinh Plugin: {e}",
+        )
+
+
+@router.post(
+    "/{plugin_id}/credentials",
+    status_code=status.HTTP_201_CREATED,
+    summary="Cấu hình n8n Credentials",
+)
+async def configure_plugin_credentials(
+    plugin_id: uuid.UUID,
+    payload: PluginCredentialPayload,
+    ctx: TenantContext = Depends(require_permission("plugins.install")),
+) -> dict[str, Any]:
+    """
+    Tạo n8n Credentials cho Plugin trực tiếp từ UI.
+    Chỉ tenant_admin mới có quyền. Credential name sẽ được gán prefix tự động
+    để đảm bảo cách ly dữ liệu giữa các tenant.
+    """
+    try:
+        # Pass-through to n8n Adapter
+        adapter = N8nAdapter()
+        # RLS Prefix: tenant_{tenant_id}_name
+        safe_name = f"tenant_{ctx.tenant_id}_{payload.credential_name}"
+        
+        result = await adapter.create_credential(
+            credential_type=payload.credential_type,
+            credential_name=safe_name,
+            data=payload.data
+        )
+        await adapter.aclose()
+        
+        return {
+            "message": "Credential tạo thành công",
+            "credential_id": result.get("id"),
+            "safe_name": safe_name
+        }
+    except N8nAdapterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Lỗi không xác định khi tạo credential: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )

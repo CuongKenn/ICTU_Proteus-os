@@ -19,6 +19,7 @@ interface UsePluginsReturn {
   uninstall: (pluginId: string) => Promise<void>;
   disable: (pluginId: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
+  configureCredentials: (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => Promise<any>;
 }
 
 export function usePlugins(): UsePluginsReturn {
@@ -124,6 +125,17 @@ export function usePlugins(): UsePluginsReturn {
     }
   }, [refetch]);
 
+  const configureCredentials = useCallback(async (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => {
+    try {
+      const response = await api.post(`/plugins/${pluginId}/credentials`, payload, { baseURL: "/api" });
+      useNotificationStore.getState().addToast("success", "Cấu hình Credentials thành công.");
+      return response.data;
+    } catch (err) {
+      useNotificationStore.getState().addToast("error", "Không thể cấu hình Credentials.");
+      throw err;
+    }
+  }, []);
+
   return {
     plugins,
     isLoading,
@@ -133,5 +145,6 @@ export function usePlugins(): UsePluginsReturn {
     uninstall,
     disable,
     upgrade,
+    configureCredentials,
   };
 }

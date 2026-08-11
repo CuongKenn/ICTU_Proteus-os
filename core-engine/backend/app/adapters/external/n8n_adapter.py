@@ -323,3 +323,56 @@ class N8nAdapter:
             extra={"url": webhook_url, "response_keys": list(result.keys())},
         )
         return result
+
+    async def create_credential(
+        self,
+        credential_type: str,
+        credential_name: str,
+        data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Tạo Credentials mới trên n8n.
+        
+        Args:
+            credential_type: Loại credentials (e.g., 'smtp', 'githubApi')
+            credential_name: Tên credential (Nên kèm prefix tenant_id để phân tách)
+            data: Dữ liệu nhạy cảm (API Keys, Passwords)
+
+        Returns:
+            Dữ liệu phản hồi từ n8n (thường chứa id của credential)
+
+        Raises:
+            N8nAdapterError: Nếu API n8n trả về lỗi
+        """
+        url = self._build_url("credentials")
+        logger.info(
+            "Creating n8n credential",
+            extra={
+                "credential_name": credential_name,
+                "credential_type": credential_type
+            }
+        )
+
+        payload = {
+            "name": credential_name,
+            "type": credential_type,
+            "data": data
+        }
+
+        response = await self._request_with_retry("POST", url, json=payload)
+
+        if response.status_code not in (200, 201):
+            logger.error(
+                "Failed to create n8n credential",
+                extra={"status": response.status_code, "body": response.text[:200]}
+            )
+            raise N8nAdapterError(
+                f"n8n create_credential failed: HTTP {response.status_code} — {response.text[:200]}"
+            )
+
+        result = response.json()
+        logger.info(
+            "n8n credential created successfully",
+            extra={"credential_id": result.get("id")}
+        )
+        return result
