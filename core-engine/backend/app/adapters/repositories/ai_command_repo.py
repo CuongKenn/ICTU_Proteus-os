@@ -19,11 +19,11 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         soon = now + timedelta(minutes=minutes)
 
         sql = text("""
-            SELECT c.id, c.action, c.expires_at, c.requested_by
+            SELECT c.id, c.action, c.approval_deadline, c.issued_by_user_id
             FROM ai_commands c
             WHERE c.status = 'PENDING_APPROVAL'
-              AND c.expires_at > :now
-              AND c.expires_at < :soon
+              AND c.approval_deadline > :now
+              AND c.approval_deadline < :soon
         """)
         result = await self._session.execute(sql, {"now": now, "soon": soon})
         rows = result.mappings().all()
@@ -32,7 +32,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
     async def get_expired_pending_commands(self) -> list[dict]:
         now = datetime.now(timezone.utc)
         sql_find = text("""
-            SELECT id, action, tenant_id, requested_by
+            SELECT id, action, tenant_id, issued_by_user_id
             FROM ai_commands
             WHERE status = 'PENDING_APPROVAL'
               AND approval_deadline < :now

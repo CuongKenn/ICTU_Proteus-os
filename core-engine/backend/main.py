@@ -22,8 +22,11 @@ from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
+from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain import exceptions as domain_exc
+from app.core.use_cases.ai_timeout_worker import AITimeoutWorker
 from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
 from app.entrypoints.routers import (
     ai,
@@ -73,10 +76,26 @@ async def lifespan(app: FastAPI):
             )
             await agent.run()
 
+    async def run_ai_timeout_worker() -> None:
+        async with AsyncSessionLocal() as session:
+            ai_command_repo = SQLAlchemyAICommandRepository(session=session)
+            audit_log_repo = SQLAlchemyAuditLogRepository(session=session)
+            mattermost_adapter = MattermostAdapter()
+            worker = AITimeoutWorker(
+                ai_command_repo=ai_command_repo,
+                audit_log_repo=audit_log_repo,
+                mattermost_adapter=mattermost_adapter,
+            )
+            await worker.execute()
+
     # Chạy cleanup mỗi 10 phút
     scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
+    # Chạy timeout worker mỗi 5 phút
+    scheduler.add_job(
+        run_ai_timeout_worker, "interval", minutes=5, id="ai_timeout_worker"
+    )
     scheduler.start()
-    logger.info("Đã khởi động APScheduler và Plugin Cleanup Agent.")
+    logger.info("Đã khởi động APScheduler, Plugin Cleanup Agent và AI Timeout Worker.")
 
     yield
 
