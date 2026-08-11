@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 
@@ -32,8 +32,8 @@ class OutlineAdapter(AbstractDocumentSourcePort):
         }
 
     async def list_documents(
-        self, collection_id: Optional[str] = None, offset: int = 0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection_id: str | None = None, offset: int = 0, limit: int = 100
+    ) -> list[dict[str, Any]]:
         """
         Lấy danh sách documents từ Outline.
         """

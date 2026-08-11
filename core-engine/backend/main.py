@@ -87,8 +87,7 @@ async def lifespan(app: FastAPI):
             try:
                 mm = MattermostAdapter()
                 await mm.send_message(
-                    "system-alerts",
-                    f"🚨 Plugin Cleanup Job thất bại: `{e}`"
+                    "system-alerts", f"🚨 Plugin Cleanup Job thất bại: `{e}`"
                 )
             except Exception:
                 pass
@@ -116,8 +115,7 @@ async def lifespan(app: FastAPI):
             try:
                 mm = MattermostAdapter()
                 await mm.send_message(
-                    "system-alerts",
-                    f"🚨 AI timeout worker thất bại: `{e}`"
+                    "system-alerts", f"🚨 AI timeout worker thất bại: `{e}`"
                 )
             except Exception:
                 pass
@@ -133,6 +131,7 @@ async def lifespan(app: FastAPI):
 
     # Load Python extensions for plugins
     from app.core.dynamic_loader import DynamicPluginLoader
+
     loader = DynamicPluginLoader(app)
     app.state.plugin_loader = loader
     loader.load_all_plugins()

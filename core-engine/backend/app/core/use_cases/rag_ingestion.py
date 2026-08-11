@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from app.core.domain.ports import AbstractDocumentSourcePort, AbstractVectorDBPort
 
@@ -25,7 +25,7 @@ class RAGIngestionUseCase:
         self.vector_db_port = vector_db_port
         self.max_chars_per_chunk = 2000  # Ước lượng ~512 tokens
 
-    def _chunk_text(self, text: str) -> List[str]:
+    def _chunk_text(self, text: str) -> list[str]:
         """
         Chia text thành các chunks theo paragraph (\n\n) hoặc (\n).
         Đảm bảo max_chars_per_chunk.
@@ -65,7 +65,7 @@ class RAGIngestionUseCase:
 
         return chunks
 
-    async def execute(self, tenant_id: str) -> Dict[str, Any]:
+    async def execute(self, tenant_id: str) -> dict[str, Any]:
         """
         Thực thi quy trình RAG Ingestion cho một tenant cụ thể.
         """

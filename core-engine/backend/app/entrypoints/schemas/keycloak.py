@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,7 @@ class KeycloakEventSchema(BaseModel):
     user_id: uuid.UUID = Field(
         ..., alias="userId", description="ID của user trong Keycloak"
     )
-    details: Dict[str, Any] = Field(
+    details: dict[str, Any] = Field(
         default_factory=dict, description="Các metadata khác của event"
     )
 

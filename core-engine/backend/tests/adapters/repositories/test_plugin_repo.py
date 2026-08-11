@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
-from app.core.domain.entities import PluginEntity, PluginStatus
+from app.core.domain.entities import PluginStatus
 
 
 @pytest.fixture

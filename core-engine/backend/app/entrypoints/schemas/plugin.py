@@ -35,6 +35,7 @@ class PluginUninstallRequest(BaseModel):
         description="Xác nhận tên Plugin (code_name) để tránh xóa nhầm",
     )
 
+
 class PluginSynthesizeRequest(BaseModel):
     prompt: str = Field(
         ...,

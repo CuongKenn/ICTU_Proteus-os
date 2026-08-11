@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 
@@ -30,7 +30,7 @@ class MattermostAdapter:
     async def close(self):
         await self.client.aclose()
 
-    async def send_message(self, channel_id: str, text: str) -> Dict[str, Any]:
+    async def send_message(self, channel_id: str, text: str) -> dict[str, Any]:
         """Gửi tin nhắn thông thường tới Mattermost."""
         if not self.token:
             logger.warning(
@@ -53,7 +53,7 @@ class MattermostAdapter:
 
     async def send_interactive_message(
         self, channel_id: str, text: str, action_id: str, extra_context: dict = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Gửi tin nhắn có chứa nút Interactive (Phê duyệt / Từ chối).
         - action_id: ID của lệnh (ví dụ: AI Command ID)

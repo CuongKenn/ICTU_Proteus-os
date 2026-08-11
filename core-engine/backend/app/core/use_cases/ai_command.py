@@ -6,7 +6,7 @@
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
@@ -63,7 +63,7 @@ class AICommandUseCase:
         )
         await dsl_validator.validate(payload)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # 2. Xử lý theo effect
         if body.effect == "read":

@@ -12,7 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
-from app.core.use_cases.plugin_install import PluginInstallError, PluginInstallUseCase
+from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.plugin_toggle import PluginToggleError, PluginToggleUseCase
 from app.core.use_cases.plugin_uninstall import (
@@ -33,8 +33,8 @@ from app.entrypoints.dependencies import (
 from app.entrypoints.schemas.plugin import (
     PluginListResponse,
     PluginResponse,
-    PluginUninstallRequest,
     PluginSynthesizeRequest,
+    PluginUninstallRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -219,13 +219,15 @@ async def reload_plugins(
     ctx: TenantContext = Depends(require_permission("plugins.install")),
 ) -> dict[str, str]:
     """
-    Quét lại thư mục plugins và nạp động (hot-reload) các Python extensions 
+    Quét lại thư mục plugins và nạp động (hot-reload) các Python extensions
     mà không cần khởi động lại server.
     """
     loader = getattr(request.app.state, "plugin_loader", None)
     if loader:
         loader.load_all_plugins()
         return {"message": "Đã hot-reload tất cả plugin extensions."}
+
+
 @router.post(
     "/synthesize",
     status_code=status.HTTP_200_OK,
@@ -241,22 +243,22 @@ async def synthesize_plugin(
     dựa trên prompt của người dùng, sau đó tự động load vào hệ thống.
     """
     from app.ai.plugin_synthesizer import PluginSynthesizer
-    
+
     synthesizer = PluginSynthesizer()
     try:
         plugin_name = await synthesizer.synthesize(body.prompt)
-        
+
         # Cố gắng load tự động
         loader = getattr(request.app.state, "plugin_loader", None)
         if loader:
             loader.load_plugin(plugin_name)
-            
+
         return {
             "message": f"Đã sinh và nạp thành công Plugin: {plugin_name}",
-            "plugin_code_name": plugin_name
+            "plugin_code_name": plugin_name,
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi sinh Plugin: {e}"
+            detail=f"Lỗi khi sinh Plugin: {e}",
         )

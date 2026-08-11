@@ -3,9 +3,9 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -42,7 +42,7 @@ class SoftDeleteMixin:
     Mixin for tables that support soft deletion.
     """
 
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+    deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
 
@@ -91,9 +91,9 @@ class UserModel(BaseModel, SoftDeleteMixin):
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(
+    last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     joined_at: Mapped[datetime] = mapped_column(
@@ -112,20 +112,20 @@ class UserModel(BaseModel, SoftDeleteMixin):
 class RoleModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "roles"
 
-    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
-    plugin_code_name: Mapped[Optional[str]] = mapped_column(
+    plugin_code_name: Mapped[str | None] = mapped_column(
         String(255), nullable=True, index=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_system_role: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    permissions: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    permissions: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     tenant: Mapped[Optional["TenantModel"]] = relationship(
@@ -148,7 +148,7 @@ class UserRoleModel(BaseModel, SoftDeleteMixin):
         nullable=False,
         index=True,
     )
-    granted_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    granted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     granted_at: Mapped[datetime] = mapped_column(
@@ -168,9 +168,9 @@ class PluginModel(BaseModel, SoftDeleteMixin):
         String(255), nullable=False, unique=True, index=True
     )
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[str] = mapped_column(String(50), nullable=False)
-    icon_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    icon_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     manifest_url: Mapped[str] = mapped_column(String(1024), nullable=False)
     author: Mapped[str] = mapped_column(String(255), nullable=False)
     license: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -203,11 +203,11 @@ class TenantPluginModel(BaseModel, SoftDeleteMixin):
     )
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     installed_version: Mapped[str] = mapped_column(String(50), nullable=False)
-    config_override: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    config_override: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )
-    install_error_log: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    installed_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    install_error_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    installed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     installed_at: Mapped[datetime] = mapped_column(
@@ -231,13 +231,13 @@ class TenantPluginModel(BaseModel, SoftDeleteMixin):
 class AuditLogModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "audit_logs"
 
-    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -246,13 +246,13 @@ class AuditLogModel(BaseModel, SoftDeleteMixin):
     actor_type: Mapped[str] = mapped_column(String(50), nullable=False)
     action: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     resource_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    resource_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
-    payload: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
-    result: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
-    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
 
 class AICommandModel(BaseModel, SoftDeleteMixin):
@@ -273,29 +273,29 @@ class AICommandModel(BaseModel, SoftDeleteMixin):
     dsl_version: Mapped[str] = mapped_column(String(50), nullable=False)
     action: Mapped[str] = mapped_column(String(255), nullable=False)
     effect: Mapped[str] = mapped_column(String(50), nullable=False)
-    parameters: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
-    dry_run_result: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    parameters: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    dry_run_result: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )
     status: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    approved_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    approved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    second_approver_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    second_approver_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    mattermost_message_id: Mapped[Optional[str]] = mapped_column(
+    mattermost_message_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
-    approval_deadline: Mapped[Optional[datetime]] = mapped_column(
+    approval_deadline: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    execution_result: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    execution_result: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )
-    approved_at: Mapped[Optional[datetime]] = mapped_column(
+    approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    executed_at: Mapped[Optional[datetime]] = mapped_column(
+    executed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
