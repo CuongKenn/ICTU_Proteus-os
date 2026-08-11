@@ -216,6 +216,18 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         row = result.first()
         return str(row[0]) if row and row[0] else None
 
+    async def get_failed_dirty_plugins(self) -> list[tuple[uuid.UUID, uuid.UUID, str]]:
+        result = await self._session.execute(
+            text(
+                "SELECT tp.tenant_id, tp.plugin_id, p.code_name "
+                "FROM tenant_plugins tp "
+                "JOIN plugins p ON p.id = tp.plugin_id "
+                "WHERE tp.status = :status"
+            ),
+            {"status": PluginStatus.FAILED_DIRTY.value},
+        )
+        return [(row[0], row[1], row[2]) for row in result.all()]
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
         return PluginEntity(

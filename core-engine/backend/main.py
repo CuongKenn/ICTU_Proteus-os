@@ -9,13 +9,22 @@ import logging
 from contextlib import asynccontextmanager
 
 import httpx
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.adapters.external.appsmith_adapter import AppsmithAdapter
+from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.local_manifest_parser import LocalManifestParser
+from app.adapters.external.mattermost_adapter import MattermostAdapter
+from app.adapters.external.metabase_adapter import MetabaseAdapter
+from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain import exceptions as domain_exc
+from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
 from app.entrypoints.routers import (
     ai,
     auth,
@@ -26,7 +35,7 @@ from app.entrypoints.routers import (
     tenants,
 )
 from app.infrastructure.config import settings
-from app.infrastructure.database import current_tenant_id
+from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
 from app.infrastructure.logging_config import setup_logging
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
@@ -45,9 +54,34 @@ async def lifespan(app: FastAPI):
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
     app.state.redis_event_bus = RedisEventBusPublisher()
 
+    # Khởi tạo scheduler
+    scheduler = AsyncIOScheduler()
+    app.state.scheduler = scheduler
+
+    async def run_plugin_cleanup() -> None:
+        async with AsyncSessionLocal() as session:
+            plugin_repo = SQLAlchemyPluginRepository(session=session)
+            agent = PluginCleanupAgent(
+                plugin_repo=plugin_repo,
+                manifest_parser=LocalManifestParser(),
+                n8n_adapter=N8nAdapter(),
+                metabase_adapter=MetabaseAdapter(),
+                appsmith_adapter=AppsmithAdapter(),
+                keycloak_adapter=KeycloakAdapter(),
+                mattermost_adapter=MattermostAdapter(),
+                session=session,
+            )
+            await agent.run()
+
+    # Chạy cleanup mỗi 10 phút
+    scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
+    scheduler.start()
+    logger.info("Đã khởi động APScheduler và Plugin Cleanup Agent.")
+
     yield
 
     # Đóng kết nối
+    scheduler.shutdown()
     await app.state.http_client.aclose()
     await app.state.redis_event_bus.aclose()
     logger.info("Proteus OS Backend shutting down")
