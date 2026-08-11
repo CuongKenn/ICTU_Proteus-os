@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
+- **[plugins/it-helpdesk-module]** Khởi tạo cấu trúc scaffolding cho plugin IT Service Desk nội bộ (it-helpdesk-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #198).
 - **[plugins/hr-module]** Hoàn thiện cấu trúc plugin Quản lý Nhân sự (hr-module): đồng bộ schema, bổ sung tính năng chấm công, bảng lương và onboarding tasks (Issue #191).
 - **[plugins/procurement-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Mua sắm & Hợp đồng (procurement-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #192).
 - **[plugins/document-module]** Khởi tạo cấu trúc scaffolding cho plugin Quản lý Văn bản (document-module) bao gồm manifest, database migrations, n8n workflows và Appsmith UI (Issue #194).
@@ -27,6 +28,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/promtail]** Thêm cấu hình Promtail để thu thập logs từ Docker Socket.
 - **[deploy/grafana/provisioning]** Tự động cấp phép Datasource Loki và Dashboard mặc định cho Grafana.
 - **[core-engine/frontend]** Bổ sung các trang placeholder cho các route còn thiếu (`/chat`, `/files`, `/wiki`, `/settings`) để khắc phục lỗi 404 khi truy cập từ thanh điều hướng (Issue #179).
+- **[core-engine/backend]** Xóa tham số `request: Request = None` không sử dụng trong `dependencies.py` để tuân thủ chuẩn typing (Issue #184).
+
 - **[core-engine/frontend]** Sửa lỗi gọi sai API endpoint trong `useMarketplace` (`/plugins` thay vì `/plugins/marketplace`) và cập nhật type schema response để danh sách Plugin load đúng từ backend (Issue #180).
 
 - **[core-engine/frontend]** Cập nhật `AIChatWidget` phân tách chức năng của nút Thu nhỏ (chỉ ẩn panel) và nút Đóng (reset toàn bộ tin nhắn), sửa lỗi UI gọi chung 1 hàm `closeWidget` (Issue #175).

@@ -113,7 +113,7 @@ export function useAICommand(): UseAICommandReturn {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [dslPreview, setDslPreview] = useState<DslPreview | null>(null);
-  const sessionIdRef = useRef<string>(uuid());
+  const [sessionId, setSessionId] = useState<string>(() => uuid());
 
   const { addToast } = useNotificationStore();
 
@@ -138,6 +138,7 @@ export function useAICommand(): UseAICommandReturn {
         timestamp: new Date(),
       },
     ]);
+    setSessionId(uuid());
   }, []);
 
   const appendMessage = useCallback((role: MessageRole, content: string) => {
@@ -168,7 +169,7 @@ export function useAICommand(): UseAICommandReturn {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           natural_language_input: trimmed,
-          session_id: sessionIdRef.current,
+          session_id: sessionId,
         }),
       });
 
@@ -222,7 +223,7 @@ export function useAICommand(): UseAICommandReturn {
         setWidgetState("expanded");
       }
     }
-  }, [inputValue, widgetState, appendMessage, addToast]);
+  }, [inputValue, widgetState, appendMessage, addToast, sessionId]);
 
   /**
    * openMattermostApproval — Mở Mattermost để phê duyệt.
@@ -254,7 +255,7 @@ export function useAICommand(): UseAICommandReturn {
     messages,
     inputValue,
     dslPreview,
-    sessionId: sessionIdRef.current,
+    sessionId,
     setInputValue,
     openWidget,
     minimizeWidget,
