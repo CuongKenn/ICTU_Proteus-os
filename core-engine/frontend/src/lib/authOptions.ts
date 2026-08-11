@@ -58,9 +58,15 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       // Lần đầu login — lưu access_token, refresh_token và expiry vào JWT session
       if (account) {
+        let roles: string[] = [];
+        const kcProfile = profile as any;
+        if (kcProfile?.realm_access?.roles) {
+          roles = kcProfile.realm_access.roles;
+        }
+
         return {
           ...token,
           accessToken: account.access_token,
@@ -68,6 +74,7 @@ export const authOptions: NextAuthOptions = {
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ
+          roles,
         };
       }
 
@@ -83,6 +90,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Expose access token cho BFF Proxy — KHÔNG expose xuống browser
       session.accessToken = token.accessToken as string;
+      session.user.roles = (token.roles as string[]) ?? [];
 
       // Truyền lỗi refresh lên client để có thể hiển thị thông báo
       if (token.error) {

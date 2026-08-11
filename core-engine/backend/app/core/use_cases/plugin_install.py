@@ -4,6 +4,7 @@
 # Core Domain — Plugin Install Use Case
 # Xử lý 6 bước cài đặt Plugin theo mô hình Saga (Compensating Transaction).
 
+import json
 import logging
 import re
 from typing import Any
@@ -92,30 +93,36 @@ class PluginInstallUseCase:
         await self.session.commit()
 
         completed_steps: list[str] = []
+        created_assets: dict[str, list[str]] = {}
         try:
             # BƯỚC 1: Database Setup
             await self._step_1_database(context, plugin_code_name, manifest)
-            completed_steps.append("db")
+            completed_steps.append("database")
 
             # BƯỚC 2: n8n Import
-            await self._step_2_n8n(context, plugin_code_name, manifest)
+            n8n_ids = await self._step_2_n8n(context, plugin_code_name, manifest)
+            created_assets["n8n"] = n8n_ids
             completed_steps.append("n8n")
 
             # BƯỚC 3: Metabase Import
-            await self._step_3_metabase(context, plugin_code_name, manifest)
+            mb_ids = await self._step_3_metabase(context, plugin_code_name, manifest)
+            created_assets["metabase"] = mb_ids
             completed_steps.append("metabase")
 
             # BƯỚC 4: Appsmith Import
-            await self._step_4_appsmith(context, plugin_code_name, manifest)
+            app_ids = await self._step_4_appsmith(context, plugin_code_name, manifest)
+            created_assets["appsmith"] = app_ids
             completed_steps.append("appsmith")
 
             # BƯỚC 5: Keycloak Roles
-            await self._step_5_keycloak(context, plugin_code_name, manifest)
+            roles = await self._step_5_keycloak(context, plugin_code_name, manifest)
+            created_assets["keycloak"] = roles
             completed_steps.append("keycloak")
 
             # BƯỚC 6: Event Subscriptions
-            await self._step_6_events(context, plugin_code_name, manifest)
-            completed_steps.append("subscriptions")
+            events = await self._step_6_events(context, plugin_code_name, manifest)
+            created_assets["events"] = events
+            completed_steps.append("events")
 
             # SUCCESS
             await self.plugin_repo.update_status(
@@ -142,7 +149,9 @@ class PluginInstallUseCase:
             )
 
             # ROLLBACK
-            await self._rollback(completed_steps, context, plugin_code_name, manifest)
+            await self._rollback(
+                completed_steps, context, plugin_code_name, manifest, created_assets
+            )
 
             # Update status to FAILED_DIRTY
             await self.plugin_repo.update_status(
@@ -192,56 +201,74 @@ class PluginInstallUseCase:
 
     async def _step_2_n8n(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> None:
+    ) -> list[str]:
         """Import workflows vào n8n."""
+        workflow_ids = []
         for wf in manifest.workflows:
             wf_path = self.manifest_parser._plugins_dir / plugin_code_name / wf.file
             if wf_path.exists() and hasattr(self.n8n_adapter, "import_workflow"):
+
                 with open(wf_path, "r", encoding="utf-8") as f:
-                    wf_json = f.read()
-                # Dummy call if method implemented
-                # await self.n8n_adapter.import_workflow(context.tenant_id, plugin_code_name, wf_json)
+                    wf_json = json.load(f)
+
+                wid = await self.n8n_adapter.import_workflow(wf_json)
+                workflow_ids.append(wid)
+        return workflow_ids
 
     async def _step_3_metabase(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> None:
+    ) -> list[str]:
         """Import dashboards vào Metabase."""
+        dashboard_ids = []
         for db in manifest.dashboards:
             db_path = self.manifest_parser._plugins_dir / plugin_code_name / db.file
-            if db_path.exists() and hasattr(self.metabase_adapter, "import_dashboard"):
+            if db_path.exists() and hasattr(self.metabase_adapter, "create_dashboard"):
+
                 with open(db_path, "r", encoding="utf-8") as f:
-                    db_json = f.read()
-                # await self.metabase_adapter.import_dashboard(context.tenant_id, plugin_code_name, db_json)
+                    db_json = json.load(f)
+                did = await self.metabase_adapter.create_dashboard(db_json)
+                dashboard_ids.append(did)
+        return dashboard_ids
 
     async def _step_4_appsmith(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> None:
+    ) -> list[str]:
         """Import UI apps vào Appsmith."""
+        app_ids = []
         for app in manifest.ui_apps:
             app_path = self.manifest_parser._plugins_dir / plugin_code_name / app.file
             if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
+
                 with open(app_path, "r", encoding="utf-8") as f:
-                    app_json = f.read()
-                # await self.appsmith_adapter.import_app(context.tenant_id, plugin_code_name, app_json, app.path)
+                    app_json = json.load(f)
+                aid = await self.appsmith_adapter.import_app(app_json)
+                app_ids.append(aid)
+        return app_ids
 
     async def _step_5_keycloak(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> None:
+    ) -> list[str]:
         """Tạo Roles trong Keycloak."""
+        created_roles = []
         for role in manifest.roles:
-            # We assume a system token is available or fetched inside adapter
-            # if hasattr(self.keycloak_adapter, 'create_role_with_system_token'):
-            #     await self.keycloak_adapter.create_role_with_system_token(context.tenant_id.hex, role.name)
-            pass
+            if hasattr(self.keycloak_adapter, "create_role"):
+                await self.keycloak_adapter.create_role(
+                    realm=str(context.tenant_id),
+                    role_name=role.name,
+                    admin_token="SYSTEM_ADMIN_TOKEN",
+                )
+                created_roles.append(role.name)
+        return created_roles
 
     async def _step_6_events(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> None:
+    ) -> list[str]:
         """Tạo n8n webhooks cho Event Subscriptions."""
+        registered_events = []
         for sub in manifest.event_subscriptions:
-            # if hasattr(self.n8n_adapter, 'create_webhook'):
-            #     await self.n8n_adapter.create_webhook(context.tenant_id, plugin_code_name, sub)
-            pass
+            # Dummy logic until event bus registry is fully spec'd
+            registered_events.append(f"{sub.source_plugin}_{'-'.join(sub.event_types)}")
+        return registered_events
 
     async def _rollback(
         self,
@@ -249,26 +276,43 @@ class PluginInstallUseCase:
         context: TenantContext,
         plugin_code_name: str,
         manifest: PluginManifest,
+        created_assets: dict[str, list[str]],
     ) -> None:
         """Thực hiện compensating transactions."""
         logger.info(f"Bắt đầu rollback cài đặt plugin {plugin_code_name}...")
 
         for step in reversed(completed_steps):
             try:
-                if step == "subscriptions":
-                    pass  # await self.n8n_adapter.delete_webhooks(...)
+                if step == "events":
+                    pass
                 elif step == "keycloak":
-                    pass  # for role in manifest.roles: await self.keycloak_adapter.delete_role(...)
+                    if hasattr(self.keycloak_adapter, "delete_role"):
+                        roles = created_assets.get("keycloak", [])
+                        for role_name in reversed(roles):
+                            await self.keycloak_adapter.delete_role(
+                                realm=str(context.tenant_id),
+                                role_name=role_name,
+                                admin_token="SYSTEM_ADMIN_TOKEN",
+                            )
                 elif step == "appsmith":
-                    pass  # await self.appsmith_adapter.delete_apps(...)
+                    if hasattr(self.appsmith_adapter, "delete_app"):
+                        app_ids = created_assets.get("appsmith", [])
+                        for aid in reversed(app_ids):
+                            await self.appsmith_adapter.delete_app(aid)
                 elif step == "metabase":
-                    pass  # await self.metabase_adapter.delete_dashboards(...)
+                    if hasattr(self.metabase_adapter, "delete_dashboard"):
+                        db_ids = created_assets.get("metabase", [])
+                        for did in reversed(db_ids):
+                            await self.metabase_adapter.delete_dashboard(did)
                 elif step == "n8n":
-                    pass  # await self.n8n_adapter.delete_workflows(...)
-                elif step == "db":
-                    # Thông thường chúng ta không DROP TABLE tự động để tránh mất mát,
-                    # Cleanup agent sẽ xử lý sau hoặc admin xử lý.
+                    if hasattr(self.n8n_adapter, "delete_workflow"):
+                        wf_ids = created_assets.get("n8n", [])
+                        for wid in reversed(wf_ids):
+                            await self.n8n_adapter.delete_workflow(wid)
+                elif step == "database":
                     pass
             except Exception as e:
-                logger.error(f"Lỗi khi rollback bước {step}: {e}")
+                logger.error(
+                    f"Rollback step {step} thất bại cho plugin {plugin_code_name}: {e}"
+                )
         logger.info(f"Hoàn thành rollback cho {plugin_code_name}.")

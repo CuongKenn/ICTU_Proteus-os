@@ -133,7 +133,7 @@ class RoleModel(BaseModel, SoftDeleteMixin):
     )
 
 
-class UserRoleModel(BaseModel):
+class UserRoleModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "user_roles"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -234,7 +234,7 @@ class TenantPluginModel(BaseModel, SoftDeleteMixin):
 # -----------------------------------------------------------------------------
 
 
-class AuditLogModel(BaseModel):
+class AuditLogModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "audit_logs"
 
     tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(

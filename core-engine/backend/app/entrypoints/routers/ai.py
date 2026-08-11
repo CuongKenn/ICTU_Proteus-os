@@ -8,14 +8,13 @@ import logging
 
 from fastapi import APIRouter, Depends, status
 
-from app.adapters.external.outline_adapter import OutlineAdapter
-from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.entrypoints.dependencies import (
     get_ai_command_use_case,
     get_current_tenant_context,
+    get_rag_ingestion_use_case,
 )
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
 
@@ -70,14 +69,10 @@ async def submit_ai_command(
 )
 async def trigger_rag_ingestion(
     ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: RAGIngestionUseCase = Depends(get_rag_ingestion_use_case),
 ):
     """
     Kích hoạt thủ công quá trình Ingestion tài liệu từ Outline vào Qdrant cho tenant hiện tại.
     """
-    # Khởi tạo adapters (thực tế nên dùng DI Container như dependency_injector)
-    outline_adapter = OutlineAdapter()
-    qdrant_adapter = QdrantAdapter()
-    use_case = RAGIngestionUseCase(outline_adapter, qdrant_adapter)
-
     result = await use_case.execute(str(ctx.tenant_id))
     return result
