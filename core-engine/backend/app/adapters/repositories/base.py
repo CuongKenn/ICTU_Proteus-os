@@ -89,6 +89,13 @@ class AbstractPluginRepository(ABC):
         """Lấy trạng thái cài đặt của plugin theo plugin_code."""
         ...
 
+    @abstractmethod
+    async def get_installed_version(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> str | None:
+        """Lấy phiên bản đang được cài đặt của plugin (nếu có)."""
+        ...
+
 
 class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""
