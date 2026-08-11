@@ -200,9 +200,11 @@ export const AIChatWidget: React.FC = () => {
     messages,
     inputValue,
     dslPreview,
+    sessionId,
     setInputValue,
     openWidget,
-    closeWidget,
+    minimizeWidget,
+    resetAndClose,
     sendCommand,
     openMattermostApproval,
     cancelApproval,
@@ -287,7 +289,7 @@ export const AIChatWidget: React.FC = () => {
             <button
               id="ai-widget-minimize-btn"
               aria-label="Thu nhỏ widget"
-              onClick={closeWidget}
+              onClick={minimizeWidget}
               className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
             >
               <ChevronDown className="w-4 h-4" />
@@ -295,7 +297,7 @@ export const AIChatWidget: React.FC = () => {
             <button
               id="ai-widget-close-btn"
               aria-label="Đóng widget"
-              onClick={closeWidget}
+              onClick={resetAndClose}
               className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
             >
               <X className="w-4 h-4" />
@@ -384,7 +386,7 @@ export const AIChatWidget: React.FC = () => {
         id="ai-widget-fab"
         aria-label={isExpanded ? "Thu nhỏ Proteus AI" : "Mở Proteus AI"}
         aria-expanded={isExpanded}
-        onClick={isExpanded ? closeWidget : openWidget}
+        onClick={isExpanded ? resetAndClose : openWidget}
         className={clsx(
           "w-16 h-16 rounded-2xl flex items-center justify-center",
           "transition-all duration-300 ease-out",
