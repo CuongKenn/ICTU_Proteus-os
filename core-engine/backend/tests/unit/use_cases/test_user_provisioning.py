@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import uuid
 import pytest
 from unittest.mock import AsyncMock
@@ -48,3 +51,4 @@ async def test_sync_user_profile(use_case, mock_user_repo):
 
     assert result.email == "test@example.com"
     assert result.roles == ["admin"]  # Roles should be merged from context
+

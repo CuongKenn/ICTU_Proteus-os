@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from datetime import datetime, timezone
 
 from app.adapters.repositories.base import AbstractUserRepository
@@ -37,3 +40,4 @@ class UserProvisioningUseCase:
         user_entity.roles = tenant_context.roles
 
         return user_entity
+

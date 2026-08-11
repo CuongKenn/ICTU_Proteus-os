@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from fastapi import APIRouter, Depends, status
 from app.core.domain.entities import TenantContext
 from app.entrypoints.dependencies import (
@@ -28,3 +31,4 @@ async def get_me(
 ):
     user_entity = await use_case.sync_user_profile(tenant_context)
     return user_entity
+
