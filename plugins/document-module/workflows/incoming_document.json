@@ -1,0 +1,18 @@
+{
+  "name": "Incoming Document Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "incoming-document",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    }
+  ],
+  "connections": {},
+  "settings": {}
+}
