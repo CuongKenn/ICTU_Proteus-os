@@ -8,7 +8,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
@@ -30,7 +30,6 @@ from app.entrypoints.dependencies import (
     get_plugin_upgrade_use_case,
 )
 from app.entrypoints.schemas.plugin import (
-    PluginInstallRequest,
     PluginListResponse,
     PluginResponse,
     PluginUninstallRequest,
@@ -71,48 +70,59 @@ async def list_installed_plugins(
 
 
 @router.post(
-    "/install",
+    "/{plugin_id}/install",
     status_code=status.HTTP_202_ACCEPTED,
     summary="Cài đặt Plugin",
 )
 async def install_plugin(
-    body: PluginInstallRequest,
+    plugin_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     ctx: TenantContext = Depends(get_current_tenant_context),
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    use_case: PluginInstallUseCase = Depends(get_plugin_install_use_case),
 ) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin.
     Chỉ tenant_admin hoặc superadmin mới có quyền thực hiện.
     Trả về HTTP 202 Accepted — việc cài đặt chạy ngầm.
-
-    TODO: Member sẽ implement PluginManagerUseCase ở đây.
     """
-    # Kiểm tra quyền
     if not any(r in ctx.roles for r in ["tenant_admin", "superadmin"]):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chỉ tenant_admin hoặc superadmin mới có thể cài đặt Plugin.",
         )
 
+    plugin = await repo.get_by_id(plugin_id)
+    if not plugin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plugin không tồn tại.",
+        )
+
     logger.info(
         "Plugin install requested",
         extra={
-            "plugin_id": str(body.plugin_id),
+            "plugin_id": str(plugin_id),
+            "plugin_code": plugin.code_name,
             "tenant_id": str(ctx.tenant_id),
             "user_id": str(ctx.user_id),
         },
     )
 
-    # TODO: Gọi PluginManagerUseCase.install() thay vì placeholder này
+    # Chạy cài đặt ngầm bằng BackgroundTasks
+    background_tasks.add_task(
+        use_case.execute, context=ctx, plugin_code_name=plugin.code_name
+    )
+
     return {
         "message": "Plugin installation queued.",
-        "plugin_id": str(body.plugin_id),
+        "plugin_id": str(plugin_id),
         "status": "INSTALLING",
     }
 
 
 @router.delete(
-    "/{plugin_id}",
+    "/{plugin_id}/uninstall",
     status_code=status.HTTP_200_OK,
     summary="Gỡ cài đặt Plugin",
 )
