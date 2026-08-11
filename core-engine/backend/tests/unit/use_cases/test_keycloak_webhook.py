@@ -1,10 +1,11 @@
 import uuid
-import pytest
 from unittest.mock import AsyncMock
 
-from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
+import pytest
+
 from app.core.domain.entities import UserEntity
 from app.core.domain.exceptions import NotFoundError
+from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 
 
 @pytest.fixture

@@ -1,9 +1,11 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Header, status
-from app.infrastructure.config import settings
-from app.entrypoints.schemas.keycloak import KeycloakEventSchema
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.entrypoints.dependencies import get_keycloak_webhook_use_case
+from app.entrypoints.schemas.keycloak import KeycloakEventSchema
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks/keycloak", tags=["Webhooks"])

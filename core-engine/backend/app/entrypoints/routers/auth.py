@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, status
+
 from app.core.domain.entities import TenantContext
+from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_user_provisioning_use_case,
 )
-from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.entrypoints.schemas.user import UserProfileResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])

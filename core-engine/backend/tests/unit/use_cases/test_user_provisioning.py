@@ -1,8 +1,10 @@
 import uuid
-import pytest
 from unittest.mock import AsyncMock
-from app.core.use_cases.user_provisioning import UserProvisioningUseCase
+
+import pytest
+
 from app.core.domain.entities import TenantContext, UserEntity
+from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 
 
 @pytest.fixture
