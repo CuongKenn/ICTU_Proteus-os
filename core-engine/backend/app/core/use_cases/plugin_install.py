@@ -136,7 +136,9 @@ class PluginInstallUseCase:
             try:
                 msg = f"✅ Đã cài đặt thành công Plugin **{manifest.display_name}** ({manifest.version})."
                 # TODO: get tenant's notify channel from config, using dummy channel for now
-                await self.mattermost_adapter.send_message("plugin-alerts", msg)
+                await self.mattermost_adapter.send_message(
+                    f"plugin-alerts-{context.tenant_id}", msg
+                )
             except Exception as e:
                 logger.warning(f"Không thể gửi thông báo Mattermost: {e}")
 
@@ -165,7 +167,9 @@ class PluginInstallUseCase:
             # Notify Mattermost (Best effort)
             try:
                 msg = f"❌ Lỗi cài đặt Plugin **{manifest.display_name}**: {e}"
-                await self.mattermost_adapter.send_message("plugin-alerts", msg)
+                await self.mattermost_adapter.send_message(
+                    f"plugin-alerts-{context.tenant_id}", msg
+                )
             except Exception:
                 pass
 

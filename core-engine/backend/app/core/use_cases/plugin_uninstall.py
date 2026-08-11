@@ -131,7 +131,9 @@ class PluginUninstallUseCase:
             # Notify Mattermost
             try:
                 msg = f"🗑 Đã GỠ CÀI ĐẶT thành công Plugin **{manifest.display_name}**."
-                await self.mattermost_adapter.send_message("plugin-alerts", msg)
+                await self.mattermost_adapter.send_message(
+                    f"plugin-alerts-{context.tenant_id}", msg
+                )
             except Exception:
                 pass
 
@@ -152,7 +154,9 @@ class PluginUninstallUseCase:
 
             try:
                 msg = f"❌ Lỗi khi gỡ cài đặt Plugin **{manifest.display_name}**: {e}"
-                await self.mattermost_adapter.send_message("plugin-alerts", msg)
+                await self.mattermost_adapter.send_message(
+                    f"plugin-alerts-{context.tenant_id}", msg
+                )
             except Exception:
                 pass
 
