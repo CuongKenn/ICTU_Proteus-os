@@ -172,3 +172,15 @@ class AbstractHRLeaveRepository(ABC):
     async def get_pending_leaves_older_than(self, days: int) -> list[dict] | None:
         """Lấy các đơn xin nghỉ phép chưa duyệt quá hạn."""
         ...
+
+
+class AbstractDSLDryRunRepository(ABC):
+    """Port: Giao tiếp cơ sở dữ liệu để thực hiện Dry Run của DSL."""
+
+    @abstractmethod
+    async def execute_dry_run(self, tenant_id: str, target_table: str) -> dict:
+        """
+        Thực thi dry run, trả về dict chứa affected_count và preview data.
+        Ví dụ: {"affected_count": 5, "preview": [...]}
+        """
+        ...
