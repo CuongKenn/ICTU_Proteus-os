@@ -52,6 +52,47 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
             sql_update, {"status": status.value, "now": now, "cmd_id": cmd_id}
         )
 
+    async def create_command(self, command_data: dict) -> uuid.UUID:
+        now = datetime.now(timezone.utc)
+        if "created_at" not in command_data:
+            command_data["created_at"] = now
+            
+        columns = ", ".join(command_data.keys())
+        placeholders = ", ".join(f":{k}" for k in command_data.keys())
+        sql = text(f"INSERT INTO ai_commands ({columns}) VALUES ({placeholders}) RETURNING id")
+        result = await self._session.execute(sql, command_data)
+        return result.scalar()
+
+    async def get_command_by_id(self, cmd_id: uuid.UUID) -> dict | None:
+        sql = text("SELECT * FROM ai_commands WHERE id = :cmd_id")
+        result = await self._session.execute(sql, {"cmd_id": cmd_id})
+        row = result.mappings().first()
+        return dict(row) if row else None
+
+    async def update_command_approval(
+        self,
+        cmd_id: uuid.UUID,
+        status: str | None = None,
+        approved_by: str | None = None,
+        second_approver: str | None = None,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        updates = ["updated_at = :now"]
+        params = {"now": now, "cmd_id": str(cmd_id)}
+        
+        if status is not None:
+            updates.append("status = :status")
+            params["status"] = status
+        if approved_by is not None:
+            updates.append("approved_by = :approved_by")
+            params["approved_by"] = approved_by
+        if second_approver is not None:
+            updates.append("second_approver = :second_approver")
+            params["second_approver"] = second_approver
+            
+        sql_update = text(f"UPDATE ai_commands SET {', '.join(updates)} WHERE id = :cmd_id")
+        await self._session.execute(sql_update, params)
+
     async def commit(self) -> None:
         await self._session.commit()
 
