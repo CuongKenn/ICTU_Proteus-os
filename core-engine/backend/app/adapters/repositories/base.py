@@ -29,6 +29,11 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_by_code_name(self, code_name: str) -> PluginEntity | None:
+        """Lấy Plugin theo code_name."""
+        ...
+
+    @abstractmethod
     async def list_marketplace(
         self, limit: int = 20, offset: int = 0
     ) -> tuple[list[PluginEntity], int]:

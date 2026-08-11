@@ -29,6 +29,7 @@ from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
+from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
 from app.infrastructure.database import get_db_readonly
@@ -75,6 +76,31 @@ async def get_plugin_list_use_case(
 ) -> PluginListUseCase:
     """Inject Plugin List Use Case."""
     return PluginListUseCase(plugin_repo=repo)
+
+
+async def get_plugin_install_use_case(
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
+    appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
+    keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    db: AsyncSession = Depends(get_db_readonly),
+    request: Request = None,
+) -> PluginInstallUseCase:
+    """Inject Plugin Install Use Case."""
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+
+    return PluginInstallUseCase(
+        plugin_repo=repo,
+        manifest_parser=LocalManifestParser(),
+        n8n_adapter=n8n_adapter,
+        metabase_adapter=metabase_adapter,
+        appsmith_adapter=appsmith_adapter,
+        keycloak_adapter=keycloak_adapter,
+        mattermost_adapter=MattermostAdapter(),
+        session=db,
+    )
 
 
 async def get_current_tenant_context(
