@@ -23,11 +23,11 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.base import (
+    AbstractAICommandRepository,
+    AbstractDSLDryRunRepository,
     AbstractPluginRepository,
     AbstractTenantRepository,
     AbstractUserRepository,
-    AbstractAICommandRepository,
-    AbstractDSLDryRunRepository,
 )
 from app.adapters.repositories.dsl_dry_run_repo import SQLAlchemyDSLDryRunRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
