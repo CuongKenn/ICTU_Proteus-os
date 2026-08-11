@@ -96,6 +96,15 @@ class AbstractPluginRepository(ABC):
         """Lấy phiên bản đang được cài đặt của plugin (nếu có)."""
         ...
 
+    @abstractmethod
+    async def get_failed_dirty_plugins(self) -> list[tuple[uuid.UUID, uuid.UUID, str]]:
+        """
+        Lấy tất cả các plugin đang ở trạng thái FAILED_DIRTY trên tất cả tenant.
+        Returns:
+            List of tuples: (tenant_id, plugin_id, plugin_code_name)
+        """
+        ...
+
 
 class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""
