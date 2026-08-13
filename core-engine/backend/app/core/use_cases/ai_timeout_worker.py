@@ -79,14 +79,14 @@ class AITimeoutWorker:
                 )
 
                 logger.info(
-                    f"[AI Timeout Worker] Đã hủy lệnh {cmd_id} (action: {action})"
+                    "[AI Timeout Worker] Đã hủy lệnh %s (action: %s)", cmd_id, action
                 )
 
             await self.ai_command_repo.commit()
             logger.info(
-                f"[AI Timeout Worker] Đã xử lý {len(expired_commands)} lệnh quá hạn."
+                "[AI Timeout Worker] Đã xử lý %s lệnh quá hạn.", len(expired_commands)
             )
 
         except Exception as e:
             await self.ai_command_repo.rollback()
-            logger.error(f"[AI Timeout Worker] Lỗi khi xử lý lệnh quá hạn: {e}")
+            logger.error("[AI Timeout Worker] Lỗi khi xử lý lệnh quá hạn: %s", e)
