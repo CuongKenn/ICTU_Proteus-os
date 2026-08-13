@@ -5,6 +5,7 @@
 // Proxy tới FastAPI: DELETE /api/v1/plugins/[id]
 
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
 
@@ -14,9 +15,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
+  const token = await getToken({ req: request });
   const session = await getServerSession(authOptions);
 
-  if (!session?.accessToken) {
+  if (!token?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,7 +28,7 @@ export async function POST(
     const backendResponse = await fetch(targetUrl, {
       method: "DELETE",
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${token.accessToken}`,
         Accept: "application/json",
       },
     });
