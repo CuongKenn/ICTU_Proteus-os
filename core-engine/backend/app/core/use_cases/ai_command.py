@@ -5,6 +5,7 @@
 # Xử lý DX-DSL actions với các effect: read, write, critical.
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -18,6 +19,7 @@ from app.adapters.repositories.base import (
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.entrypoints.schemas.ai_command import AICommandRequest
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -67,15 +69,14 @@ class AICommandUseCase:
 
         # 2. Xử lý theo effect
         if body.effect == "read":
-            # Chạy ngay lập tức thông qua n8n webhook
+            # Lệnh Read → Gửi n8n execute lập tức (vì là webhook trigger proxy)
             try:
-                # Giả sử webhook URL mapping được cấu hình trong DB, ở đây dùng mock cho action
-                webhook_url = f"http://n8n:5678/webhook/{body.action.replace('.', '-')}"
                 response = await self.n8n_adapter.trigger_webhook(
-                    webhook_url=webhook_url, payload=body.parameters
+                    webhook_url=f"{settings.N8N_URL}/webhook/ai-read-command",
+                    payload=body.model_dump(),
                 )
 
-                # Ghi log command thành công
+                # Lưu DB ngay
                 await self.ai_command_repo.create_command(
                     {
                         "id": body.command_id,
@@ -85,9 +86,9 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": json.dumps(body.parameters) if body.parameters else "{}",
                         "status": AICommandStatus.COMPLETED.value,
-                        "execution_result": str(response).replace("'", '"'),
+                        "execution_result": json.dumps(response) if response is not None else None,
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -110,9 +111,9 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": json.dumps(body.parameters) if body.parameters else "{}",
                         "status": AICommandStatus.FAILED.value,
-                        "execution_result": str({"error": str(e)}).replace("'", '"'),
+                        "execution_result": json.dumps({"error": str(e)}),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -145,10 +146,10 @@ class AICommandUseCase:
                 "dsl_version": body.dsl_version,
                 "action": body.action,
                 "effect": body.effect,
-                "parameters": str(body.parameters).replace("'", '"'),
+                "parameters": json.dumps(body.parameters) if body.parameters else "{}",
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
-                "dry_run_result": str(dry_run_res).replace("'", '"'),
+                "dry_run_result": json.dumps(dry_run_res) if dry_run_res is not None else None,
                 "created_at": now,
             }
         )
@@ -165,7 +166,7 @@ class AICommandUseCase:
         )
         try:
             await self.mattermost_adapter.send_message(
-                channel="admin-channel", text=msg_text
+                channel=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
             )
         except Exception as e:
             logger.warning(f"Could not send Mattermost approval request: {e}")
