@@ -5,6 +5,8 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+### Fixed
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).
