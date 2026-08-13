@@ -81,7 +81,7 @@ async def test_create_tenant_success(
 
     mock_tenant_repo.create.assert_called_once()
     mock_keycloak_adapter.create_tenant_group.assert_called_once_with(
-        realm="proteus", group_name="tenant_test-tenant", admin_token=""
+        realm="proteus", group_name="tenant_test-tenant"
     )
 
 

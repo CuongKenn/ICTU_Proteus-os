@@ -89,7 +89,7 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       // Expose access token cho BFF Proxy — KHÔNG expose xuống browser
-      session.accessToken = token.accessToken as string;
+      // session.accessToken = token.accessToken as string; // REMOVED for security (Issue #327)
       session.user.roles = (token.roles as string[]) ?? [];
 
       // Truyền lỗi refresh lên client để có thể hiển thị thông báo
