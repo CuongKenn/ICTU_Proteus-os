@@ -25,6 +25,9 @@ const config: Config = {
         "text-primary": "var(--color-text-primary)",
         "text-secondary": "var(--color-text-secondary)",
         "text-disabled": "var(--color-text-disabled)",
+        "text-muted": "var(--color-text-disabled)",
+        "brand-primary": "var(--color-primary)",
+        "border-subtle": "hsla(220, 60%, 60%, 0.08)",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
