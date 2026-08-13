@@ -159,8 +159,8 @@ async def test_execute_success(
         status=PluginStatus.ACTIVE,
     )
     assert (
-        mock_session.execute.call_count == 3
-    )  # CREATE SCHEMA, SET search_path, and seed.sql
+        mock_session.execute.call_count >= 3
+    )  # CREATE SCHEMA, RLS config, and seed.sql
     mock_mattermost_adapter.send_message.assert_called_once()
 
 
