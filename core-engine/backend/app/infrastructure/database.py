@@ -54,12 +54,12 @@ def receive_after_begin(
     """
     tenant_id = current_tenant_id.get()
     if tenant_id:
-        logger.debug(f"RLS Enabled: Setting app.current_tenant_id = '{tenant_id}'")
+        logger.debug("RLS Enabled: Setting app.current_tenant_id = '%s'", tenant_id)
         # Validate UUID format trước — chặn injection
         try:
             validated = str(uuid.UUID(str(tenant_id)))
         except ValueError:
-            logger.error(f"Invalid tenant_id format in RLS: {tenant_id!r}")
+            logger.error("Invalid tenant_id format in RLS: %s", tenant_id)
             connection.execute(text("SET LOCAL app.current_tenant_id = ''"))
             return
 
