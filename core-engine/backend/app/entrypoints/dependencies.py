@@ -73,6 +73,11 @@ async def get_mattermost_adapter(request: Request) -> MattermostAdapter:
     return MattermostAdapter(client=request.app.state.http_client)
 
 
+async def get_qdrant_adapter(request: Request) -> QdrantAdapter:
+    """Inject QdrantAdapter."""
+    return QdrantAdapter(qdrant_client=request.app.state.qdrant_client)
+
+
 async def get_n8n_adapter(request: Request) -> N8nAdapter:
     """Inject N8nAdapter."""
     return N8nAdapter(client=request.app.state.http_client)
@@ -102,10 +107,10 @@ async def get_plugin_list_use_case(
 
 async def get_rag_ingestion_use_case(
     request: Request,
+    qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
 ) -> RAGIngestionUseCase:
     """Inject RAG Ingestion Use Case."""
     outline_adapter = OutlineAdapter(client=request.app.state.http_client)
-    qdrant_adapter = QdrantAdapter(client=request.app.state.http_client)
     return RAGIngestionUseCase(outline_adapter, qdrant_adapter)
 
 

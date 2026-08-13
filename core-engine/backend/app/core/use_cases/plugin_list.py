@@ -25,12 +25,12 @@ class PluginListUseCase:
         self, limit: int = 20, offset: int = 0
     ) -> tuple[list[PluginEntity], int]:
         """Liệt kê tất cả Plugin trên Marketplace."""
-        logger.info(f"Listing marketplace plugins (limit={limit}, offset={offset})")
+        logger.info("Listing marketplace plugins (limit=%s, offset=%s)", limit, offset)
         return await self.plugin_repo.list_marketplace(limit=limit, offset=offset)
 
     async def list_installed(
         self, tenant_id: uuid.UUID
     ) -> tuple[list[PluginEntity], int]:
         """Liệt kê Plugin đã cài đặt của một Tenant."""
-        logger.info(f"Listing installed plugins for tenant {tenant_id}")
+        logger.info("Listing installed plugins for tenant %s", tenant_id)
         return await self.plugin_repo.list_installed(tenant_id=tenant_id)

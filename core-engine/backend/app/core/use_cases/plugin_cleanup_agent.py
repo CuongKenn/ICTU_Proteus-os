@@ -15,6 +15,7 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class PluginCleanupAgent:
 
         for tenant_id, plugin_id, plugin_code_name in failed_plugins:
             logger.info(
-                f"Đang dọn dẹp plugin {plugin_code_name} cho tenant {tenant_id}"
+                "Đang dọn dẹp plugin %s cho tenant %s", plugin_code_name, tenant_id
             )
             context = TenantContext(
                 tenant_id=tenant_id,
@@ -84,13 +85,14 @@ class PluginCleanupAgent:
                     },
                 )
                 # Gửi thông báo Mattermost
-                await self.mattermost_adapter.send_notification(
-                    message=f"Plugin {plugin_code_name} đã được dọn dẹp khỏi Tenant {tenant_id}.",
-                    channel_id="admin-channel",
+                await self.mattermost_adapter.send_message(
+                    text=f"Plugin {plugin_code_name} đã được dọn dẹp khỏi Tenant {tenant_id}.",
+                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 )
             except Exception as e:
                 logger.error(
-                    f"Cleanup thất bại cho plugin {plugin_code_name}",
+                    "Cleanup thất bại cho plugin %s",
+                    plugin_code_name,
                     exc_info=True,
                     extra={
                         "tenant_id": str(tenant_id),
@@ -98,7 +100,7 @@ class PluginCleanupAgent:
                         "error": str(e),
                     },
                 )
-                await self.mattermost_adapter.send_notification(
-                    message=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
-                    channel_id="admin-channel",
+                await self.mattermost_adapter.send_message(
+                    text=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
+                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 )
