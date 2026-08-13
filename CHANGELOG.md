@@ -5,6 +5,9 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+### Fixed
+- **[core-engine/backend]** Tự động lấy admin_token thông qua Client Credentials Grant để KeycloakAdapter giao tiếp với Admin API. Loại bỏ hardcode dummy token khi tạo role trong quá trình cài đặt plugin và tenant onboarding (Issue #279).
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).
 - **[core-engine/backend/app/ai]** Đột phá 3 (IEEE Paper): Phát triển cơ chế giao tiếp liên tiến trình KV-Cache Vector IPC trên Event Bus (Redis) và Vector DB (Qdrant). Khắc phục tình trạng thắt nút cổ chai băng thông và giảm hàng triệu LLM tokens khi Multi-Agent tương tác (Issue #237).

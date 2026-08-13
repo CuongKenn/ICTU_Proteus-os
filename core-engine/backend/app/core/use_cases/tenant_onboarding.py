@@ -62,7 +62,8 @@ class TenantOnboardingUseCase:
 
         tenant_id = uuid.uuid4()
 
-        # Trong kiến trúc Proteus, giả định dùng 1 Shared Realm, tạo Group cho mỗi Tenant
+        # Trong kiến trúc Proteus, giả định dùng 1 Shared Realm,
+        # tạo Group cho mỗi Tenant
         # Hoặc Realm riêng nếu keycloak_realm là slug.
         # Ở đây ta lưu realm = "master" (hoặc từ settings) và tạo Group theo slug.
         # Tạm lưu realm là "proteus"
@@ -81,21 +82,20 @@ class TenantOnboardingUseCase:
         created_tenant = await self.tenant_repo.create(new_tenant)
 
         # 2. Create Keycloak Group (Best effort / Saga)
-        # Giả định token admin đã có ở adapter hoặc truyền rỗng vì ta đang dùng client credentials
+        # Giả định token admin đã có ở adapter hoặc truyền rỗng vì ta đang dùng client
         try:
-            # We pass empty string for admin_token assuming the adapter uses its own client credentials
-            # if we implement that. For now pass empty string.
+            # We no longer pass admin_token since the adapter fetches it
             await self.keycloak_adapter.create_tenant_group(
                 realm=realm,
                 group_name=f"tenant_{slug}",
-                admin_token="",  # Dummy token cho đến khi adapter hỗ trợ client credentials
             )
         except Exception as e:
             logger.error(f"Không thể tạo Keycloak group cho tenant {slug}: {e}")
-            # Ở môi trường thực tế, nếu gọi KC lỗi, có thể cần rollback DB hoặc retry sau
+            # Ở môi trường thực tế, nếu gọi KC lỗi, có thể cần rollback DB
             # Ở đây ta rollback giao dịch (nếu dùng chung self.session)
-            # Vì AbstractTenantRepository không tự commit, ta có thể không commit ở router.
-            raise TenantOnboardingError(f"Lỗi tạo Tenant Group trên Keycloak: {e}")
+            # Vì AbstractTenantRepository không tự commit, ta có thể không commit.
+            msg = f"Lỗi tạo Tenant Group trên Keycloak: {e}"
+            raise TenantOnboardingError(msg) from e
 
         return created_tenant
 

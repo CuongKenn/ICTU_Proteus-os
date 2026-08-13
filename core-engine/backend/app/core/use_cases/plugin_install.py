@@ -255,7 +255,6 @@ class PluginInstallUseCase:
                 await self.keycloak_adapter.create_role(
                     realm=str(context.tenant_id),
                     role_name=role.name,
-                    admin_token="SYSTEM_ADMIN_TOKEN",
                 )
                 created_roles.append(role.name)
         return created_roles
@@ -292,7 +291,6 @@ class PluginInstallUseCase:
                             await self.keycloak_adapter.delete_role(
                                 realm=str(context.tenant_id),
                                 role_name=role_name,
-                                admin_token="SYSTEM_ADMIN_TOKEN",
                             )
                 elif step == "appsmith":
                     if hasattr(self.appsmith_adapter, "delete_app"):
