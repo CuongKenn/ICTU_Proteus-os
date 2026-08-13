@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/frontend]** Cập nhật `AuthProvider` thêm logic đồng bộ state từ NextAuth session sang Zustand `authStore`, sửa lỗi dead code khiến `useAuthStore.hasRole()` luôn trả về `false` (Issue #258).
 - **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
 - **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Xây dựng n8n webhook URL động từ config thay vì hardcode, đồng thời thêm xác thực domain qua N8nAdapter để bảo mật quá trình thực thi DX-DSL (Issue #287).
