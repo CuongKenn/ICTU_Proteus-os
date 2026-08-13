@@ -176,11 +176,9 @@ class PluginUninstallUseCase:
         for role in manifest.roles:
             # Lấy admin token
             try:
-                # Dummy token
                 await self.keycloak_adapter.delete_role(
                     realm="proteus",
                     role_name=role.name,
-                    admin_token="",  # Dummy realm
                 )
             except Exception as e:
                 logger.warning(f"Không thể xóa role {role.name} trong Keycloak: {e}")

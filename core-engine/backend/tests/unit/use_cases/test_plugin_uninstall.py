@@ -145,7 +145,7 @@ async def test_uninstall_success(
 
     # Verify keycloak deletion called
     mock_keycloak_adapter.delete_role.assert_called_once_with(
-        realm="proteus", role_name="test_role", admin_token=""
+        realm="proteus", role_name="test_role"
     )
 
     # Verify drop table executed

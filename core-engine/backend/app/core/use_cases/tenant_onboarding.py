@@ -83,12 +83,10 @@ class TenantOnboardingUseCase:
         # 2. Create Keycloak Group (Best effort / Saga)
         # Giả định token admin đã có ở adapter hoặc truyền rỗng vì ta đang dùng client credentials
         try:
-            # We pass empty string for admin_token assuming the adapter uses its own client credentials
-            # if we implement that. For now pass empty string.
+            # We use client credentials in the adapter now
             await self.keycloak_adapter.create_tenant_group(
                 realm=realm,
                 group_name=f"tenant_{slug}",
-                admin_token="",  # Dummy token cho đến khi adapter hỗ trợ client credentials
             )
         except Exception as e:
             logger.error(f"Không thể tạo Keycloak group cho tenant {slug}: {e}")

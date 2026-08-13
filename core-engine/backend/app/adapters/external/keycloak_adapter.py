@@ -77,13 +77,26 @@ class KeycloakAdapter:
         )
         return cast(dict[str, Any], payload)
 
+    async def get_admin_token(self) -> str:
+        """Lấy Admin Token dùng Client Credentials (Service Account)."""
+        data = {
+            "grant_type": "client_credentials",
+            "client_id": settings.KEYCLOAK_CLIENT_ID,
+            "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
+        }
+        response = await self._client.post(
+            settings.keycloak_token_url, data=data, timeout=10.0
+        )
+        response.raise_for_status()
+        return response.json()["access_token"]
+
     async def create_role(
         self,
         realm: str,
         role_name: str,
-        admin_token: str,
     ) -> None:
         """Tạo Role trong Keycloak Realm của Tenant khi cài Plugin."""
+        admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/roles"
         response = await self._client.post(
             url,
@@ -101,9 +114,9 @@ class KeycloakAdapter:
         self,
         realm: str,
         role_name: str,
-        admin_token: str,
     ) -> None:
         """Xóa Role khỏi Keycloak Realm của Tenant khi gỡ Plugin."""
+        admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/roles/{role_name}"
         response = await self._client.delete(
             url,
@@ -120,9 +133,9 @@ class KeycloakAdapter:
         self,
         realm: str,
         group_name: str,
-        admin_token: str,
     ) -> None:
         """Tạo Group cho Tenant trong Keycloak Realm."""
+        admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/groups"
         response = await self._client.post(
             url,
