@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.tenant_onboarding import (
-    TenantPermissionError,
     TenantOnboardingError,
     TenantOnboardingUseCase,
+    TenantPermissionError,
 )
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
