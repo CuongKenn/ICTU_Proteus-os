@@ -24,6 +24,7 @@ from app.adapters.external.outline_adapter import OutlineAdapter
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
+from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
     AbstractAuditLogRepository,
@@ -37,7 +38,6 @@ from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.role_repo import RoleRepository
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
-from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import InsufficientPermissionsError
 from app.core.use_cases.ai_command import AICommandUseCase

@@ -54,8 +54,12 @@ def verify_mattermost_signature(raw_body: bytes, signature: str) -> bool:
 async def mattermost_interactive_callback(
     request: Request,
     mattermost_signature: str = Header(None, alias="Mattermost-Signature"),
-    ai_command_use_case: AICommandUseCase = Depends(get_ai_command_use_case),  # noqa: B008
-    audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),  # noqa: B008
+    ai_command_use_case: AICommandUseCase = Depends(
+        get_ai_command_use_case
+    ),  # noqa: B008
+    audit_log_repo: AbstractAuditLogRepository = Depends(
+        get_audit_log_repo
+    ),  # noqa: B008
     db: AsyncSession = Depends(get_db_transactional),  # noqa: B008
 ):
     """
@@ -109,12 +113,12 @@ async def mattermost_interactive_callback(
                 actor_type="mattermost_user",
                 action="APPROVE_AI_COMMAND",
                 resource_type="ai_command",
-                resource_id=uuid.UUID(action_id)
-                if len(action_id) == 36
-                else uuid.UUID(int=0),
-                command_id=uuid.UUID(action_id)
-                if len(action_id) == 36
-                else uuid.UUID(int=0),
+                resource_id=(
+                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                ),
+                command_id=(
+                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                ),
                 metadata_json=json.dumps({"mattermost_user_id": user_id}),
             )
             await db.commit()
@@ -131,12 +135,12 @@ async def mattermost_interactive_callback(
                 actor_type="mattermost_user",
                 action="REJECT_AI_COMMAND",
                 resource_type="ai_command",
-                resource_id=uuid.UUID(action_id)
-                if len(action_id) == 36
-                else uuid.UUID(int=0),
-                command_id=uuid.UUID(action_id)
-                if len(action_id) == 36
-                else uuid.UUID(int=0),
+                resource_id=(
+                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                ),
+                command_id=(
+                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                ),
                 metadata_json=json.dumps({"mattermost_user_id": user_id}),
             )
             await db.commit()
