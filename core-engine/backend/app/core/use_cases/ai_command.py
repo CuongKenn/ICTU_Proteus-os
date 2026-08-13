@@ -175,7 +175,7 @@ class AICommandUseCase:
         )
         try:
             await self.mattermost_adapter.send_message(
-                channel=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
+                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
             )
         except Exception as e:
             logger.warning("Could not send Mattermost approval request: %s", e)
