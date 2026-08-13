@@ -95,7 +95,7 @@ export function usePlugins(): UsePluginsReturn {
 
   const disable = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/disable`);
+      await api.post(`/plugins/${pluginId}/disable`, {}, { baseURL: "/api" });
       useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin.");
       refetch();
     } catch (err) {
@@ -111,7 +111,7 @@ export function usePlugins(): UsePluginsReturn {
 
   const upgrade = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/upgrade`);
+      await api.post(`/plugins/${pluginId}/upgrade`, {}, { baseURL: "/api" });
       useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin.");
       refetch();
     } catch (err) {
