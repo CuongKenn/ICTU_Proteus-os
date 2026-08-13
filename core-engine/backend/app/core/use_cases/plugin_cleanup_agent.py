@@ -15,6 +15,7 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +85,9 @@ class PluginCleanupAgent:
                     },
                 )
                 # Gửi thông báo Mattermost
-                await self.mattermost_adapter.send_notification(
-                    message=f"Plugin {plugin_code_name} đã được dọn dẹp khỏi Tenant {tenant_id}.",
-                    channel_id="admin-channel",
+                await self.mattermost_adapter.send_message(
+                    text=f"Plugin {plugin_code_name} đã được dọn dẹp khỏi Tenant {tenant_id}.",
+                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 )
             except Exception as e:
                 logger.error(
@@ -99,7 +100,7 @@ class PluginCleanupAgent:
                         "error": str(e),
                     },
                 )
-                await self.mattermost_adapter.send_notification(
-                    message=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
-                    channel_id="admin-channel",
+                await self.mattermost_adapter.send_message(
+                    text=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
+                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 )
