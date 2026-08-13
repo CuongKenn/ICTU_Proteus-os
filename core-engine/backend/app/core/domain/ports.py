@@ -33,6 +33,11 @@ class AbstractVectorDBPort(ABC):
         pass
 
     @abstractmethod
+    async def delete_by_tenant(self, tenant_id: str) -> None:
+        """Xóa toàn bộ dữ liệu của một tenant khỏi vector DB."""
+        pass
+
+    @abstractmethod
     async def search(
         self,
         tenant_id: str,

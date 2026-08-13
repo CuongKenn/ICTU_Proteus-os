@@ -4,6 +4,7 @@
 import logging
 from typing import Any
 
+import httpx
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
@@ -24,9 +25,9 @@ class QdrantAdapter(AbstractVectorDBPort):
     Tham chiếu: ADR-002
     """
 
-    def __init__(self):
-        # Khởi tạo AsyncQdrantClient
-        self.client = AsyncQdrantClient(url=settings.QDRANT_URL)
+    def __init__(self, client: httpx.AsyncClient = None):
+        # Khởi tạo AsyncQdrantClient, nhận httpx_client để tái sử dụng connection pool (Issue #283)
+        self.client = AsyncQdrantClient(url=settings.QDRANT_URL, httpx_client=client)
         # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
         # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small cho đa ngôn ngữ.
         self.dense_model = "intfloat/multilingual-e5-small"
@@ -55,7 +56,7 @@ class QdrantAdapter(AbstractVectorDBPort):
 
     async def upsert_vectors(
         self, tenant_id: str, chunks: list[str], metadatas: list[dict[str, Any]]
-    ) -> bool:
+    ) -> None:
         """
         Lưu embeddings (Dense + Sparse) cùng với metadata `tenant_id`.
         """
@@ -73,7 +74,7 @@ class QdrantAdapter(AbstractVectorDBPort):
                 documents=chunks,
                 metadata=metadatas,
             )
-            return True
+            return None
         except Exception as e:
             logger.error(f"Error upserting vectors to Qdrant: {e}")
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
@@ -129,7 +130,7 @@ class QdrantAdapter(AbstractVectorDBPort):
             logger.error(f"Error executing hybrid search in Qdrant: {e}")
             raise QdrantAdapterError(f"Search failed: {str(e)}")
 
-    async def delete_by_tenant(self, tenant_id: str) -> bool:
+    async def delete_by_tenant(self, tenant_id: str) -> None:
         """
         Xóa toàn bộ dữ liệu của một tenant khỏi vector DB.
         """
@@ -145,7 +146,7 @@ class QdrantAdapter(AbstractVectorDBPort):
             await self.client.delete(
                 collection_name=self.collection_name, points_selector=tenant_filter
             )
-            return True
+            return None
         except Exception as e:
-            logger.error(f"Error deleting tenant data from Qdrant: {e}")
+            logger.error(f"Error deleting tenant vectors in Qdrant: {e}")
             raise QdrantAdapterError(f"Delete failed: {str(e)}")

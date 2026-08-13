@@ -39,7 +39,7 @@ async def test_upsert_vectors(mock_qdrant_client):
 
     result = await adapter.upsert_vectors("tenant-1", chunks, metadatas)
 
-    assert result is True
+    assert result is None
     # Ensure tenant_id was injected
     assert metadatas[0]["tenant_id"] == "tenant-1"
 
@@ -77,7 +77,7 @@ async def test_delete_by_tenant(mock_qdrant_client):
 
     result = await adapter.delete_by_tenant("tenant-1")
 
-    assert result is True
+    assert result is None
     mock_qdrant_client.delete.assert_called_once()
     kwargs = mock_qdrant_client.delete.call_args.kwargs
 
