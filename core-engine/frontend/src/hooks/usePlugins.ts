@@ -15,7 +15,7 @@ interface UsePluginsReturn {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  install: (codeName: string) => Promise<{ task_id: string }>;
+  install: (pluginId: string) => Promise<{ task_id: string }>;
   uninstall: (pluginId: string) => Promise<void>;
   disable: (pluginId: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
@@ -60,14 +60,9 @@ export function usePlugins(): UsePluginsReturn {
     return () => { cancelled = true; };
   }, [trigger]);
 
-  const install = useCallback(async (codeName: string) => {
+  const install = useCallback(async (pluginId: string) => {
     try {
-      const manifestUrl = `https://raw.githubusercontent.com/CuongKenn/ICTU_Proteus-os/main/plugins/${codeName}/manifest.yaml`;
-      const response = await api.post<{ data: { task_id: string } }>("/plugins/install", {
-        code_name: codeName,
-        manifest_url: manifestUrl,
-        config_override: null,
-      }, { baseURL: "/api" });
+      const response = await api.post<{ data: { task_id: string } }>(`/plugins/${pluginId}/install`, {}, { baseURL: "/api" });
       return response.data.data;
     } catch (err) {
       if (process.env.NODE_ENV === "development") {
