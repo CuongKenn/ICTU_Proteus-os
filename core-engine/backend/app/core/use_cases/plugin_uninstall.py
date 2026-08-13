@@ -179,7 +179,7 @@ class PluginUninstallUseCase:
             # Lấy admin token
             try:
                 await self.keycloak_adapter.delete_role(
-                    realm="proteus",
+                    realm=str(context.tenant_id),
                     role_name=role.name,
                 )
             except Exception as e:
@@ -214,6 +214,8 @@ class PluginUninstallUseCase:
     ) -> None:
         """DROP Tables thuộc plugin (destructive)."""
         if manifest.database and manifest.database.tables:
+            schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+            await self.session.execute(text(f"SET search_path TO {schema_name}"))
             for table_name in manifest.database.tables:
                 # Sanitize table_name if needed. Here we assume it's safe from manifest.
                 # WARNING: In real production, ensure `table_name` is strictly validated.

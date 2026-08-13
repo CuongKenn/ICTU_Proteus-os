@@ -145,13 +145,13 @@ async def test_uninstall_success(
 
     # Verify keycloak deletion called
     mock_keycloak_adapter.delete_role.assert_called_once_with(
-        realm="proteus", role_name="test_role"
+        realm=str(context.tenant_id), role_name="test_role"
     )
 
-    # Verify drop table executed
-    assert mock_session.execute.call_count == 1
+    # Verify drop table executed (2 calls: SET search_path, DROP TABLE)
+    assert mock_session.execute.call_count == 2
     # Check drop statement
-    sql_arg = mock_session.execute.call_args[0][0].text
+    sql_arg = mock_session.execute.call_args_list[1][0][0].text
     assert 'DROP TABLE IF EXISTS "test_table" CASCADE;' in sql_arg
 
 
