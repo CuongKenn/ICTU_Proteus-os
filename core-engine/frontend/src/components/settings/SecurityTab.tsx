@@ -30,7 +30,7 @@ export const SecurityTab = () => {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => window.open(securityUrl, "_blank")}>
+          <Button variant="secondary" onClick={() => window.open(securityUrl, "_blank")}>
             Change Password
           </Button>
         </div>
@@ -47,7 +47,7 @@ export const SecurityTab = () => {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => window.open(keycloakUrl + "/realms/proteus/account/", "_blank")}>
+          <Button variant="secondary" onClick={() => window.open(keycloakUrl + "/realms/proteus/account/", "_blank")}>
             Setup 2FA
           </Button>
         </div>

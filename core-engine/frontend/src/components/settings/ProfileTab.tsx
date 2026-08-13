@@ -66,7 +66,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
               To change your name, email, or password, please visit the account portal.
             </p>
             <Button
-              variant="outline"
+              variant="secondary"
               className="mt-4"
               onClick={() => window.open(accountUrl, "_blank")}
             >
