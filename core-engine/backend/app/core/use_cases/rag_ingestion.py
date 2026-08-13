@@ -69,7 +69,7 @@ class RAGIngestionUseCase:
         """
         Thực thi quy trình RAG Ingestion cho một tenant cụ thể.
         """
-        logger.info(f"Starting RAG Ingestion for tenant: {tenant_id}")
+        logger.info("Starting RAG Ingestion for tenant: %s", tenant_id)
 
         try:
             # 1. Fetch documents từ Outline
@@ -107,7 +107,7 @@ class RAGIngestionUseCase:
                 total_chunks += len(chunks)
 
             logger.info(
-                f"RAG Ingestion completed: {total_docs} docs, {total_chunks} chunks."
+                "RAG Ingestion completed: %s docs, %s chunks.", total_docs, total_chunks
             )
             return {
                 "status": "success",
@@ -115,5 +115,5 @@ class RAGIngestionUseCase:
                 "upserted_chunks": total_chunks,
             }
         except Exception as e:
-            logger.error(f"RAG Ingestion failed: {e}")
+            logger.error("RAG Ingestion failed: %s", e)
             return {"status": "failed", "error": str(e)}

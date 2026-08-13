@@ -71,7 +71,7 @@ class DSLDryRunEngine:
             }
 
         except Exception as e:
-            logger.error(f"[Dry Run] Lỗi khi thực thi: {e}")
+            logger.error("[Dry Run] Lỗi khi thực thi: %s", e)
             return {
                 "affected_count": 0,
                 "preview": [],

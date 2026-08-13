@@ -100,7 +100,7 @@ class AICommandUseCase:
                     response,
                 )
             except Exception as e:
-                logger.error(f"Read command execution failed: {e}")
+                logger.error("Read command execution failed: %s", e)
                 # Ghi log thất bại
                 await self.ai_command_repo.create_command(
                     {
@@ -169,7 +169,7 @@ class AICommandUseCase:
                 channel=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
             )
         except Exception as e:
-            logger.warning(f"Could not send Mattermost approval request: {e}")
+            logger.warning("Could not send Mattermost approval request: %s", e)
 
         msg = f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau {deadline_minutes} phút."
         return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res

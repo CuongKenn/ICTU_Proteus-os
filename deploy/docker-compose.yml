@@ -90,7 +90,7 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HOSTNAME: auth.${DOMAIN}
-      KC_PROXY: edge
+      KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
     depends_on:
       postgres:
