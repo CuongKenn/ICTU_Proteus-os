@@ -60,5 +60,5 @@ class OutlineAdapter(AbstractDocumentSourcePort):
                     )
                 return data
             except httpx.HTTPError as e:
-                logger.error(f"Outline API error: {e}")
+                logger.error("Outline API error: %s", e)
                 raise OutlineAdapterError(f"Failed to fetch documents: {str(e)}")

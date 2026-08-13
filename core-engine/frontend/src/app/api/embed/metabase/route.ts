@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/authOptions";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -29,8 +30,9 @@ function decodeJwtPayload(token: string) {
 
 export async function GET(request: NextRequest) {
   // 1. Xác thực session từ HttpOnly Cookie
+  const token = await getToken({ req: request });
   const session = await getServerSession(authOptions);
-  if (!session?.accessToken) {
+  if (!token?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 3. Giải mã accessToken (Keycloak JWT) để lấy tenant_id
-  const payload = decodeJwtPayload(session.accessToken);
+  const payload = decodeJwtPayload(token.accessToken);
   const tenantId = payload?.tenant_id || payload?.groups?.[0] || "unknown_tenant";
 
   try {
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(targetUrl, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${token.accessToken}`,
         "Content-Type": "application/json",
       },
     });

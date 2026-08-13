@@ -39,7 +39,7 @@ async def test_upsert_vectors(mock_qdrant_client):
 
     result = await adapter.upsert_vectors("tenant-1", chunks, metadatas)
 
-    assert result is True
+    assert result is None
     # Ensure tenant_id was injected
     assert metadatas[0]["tenant_id"] == "tenant-1"
 

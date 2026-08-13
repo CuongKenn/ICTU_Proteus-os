@@ -35,7 +35,7 @@ class PluginSynthesizer:
         Nhận một prompt (VD: 'Tạo plugin quản lý bệnh viện với chức năng khám bệnh')
         và tự động sinh mã nguồn (manifest.yaml, migrations) cho plugin đó.
         """
-        logger.info(f"Synthesizing plugin from prompt: {prompt}")
+        logger.info("Synthesizing plugin from prompt: %s", prompt)
 
         system_prompt = """
         Bạn là Proteus OS AI Plugin Synthesizer.
@@ -85,7 +85,7 @@ class PluginSynthesizer:
             return plugin_name
 
         except Exception as e:
-            logger.error(f"Error synthesizing plugin: {e}", exc_info=True)
+            logger.error("Error synthesizing plugin: %s", e, exc_info=True)
             raise e
 
     def _write_plugin_files(self, plugin_name: str, data: dict) -> None:
@@ -109,7 +109,7 @@ class PluginSynthesizer:
             with open(plugin_path / "main.py", "w", encoding="utf-8") as f:
                 f.write(python_main)
 
-        logger.info(f"Successfully generated plugin files at {plugin_path}")
+        logger.info("Successfully generated plugin files at %s", plugin_path)
 
     def _mock_synthesize(self, prompt: str) -> str:
         """Mock behavior cho CI/CD khi không có OPENAI_API_KEY"""
