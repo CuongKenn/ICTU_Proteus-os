@@ -6,6 +6,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import api from "@/lib/api";
+import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import { usePlugins } from "@/hooks/usePlugins";
 import type { PluginInfo, InstallTaskStatus } from "@/types";
@@ -60,9 +61,7 @@ export function useMarketplace(): UseMarketplaceReturn {
           setPlugins(response.data.items || []);
         }
       } catch (err: unknown) {
-        if (process.env.NODE_ENV === "development") {
-          console.error("[useMarketplace] fetch error:", err);
-        }
+        logger.error("[useMarketplace] fetch error:", err);
         if (!cancelled) {
           if (process.env.NODE_ENV === "development") {
             const mockPlugins: PluginInfo[] = [

@@ -14,7 +14,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Hạ cấp Traefik từ `v3.1` xuống `v2.11` để khắc phục lỗi không thể discover Docker services do Traefik v3.1 hardcode Docker API version 1.24 không tương thích (Issue #264).
 - **[core-engine/frontend]** Cập nhật `AuthProvider` thêm logic đồng bộ state từ NextAuth session sang Zustand `authStore`, sửa lỗi dead code khiến `useAuthStore.hasRole()` luôn trả về `false` (Issue #258).
 =======
+<<<<<<< HEAD
 - **[core-engine/frontend]** Sửa lỗi Marketplace truyền sai `plugin.id` (UUID) thay vì `code_name` khi gọi API cài đặt, gây lỗi 422 Unprocessable Entity (Issue #259).
+=======
+- **[core-engine/frontend]** Cập nhật toàn bộ source code frontend sử dụng `logger` wrapper thay vì `console.*` thô để tuân thủ AGENTS.md §7 (Logging Standards). Thêm quy tắc ESLint `no-console` (Issue #256).
+>>>>>>> 26d30eb (fix(frontend): enforce no-console rule and add logger wrapper)
 - **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
 - **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).
 

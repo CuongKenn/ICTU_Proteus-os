@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/authOptions";
+import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
@@ -70,8 +71,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     // 5. MOCK: Khi Python Backend chưa có API này hoặc đang sập
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.warn("[Metabase BFF] Backend chưa sẵn sàng, trả về MOCK Signed URL.");
+      logger.warn("[Metabase BFF] Backend chưa sẵn sàng, trả về MOCK Signed URL.");
       
       const mockMetabaseUrl = process.env.METABASE_URL || "http://localhost:3000";
       // Giả lập 1 chuỗi token ngẫu nhiên
