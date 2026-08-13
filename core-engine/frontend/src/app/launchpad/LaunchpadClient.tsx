@@ -8,6 +8,7 @@ import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { useNotificationStore } from "@/store/notificationStore";
 import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function LaunchpadClient() {
   const { plugins, isLoading } = usePlugins();
@@ -15,6 +16,7 @@ export function LaunchpadClient() {
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [isIframeLoading, setIsIframeLoading] = useState(false);
   const addToast = useNotificationStore((state) => state.addToast);
+  const router = useRouter();
 
   const openInNewTab = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
@@ -46,12 +48,19 @@ export function LaunchpadClient() {
   };
 
   const handleOpenPlugin = (code_name: string) => {
-    addToast("info", "Tính năng đang phát triển");
+    router.push(`/plugins/${code_name}`);
   };
 
   return (
-    <div className="p-10 max-w-7xl mx-auto min-h-screen">
-      <h1 className="text-3xl font-bold text-text-primary mb-10 animate-fade-in">Launchpad</h1>
+    <div className="relative min-h-screen">
+      {/* Dynamic Background Mesh */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-primary/10 via-bg-base to-bg-base -z-10 pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-brand-primary/5 to-transparent -z-10 pointer-events-none" />
+
+      <div className="p-10 max-w-7xl mx-auto relative z-0">
+        <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-text-primary to-text-secondary mb-10 animate-fade-in tracking-tight">
+          Launchpad
+        </h1>
       
       {/* Grid Container */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-8 justify-items-center">
@@ -101,15 +110,23 @@ export function LaunchpadClient() {
       {/* Empty State for Plugins */}
       {!isLoading && plugins.length === 0 && (
         <div className="mt-20 text-center animate-fade-in">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-bg-surface/50 border border-border/50 text-text-secondary/40 mb-6">
-            <Blocks className="w-10 h-10" />
+          <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-bg-surface/50 border border-border/50 text-text-secondary/40 mb-6 group hover:border-brand-primary/50 transition-colors">
+            <div className="absolute inset-0 rounded-full bg-brand-primary/5 blur-xl group-hover:bg-brand-primary/10 transition-colors" />
+            <Blocks className="w-12 h-12 relative z-10 text-brand-primary/60 group-hover:text-brand-primary transition-colors" />
           </div>
-          <h3 className="text-xl font-semibold text-text-primary mb-2">Chưa có Plugin</h3>
-          <p className="text-text-secondary max-w-sm mx-auto leading-relaxed">
-            Hệ thống chưa được cài đặt bất kỳ Plugin nào. Vui lòng truy cập Marketplace để khám phá và cài đặt.
+          <h3 className="text-2xl font-bold text-text-primary mb-3">Chưa có Plugin nào</h3>
+          <p className="text-text-secondary max-w-sm mx-auto leading-relaxed mb-6">
+            Không gian làm việc của bạn chưa được cài đặt bất kỳ công cụ nào. Hãy truy cập Marketplace để khám phá thêm.
           </p>
+          <button 
+            onClick={() => router.push('/marketplace')}
+            className="px-6 py-2.5 rounded-lg bg-brand-primary/10 text-brand-primary font-semibold hover:bg-brand-primary/20 transition-all border border-brand-primary/20 hover:scale-105 active:scale-95"
+          >
+            Khám phá Marketplace
+          </button>
         </div>
       )}
+      </div>
 
       {/* Iframe Overlay */}
       {activeApp && iframeUrl && (

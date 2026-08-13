@@ -7,6 +7,11 @@ import hmac
 import pytest
 from httpx import AsyncClient
 
+from app.entrypoints.dependencies import (
+    get_ai_command_use_case,
+    get_audit_log_repo,
+    get_db_transactional,
+)
 from app.infrastructure.config import settings
 from main import app
 
@@ -26,6 +31,27 @@ def mock_mattermost_payload():
 
 def generate_signature(secret: str, body: bytes) -> str:
     return hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+
+@pytest.fixture(autouse=True)
+def override_webhook_dependencies():
+    class MockAICommandUseCase:
+        async def process_approval(self, cmd_id, approver_id, action_taken):
+            return True
+
+    class MockAuditLogRepo:
+        async def insert_log(self, *args, **kwargs):
+            pass
+
+    class MockSession:
+        async def commit(self):
+            pass
+
+    app.dependency_overrides[get_ai_command_use_case] = lambda: MockAICommandUseCase()
+    app.dependency_overrides[get_audit_log_repo] = lambda: MockAuditLogRepo()
+    app.dependency_overrides[get_db_transactional] = lambda: MockSession()
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

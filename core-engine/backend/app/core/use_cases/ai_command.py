@@ -180,7 +180,10 @@ class AICommandUseCase:
         except Exception as e:
             logger.warning("Could not send Mattermost approval request: %s", e)
 
-        msg = f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau {deadline_minutes} phút."
+        msg = (
+            f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau "
+            f"{deadline_minutes} phút."
+        )
         return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res
 
     async def process_approval(
@@ -194,6 +197,7 @@ class AICommandUseCase:
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
             return False
 
+        is_approved = False
         if action_taken == "reject":
             await self.ai_command_repo.update_command_approval(
                 cmd_id=cmd_id, status="REJECTED"
@@ -213,7 +217,7 @@ class AICommandUseCase:
                     cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
                 )
                 await self.ai_command_repo.commit()
-                return True
+                is_approved = True
             else:
                 return False
         else:
@@ -221,4 +225,17 @@ class AICommandUseCase:
                 cmd_id=cmd_id, approved_by=approver_id, status="APPROVED"
             )
             await self.ai_command_repo.commit()
-            return True
+            is_approved = True
+
+        if is_approved:
+            try:
+                webhook_url = self.n8n_adapter.build_webhook_url(cmd["action"])
+                await self.n8n_adapter.trigger_webhook(
+                    webhook_url=webhook_url, payload=cmd["parameters"]
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to trigger n8n after approval for command {cmd_id}: {e}"
+                )
+
+        return True

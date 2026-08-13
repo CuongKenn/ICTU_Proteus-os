@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
           ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
+          idToken: account.id_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ

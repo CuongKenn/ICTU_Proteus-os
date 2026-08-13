@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import type { PluginData } from "@/components/ui/PluginCard";
+import type { PluginData } from "@/components/marketplace/PluginCard";
 
 interface InstallPreviewDialogProps {
   isOpen: boolean;
@@ -96,7 +96,7 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
             <div>
               <div className="font-semibold text-text-primary">RBAC Roles</div>
               <div className="text-xs text-text-secondary">
-                Tạo các role: <span className="text-primary font-mono bg-primary/10 px-1 rounded">{plugin.requiredRoles.join(", ")}</span>
+                Tạo các role: <span className="text-primary font-mono bg-primary/10 px-1 rounded">{plugin.requiredRoles?.join(", ") || "N/A"}</span>
               </div>
             </div>
           </div>

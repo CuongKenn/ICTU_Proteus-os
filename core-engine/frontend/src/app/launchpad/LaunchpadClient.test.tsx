@@ -21,6 +21,14 @@ vi.mock("@/store/notificationStore", () => ({
 const mockWindowOpen = vi.fn();
 window.open = mockWindowOpen;
 
+// Mock useRouter
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 describe("LaunchpadClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -81,7 +89,7 @@ describe("LaunchpadClient", () => {
     });
 
     render(<LaunchpadClient />);
-    expect(screen.getByText("Chưa có Plugin")).toBeInTheDocument();
+    expect(screen.getByText("Chưa có Plugin nào")).toBeInTheDocument();
   });
 
   it("renders plugins when data is available", () => {

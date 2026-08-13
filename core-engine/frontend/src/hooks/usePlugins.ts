@@ -15,7 +15,7 @@ interface UsePluginsReturn {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  install: (codeName: string) => Promise<{ task_id: string }>;
+  install: (pluginId: string) => Promise<{ task_id: string }>;
   uninstall: (pluginId: string) => Promise<void>;
   disable: (pluginId: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
@@ -37,7 +37,7 @@ export function usePlugins(): UsePluginsReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await api.get<PluginListResponse>("/plugins", { baseURL: "/api" });
+        const response = await api.get<PluginListResponse>("/plugins");
         if (!cancelled) {
           setPlugins(response.data.items);
         }
@@ -60,14 +60,9 @@ export function usePlugins(): UsePluginsReturn {
     return () => { cancelled = true; };
   }, [trigger]);
 
-  const install = useCallback(async (codeName: string) => {
+  const install = useCallback(async (pluginId: string) => {
     try {
-      const manifestUrl = `https://raw.githubusercontent.com/CuongKenn/ICTU_Proteus-os/main/plugins/${codeName}/manifest.yaml`;
-      const response = await api.post<{ data: { task_id: string } }>("/plugins/install", {
-        code_name: codeName,
-        manifest_url: manifestUrl,
-        config_override: null,
-      }, { baseURL: "/api" });
+      const response = await api.post<{ data: { task_id: string } }>(`/plugins/${pluginId}/install`, {});
       return response.data.data;
     } catch (err) {
       if (process.env.NODE_ENV === "development") {
@@ -79,7 +74,7 @@ export function usePlugins(): UsePluginsReturn {
 
   const uninstall = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/uninstall`, {}, { baseURL: "/api" });
+      await api.post(`/plugins/${pluginId}/uninstall`, {});
       useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
       refetch();
     } catch (err) {
@@ -95,7 +90,7 @@ export function usePlugins(): UsePluginsReturn {
 
   const disable = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/disable`);
+      await api.post(`/plugins/${pluginId}/disable`, {});
       useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin.");
       refetch();
     } catch (err) {
@@ -111,7 +106,7 @@ export function usePlugins(): UsePluginsReturn {
 
   const upgrade = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/upgrade`);
+      await api.post(`/plugins/${pluginId}/upgrade`, {});
       useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin.");
       refetch();
     } catch (err) {
@@ -127,7 +122,7 @@ export function usePlugins(): UsePluginsReturn {
 
   const configureCredentials = useCallback(async (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => {
     try {
-      const response = await api.post(`/plugins/${pluginId}/credentials`, payload, { baseURL: "/api" });
+      const response = await api.post(`/plugins/${pluginId}/credentials`, payload);
       useNotificationStore.getState().addToast("success", "Cấu hình Credentials thành công.");
       return response.data;
     } catch (err) {
