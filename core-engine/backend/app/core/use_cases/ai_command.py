@@ -5,6 +5,7 @@
 # Xử lý DX-DSL actions với các effect: read, write, critical.
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -69,7 +70,8 @@ class AICommandUseCase:
         if body.effect == "read":
             # Chạy ngay lập tức thông qua n8n webhook
             try:
-                # Giả sử webhook URL mapping được cấu hình trong DB, ở đây dùng mock cho action
+                # Giả sử webhook URL mapping được cấu hình trong DB
+                # ở đây dùng mock cho action
                 webhook_url = f"http://n8n:5678/webhook/{body.action.replace('.', '-')}"
                 response = await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=body.parameters
@@ -85,9 +87,11 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": json.dumps(body.parameters, ensure_ascii=False),
                         "status": AICommandStatus.COMPLETED.value,
-                        "execution_result": str(response).replace("'", '"'),
+                        "execution_result": json.dumps(
+                            response, ensure_ascii=False
+                        ) if response else None,
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -110,9 +114,11 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": json.dumps(body.parameters, ensure_ascii=False),
                         "status": AICommandStatus.FAILED.value,
-                        "execution_result": str({"error": str(e)}).replace("'", '"'),
+                        "execution_result": json.dumps(
+                            {"error": str(e)}, ensure_ascii=False
+                        ),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -145,10 +151,12 @@ class AICommandUseCase:
                 "dsl_version": body.dsl_version,
                 "action": body.action,
                 "effect": body.effect,
-                "parameters": str(body.parameters).replace("'", '"'),
+                "parameters": json.dumps(body.parameters, ensure_ascii=False),
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
-                "dry_run_result": str(dry_run_res).replace("'", '"'),
+                "dry_run_result": json.dumps(
+                    dry_run_res, ensure_ascii=False
+                ) if dry_run_res else None,
                 "created_at": now,
             }
         )
@@ -170,7 +178,10 @@ class AICommandUseCase:
         except Exception as e:
             logger.warning(f"Could not send Mattermost approval request: {e}")
 
-        msg = f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau {deadline_minutes} phút."
+        msg = (
+            f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau "
+            f"{deadline_minutes} phút."
+        )
         return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res
 
     async def process_approval(
