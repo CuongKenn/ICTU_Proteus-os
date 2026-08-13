@@ -30,14 +30,13 @@ class KeycloakWebhookUseCase:
         Xử lý sự kiện user bị vô hiệu hóa trên Keycloak.
         Thực hiện soft delete trong DB và thông báo qua Mattermost.
         """
-        logger.info(f"Processing USER_DISABLED event for {keycloak_user_id}")
+        logger.info("Processing USER_DISABLED event for %s", keycloak_user_id)
 
         # 1. Tìm user trong DB
         user = await self.user_repo.get_by_keycloak_id(keycloak_user_id)
         if not user:
             logger.warning(
-                f"User with keycloak_id {keycloak_user_id} not found in DB. "
-                "Skipping."
+                "User with keycloak_id %s not found in DB. Skipping.", keycloak_user_id
             )
             return
 
@@ -45,11 +44,11 @@ class KeycloakWebhookUseCase:
         try:
             await self.user_repo.deactivate(user.id)
             await self.user_repo.commit()
-            logger.info(f"Successfully deactivated user {user.id}")
+            logger.info("Successfully deactivated user %s", user.id)
         except NotFoundError:
-            logger.warning(f"User {user.id} already deactivated.")
+            logger.warning("User %s already deactivated.", user.id)
         except Exception as e:
-            logger.error(f"Failed to deactivate user {user.id}: {e}")
+            logger.error("Failed to deactivate user %s: %s", user.id, e)
             raise
 
         # 3. Gửi thông báo Mattermost

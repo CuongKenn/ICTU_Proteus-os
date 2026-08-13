@@ -6,7 +6,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.ai_command import AICommandUseCase
@@ -86,6 +86,7 @@ async def trigger_rag_ingestion(
 )
 async def transmit_kv_cache_ipc(
     body: dict,  # tạm dùng dict thay vì schema nếu chưa import
+    request: Request,
     ctx: TenantContext = Depends(get_current_tenant_context),
 ):
     """
@@ -103,7 +104,8 @@ async def transmit_kv_cache_ipc(
     req = KVCacheTransmitRequest(**body)
 
     manager = KVCacheIPCManager(
-        qdrant_adapter=QdrantAdapter(), redis_publisher=RedisEventBusPublisher()
+        qdrant_adapter=QdrantAdapter(qdrant_client=request.app.state.qdrant_client),
+        redis_publisher=RedisEventBusPublisher(),
     )
 
     pointer_uuid, latency_ms = await manager.transmit_context(
