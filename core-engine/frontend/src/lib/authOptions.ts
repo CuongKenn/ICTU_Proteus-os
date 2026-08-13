@@ -58,6 +58,13 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
+    async signIn({ user }) {
+      if (user?.email && !user.email.endsWith('@ictu.edu.vn')) {
+        return "/login?error=InvalidEmailDomain";
+      }
+      return true;
+    },
+
     async jwt({ token, account, profile }) {
       // Lần đầu login — lưu access_token, refresh_token và expiry vào JWT session
       if (account) {
