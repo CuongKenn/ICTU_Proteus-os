@@ -14,7 +14,7 @@ services:
   # TRAEFIK — Edge Proxy (Ingress)
   # ────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.1
+    image: traefik:v2.11
     container_name: proteus-traefik
     restart: unless-stopped
     ports:
