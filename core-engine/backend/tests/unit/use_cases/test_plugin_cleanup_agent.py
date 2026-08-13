@@ -55,9 +55,9 @@ async def test_run_success(agent, mock_plugin_repo, mock_mattermost_adapter):
     await agent.run()
 
     agent.uninstall_use_case.uninstall_plugin.assert_called_once()
-    mock_mattermost_adapter.send_notification.assert_called_once()
-    call_kwargs = mock_mattermost_adapter.send_notification.call_args.kwargs
-    assert "đã được dọn dẹp khỏi Tenant" in call_kwargs["message"]
+    mock_mattermost_adapter.send_message.assert_called_once()
+    call_kwargs = mock_mattermost_adapter.send_message.call_args.kwargs
+    assert "đã được dọn dẹp khỏi Tenant" in call_kwargs["text"]
 
 
 @pytest.mark.asyncio
@@ -77,7 +77,7 @@ async def test_run_failure_sends_alert(
     await agent.run()
 
     agent.uninstall_use_case.uninstall_plugin.assert_called_once()
-    mock_mattermost_adapter.send_notification.assert_called_once()
-    call_kwargs = mock_mattermost_adapter.send_notification.call_args.kwargs
-    assert "CRITICAL ALERT" in call_kwargs["message"]
-    assert "DB Error" in call_kwargs["message"]
+    mock_mattermost_adapter.send_message.assert_called_once()
+    call_kwargs = mock_mattermost_adapter.send_message.call_args.kwargs
+    assert "CRITICAL ALERT" in call_kwargs["text"]
+    assert "DB Error" in call_kwargs["text"]
