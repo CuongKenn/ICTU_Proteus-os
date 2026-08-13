@@ -17,6 +17,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const { data: session } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Roles được inject từ Keycloak JWT payload qua NextAuth jwt() callback
   const userRoles: string[] = session?.user?.roles ?? [];
   const isTenantAdmin = userRoles.includes("tenant_admin");
 
