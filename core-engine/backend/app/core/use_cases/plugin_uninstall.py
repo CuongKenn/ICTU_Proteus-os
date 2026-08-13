@@ -18,6 +18,7 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +132,7 @@ class PluginUninstallUseCase:
             try:
                 msg = f"🗑 Đã GỠ CÀI ĐẶT thành công Plugin **{manifest.display_name}**."
                 await self.mattermost_adapter.send_message(
-                    f"plugin-alerts-{context.tenant_id}", msg
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
                 )
             except Exception:
                 pass
@@ -156,7 +157,7 @@ class PluginUninstallUseCase:
             try:
                 msg = f"❌ Lỗi khi gỡ cài đặt Plugin **{manifest.display_name}**: {e}"
                 await self.mattermost_adapter.send_message(
-                    f"plugin-alerts-{context.tenant_id}", msg
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
                 )
             except Exception:
                 pass
