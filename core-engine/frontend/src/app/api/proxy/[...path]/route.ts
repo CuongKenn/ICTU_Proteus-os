@@ -7,6 +7,7 @@
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
 
@@ -16,9 +17,10 @@ async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
+  const token = await getToken({ req: request });
   const session = await getServerSession(authOptions);
 
-  if (!session?.accessToken) {
+  if (!token?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -27,7 +29,7 @@ async function proxyHandler(
 
   // Forward headers có chọn lọc — không forward cookie, host, x-forwarded-* từ client
   const headers = new Headers({
-    Authorization: `Bearer ${session.accessToken}`,
+    Authorization: `Bearer ${token.accessToken}`,
     "Content-Type": request.headers.get("Content-Type") ?? "application/json",
     Accept: request.headers.get("Accept") ?? "application/json",
     "X-Forwarded-For": request.headers.get("x-forwarded-for") ?? "",

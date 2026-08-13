@@ -43,7 +43,7 @@ async def handle_keycloak_event(
         )
 
     # Xử lý event
-    logger.info(f"Received Keycloak event: {event.type} for user {event.user_id}")
+    logger.info("Received Keycloak event: %s for user %s", event.type, event.user_id)
     if event.type in ["USER_DISABLED", "user.disabled", "DELETE"]:
         await use_case.handle_user_disabled(event.user_id)
 
