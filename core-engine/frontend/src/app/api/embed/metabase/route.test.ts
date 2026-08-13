@@ -11,6 +11,12 @@ vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
 }));
 
+vi.mock("next-auth/jwt", () => ({
+  getToken: vi.fn(),
+}));
+
+import { getToken } from "next-auth/jwt";
+
 // Mock console.warn to suppress expected warnings during tests
 const originalWarn = console.warn;
 beforeEach(() => {
@@ -39,6 +45,7 @@ describe("GET /api/embed/metabase", () => {
 
   it("should return 401 if user is not authenticated", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
+    vi.mocked(getToken).mockResolvedValue(null);
     
     const request = new NextRequest("http://localhost:3000/api/embed/metabase?dashboard_id=1");
     const response = await GET(request);
@@ -53,6 +60,9 @@ describe("GET /api/embed/metabase", () => {
       accessToken: createFakeJwt({ tenant_id: "tenant-1" }),
       expires: "12345",
     });
+    vi.mocked(getToken).mockResolvedValue({
+      accessToken: createFakeJwt({ tenant_id: "tenant-1" }),
+    } as any);
     
     const request = new NextRequest("http://localhost:3000/api/embed/metabase");
     const response = await GET(request);
@@ -68,6 +78,9 @@ describe("GET /api/embed/metabase", () => {
       accessToken: fakeToken,
       expires: "12345",
     });
+    vi.mocked(getToken).mockResolvedValue({
+      accessToken: fakeToken,
+    } as any);
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -98,6 +111,9 @@ describe("GET /api/embed/metabase", () => {
       accessToken: fakeToken,
       expires: "12345",
     });
+    vi.mocked(getToken).mockResolvedValue({
+      accessToken: fakeToken,
+    } as any);
     
     // Simulate backend failure
     mockFetch.mockRejectedValueOnce(new Error("Network Error"));
@@ -120,6 +136,9 @@ describe("GET /api/embed/metabase", () => {
       accessToken: fakeToken,
       expires: "12345",
     });
+    vi.mocked(getToken).mockResolvedValue({
+      accessToken: fakeToken,
+    } as any);
     
     // Simulate backend failure
     mockFetch.mockRejectedValueOnce(new Error("Network Error"));
