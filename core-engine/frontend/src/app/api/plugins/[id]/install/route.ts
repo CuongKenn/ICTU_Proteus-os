@@ -11,7 +11,10 @@ import { authOptions } from "@/lib/authOptions";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
   const token = await getToken({ req: request });
   const session = await getServerSession(authOptions);
 
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Bad Request" }, { status: 400 });
   }
 
-  const targetUrl = `${BACKEND_URL}/api/v1/plugins/install`;
+  const targetUrl = `${BACKEND_URL}/api/v1/plugins/${params.id}/install`;
 
   try {
     const backendResponse = await fetch(targetUrl, {
