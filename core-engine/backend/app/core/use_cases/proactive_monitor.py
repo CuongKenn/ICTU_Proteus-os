@@ -62,7 +62,7 @@ class ProactiveMonitorAgent:
                 )
 
         except Exception as e:
-            logger.error(f"[Proactive Monitor] Lỗi quét Plugin FAILED_DIRTY: {e}")
+            logger.error("[Proactive Monitor] Lỗi quét Plugin FAILED_DIRTY: %s", e)
 
         # 2. Quét ai_commands sắp hết hạn (ví dụ còn < 5 phút)
         try:
@@ -79,7 +79,7 @@ class ProactiveMonitorAgent:
                     channel="approval-alerts", text=msg
                 )
         except Exception as e:
-            logger.error(f"[Proactive Monitor] Lỗi quét ai_commands: {e}")
+            logger.error("[Proactive Monitor] Lỗi quét ai_commands: %s", e)
 
     async def morning_report(self):
         """
@@ -106,7 +106,7 @@ class ProactiveMonitorAgent:
                     channel="hr-alerts", text=msg
                 )
         except Exception as e:
-            logger.error(f"[Proactive Monitor] Lỗi quét HR leaves: {e}")
+            logger.error("[Proactive Monitor] Lỗi quét HR leaves: %s", e)
 
         # Báo cáo hệ thống chung
         try:
@@ -118,4 +118,4 @@ class ProactiveMonitorAgent:
             )
             await self.mattermost_adapter.send_message(channel="general", text=msg)
         except Exception as e:
-            logger.error(f"[Proactive Monitor] Lỗi gửi morning report: {e}")
+            logger.error("[Proactive Monitor] Lỗi gửi morning report: %s", e)

@@ -230,11 +230,10 @@ async def reload_plugins(
     if loader:
         loader.load_all_plugins()
         return {"message": "Đã hot-reload tất cả plugin extensions."}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Plugin Loader chưa sẵn sàng.",
-        )
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Plugin Loader chưa sẵn sàng.",
+    )
 
 
 @router.post(
@@ -304,7 +303,7 @@ async def configure_plugin_credentials(
             detail=str(e),
         )
     except Exception as e:
-        logger.error(f"Lỗi không xác định khi tạo credential: {e}")
+        logger.error("Lỗi không xác định khi tạo credential: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
