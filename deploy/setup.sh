@@ -146,7 +146,65 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
   fi
 fi
 
-# 8. Print URLs
+
+# 8. Tự động hóa cấu hình n8n (Zero-Touch Provisioning)
+echo "⚙️  Đang cấu hình n8n (Tạo Owner Account & API Key)..."
+N8N_URL="http://localhost:5678"
+
+# Lấy thông tin user từ .env (hoặc mặc định)
+N8N_ADMIN_EMAIL="admin@proteus.local"
+N8N_ADMIN_PASSWORD=$(grep -E "^POSTGRES_PASSWORD=" .env | cut -d '=' -f2) # Dùng chung password cho tiện
+
+# Chờ n8n sẵn sàng
+N8N_TIMEOUT=120
+N8N_ELAPSED=0
+while [ $N8N_ELAPSED -lt $N8N_TIMEOUT ]; do
+  if curl -sf $N8N_URL/healthz > /dev/null; then
+    break
+  fi
+  sleep 5
+  N8N_ELAPSED=$((N8N_ELAPSED + 5))
+done
+
+if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME_GET_FROM_N8N_SETTINGS" .env; then
+  # 8.1 Tạo tài khoản Owner qua REST API ẩn
+  # Lưu session cookie vào file
+  curl -sf -c n8n_cookie.txt -X POST "$N8N_URL/rest/owner/setup"     -H "Content-Type: application/json"     -d '{
+      "email": "'"$N8N_ADMIN_EMAIL"'",
+      "password": "'"$N8N_ADMIN_PASSWORD"'",
+      "firstName": "Admin",
+      "lastName": "Proteus"
+    }' > /dev/null || true
+
+  # 8.2 Sinh API Key (Cần CSRF Token & Cookie)
+  # Đăng nhập để lấy lại cookie (nếu owner đã được tạo từ trước)
+  if [ ! -s n8n_cookie.txt ]; then
+    curl -sf -c n8n_cookie.txt -X POST "$N8N_URL/rest/login"       -H "Content-Type: application/json"       -d '{
+        "email": "'"$N8N_ADMIN_EMAIL"'",
+        "password": "'"$N8N_ADMIN_PASSWORD"'"
+      }' > /dev/null || true
+  fi
+
+  if [ -s n8n_cookie.txt ]; then
+    # Parse cookie authentication string
+    N8N_API_KEY=$(curl -sf -b n8n_cookie.txt -X POST "$N8N_URL/rest/api-keys"       -H "Content-Type: application/json"       -d '{"label": "Proteus OS AI Orchestrator"}'       | jq -r '.data.apiKey')
+
+    if [ -n "$N8N_API_KEY" ] && [ "$N8N_API_KEY" != "null" ]; then
+      sed -i.bak "s|N8N_API_KEY=CHANGE_ME_GET_FROM_N8N_SETTINGS|N8N_API_KEY=$N8N_API_KEY|g" .env
+      rm -f .env.bak
+      echo "✅ Đã tạo N8N_API_KEY và ghi vào .env"
+      
+      # Restart backend để nạp biến mới
+      docker compose restart backend
+    fi
+  else
+    echo "⚠️ Không thể đăng nhập n8n để tạo API Key."
+  fi
+  rm -f n8n_cookie.txt
+fi
+
+
+# 9. Print URLs
 echo ""
 echo "🎉 Proteus OS triển khai hoàn tất!"
 echo "Truy cập các dịch vụ tại:"
