@@ -43,7 +43,7 @@ class QdrantAdapter(AbstractVectorDBPort):
         if getattr(self, "_collection_ensured", False):
             return
         if not await self.client.collection_exists(self.collection_name):
-            logger.info(f"Creating Qdrant collection: {self.collection_name}")
+            logger.info("Creating Qdrant collection: %s", self.collection_name)
             # recreate_collection sẽ tạo collection với cấu hình embedding hiện tại
             # từ fastembed model đã set.
             await self.client.recreate_collection(
@@ -75,7 +75,7 @@ class QdrantAdapter(AbstractVectorDBPort):
             )
             return True
         except Exception as e:
-            logger.error(f"Error upserting vectors to Qdrant: {e}")
+            logger.error("Error upserting vectors to Qdrant: %s", e)
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
 
     async def search(
@@ -126,7 +126,7 @@ class QdrantAdapter(AbstractVectorDBPort):
 
             return formatted_results
         except Exception as e:
-            logger.error(f"Error executing hybrid search in Qdrant: {e}")
+            logger.error("Error executing hybrid search in Qdrant: %s", e)
             raise QdrantAdapterError(f"Search failed: {str(e)}")
 
     async def delete_by_tenant(self, tenant_id: str) -> bool:
@@ -147,5 +147,5 @@ class QdrantAdapter(AbstractVectorDBPort):
             )
             return True
         except Exception as e:
-            logger.error(f"Error deleting tenant data from Qdrant: {e}")
+            logger.error("Error deleting tenant data from Qdrant: %s", e)
             raise QdrantAdapterError(f"Delete failed: {str(e)}")

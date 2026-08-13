@@ -45,10 +45,10 @@ class MattermostAdapter:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            logger.error(f"Lỗi khi gửi tin nhắn tới Mattermost: {e.response.text}")
+            logger.error("Lỗi khi gửi tin nhắn tới Mattermost: %s", e.response.text)
             raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}")
         except Exception as e:
-            logger.error(f"Lỗi kết nối Mattermost: {e}")
+            logger.error("Lỗi kết nối Mattermost: %s", e)
             raise MattermostAdapterError(str(e))
 
     async def send_interactive_message(
@@ -112,8 +112,8 @@ class MattermostAdapter:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            logger.error(f"Lỗi khi gửi interactive message: {e.response.text}")
+            logger.error("Lỗi khi gửi interactive message: %s", e.response.text)
             raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}")
         except Exception as e:
-            logger.error(f"Lỗi kết nối Mattermost: {e}")
+            logger.error("Lỗi kết nối Mattermost: %s", e)
             raise MattermostAdapterError(str(e))

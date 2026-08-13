@@ -299,7 +299,7 @@ async def configure_plugin_credentials(
             detail=str(e),
         )
     except Exception as e:
-        logger.error(f"Lỗi không xác định khi tạo credential: {e}")
+        logger.error("Lỗi không xác định khi tạo credential: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",

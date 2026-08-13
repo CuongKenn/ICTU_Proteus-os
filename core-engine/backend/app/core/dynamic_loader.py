@@ -38,14 +38,14 @@ class DynamicPluginLoader:
         """
         plugin_path = self._plugins_dir / plugin_code_name
         if not plugin_path.exists() or not plugin_path.is_dir():
-            logger.warning(f"Plugin directory not found: {plugin_path}")
+            logger.warning("Plugin directory not found: %s", plugin_path)
             return False
 
         # Kiểm tra xem plugin có code Python không (có main.py không)
         main_py = plugin_path / "main.py"
         if not main_py.exists():
             logger.info(
-                f"Plugin {plugin_code_name} is declarative only. No Python code to load."
+                "Plugin %s is declarative only. No Python code to load.", plugin_code_name
             )
             return True
 
@@ -54,29 +54,29 @@ class DynamicPluginLoader:
         try:
             if module_name in sys.modules:
                 logger.info(
-                    f"Hot-Reloading Python module for plugin: {plugin_code_name}"
+                    "Hot-Reloading Python module for plugin: %s", plugin_code_name
                 )
                 module = importlib.reload(sys.modules[module_name])
             else:
-                logger.info(f"Loading Python module for plugin: {plugin_code_name}")
+                logger.info("Loading Python module for plugin: %s", plugin_code_name)
                 module = importlib.import_module(module_name)
 
             # Đăng ký với FastAPI nếu có hàm register_plugin
             if hasattr(module, "register_plugin") and callable(module.register_plugin):
                 module.register_plugin(self.app)
                 logger.info(
-                    f"Successfully registered Python extensions for {plugin_code_name}"
+                    "Successfully registered Python extensions for %s", plugin_code_name
                 )
             else:
                 logger.debug(
-                    f"Plugin {plugin_code_name} has main.py but no register_plugin(app) function."
+                    "Plugin %s has main.py but no register_plugin(app) function.", plugin_code_name
                 )
 
             return True
 
         except Exception as e:
             logger.error(
-                f"Failed to dynamically load plugin {plugin_code_name}: {e}",
+                "Failed to dynamically load plugin %s: %s", plugin_code_name, e,
                 exc_info=True,
             )
             return False

@@ -27,7 +27,7 @@ class ConfigurePluginCredentialsUseCase:
     ) -> dict:
         """Thực thi cấu hình credentials."""
         logger.info(
-            f"Configuring credentials for plugin {plugin_id} in tenant {ctx.tenant_id}"
+            "Configuring credentials for plugin %s in tenant %s", plugin_id, ctx.tenant_id
         )
 
         # RLS Prefix: tenant_{tenant_id}_name
