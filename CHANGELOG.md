@@ -32,6 +32,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Changed
 - **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
+- **[deploy/setup.ps1]** Bổ sung script cài đặt `setup.ps1` bằng PowerShell dành riêng cho môi trường Windows, hỗ trợ tự động hóa việc cấu hình `.env`, sinh credential keys và khởi chạy Docker Compose tương tự như `setup.sh` (Issue #293).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).
 - **[core-engine/backend/app/ai]** Đột phá 3 (IEEE Paper): Phát triển cơ chế giao tiếp liên tiến trình KV-Cache Vector IPC trên Event Bus (Redis) và Vector DB (Qdrant). Khắc phục tình trạng thắt nút cổ chai băng thông và giảm hàng triệu LLM tokens khi Multi-Agent tương tác (Issue #237).
