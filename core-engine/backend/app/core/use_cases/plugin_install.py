@@ -56,7 +56,9 @@ class PluginInstallUseCase:
 
     async def execute(self, context: TenantContext, plugin_code_name: str) -> None:
         logger.info(
-            f"Bắt đầu cài đặt plugin {plugin_code_name} cho tenant {context.tenant_id}"
+            "Bắt đầu cài đặt plugin %s cho tenant %s",
+            plugin_code_name,
+            context.tenant_id,
         )
 
         # 1. Fetch plugin metadata
@@ -142,13 +144,15 @@ class PluginInstallUseCase:
                     f"plugin-alerts-{context.tenant_id}", msg
                 )
             except Exception as e:
-                logger.warning(f"Không thể gửi thông báo Mattermost: {e}")
+                logger.warning("Không thể gửi thông báo Mattermost: %s", e)
 
-            logger.info(f"Cài đặt plugin {plugin_code_name} thành công.")
+            logger.info("Cài đặt plugin %s thành công.", plugin_code_name)
 
         except Exception as e:
             logger.error(
-                f"Plugin installation failed at step {len(completed_steps) + 1}: {e}",
+                "Plugin installation failed at step %s: %s",
+                len(completed_steps) + 1,
+                e,
                 exc_info=True,
             )
 
@@ -290,7 +294,7 @@ class PluginInstallUseCase:
         created_assets: dict[str, list[str]],
     ) -> None:
         """Thực hiện compensating transactions."""
-        logger.info(f"Bắt đầu rollback cài đặt plugin {plugin_code_name}...")
+        logger.info("Bắt đầu rollback cài đặt plugin %s...", plugin_code_name)
 
         for step in reversed(completed_steps):
             try:
@@ -331,6 +335,9 @@ class PluginInstallUseCase:
                             )
             except Exception as e:
                 logger.error(
-                    f"Rollback step {step} thất bại cho plugin {plugin_code_name}: {e}"
+                    "Rollback step %s thất bại cho plugin %s: %s",
+                    step,
+                    plugin_code_name,
+                    e,
                 )
-        logger.info(f"Hoàn thành rollback cho {plugin_code_name}.")
+        logger.info("Hoàn thành rollback cho %s.", plugin_code_name)

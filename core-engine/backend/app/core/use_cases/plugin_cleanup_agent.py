@@ -59,7 +59,7 @@ class PluginCleanupAgent:
 
         for tenant_id, plugin_id, plugin_code_name in failed_plugins:
             logger.info(
-                f"Đang dọn dẹp plugin {plugin_code_name} cho tenant {tenant_id}"
+                "Đang dọn dẹp plugin %s cho tenant %s", plugin_code_name, tenant_id
             )
             context = TenantContext(
                 tenant_id=tenant_id,
@@ -90,7 +90,8 @@ class PluginCleanupAgent:
                 )
             except Exception as e:
                 logger.error(
-                    f"Cleanup thất bại cho plugin {plugin_code_name}",
+                    "Cleanup thất bại cho plugin %s",
+                    plugin_code_name,
                     exc_info=True,
                     extra={
                         "tenant_id": str(tenant_id),

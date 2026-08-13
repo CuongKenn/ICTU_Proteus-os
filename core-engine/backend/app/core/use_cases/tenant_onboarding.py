@@ -89,7 +89,7 @@ class TenantOnboardingUseCase:
                 group_name=f"tenant_{slug}",
             )
         except Exception as e:
-            logger.error(f"Không thể tạo Keycloak group cho tenant {slug}: {e}")
+            logger.error("Không thể tạo Keycloak group cho tenant %s: %s", slug, e)
             # Ở môi trường thực tế, nếu gọi KC lỗi, có thể cần rollback DB hoặc retry sau
             # Ở đây ta rollback giao dịch (nếu dùng chung self.session)
             # Vì AbstractTenantRepository không tự commit, ta có thể không commit ở router.
