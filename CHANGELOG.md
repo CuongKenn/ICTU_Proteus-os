@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/adapters/external/mattermost_adapter.py]** Sửa lỗi connection leak trong `MattermostAdapter` bằng cách nhận shared `httpx.AsyncClient` từ `app.state.http_client` thay vì khởi tạo client mới mỗi lần, đồng thời loại bỏ URL callback hardcode và chuyển sang sử dụng biến môi trường `PROTEUS_BACKEND_INTERNAL_URL`. Sửa lỗi duplicate hàm `get_mattermost_adapter` trong `dependencies.py` (Issue #274).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
     LOG_LEVEL: str = "INFO"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    PROTEUS_BACKEND_INTERNAL_URL: str = "http://proteus-backend:8000"
 
     # ─── Database ─────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://proteus:proteus@localhost:5432/proteus"
