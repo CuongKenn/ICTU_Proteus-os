@@ -5,15 +5,17 @@
 // Proxy tới FastAPI: POST /api/v1/plugins/install
 
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const token = await getToken({ req: request });
   const session = await getServerSession(authOptions);
 
-  if (!session?.accessToken) {
+  if (!token?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${token.accessToken}`,
         Accept: "application/json",
       },
       body: JSON.stringify(body),

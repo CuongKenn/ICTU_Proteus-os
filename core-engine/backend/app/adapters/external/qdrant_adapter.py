@@ -24,9 +24,9 @@ class QdrantAdapter(AbstractVectorDBPort):
     Tham chiếu: ADR-002
     """
 
-    def __init__(self):
-        # Khởi tạo AsyncQdrantClient
-        self.client = AsyncQdrantClient(url=settings.QDRANT_URL)
+    def __init__(self, qdrant_client: AsyncQdrantClient | None = None):
+        # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung
+        self.client = qdrant_client or AsyncQdrantClient(url=settings.QDRANT_URL)
         # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
         # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small cho đa ngôn ngữ.
         self.dense_model = "intfloat/multilingual-e5-small"
@@ -43,7 +43,7 @@ class QdrantAdapter(AbstractVectorDBPort):
         if getattr(self, "_collection_ensured", False):
             return
         if not await self.client.collection_exists(self.collection_name):
-            logger.info(f"Creating Qdrant collection: {self.collection_name}")
+            logger.info("Creating Qdrant collection: %s", self.collection_name)
             # recreate_collection sẽ tạo collection với cấu hình embedding hiện tại
             # từ fastembed model đã set.
             await self.client.recreate_collection(
@@ -55,7 +55,7 @@ class QdrantAdapter(AbstractVectorDBPort):
 
     async def upsert_vectors(
         self, tenant_id: str, chunks: list[str], metadatas: list[dict[str, Any]]
-    ) -> bool:
+    ) -> None:
         """
         Lưu embeddings (Dense + Sparse) cùng với metadata `tenant_id`.
         """
@@ -73,9 +73,8 @@ class QdrantAdapter(AbstractVectorDBPort):
                 documents=chunks,
                 metadata=metadatas,
             )
-            return True
         except Exception as e:
-            logger.error(f"Error upserting vectors to Qdrant: {e}")
+            logger.error("Error upserting vectors to Qdrant: %s", e)
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
 
     async def search(
@@ -126,7 +125,7 @@ class QdrantAdapter(AbstractVectorDBPort):
 
             return formatted_results
         except Exception as e:
-            logger.error(f"Error executing hybrid search in Qdrant: {e}")
+            logger.error("Error executing hybrid search in Qdrant: %s", e)
             raise QdrantAdapterError(f"Search failed: {str(e)}")
 
     async def delete_by_tenant(self, tenant_id: str) -> bool:
@@ -147,5 +146,5 @@ class QdrantAdapter(AbstractVectorDBPort):
             )
             return True
         except Exception as e:
-            logger.error(f"Error deleting tenant data from Qdrant: {e}")
+            logger.error("Error deleting tenant data from Qdrant: %s", e)
             raise QdrantAdapterError(f"Delete failed: {str(e)}")
