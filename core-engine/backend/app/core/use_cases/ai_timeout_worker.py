@@ -14,6 +14,7 @@ from app.adapters.repositories.base import (
     AbstractAuditLogRepository,
 )
 from app.core.domain.entities import AICommandStatus
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class AITimeoutWorker:
                     f"Trạng thái: `TIMEOUT`. Hệ thống đã tự động hủy lệnh này để đảm bảo an toàn."
                 )
                 await self.mattermost_adapter.send_message(
-                    channel="approval-alerts", text=msg
+                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg
                 )
 
                 logger.info(
