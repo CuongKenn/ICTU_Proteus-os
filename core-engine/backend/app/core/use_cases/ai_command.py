@@ -218,7 +218,7 @@ class AICommandUseCase:
 
         if is_approved:
             try:
-                webhook_url = self.n8n_adapter.build_webhook_url(cmd['action'])
+                webhook_url = self.n8n_adapter.build_webhook_url(cmd["action"])
                 await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=cmd["parameters"]
                 )
