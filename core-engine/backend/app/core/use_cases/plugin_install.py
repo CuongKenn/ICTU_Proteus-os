@@ -56,7 +56,9 @@ class PluginInstallUseCase:
 
     async def execute(self, context: TenantContext, plugin_code_name: str) -> None:
         logger.info(
-            "Bắt đầu cài đặt plugin %s cho tenant %s", plugin_code_name, context.tenant_id
+            "Bắt đầu cài đặt plugin %s cho tenant %s",
+            plugin_code_name,
+            context.tenant_id,
         )
 
         # 1. Fetch plugin metadata
@@ -148,7 +150,9 @@ class PluginInstallUseCase:
 
         except Exception as e:
             logger.error(
-                "Plugin installation failed at step %s: %s", len(completed_steps) + 1, e,
+                "Plugin installation failed at step %s: %s",
+                len(completed_steps) + 1,
+                e,
                 exc_info=True,
             )
 
@@ -265,9 +269,8 @@ class PluginInstallUseCase:
         for role in manifest.roles:
             if hasattr(self.keycloak_adapter, "create_role"):
                 await self.keycloak_adapter.create_role(
-                    realm=str(context.tenant_id),
+                    realm="proteus",
                     role_name=role.name,
-                    admin_token="SYSTEM_ADMIN_TOKEN",
                 )
                 created_roles.append(role.name)
         return created_roles
@@ -302,9 +305,8 @@ class PluginInstallUseCase:
                         roles = created_assets.get("keycloak", [])
                         for role_name in reversed(roles):
                             await self.keycloak_adapter.delete_role(
-                                realm=str(context.tenant_id),
+                                realm="proteus",
                                 role_name=role_name,
-                                admin_token="SYSTEM_ADMIN_TOKEN",
                             )
                 elif step == "appsmith":
                     if hasattr(self.appsmith_adapter, "delete_app"):
@@ -333,6 +335,9 @@ class PluginInstallUseCase:
                             )
             except Exception as e:
                 logger.error(
-                    "Rollback step %s thất bại cho plugin %s: %s", step, plugin_code_name, e
+                    "Rollback step %s thất bại cho plugin %s: %s",
+                    step,
+                    plugin_code_name,
+                    e,
                 )
         logger.info("Hoàn thành rollback cho %s.", plugin_code_name)

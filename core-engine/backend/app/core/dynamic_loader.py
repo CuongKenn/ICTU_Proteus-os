@@ -45,7 +45,8 @@ class DynamicPluginLoader:
         main_py = plugin_path / "main.py"
         if not main_py.exists():
             logger.info(
-                "Plugin %s is declarative only. No Python code to load.", plugin_code_name
+                "Plugin %s is declarative only. No Python code to load.",
+                plugin_code_name,
             )
             return True
 
@@ -69,14 +70,17 @@ class DynamicPluginLoader:
                 )
             else:
                 logger.debug(
-                    "Plugin %s has main.py but no register_plugin(app) function.", plugin_code_name
+                    "Plugin %s has main.py but no register_plugin(app) function.",
+                    plugin_code_name,
                 )
 
             return True
 
         except Exception as e:
             logger.error(
-                "Failed to dynamically load plugin %s: %s", plugin_code_name, e,
+                "Failed to dynamically load plugin %s: %s",
+                plugin_code_name,
+                e,
                 exc_info=True,
             )
             return False

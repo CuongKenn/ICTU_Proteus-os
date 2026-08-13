@@ -138,7 +138,9 @@ class PluginUninstallUseCase:
 
         except Exception as e:
             logger.error(
-                "Plugin uninstallation failed after steps %s: %s", completed_steps, e,
+                "Plugin uninstallation failed after steps %s: %s",
+                completed_steps,
+                e,
                 exc_info=True,
             )
 
@@ -176,11 +178,9 @@ class PluginUninstallUseCase:
         for role in manifest.roles:
             # Lấy admin token
             try:
-                # Dummy token
                 await self.keycloak_adapter.delete_role(
                     realm="proteus",
                     role_name=role.name,
-                    admin_token="",  # Dummy realm
                 )
             except Exception as e:
                 logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)

@@ -24,9 +24,9 @@ class QdrantAdapter(AbstractVectorDBPort):
     Tham chiếu: ADR-002
     """
 
-    def __init__(self):
-        # Khởi tạo AsyncQdrantClient
-        self.client = AsyncQdrantClient(url=settings.QDRANT_URL)
+    def __init__(self, qdrant_client: AsyncQdrantClient | None = None):
+        # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung
+        self.client = qdrant_client or AsyncQdrantClient(url=settings.QDRANT_URL)
         # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
         # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small cho đa ngôn ngữ.
         self.dense_model = "intfloat/multilingual-e5-small"
@@ -55,7 +55,7 @@ class QdrantAdapter(AbstractVectorDBPort):
 
     async def upsert_vectors(
         self, tenant_id: str, chunks: list[str], metadatas: list[dict[str, Any]]
-    ) -> bool:
+    ) -> None:
         """
         Lưu embeddings (Dense + Sparse) cùng với metadata `tenant_id`.
         """
@@ -73,7 +73,6 @@ class QdrantAdapter(AbstractVectorDBPort):
                 documents=chunks,
                 metadata=metadatas,
             )
-            return True
         except Exception as e:
             logger.error("Error upserting vectors to Qdrant: %s", e)
             raise QdrantAdapterError(f"Upsert failed: {str(e)}")
