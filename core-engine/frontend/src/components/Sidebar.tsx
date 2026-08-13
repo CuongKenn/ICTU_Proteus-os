@@ -64,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
                 <Link
                   key={link.name}
                   href={link.href}
+                  title={link.tooltip || link.name}
                   className={clsx(
                     "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
                     isActive 
