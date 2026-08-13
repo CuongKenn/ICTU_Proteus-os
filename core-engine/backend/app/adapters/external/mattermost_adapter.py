@@ -16,16 +16,14 @@ class MattermostAdapterError(Exception):
 
 
 class MattermostAdapter:
-    def __init__(self):
+    def __init__(self, client: httpx.AsyncClient | None = None):
         self.base_url = settings.MATTERMOST_URL.rstrip("/")
         self.token = settings.MATTERMOST_BOT_TOKEN
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url, headers=self.headers, timeout=10.0
-        )
+        self.client = client or httpx.AsyncClient(timeout=10.0)
 
     async def close(self):
         await self.client.aclose()
@@ -41,7 +39,9 @@ class MattermostAdapter:
         payload = {"channel_id": channel_id, "message": text}
 
         try:
-            response = await self.client.post("/api/v4/posts", json=payload)
+            response = await self.client.post(
+                f"{self.base_url}/api/v4/posts", headers=self.headers, json=payload
+            )
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -72,7 +72,7 @@ class MattermostAdapter:
         # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
         # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
         # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định Mattermost có thể phân giải được URL backend.
-        backend_url = "http://proteus-backend:8000"  # URL nội bộ trong docker network
+        backend_url = getattr(settings, "BACKEND_URL", "http://proteus-backend:8000").rstrip("/")
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
 
         payload = {
@@ -108,7 +108,9 @@ class MattermostAdapter:
         }
 
         try:
-            response = await self.client.post("/api/v4/posts", json=payload)
+            response = await self.client.post(
+                f"{self.base_url}/api/v4/posts", headers=self.headers, json=payload
+            )
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:

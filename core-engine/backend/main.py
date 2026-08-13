@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
                     metabase_adapter=MetabaseAdapter(),
                     appsmith_adapter=AppsmithAdapter(),
                     keycloak_adapter=KeycloakAdapter(),
-                    mattermost_adapter=MattermostAdapter(),
+                    mattermost_adapter=MattermostAdapter(client=app.state.http_client),
                     session=session,
                 )
                 await agent.run()
@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
                 exc_info=True,
             )
             try:
-                mm = MattermostAdapter()
+                mm = MattermostAdapter(client=app.state.http_client)
                 await mm.send_message(
                     "system-alerts", f"🚨 Plugin Cleanup Job thất bại: `{e}`"
                 )
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
             async with AsyncSessionLocal() as session:
                 ai_command_repo = SQLAlchemyAICommandRepository(session=session)
                 audit_log_repo = SQLAlchemyAuditLogRepository(session=session)
-                mattermost_adapter = MattermostAdapter()
+                mattermost_adapter = MattermostAdapter(client=app.state.http_client)
                 worker = AITimeoutWorker(
                     ai_command_repo=ai_command_repo,
                     audit_log_repo=audit_log_repo,
@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
                 exc_info=True,
             )
             try:
-                mm = MattermostAdapter()
+                mm = MattermostAdapter(client=app.state.http_client)
                 await mm.send_message(
                     "system-alerts", f"🚨 AI timeout worker thất bại: `{e}`"
                 )
