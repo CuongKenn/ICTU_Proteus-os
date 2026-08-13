@@ -47,16 +47,16 @@ export const MarketplaceClient: React.FC = () => {
       // Mock category if undefined
       let cat = (p as any).category;
       if (!cat) {
-        if (p.code_name?.includes("hr")) cat = "HR";
-        else if (p.code_name?.includes("crm")) cat = "CRM";
-        else if (p.code_name?.includes("finance")) cat = "Finance";
+        if (p.codeName?.includes("hr")) cat = "HR";
+        else if (p.codeName?.includes("crm")) cat = "CRM";
+        else if (p.codeName?.includes("finance")) cat = "Finance";
         else cat = "Utilities";
       }
 
       list.push({
         data: {
           id: p.id,
-          code_name: p.code_name,
+          codeName: p.codeName,
           name: p.display_name,
           version: p.version,
           description: (p as any).description || "Không có mô tả cho ứng dụng này.",
@@ -73,20 +73,20 @@ export const MarketplaceClient: React.FC = () => {
 
     // Add available plugins
     availablePlugins.forEach(p => {
-      // Don't add if already in installed list (by code_name)
-      if (!installedPlugins.find(ip => ip.code_name === p.code_name)) {
+      // Don't add if already in installed list (by codeName)
+      if (!installedPlugins.find(ip => ip.codeName === p.codeName)) {
         let cat = (p as any).category;
         if (!cat) {
-          if (p.code_name?.includes("hr")) cat = "HR";
-          else if (p.code_name?.includes("crm")) cat = "CRM";
-          else if (p.code_name?.includes("finance")) cat = "Finance";
+          if (p.codeName?.includes("hr")) cat = "HR";
+          else if (p.codeName?.includes("crm")) cat = "CRM";
+          else if (p.codeName?.includes("finance")) cat = "Finance";
           else cat = "Utilities";
         }
 
         list.push({
           data: {
             id: p.id,
-            code_name: p.code_name,
+            codeName: p.codeName,
             name: p.display_name,
             version: p.version,
             description: p.description || "Không có mô tả cho ứng dụng này.",
@@ -138,7 +138,7 @@ export const MarketplaceClient: React.FC = () => {
         }
       }
       setIsInstallPreviewOpen(false);
-      await installPlugin(previewPlugin.code_name);
+      await installPlugin(previewPlugin.codeName);
     }
   };
 
