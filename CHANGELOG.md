@@ -6,16 +6,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
-<<<<<<< Updated upstream
-=======
 - **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
 - **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Xây dựng n8n webhook URL động từ config thay vì hardcode, đồng thời thêm xác thực domain qua N8nAdapter để bảo mật quá trình thực thi DX-DSL (Issue #287).
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Thiết lập `search_path` an toàn khi xóa bảng plugin, tránh rủi ro drop nhầm schema hệ thống. Khắc phục lỗi hardcode Keycloak realm trong Plugin Uninstall Saga (Issue #298).
->>>>>>> Stashed changes
 - **[core-engine/frontend/src/components/ui/AppIcon.tsx]** Sửa lỗi thiếu keyboard accessibility trên component `AppIcon`. Thêm `role="button"`, `tabIndex={0}`, và xử lý sự kiện `onKeyDown` (Enter/Space) để hỗ trợ người dùng điều hướng bằng bàn phím (Issue #290).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
-- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi hardcode n8n webhook URL cho read commands trong AICommandUseCase bằng cách cấu hình `N8N_WEBHOOK_URL` trong settings thay vì hardcode (Issue #287).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi serialize dict parameters bằng `str().replace()` thành JSON không hợp lệ. Thay đổi thành truyền trực tiếp Python dict vào thuộc tính model SQLAlchemy (cột kiểu JSONB) để framework tự xử lý việc serialize chính xác (Issue #276).
 - **[deploy/docker-compose.yml]** Cập nhật cấu hình Docker Compose cho Keycloak 25.0: thay thế biến môi trường `KC_PROXY: edge` (đã deprecated từ Keycloak 24+) bằng `KC_PROXY_HEADERS: xforwarded` để loại bỏ cảnh báo khi khởi động (Issue #286).
 - **[core-engine/backend/app]** Thay thế toàn bộ 50+ f-strings (`f"..."`) trong các câu lệnh logging bằng lazy formatting (`%s`) để tối ưu hóa tài nguyên và tuân thủ tiêu chuẩn logging của dự án (Issue #285).
