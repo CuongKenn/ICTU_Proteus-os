@@ -30,12 +30,53 @@ class MattermostAdapter:
     async def close(self):
         await self.client.aclose()
 
-    async def send_message(self, channel_id: str, text: str) -> dict[str, Any]:
+    async def resolve_channel_id(self, channel_or_id: str) -> str | None:
+        """Resolve a channel name or ID to a valid Mattermost channel ID.
+        Caches the result to avoid repeated API calls.
+        """
+        if not hasattr(self, "_channel_cache"):
+            self._channel_cache = {}
+        if channel_or_id in self._channel_cache:
+            return self._channel_cache[channel_or_id]
+
+        try:
+            # 1. Try as channel ID
+            res = await self.client.get(f"/api/v4/channels/{channel_or_id}")
+            if res.status_code == 200:
+                cid = res.json()["id"]
+                self._channel_cache[channel_or_id] = cid
+                return cid
+        except Exception:
+            pass
+
+        try:
+            # 2. Try as channel name across teams
+            teams_res = await self.client.get("/api/v4/users/me/teams")
+            if teams_res.status_code == 200:
+                for team in teams_res.json():
+                    res = await self.client.get(
+                        f"/api/v4/teams/{team['id']}/channels/name/{channel_or_id}"
+                    )
+                    if res.status_code == 200:
+                        cid = res.json()["id"]
+                        self._channel_cache[channel_or_id] = cid
+                        return cid
+        except Exception as e:
+            logger.error(f"Error resolving channel name {channel_or_id}: {e}")
+
+        return None
+
+    async def send_message(self, channel: str, text: str) -> dict[str, Any]:
         """Gửi tin nhắn thông thường tới Mattermost."""
         if not self.token:
             logger.warning(
                 "MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_message."
             )
+            return {}
+
+        channel_id = await self.resolve_channel_id(channel)
+        if not channel_id:
+            logger.error(f"Cannot find Mattermost channel: {channel}")
             return {}
 
         payload = {"channel_id": channel_id, "message": text}
@@ -46,13 +87,15 @@ class MattermostAdapter:
             return response.json()
         except httpx.HTTPStatusError as e:
             logger.error(f"Lỗi khi gửi tin nhắn tới Mattermost: {e.response.text}")
-            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}")
+            raise MattermostAdapterError(
+                f"HTTP Error: {e.response.status_code}"
+            ) from e
         except Exception as e:
             logger.error(f"Lỗi kết nối Mattermost: {e}")
-            raise MattermostAdapterError(str(e))
+            raise MattermostAdapterError(str(e)) from e
 
     async def send_interactive_message(
-        self, channel_id: str, text: str, action_id: str, extra_context: dict = None
+        self, channel: str, text: str, action_id: str, extra_context: dict = None
     ) -> dict[str, Any]:
         """
         Gửi tin nhắn có chứa nút Interactive (Phê duyệt / Từ chối).
@@ -60,7 +103,8 @@ class MattermostAdapter:
         """
         if not self.token:
             logger.warning(
-                "MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_interactive_message."
+                "MATTERMOST_BOT_TOKEN chưa được cấu hình, "
+                "bỏ qua send_interactive_message."
             )
             return {}
 
@@ -68,12 +112,18 @@ class MattermostAdapter:
         context["action_id"] = action_id
 
         # Webhook callback URL mà Mattermost sẽ gọi về
-        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình qua biến môi trường ở thực tế,
-        # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
+        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình qua
+        # biến môi trường ở thực tế, nhưng ở local/docker thì mattermost có
+        # thể gọi tới proteus-backend).
         # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
-        # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định Mattermost có thể phân giải được URL backend.
-        backend_url = "http://proteus-backend:8000"  # URL nội bộ trong docker network
+        # Ta sẽ dùng URL nội bộ.
+        backend_url = "http://proteus-backend:8000"
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
+
+        channel_id = await self.resolve_channel_id(channel)
+        if not channel_id:
+            logger.error(f"Cannot find Mattermost channel: {channel}")
+            return {}
 
         payload = {
             "channel_id": channel_id,
@@ -113,7 +163,9 @@ class MattermostAdapter:
             return response.json()
         except httpx.HTTPStatusError as e:
             logger.error(f"Lỗi khi gửi interactive message: {e.response.text}")
-            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}")
+            raise MattermostAdapterError(
+                f"HTTP Error: {e.response.status_code}"
+            ) from e
         except Exception as e:
             logger.error(f"Lỗi kết nối Mattermost: {e}")
-            raise MattermostAdapterError(str(e))
+            raise MattermostAdapterError(str(e)) from e

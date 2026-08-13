@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/adapters/external/mattermost_adapter.py]** Sửa lỗi gửi tin nhắn Mattermost bị thất bại do truyền tên channel thay vì channel ID. Implement hàm `resolve_channel_id` trong `MattermostAdapter` để tự động fetch và cache `channel_id` từ `channel_name` thông qua Mattermost REST API, đảm bảo toàn bộ tính năng liên lạc và duyệt lệnh qua Mattermost hoạt động bình thường (Issue #275).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
