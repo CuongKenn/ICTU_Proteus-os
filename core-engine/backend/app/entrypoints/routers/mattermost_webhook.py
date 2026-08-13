@@ -42,9 +42,11 @@ def verify_mattermost_signature(raw_body: bytes, signature: str) -> bool:
     return hmac.compare_digest(expected_hmac, signature)
 
 
+from fastapi import Depends
+
 from app.core.use_cases.ai_command import AICommandUseCase
 from app.entrypoints.dependencies import get_ai_command_use_case
-from fastapi import Depends
+
 
 @router.post("/callback", status_code=status.HTTP_200_OK)
 async def mattermost_interactive_callback(
@@ -89,15 +91,19 @@ async def mattermost_interactive_callback(
         )
         success = await ai_use_case.process_approval(action_id, user_id, "approve")
         if not success:
-            return {"ephemeral_text": "Không thể phê duyệt (lệnh không tồn tại hoặc đã xử lý)."}
-        
+            return {
+                "ephemeral_text": "Không thể phê duyệt (lệnh không tồn tại hoặc đã xử lý)."
+            }
+
         return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
     elif action == "reject":
         logger.info(f"Yêu cầu {action_id} BỊ TỪ CHỐI bởi user {user_id}.")
         success = await ai_use_case.process_approval(action_id, user_id, "reject")
         if not success:
-            return {"ephemeral_text": "Không thể từ chối (lệnh không tồn tại hoặc đã xử lý)."}
-            
+            return {
+                "ephemeral_text": "Không thể từ chối (lệnh không tồn tại hoặc đã xử lý)."
+            }
+
         return {"ephemeral_text": f"Bạn đã từ chối hành động {action_id}."}
     else:
         logger.warning(f"Unknown action {action} from mattermost")

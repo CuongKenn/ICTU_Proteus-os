@@ -127,7 +127,7 @@ async def test_execute_write_command(
         mock_dsl_dry_run_repo.execute_dry_run.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
         mock_ai_command_repo.commit.assert_called_once()
-        mock_mattermost_adapter.send_message.assert_called_once()
+        mock_mattermost_adapter.send_interactive_message.assert_called_once()
 
         # check deadline is 30 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]

@@ -12,9 +12,9 @@ from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
+    AbstractAuditLogRepository,
     AbstractDSLDryRunRepository,
     AbstractPluginRepository,
-    AbstractAuditLogRepository,
 )
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
@@ -168,7 +168,9 @@ class AICommandUseCase:
         )
         try:
             await self.mattermost_adapter.send_interactive_message(
-                channel_id="admin-channel", text=msg_text, action_id=str(body.command_id)
+                channel_id="admin-channel",
+                text=msg_text,
+                action_id=str(body.command_id),
             )
         except Exception as e:
             logger.warning(f"Could not send Mattermost approval request: {e}")
@@ -194,6 +196,7 @@ class AICommandUseCase:
             await self.ai_command_repo.commit()
             if self.audit_log_repo:
                 import json
+
                 await self.audit_log_repo.insert_log(
                     tenant_id=cmd["tenant_id"],
                     actor_type="user",
@@ -201,7 +204,7 @@ class AICommandUseCase:
                     resource_type="ai_command",
                     resource_id=cmd["id"],
                     command_id=cmd["id"],
-                    metadata_json=json.dumps({"approver_id": str(approver_id)})
+                    metadata_json=json.dumps({"approver_id": str(approver_id)}),
                 )
                 await self.audit_log_repo.commit()
             return True
@@ -231,6 +234,7 @@ class AICommandUseCase:
 
         if is_fully_approved:
             import json
+
             if self.audit_log_repo:
                 await self.audit_log_repo.insert_log(
                     tenant_id=cmd["tenant_id"],
@@ -239,7 +243,7 @@ class AICommandUseCase:
                     resource_type="ai_command",
                     resource_id=cmd["id"],
                     command_id=cmd["id"],
-                    metadata_json=json.dumps({"approver_id": str(approver_id)})
+                    metadata_json=json.dumps({"approver_id": str(approver_id)}),
                 )
                 await self.audit_log_repo.commit()
 
@@ -257,5 +261,5 @@ class AICommandUseCase:
                 )
             except Exception as e:
                 logger.error(f"Lỗi gọi n8n API sau khi approve: {e}")
-                
+
         return True
