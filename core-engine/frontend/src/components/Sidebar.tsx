@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
     <>
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-bg-surface border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-bg-glass backdrop-blur-glass border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
