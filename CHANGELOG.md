@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/frontend/src/lib/authOptions.ts]** Bổ sung logic kiểm tra email domain trong hàm `signIn` callback của NextAuth. Chỉ cho phép các email thuộc tên miền `@ictu.edu.vn` đăng nhập thành công vào hệ thống, hiển thị lỗi rõ ràng nếu vi phạm (Issue #382).
 - **[core-engine/backend/app/adapters/external/keycloak_adapter.py]** Fix lỗi truyền hardcode `admin_token` khi cài đặt Plugin và Onboarding Tenant. Sử dụng Client Credentials Grant để gọi Admin API an toàn (Issue #279).
 - **[core-engine/backend]** Implement logic xử lý phê duyệt AI Command từ Mattermost Webhook callback. Inject `AICommandUseCase` và `AuditLogRepository` vào webhook handler, tự động cập nhật trạng thái lệnh (APPROVED/REJECTED), ghi log và kích hoạt `n8n` webhook khi được phê duyệt (Issue #277).
 - **[core-engine/backend]** Tự động lấy admin_token thông qua Client Credentials Grant để KeycloakAdapter giao tiếp với Admin API. Loại bỏ hardcode dummy token khi tạo role trong quá trình cài đặt plugin và tenant onboarding (Issue #279).
