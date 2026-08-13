@@ -138,7 +138,7 @@ class PluginUninstallUseCase:
 
         except Exception as e:
             logger.error(
-                f"Plugin uninstallation failed after steps {completed_steps}: {e}",
+                "Plugin uninstallation failed after steps %s: %s", completed_steps, e,
                 exc_info=True,
             )
 
@@ -183,7 +183,7 @@ class PluginUninstallUseCase:
                     admin_token="",  # Dummy realm
                 )
             except Exception as e:
-                logger.warning(f"Không thể xóa role {role.name} trong Keycloak: {e}")
+                logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)
 
     async def _step_3_appsmith(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
@@ -221,5 +221,5 @@ class PluginUninstallUseCase:
                 try:
                     await self.session.execute(text(drop_sql))
                 except Exception as e:
-                    logger.error(f"Lỗi khi drop table {table_name}: {e}")
+                    logger.error("Lỗi khi drop table %s: %s", table_name, e)
                     raise

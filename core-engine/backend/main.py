@@ -13,6 +13,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from qdrant_client import AsyncQdrantClient
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
     )
     # Khởi tạo các global clients
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
+    app.state.qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL, httpx_client=app.state.http_client)
     app.state.redis_event_bus = RedisEventBusPublisher()
 
     # Khởi tạo scheduler
@@ -141,6 +143,7 @@ async def lifespan(app: FastAPI):
     # Đóng kết nối
     scheduler.shutdown()
     await app.state.http_client.aclose()
+    await app.state.qdrant_client.close()
     await app.state.redis_event_bus.aclose()
     logger.info("Proteus OS Backend shutting down")
 
