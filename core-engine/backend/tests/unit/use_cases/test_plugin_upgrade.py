@@ -91,7 +91,7 @@ async def test_upgrade_plugin_success(
 ):
     await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
 
-    assert mock_session.execute.call_count == 4  # SET LOCAL x2 + 2 SQL scripts
+    assert mock_session.execute.call_count == 5  # SET LOCAL x3 + 2 SQL scripts
     mock_session.commit.assert_called_once()
     mock_plugin_repo.upsert_installation.assert_called_once_with(
         tenant_id=tenant_context.tenant_id,
