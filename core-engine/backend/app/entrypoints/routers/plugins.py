@@ -10,8 +10,10 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
+from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
+from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.plugin_toggle import PluginToggleError, PluginToggleUseCase
@@ -22,6 +24,7 @@ from app.core.use_cases.plugin_uninstall import (
 from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeUseCase
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
+    get_plugin_credentials_use_case,
     get_plugin_install_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
@@ -31,6 +34,7 @@ from app.entrypoints.dependencies import (
     require_permission,
 )
 from app.entrypoints.schemas.plugin import (
+    PluginCredentialPayload,
     PluginListResponse,
     PluginResponse,
     PluginSynthesizeRequest,
@@ -226,6 +230,10 @@ async def reload_plugins(
     if loader:
         loader.load_all_plugins()
         return {"message": "Đã hot-reload tất cả plugin extensions."}
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Plugin loader không được cấu hình.",
+    )
 
 
 @router.post(
@@ -261,4 +269,42 @@ async def synthesize_plugin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi sinh Plugin: {e}",
+        )
+
+
+@router.post(
+    "/{plugin_id}/credentials",
+    status_code=status.HTTP_201_CREATED,
+    summary="Cấu hình n8n Credentials",
+)
+async def configure_plugin_credentials(
+    plugin_id: uuid.UUID,
+    payload: PluginCredentialPayload,
+    ctx: TenantContext = Depends(require_permission("plugins.install")),
+    use_case: ConfigurePluginCredentialsUseCase = Depends(
+        get_plugin_credentials_use_case
+    ),
+) -> dict[str, Any]:
+    """
+    Tạo n8n Credentials cho Plugin trực tiếp từ UI.
+    Chỉ tenant_admin mới có quyền. Credential name sẽ được gán prefix tự động
+    để đảm bảo cách ly dữ liệu giữa các tenant.
+    """
+    try:
+        result = await use_case.execute(
+            plugin_id=str(plugin_id),
+            payload=payload,
+            ctx=ctx,
+        )
+        return result
+    except N8nAdapterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error("Lỗi không xác định khi tạo credential: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )

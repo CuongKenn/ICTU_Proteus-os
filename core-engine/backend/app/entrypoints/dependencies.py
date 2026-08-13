@@ -40,6 +40,7 @@ from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import InsufficientPermissionsError
 from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
+from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
 from app.core.use_cases.plugin_toggle import PluginToggleUseCase
@@ -72,6 +73,11 @@ async def get_mattermost_adapter(request: Request) -> MattermostAdapter:
     return MattermostAdapter(client=request.app.state.http_client)
 
 
+async def get_qdrant_adapter(request: Request) -> QdrantAdapter:
+    """Inject QdrantAdapter."""
+    return QdrantAdapter(qdrant_client=request.app.state.qdrant_client)
+
+
 async def get_n8n_adapter(request: Request) -> N8nAdapter:
     """Inject N8nAdapter."""
     return N8nAdapter(client=request.app.state.http_client)
@@ -101,11 +107,18 @@ async def get_plugin_list_use_case(
 
 async def get_rag_ingestion_use_case(
     request: Request,
+    qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
 ) -> RAGIngestionUseCase:
     """Inject RAG Ingestion Use Case."""
     outline_adapter = OutlineAdapter(client=request.app.state.http_client)
-    qdrant_adapter = QdrantAdapter(client=request.app.state.http_client)
     return RAGIngestionUseCase(outline_adapter, qdrant_adapter)
+
+
+async def get_plugin_credentials_use_case(
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+) -> ConfigurePluginCredentialsUseCase:
+    """Inject Plugin Credentials Use Case."""
+    return ConfigurePluginCredentialsUseCase(n8n_adapter=n8n_adapter)
 
 
 async def get_plugin_install_use_case(

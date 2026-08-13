@@ -84,14 +84,14 @@ class TenantOnboardingUseCase:
         # 2. Create Keycloak Group (Best effort / Saga)
         # Giả định token admin đã có ở adapter hoặc truyền rỗng vì ta đang dùng client
         try:
-            # We no longer pass admin_token since the adapter fetches it
+            # We use client credentials in the adapter now
             await self.keycloak_adapter.create_tenant_group(
                 realm=realm,
                 group_name=f"tenant_{slug}",
             )
         except Exception as e:
-            logger.error(f"Không thể tạo Keycloak group cho tenant {slug}: {e}")
-            # Ở môi trường thực tế, nếu gọi KC lỗi, có thể cần rollback DB
+            logger.error("Không thể tạo Keycloak group cho tenant %s: %s", slug, e)
+            # Ở môi trường thực tế, nếu gọi KC lỗi, có thể cần rollback DB hoặc retry sau
             # Ở đây ta rollback giao dịch (nếu dùng chung self.session)
             # Vì AbstractTenantRepository không tự commit, ta có thể không commit.
             msg = f"Lỗi tạo Tenant Group trên Keycloak: {e}"

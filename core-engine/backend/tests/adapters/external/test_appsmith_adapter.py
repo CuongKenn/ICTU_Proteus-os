@@ -44,7 +44,6 @@ async def test_appsmith_adapter_delete_app_success(adapter):
         assert result is None
 
 
-
 import pytest
 
 

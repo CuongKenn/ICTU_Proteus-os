@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
     LOG_LEVEL: str = "INFO"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # ─── Database ─────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://proteus:proteus@localhost:5432/proteus"
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     KEYCLOAK_CLIENT_ID: str = "proteus-bff"
     KEYCLOAK_ADMIN_CLIENT_ID: str = "admin-cli"
     KEYCLOAK_ADMIN_CLIENT_SECRET: str = ""
+    KEYCLOAK_CLIENT_SECRET: str = ""
     KEYCLOAK_WEBHOOK_SECRET: str = ""
 
     # ─── n8n (Workflow Engine) ────────────────────────────────

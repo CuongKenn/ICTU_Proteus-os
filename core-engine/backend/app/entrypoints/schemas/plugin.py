@@ -41,3 +41,18 @@ class PluginSynthesizeRequest(BaseModel):
         ...,
         description="Yêu cầu bằng ngôn ngữ tự nhiên để AI tự động sinh Plugin",
     )
+
+
+class PluginCredentialPayload(BaseModel):
+    credential_type: str = Field(
+        ...,
+        description="Loại credential trên n8n (VD: smtp, githubApi, postgres)",
+    )
+    credential_name: str = Field(
+        ...,
+        description="Tên định danh cho credential",
+    )
+    data: dict[str, str] = Field(
+        ...,
+        description="Dữ liệu nhạy cảm dạng key-value",
+    )

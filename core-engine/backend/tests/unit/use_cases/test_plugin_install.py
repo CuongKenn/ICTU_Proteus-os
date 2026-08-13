@@ -158,7 +158,9 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    mock_session.execute.assert_called_once()  # For seed.sql
+    assert (
+        mock_session.execute.call_count == 3
+    )  # CREATE SCHEMA, SET search_path, and seed.sql
     mock_mattermost_adapter.send_message.assert_called_once()
 
 

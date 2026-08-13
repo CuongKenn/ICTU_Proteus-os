@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
           ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
+          idToken: account.id_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ
@@ -89,7 +90,7 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       // Expose access token cho BFF Proxy — KHÔNG expose xuống browser
-      session.accessToken = token.accessToken as string;
+      // session.accessToken = token.accessToken as string; // REMOVED for security (Issue #327)
       session.user.roles = (token.roles as string[]) ?? [];
 
       // Truyền lỗi refresh lên client để có thể hiển thị thông báo
