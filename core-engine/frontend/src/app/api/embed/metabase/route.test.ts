@@ -16,14 +16,15 @@ vi.mock("next-auth/jwt", () => ({
 }));
 
 import { getToken } from "next-auth/jwt";
+import { logger } from "@/lib/logger";
 
-// Mock console.warn to suppress expected warnings during tests
-const originalWarn = console.warn;
+// Mock logger.warn to suppress expected warnings during tests
+const originalWarn = logger.warn;
 beforeEach(() => {
-  console.warn = vi.fn();
+  logger.warn = vi.fn();
 });
 afterEach(() => {
-  console.warn = originalWarn;
+  logger.warn = originalWarn;
 });
 
 // Helper to create a fake Keycloak JWT token with tenant_id
@@ -126,7 +127,7 @@ describe("GET /api/embed/metabase", () => {
     expect(data.url).toContain("embed/dashboard/");
     const base64Token = data.url.split("embed/dashboard/")[1].split("#")[0];
     expect(Buffer.from(base64Token, "base64").toString()).toContain("mock_token");
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("MOCK Signed URL"));
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("MOCK Signed URL"));
   });
 
   it("should return 500 if backend fetch fails (production mode)", async () => {
