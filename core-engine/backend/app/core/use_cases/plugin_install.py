@@ -56,7 +56,9 @@ class PluginInstallUseCase:
 
     async def execute(self, context: TenantContext, plugin_code_name: str) -> None:
         logger.info(
-            "Bắt đầu cài đặt plugin %s cho tenant %s", plugin_code_name, context.tenant_id
+            "Bắt đầu cài đặt plugin %s cho tenant %s",
+            plugin_code_name,
+            context.tenant_id,
         )
 
         # 1. Fetch plugin metadata
@@ -148,7 +150,9 @@ class PluginInstallUseCase:
 
         except Exception as e:
             logger.error(
-                "Plugin installation failed at step %s: %s", len(completed_steps) + 1, e,
+                "Plugin installation failed at step %s: %s",
+                len(completed_steps) + 1,
+                e,
                 exc_info=True,
             )
 
@@ -333,6 +337,9 @@ class PluginInstallUseCase:
                             )
             except Exception as e:
                 logger.error(
-                    "Rollback step %s thất bại cho plugin %s: %s", step, plugin_code_name, e
+                    "Rollback step %s thất bại cho plugin %s: %s",
+                    step,
+                    plugin_code_name,
+                    e,
                 )
         logger.info("Hoàn thành rollback cho %s.", plugin_code_name)

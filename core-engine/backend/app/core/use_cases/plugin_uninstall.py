@@ -138,7 +138,9 @@ class PluginUninstallUseCase:
 
         except Exception as e:
             logger.error(
-                "Plugin uninstallation failed after steps %s: %s", completed_steps, e,
+                "Plugin uninstallation failed after steps %s: %s",
+                completed_steps,
+                e,
                 exc_info=True,
             )
 

@@ -56,7 +56,9 @@ async def lifespan(app: FastAPI):
     )
     # Khởi tạo các global clients
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
-    app.state.qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL, httpx_client=app.state.http_client)
+    app.state.qdrant_client = AsyncQdrantClient(
+        url=settings.QDRANT_URL, httpx_client=app.state.http_client
+    )
     app.state.redis_event_bus = RedisEventBusPublisher()
 
     # Khởi tạo scheduler

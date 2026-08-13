@@ -80,7 +80,9 @@ async def mattermost_interactive_callback(
 
     if action == "approve":
         logger.info(
-            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n execute.", action_id, user_id
+            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n execute.",
+            action_id,
+            user_id,
         )
         # TODO: Cập nhật trạng thái lệnh trong DB thành APPROVED
         # TODO: Gọi n8n_adapter.trigger_webhook()

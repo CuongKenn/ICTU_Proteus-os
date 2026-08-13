@@ -104,7 +104,8 @@ async def transmit_kv_cache_ipc(
     req = KVCacheTransmitRequest(**body)
 
     manager = KVCacheIPCManager(
-        qdrant_adapter=QdrantAdapter(qdrant_client=request.app.state.qdrant_client), redis_publisher=RedisEventBusPublisher()
+        qdrant_adapter=QdrantAdapter(qdrant_client=request.app.state.qdrant_client),
+        redis_publisher=RedisEventBusPublisher(),
     )
 
     pointer_uuid, latency_ms = await manager.transmit_context(

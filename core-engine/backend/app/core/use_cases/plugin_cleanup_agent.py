@@ -90,7 +90,8 @@ class PluginCleanupAgent:
                 )
             except Exception as e:
                 logger.error(
-                    "Cleanup thất bại cho plugin %s", plugin_code_name,
+                    "Cleanup thất bại cho plugin %s",
+                    plugin_code_name,
                     exc_info=True,
                     extra={
                         "tenant_id": str(tenant_id),
