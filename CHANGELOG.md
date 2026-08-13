@@ -16,6 +16,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
 - **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).
 
+=======
+- **[core-engine/frontend]** Cập nhật `LaunchpadClient` sử dụng biến môi trường `NEXT_PUBLIC_*` thay vì hardcode localhost URLs, đảm bảo các link đến Mattermost, Outline Wiki, và n8n hoạt động đúng trên môi trường deploy qua Traefik (Issue #260).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Xây dựng n8n webhook URL động từ config thay vì hardcode, đồng thời thêm xác thực domain qua N8nAdapter để bảo mật quá trình thực thi DX-DSL (Issue #287).
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Thiết lập `search_path` an toàn khi xóa bảng plugin, tránh rủi ro drop nhầm schema hệ thống. Khắc phục lỗi hardcode Keycloak realm trong Plugin Uninstall Saga (Issue #298).
 - **[core-engine/frontend/src/components/ui/AppIcon.tsx]** Sửa lỗi thiếu keyboard accessibility trên component `AppIcon`. Thêm `role="button"`, `tabIndex={0}`, và xử lý sự kiện `onKeyDown` (Enter/Space) để hỗ trợ người dùng điều hướng bằng bàn phím (Issue #290).
