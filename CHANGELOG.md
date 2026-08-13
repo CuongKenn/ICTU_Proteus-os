@@ -6,6 +6,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[deploy/docker-compose.yml]** Cập nhật cấu hình Docker Compose cho Keycloak 25.0: thay thế biến môi trường `KC_PROXY: edge` (đã deprecated từ Keycloak 24+) bằng `KC_PROXY_HEADERS: xforwarded` để loại bỏ cảnh báo khi khởi động (Issue #286).
+- **[core-engine/backend/app]** Thay thế toàn bộ 50+ f-strings (`f"..."`) trong các câu lệnh logging bằng lazy formatting (`%s`) để tối ưu hóa tài nguyên và tuân thủ tiêu chuẩn logging của dự án (Issue #285).
+- **[core-engine/frontend/src/hooks/usePlugins.ts]** Sửa lỗi không nhất quán baseURL khi gọi API trong `usePlugins`, đồng nhất việc sử dụng BFF proxy route (`/api/proxy`) để tránh lỗi 404 (Issue #284).
+- **[core-engine/backend/app/adapters/external/qdrant_adapter.py]** Sửa lỗi vi phạm Liskov Substitution Principle của `QdrantAdapter` bằng cách đổi return type của `upsert_vectors` và `delete_by_tenant` thành `None`. Đồng thời inject `httpx.AsyncClient` vào `AsyncQdrantClient` để tái sử dụng connection pool (Issue #283).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Bổ sung error handling cho endpoint `/reload` để trả về lỗi 503 khi Plugin Loader chưa sẵn sàng, thay vì trả về null không đúng định dạng (Issue #282).
+- **[core-engine/backend/app/infrastructure/config.py]** Bổ sung biến môi trường `FRONTEND_URL` vào cấu hình backend để khắc phục lỗi thiếu thuộc tính khi `ProactiveMonitorAgent` hoạt động (Issue #280).
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗ hổng bảo mật nghiêm trọng trong quá trình gỡ cài đặt Plugin: Bổ sung cấu hình `search_path` schema cho tenant trước khi thực thi `DROP TABLE`, ngăn chặn nguy cơ drop nhầm bảng dữ liệu của tenant khác hoặc core system (Issue #298).
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗi hardcode Keycloak realm ("proteus") trong bước xóa role, thay bằng ID của tenant (Issue #298).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
