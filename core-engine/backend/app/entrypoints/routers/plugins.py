@@ -230,6 +230,11 @@ async def reload_plugins(
     if loader:
         loader.load_all_plugins()
         return {"message": "Đã hot-reload tất cả plugin extensions."}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Plugin Loader chưa sẵn sàng.",
+        )
 
 
 @router.post(
