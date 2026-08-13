@@ -133,8 +133,11 @@ class PluginInstallUseCase:
 
             # Notify Mattermost (Best effort)
             try:
-                msg = f"✅ Đã cài đặt thành công Plugin **{manifest.display_name}** ({manifest.version})."
-                # TODO: get tenant's notify channel from config, using dummy channel for now
+                msg = (
+                    f"✅ Đã cài đặt thành công Plugin "
+                    f"**{manifest.display_name}** ({manifest.version})."
+                )
+                # TODO: get tenant's notify channel from config
                 await self.mattermost_adapter.send_message(
                     f"plugin-alerts-{context.tenant_id}", msg
                 )
@@ -172,7 +175,7 @@ class PluginInstallUseCase:
             except Exception:
                 pass
 
-            raise PluginInstallError(f"Cài đặt plugin thất bại: {e}")
+            raise PluginInstallError(f"Cài đặt plugin thất bại: {e}") from e
 
     async def _step_1_database(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
@@ -188,14 +191,23 @@ class PluginInstallUseCase:
                 with open(seed_path, encoding="utf-8") as f:
                     sql = f.read()
 
-                # Validation: Cấm các lệnh SQL nguy hiểm để chống SQL Injection và phá hoại dữ liệu
+                # Validation: Cấm các lệnh SQL nguy hiểm
                 forbidden_pattern = re.compile(
-                    r"\b(DROP|DELETE|UPDATE|TRUNCATE)\b", re.IGNORECASE
+                    r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
+                    r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
+                    re.IGNORECASE,
                 )
                 if forbidden_pattern.search(sql):
                     raise PluginInstallError(
-                        "Seed file chứa các lệnh SQL không được phép (DROP, DELETE, UPDATE, TRUNCATE)"
+                        "Seed file chứa các lệnh SQL không được phép."
                     )
+
+                # Set search_path để sandbox SQL execution trong schema của Tenant
+                schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+                await self.session.execute(
+                    text(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                )
+                await self.session.execute(text(f"SET search_path TO {schema_name}"))
 
                 # Execute raw SQL
                 await self.session.execute(text(sql))
@@ -310,7 +322,15 @@ class PluginInstallUseCase:
                         for wid in reversed(wf_ids):
                             await self.n8n_adapter.delete_workflow(wid)
                 elif step == "database":
-                    pass
+                    if manifest.database and manifest.database.tables:
+                        schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+                        await self.session.execute(
+                            text(f"SET search_path TO {schema_name}")
+                        )
+                        for table in reversed(manifest.database.tables):
+                            await self.session.execute(
+                                text(f"DROP TABLE IF EXISTS {table} CASCADE")
+                            )
             except Exception as e:
                 logger.error(
                     f"Rollback step {step} thất bại cho plugin {plugin_code_name}: {e}"
