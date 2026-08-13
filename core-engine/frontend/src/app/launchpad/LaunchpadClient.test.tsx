@@ -21,6 +21,14 @@ vi.mock("@/store/notificationStore", () => ({
 const mockWindowOpen = vi.fn();
 window.open = mockWindowOpen;
 
+// Mock useRouter
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 describe("LaunchpadClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
