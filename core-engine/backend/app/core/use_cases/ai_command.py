@@ -71,8 +71,9 @@ class AICommandUseCase:
         if body.effect == "read":
             # Lệnh Read → Gửi n8n execute lập tức (vì là webhook trigger proxy)
             try:
+                webhook_url = self.n8n_adapter.build_webhook_url(body.action)
                 response = await self.n8n_adapter.trigger_webhook(
-                    webhook_url=f"{settings.N8N_URL}/webhook/ai-read-command",
+                    webhook_url=webhook_url,
                     payload=body.model_dump(),
                 )
 

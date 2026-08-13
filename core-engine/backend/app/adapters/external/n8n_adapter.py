@@ -59,8 +59,16 @@ class N8nAdapter:
         await self._client.aclose()
 
     def _build_url(self, path: str) -> str:
-        """Tạo URL đầy đủ từ base URL và path tương đối."""
+        """Tạo URL đầy đủ từ base URL và path tương đối (dành cho REST API của n8n)."""
         return f"{self._base_url}/api/v1/{path.lstrip('/')}"
+
+    def build_webhook_url(self, action: str) -> str:
+        """
+        Xây dựng webhook URL từ action của DSL Command.
+        Ví dụ: 'hr.leave_requests.batch_approve' -> '{N8N_URL}/webhook/hr-leave_requests-batch_approve'
+        """
+        path = action.replace(".", "-")
+        return f"{self._base_url}/webhook/{path}"
 
     async def _request_with_retry(
         self,
