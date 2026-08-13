@@ -149,7 +149,7 @@ async def test_uninstall_success(
     )
 
     # Verify drop table executed
-    assert mock_session.execute.call_count == 1
+    assert mock_session.execute.call_count == 2
     # Check drop statement
     sql_arg = mock_session.execute.call_args[0][0].text
     assert 'DROP TABLE IF EXISTS "test_table" CASCADE;' in sql_arg

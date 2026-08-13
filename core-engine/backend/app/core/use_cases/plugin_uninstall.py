@@ -220,7 +220,9 @@ class PluginUninstallUseCase:
             await self.session.execute(text(f"SET search_path TO {schema_name}"))
             for table_name in manifest.database.tables:
                 if not re.match(r"^[a-zA-Z0-9_]+$", table_name):
-                    logger.warning(f"Bỏ qua DROP TABLE vì tên bảng không hợp lệ: {table_name}")
+                    logger.warning(
+                        f"Bỏ qua DROP TABLE vì tên bảng không hợp lệ: {table_name}"
+                    )
                     continue
                 drop_sql = f'DROP TABLE IF EXISTS "{table_name}" CASCADE;'
                 try:
