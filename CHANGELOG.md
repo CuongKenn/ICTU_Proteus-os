@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/frontend]** Bổ sung `middleware.ts` để bảo vệ các route yêu cầu đăng nhập, khắc phục lỗ hổng cho phép truy cập trái phép vào `/launchpad` (Issue #265).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Xây dựng n8n webhook URL động từ config thay vì hardcode, đồng thời thêm xác thực domain qua N8nAdapter để bảo mật quá trình thực thi DX-DSL (Issue #287).
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Thiết lập `search_path` an toàn khi xóa bảng plugin, tránh rủi ro drop nhầm schema hệ thống. Khắc phục lỗi hardcode Keycloak realm trong Plugin Uninstall Saga (Issue #298).
 - **[core-engine/frontend/src/components/ui/AppIcon.tsx]** Sửa lỗi thiếu keyboard accessibility trên component `AppIcon`. Thêm `role="button"`, `tabIndex={0}`, và xử lý sự kiện `onKeyDown` (Enter/Space) để hỗ trợ người dùng điều hướng bằng bàn phím (Issue #290).
