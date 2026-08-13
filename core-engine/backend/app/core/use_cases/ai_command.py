@@ -87,9 +87,13 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": json.dumps(body.parameters) if body.parameters else "{}",
+                        "parameters": (
+                            json.dumps(body.parameters) if body.parameters else "{}"
+                        ),
                         "status": AICommandStatus.COMPLETED.value,
-                        "execution_result": json.dumps(response) if response is not None else None,
+                        "execution_result": (
+                            json.dumps(response) if response is not None else None
+                        ),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -112,7 +116,9 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": json.dumps(body.parameters) if body.parameters else "{}",
+                        "parameters": (
+                            json.dumps(body.parameters) if body.parameters else "{}"
+                        ),
                         "status": AICommandStatus.FAILED.value,
                         "execution_result": json.dumps({"error": str(e)}),
                         "executed_at": now,
@@ -150,7 +156,9 @@ class AICommandUseCase:
                 "parameters": json.dumps(body.parameters) if body.parameters else "{}",
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
-                "dry_run_result": json.dumps(dry_run_res) if dry_run_res is not None else None,
+                "dry_run_result": (
+                    json.dumps(dry_run_res) if dry_run_res is not None else None
+                ),
                 "created_at": now,
             }
         )
