@@ -146,7 +146,58 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
   fi
 fi
 
-# 8. Print URLs
+
+# 9. Tự động hóa cấu hình Appsmith
+echo "⚙️  Đang cấu hình Appsmith (Tạo Admin & API Key)..."
+APPSMITH_URL="http://localhost:8080"
+APPSMITH_ADMIN_PASS=$(grep -E "^APPSMITH_ADMIN_PASSWORD=" .env | cut -d '=' -f2)
+
+# Chờ Appsmith sẵn sàng
+APP_TIMEOUT=180
+APP_ELAPSED=0
+while [ $APP_ELAPSED -lt $APP_TIMEOUT ]; do
+  if curl -sf $APPSMITH_URL/api/v1/users > /dev/null; then
+    break
+  fi
+  sleep 5
+  APP_ELAPSED=$((APP_ELAPSED + 5))
+done
+
+if [ $APP_ELAPSED -lt $APP_TIMEOUT ] && grep -q "APPSMITH_API_KEY=CHANGE_ME_GET_FROM_APPSMITH" .env; then
+  # 9.1 Tạo Super Admin (Bỏ qua nếu đã tạo)
+  curl -sf -X POST "$APPSMITH_URL/api/v1/users/super"     -H "Content-Type: application/json"     -d '{
+      "email": "admin@proteus.local",
+      "password": "'"$APPSMITH_ADMIN_PASS"'",
+      "name": "Proteus Admin",
+      "allowCollectingAnonymousData": false,
+      "signupForNewsletter": false
+    }' > /dev/null || true
+
+  # 9.2 Đăng nhập lấy Session Token
+  curl -sf -c /tmp/appsmith_cookie.txt -X POST "$APPSMITH_URL/api/v1/users/login"     -H "Content-Type: application/json"     -d '{"username":"admin@proteus.local","password":"'"$APPSMITH_ADMIN_PASS"'"}' > /dev/null || true
+
+  if [ -s /tmp/appsmith_cookie.txt ]; then
+    # 9.3 Tạo API Key
+    APPSMITH_API_KEY=$(curl -sf -b /tmp/appsmith_cookie.txt -X POST "$APPSMITH_URL/api/v1/users/api-key"       -H "Content-Type: application/json"       -d '{"label":"proteus-os-bot"}'       | jq -r '.data.apiKey // empty')
+
+    if [ -n "$APPSMITH_API_KEY" ] && [ "$APPSMITH_API_KEY" != "null" ]; then
+      sed -i.bak "s|APPSMITH_API_KEY=CHANGE_ME_GET_FROM_APPSMITH|APPSMITH_API_KEY=$APPSMITH_API_KEY|g" .env
+      rm -f .env.bak
+      echo "✅ Đã tạo APPSMITH_API_KEY và ghi vào .env"
+      
+      # Restart backend để nạp biến mới
+      docker compose restart backend
+    else
+      echo "⚠️ Không thể tự động lấy APPSMITH_API_KEY. Vui lòng lấy thủ công tại: http://apps.$DOMAIN"
+    fi
+  else
+    echo "⚠️ Không thể đăng nhập Appsmith để lấy cookie. Vui lòng lấy thủ công tại: http://apps.$DOMAIN"
+  fi
+  rm -f /tmp/appsmith_cookie.txt
+fi
+
+
+# 9. Print URLs
 echo ""
 echo "🎉 Proteus OS triển khai hoàn tất!"
 echo "Truy cập các dịch vụ tại:"
