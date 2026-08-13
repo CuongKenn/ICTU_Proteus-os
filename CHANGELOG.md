@@ -6,8 +6,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Bổ sung cấu hình RLS (`SET LOCAL role` và `SET LOCAL app.current_tenant`) khi cài đặt Database Plugin để tránh tạo dữ liệu không có `tenant_id` (Issue #316).
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Sửa lỗi sai tên bảng (`plugin_installations` -> `tenant_plugins`) và các cột tương ứng trong truy vấn `get_dirty_installations_older_than` (Issue #307).
+- **[core-engine/backend/app/core/use_cases]** Khắc phục lỗi hardcode Keycloak admin_token. `KeycloakAdapter` giờ đây sẽ tự động sử dụng Client Credentials (`KEYCLOAK_CLIENT_ID` & `KEYCLOAK_CLIENT_SECRET`) để lấy token xác thực (Issue #279).
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗ hổng nghiêm trọng thiếu `search_path` schema và kiểm tra tên bảng an toàn khi `DROP TABLE` trong luồng gỡ cài đặt Plugin (Issue #298).
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Hoàn thiện callback webhook Mattermost (`process_approval`) kèm xử lý ký hiệu HMAC an toàn và ghi Audit Log đầy đủ (Issue #277).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
-### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).
 - **[core-engine/backend/app/ai]** Đột phá 3 (IEEE Paper): Phát triển cơ chế giao tiếp liên tiến trình KV-Cache Vector IPC trên Event Bus (Redis) và Vector DB (Qdrant). Khắc phục tình trạng thắt nút cổ chai băng thông và giảm hàng triệu LLM tokens khi Multi-Agent tương tác (Issue #237).

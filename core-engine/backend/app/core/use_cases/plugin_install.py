@@ -209,6 +209,12 @@ class PluginInstallUseCase:
                 )
                 await self.session.execute(text(f"SET search_path TO {schema_name}"))
 
+                # Cấu hình RLS context cho tenant
+                await self.session.execute(text("SET LOCAL role = 'tenant_admin'"))
+                await self.session.execute(
+                    text(f"SET LOCAL app.current_tenant = '{context.tenant_id}'")
+                )
+
                 # Execute raw SQL
                 await self.session.execute(text(sql))
                 # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
