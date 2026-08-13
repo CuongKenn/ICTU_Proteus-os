@@ -22,7 +22,7 @@ class TenantOnboardingError(Exception):
     pass
 
 
-class PermissionError(TenantOnboardingError):
+class TenantPermissionError(TenantOnboardingError):
     """Lỗi không có quyền thực hiện."""
 
     pass
@@ -46,7 +46,7 @@ class TenantOnboardingUseCase:
 
     def _require_superadmin(self, context: TenantContext) -> None:
         if "superadmin" not in context.roles:
-            raise PermissionError(
+            raise TenantPermissionError(
                 "Chỉ superadmin mới có quyền thực hiện hành động này."
             )
 
@@ -104,7 +104,7 @@ class TenantOnboardingUseCase:
     ) -> TenantEntity:
         # User chỉ có quyền lấy thông tin Tenant của chính mình, trừ phi là superadmin
         if "superadmin" not in context.roles and context.tenant_id != tenant_id:
-            raise PermissionError("Không có quyền truy cập Tenant này.")
+            raise TenantPermissionError("Không có quyền truy cập Tenant này.")
 
         tenant = await self.tenant_repo.get_by_id(tenant_id)
         if not tenant:

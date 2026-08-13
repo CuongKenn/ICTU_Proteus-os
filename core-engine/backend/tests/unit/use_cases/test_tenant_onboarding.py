@@ -8,7 +8,7 @@ import pytest
 
 from app.core.domain.entities import TenantContext, TenantEntity
 from app.core.use_cases.tenant_onboarding import (
-    PermissionError,
+    TenantPermissionError,
     TenantOnboardingError,
     TenantOnboardingUseCase,
 )
@@ -86,7 +86,7 @@ async def test_create_tenant_success(
 
 
 async def test_create_tenant_not_superadmin(use_case, normal_context):
-    with pytest.raises(PermissionError):
+    with pytest.raises(TenantPermissionError):
         await use_case.create_tenant(
             context=normal_context, name="Test", slug="test", plan="starter"
         )
@@ -126,7 +126,7 @@ async def test_get_tenant_success(use_case, normal_context, mock_tenant_repo):
 
 async def test_get_tenant_unauthorized(use_case, normal_context):
     other_tenant_id = uuid.uuid4()
-    with pytest.raises(PermissionError):
+    with pytest.raises(TenantPermissionError):
         await use_case.get_tenant(normal_context, other_tenant_id)
 
 

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.domain.entities import TenantContext
 from app.core.use_cases.tenant_onboarding import (
-    PermissionError,
+    TenantPermissionError,
     TenantOnboardingError,
     TenantOnboardingUseCase,
 )
@@ -42,7 +42,7 @@ async def create_tenant(
             context=context, name=request.name, slug=request.slug, plan=request.plan
         )
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -65,7 +65,7 @@ async def get_tenant(
     try:
         tenant = await use_case.get_tenant(context, tenant_id)
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -90,7 +90,7 @@ async def update_tenant(
         data = request.model_dump(exclude_unset=True)
         tenant = await use_case.update_tenant(context, tenant_id, data)
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -112,7 +112,7 @@ async def delete_tenant(
 ):
     try:
         await use_case.delete_tenant(context, tenant_id)
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
