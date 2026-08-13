@@ -16,6 +16,17 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
   const { data: session } = useSession();
   const pathname = usePathname();
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth/federated-logout");
+      const data = await res.json();
+      await signOut({ redirect: false });
+      window.location.href = data.url || "/login";
+    } catch {
+      signOut({ callbackUrl: "/login" });
+    }
+  };
+
   return (
     <header className="h-[56px] border-b border-border bg-bg-glass backdrop-blur-[12px] flex items-center justify-between px-4 shrink-0 z-30 relative">
       <div className="flex items-center gap-4">
@@ -62,7 +73,7 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
           <Button 
             variant="ghost" 
             className="!p-2 text-danger hover:bg-danger/10 hover:text-danger rounded-full"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={handleLogout}
             title="Đăng xuất"
           >
             <LogOut className="w-4 h-4" />

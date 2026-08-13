@@ -36,7 +36,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           toggleMobileMenu={toggleMobileMenu} 
           isTenantAdmin={isTenantAdmin} 
         />
-
         {/* Content Wrapper */}
         <main className="flex-1 overflow-auto bg-bg-base">
           {children}
