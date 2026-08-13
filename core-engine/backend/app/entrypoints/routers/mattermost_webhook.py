@@ -5,9 +5,17 @@ import hashlib
 import hmac
 import logging
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.repositories.base import AbstractAuditLogRepository
+from app.core.use_cases.ai_command import AICommandUseCase
+from app.entrypoints.dependencies import (
+    get_ai_command_use_case,
+    get_audit_log_repo,
+    get_db_transactional,
+)
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -46,6 +54,9 @@ def verify_mattermost_signature(raw_body: bytes, signature: str) -> bool:
 async def mattermost_interactive_callback(
     request: Request,
     mattermost_signature: str = Header(None, alias="Mattermost-Signature"),
+    ai_command_use_case: AICommandUseCase = Depends(get_ai_command_use_case),  # noqa: B008
+    audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),  # noqa: B008
+    db: AsyncSession = Depends(get_db_transactional),  # noqa: B008
 ):
     """
     Webhook nhận callback từ Mattermost Interactive Message.
@@ -71,27 +82,64 @@ async def mattermost_interactive_callback(
         logger.error("Error parsing mattermost payload: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Payload không hợp lệ"
-        )
+        ) from e
 
-    # 3. Handle Action (Mock logic for now, will integrate with AI Command Use Case later)
+    # 3. Handle Action (Mock logic for now, will integrate with Use Case later)
     action_id = payload.context.action_id
     action = payload.context.action
     user_id = payload.user_id
 
+    # The user_id from Mattermost payload is Mattermost's internal user id,
+    # but in our context it acts as the approver_id.
+    import json
+    import uuid
+
     if action == "approve":
         logger.info(
-            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n execute.",
-            action_id,
-            user_id,
+            f"Yêu cầu {action_id} được PHÊ DUYỆT bởi user {user_id}. Kích hoạt n8n."
         )
-        # TODO: Cập nhật trạng thái lệnh trong DB thành APPROVED
-        # TODO: Gọi n8n_adapter.trigger_webhook()
-        # TODO: Ghi log vào AUDIT_LOG
+        success = await ai_command_use_case.process_approval(
+            cmd_id=action_id, approver_id=user_id, action_taken="approve"
+        )
+        if success:
+            await audit_log_repo.insert_log(
+                tenant_id=uuid.UUID(
+                    int=0
+                ),  # Placeholder since webhook doesn't pass tenant_id
+                actor_type="mattermost_user",
+                action="APPROVE_AI_COMMAND",
+                resource_type="ai_command",
+                resource_id=uuid.UUID(action_id)
+                if len(action_id) == 36
+                else uuid.UUID(int=0),
+                command_id=uuid.UUID(action_id)
+                if len(action_id) == 36
+                else uuid.UUID(int=0),
+                metadata_json=json.dumps({"mattermost_user_id": user_id}),
+            )
+            await db.commit()
 
         return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
     elif action == "reject":
-        logger.info("Yêu cầu %s BỊ TỪ CHỐI bởi user %s.", action_id, user_id)
-        # TODO: Cập nhật trạng thái lệnh trong DB thành REJECTED
+        logger.info(f"Yêu cầu {action_id} BỊ TỪ CHỐI bởi user {user_id}.")
+        success = await ai_command_use_case.process_approval(
+            cmd_id=action_id, approver_id=user_id, action_taken="reject"
+        )
+        if success:
+            await audit_log_repo.insert_log(
+                tenant_id=uuid.UUID(int=0),
+                actor_type="mattermost_user",
+                action="REJECT_AI_COMMAND",
+                resource_type="ai_command",
+                resource_id=uuid.UUID(action_id)
+                if len(action_id) == 36
+                else uuid.UUID(int=0),
+                command_id=uuid.UUID(action_id)
+                if len(action_id) == 36
+                else uuid.UUID(int=0),
+                metadata_json=json.dumps({"mattermost_user_id": user_id}),
+            )
+            await db.commit()
 
         return {"ephemeral_text": f"Bạn đã từ chối hành động {action_id}."}
     else:
