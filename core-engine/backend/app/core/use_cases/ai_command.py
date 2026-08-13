@@ -72,8 +72,7 @@ class AICommandUseCase:
         if body.effect == "read":
             # Chạy ngay lập tức thông qua n8n webhook
             try:
-                # Giả sử webhook URL mapping được cấu hình trong DB, ở đây dùng mock cho action
-                webhook_url = f"http://n8n:5678/webhook/{body.action.replace('.', '-')}"
+                webhook_url = self.n8n_adapter.build_webhook_url(body.action)
                 response = await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=body.parameters
                 )
@@ -102,7 +101,7 @@ class AICommandUseCase:
                     response,
                 )
             except Exception as e:
-                logger.error(f"Read command execution failed: {e}")
+                logger.error("Read command execution failed: %s", e)
                 # Ghi log thất bại
                 await self.ai_command_repo.create_command(
                     {
@@ -173,7 +172,7 @@ class AICommandUseCase:
                 action_id=str(body.command_id),
             )
         except Exception as e:
-            logger.warning(f"Could not send Mattermost approval request: {e}")
+            logger.warning("Could not send Mattermost approval request: %s", e)
 
         msg = f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau {deadline_minutes} phút."
         return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res

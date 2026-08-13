@@ -7,7 +7,30 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Sửa lỗi `mattermost_webhook` không gọi AICommandUseCase, bổ sung trigger cho lệnh N8n thực thi qua webhook N8n và ghi log Audit sau khi nhận callback từ Mattermost (Issue #277).
+<<<<<<< HEAD
+- **[deploy/docker-compose.yml]** Hạ cấp Traefik từ `v3.1` xuống `v2.11` để khắc phục lỗi không thể discover Docker services do Traefik v3.1 hardcode Docker API version 1.24 không tương thích (Issue #264).
+=======
+- **[core-engine/frontend]** Cập nhật `AuthProvider` thêm logic đồng bộ state từ NextAuth session sang Zustand `authStore`, sửa lỗi dead code khiến `useAuthStore.hasRole()` luôn trả về `false` (Issue #258).
+- **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
+- **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).
+
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Xây dựng n8n webhook URL động từ config thay vì hardcode, đồng thời thêm xác thực domain qua N8nAdapter để bảo mật quá trình thực thi DX-DSL (Issue #287).
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Thiết lập `search_path` an toàn khi xóa bảng plugin, tránh rủi ro drop nhầm schema hệ thống. Khắc phục lỗi hardcode Keycloak realm trong Plugin Uninstall Saga (Issue #298).
+- **[core-engine/frontend/src/components/ui/AppIcon.tsx]** Sửa lỗi thiếu keyboard accessibility trên component `AppIcon`. Thêm `role="button"`, `tabIndex={0}`, và xử lý sự kiện `onKeyDown` (Enter/Space) để hỗ trợ người dùng điều hướng bằng bàn phím (Issue #290).
+>>>>>>> 135aef4563619110a988993d0434c807cae8355d
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi serialize dict parameters bằng `str().replace()` thành JSON không hợp lệ. Thay đổi thành truyền trực tiếp Python dict vào thuộc tính model SQLAlchemy (cột kiểu JSONB) để framework tự xử lý việc serialize chính xác (Issue #276).
+- **[deploy/docker-compose.yml]** Cập nhật cấu hình Docker Compose cho Keycloak 25.0: thay thế biến môi trường `KC_PROXY: edge` (đã deprecated từ Keycloak 24+) bằng `KC_PROXY_HEADERS: xforwarded` để loại bỏ cảnh báo khi khởi động (Issue #286).
+- **[core-engine/backend/app]** Thay thế toàn bộ 50+ f-strings (`f"..."`) trong các câu lệnh logging bằng lazy formatting (`%s`) để tối ưu hóa tài nguyên và tuân thủ tiêu chuẩn logging của dự án (Issue #285).
+- **[core-engine/frontend/src/hooks/usePlugins.ts]** Sửa lỗi không nhất quán baseURL khi gọi API trong `usePlugins`, đồng nhất việc sử dụng BFF proxy route (`/api/proxy`) để tránh lỗi 404 (Issue #284).
+- **[core-engine/backend/app/adapters/external/qdrant_adapter.py]** Sửa lỗi vi phạm Liskov Substitution Principle của `QdrantAdapter` bằng cách đổi return type của `upsert_vectors` và `delete_by_tenant` thành `None`. Đồng thời inject `httpx.AsyncClient` vào `AsyncQdrantClient` để tái sử dụng connection pool (Issue #283).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Bổ sung error handling cho endpoint `/reload` để trả về lỗi 503 khi Plugin Loader chưa sẵn sàng, thay vì trả về null không đúng định dạng (Issue #282).
+- **[core-engine/backend/app/infrastructure/config.py]** Bổ sung biến môi trường `FRONTEND_URL` vào cấu hình backend để khắc phục lỗi thiếu thuộc tính khi `ProactiveMonitorAgent` hoạt động (Issue #280).
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗ hổng bảo mật nghiêm trọng trong quá trình gỡ cài đặt Plugin: Bổ sung cấu hình `search_path` schema cho tenant trước khi thực thi `DROP TABLE`, ngăn chặn nguy cơ drop nhầm bảng dữ liệu của tenant khác hoặc core system (Issue #298).
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗi hardcode Keycloak realm ("proteus") trong bước xóa role, thay bằng ID của tenant (Issue #298).
+- **[core-engine/frontend/src/components/AppShell.tsx]** Fix lỗi `Sidebar` không tự đóng khi click ngoài vùng chọn trên thiết bị di động (Issue #291).
+### Changed
+- **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).
