@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     MATTERMOST_WEBHOOK_SECRET: str = ""
     MATTERMOST_SYSTEM_CHANNEL_ID: str = ""
 
+    # ─── n8n Integration ──────────────────────────────────────
+    N8N_WEBHOOK_URL: str = "http://n8n:5678"
+
     # ─── Outline (Knowledge Base) ──────────────────────────────────
     OUTLINE_URL: str = "http://localhost:3000"
     OUTLINE_API_KEY: str = ""

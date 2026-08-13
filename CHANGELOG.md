@@ -6,6 +6,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi hardcode n8n webhook URL cho read commands trong AICommandUseCase bằng cách cấu hình `N8N_WEBHOOK_URL` trong settings thay vì hardcode (Issue #287).
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi serialize dict parameters bằng `str().replace()` thành JSON không hợp lệ. Thay đổi thành truyền trực tiếp Python dict vào thuộc tính model SQLAlchemy (cột kiểu JSONB) để framework tự xử lý việc serialize chính xác (Issue #276).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).

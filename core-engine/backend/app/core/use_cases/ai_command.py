@@ -18,6 +18,7 @@ from app.adapters.repositories.base import (
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.entrypoints.schemas.ai_command import AICommandRequest
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +70,9 @@ class AICommandUseCase:
         if body.effect == "read":
             # Chạy ngay lập tức thông qua n8n webhook
             try:
-                # Giả sử webhook URL mapping được cấu hình trong DB, ở đây dùng mock cho action
-                webhook_url = f"http://n8n:5678/webhook/{body.action.replace('.', '-')}"
+                # Sử dụng N8N_WEBHOOK_URL từ cấu hình (không hardcode)
+                base_url = settings.N8N_WEBHOOK_URL.rstrip("/")
+                webhook_url = f"{base_url}/webhook/{body.action.replace('.', '-')}"
                 response = await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=body.parameters
                 )
@@ -85,9 +87,13 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": body.parameters,
                         "status": AICommandStatus.COMPLETED.value,
-                        "execution_result": str(response).replace("'", '"'),
+                        "execution_result": (
+                            response
+                            if isinstance(response, dict)
+                            else {"result": response}
+                        ),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -110,9 +116,9 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": body.parameters,
                         "status": AICommandStatus.FAILED.value,
-                        "execution_result": str({"error": str(e)}).replace("'", '"'),
+                        "execution_result": {"error": str(e)},
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -145,10 +151,14 @@ class AICommandUseCase:
                 "dsl_version": body.dsl_version,
                 "action": body.action,
                 "effect": body.effect,
-                "parameters": str(body.parameters).replace("'", '"'),
+                "parameters": body.parameters,
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
-                "dry_run_result": str(dry_run_res).replace("'", '"'),
+                "dry_run_result": (
+                    dry_run_res
+                    if isinstance(dry_run_res, dict)
+                    else {"result": dry_run_res}
+                ),
                 "created_at": now,
             }
         )
