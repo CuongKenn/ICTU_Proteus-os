@@ -89,7 +89,7 @@ describe("LaunchpadClient", () => {
     });
 
     render(<LaunchpadClient />);
-    expect(screen.getByText("Chưa có Plugin")).toBeInTheDocument();
+    expect(screen.getByText("Chưa có Plugin nào")).toBeInTheDocument();
   });
 
   it("renders plugins when data is available", () => {

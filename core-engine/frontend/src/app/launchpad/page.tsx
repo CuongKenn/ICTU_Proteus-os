@@ -7,6 +7,7 @@
 
 import type { Metadata } from "next";
 import { LaunchpadClient } from "./LaunchpadClient";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Launchpad — Proteus OS",
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
 
 export default function LaunchpadPage() {
   return (
-    <main className="min-h-screen bg-bg-base">
+    <AppShell>
       <LaunchpadClient />
-    </main>
+    </AppShell>
   );
 }
