@@ -26,6 +26,7 @@ from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
+    AbstractAuditLogRepository,
     AbstractDSLDryRunRepository,
     AbstractPluginRepository,
     AbstractTenantRepository,
@@ -61,6 +62,15 @@ async def get_plugin_repo(
 ) -> AbstractPluginRepository:
     """Inject Plugin Repository."""
     return SQLAlchemyPluginRepository(session=db)
+
+
+async def get_audit_log_repo(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> AbstractAuditLogRepository:
+    """Inject Audit Log Repository."""
+    from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
+
+    return SQLAlchemyAuditLogRepository(session=db)
 
 
 async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
