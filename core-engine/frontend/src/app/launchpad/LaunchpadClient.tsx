@@ -8,6 +8,7 @@ import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { useNotificationStore } from "@/store/notificationStore";
 import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function LaunchpadClient() {
   const { plugins, isLoading } = usePlugins();
@@ -15,6 +16,7 @@ export function LaunchpadClient() {
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [isIframeLoading, setIsIframeLoading] = useState(false);
   const addToast = useNotificationStore((state) => state.addToast);
+  const router = useRouter();
 
   const openInNewTab = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
