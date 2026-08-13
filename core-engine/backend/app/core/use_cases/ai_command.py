@@ -69,8 +69,7 @@ class AICommandUseCase:
         if body.effect == "read":
             # Chạy ngay lập tức thông qua n8n webhook
             try:
-                # Giả sử webhook URL mapping được cấu hình trong DB, ở đây dùng mock cho action
-                webhook_url = f"http://n8n:5678/webhook/{body.action.replace('.', '-')}"
+                webhook_url = self.n8n_adapter.build_webhook_url(body.action)
                 response = await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=body.parameters
                 )
