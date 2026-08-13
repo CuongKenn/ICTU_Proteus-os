@@ -230,6 +230,10 @@ async def reload_plugins(
     if loader:
         loader.load_all_plugins()
         return {"message": "Đã hot-reload tất cả plugin extensions."}
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Plugin loader không được cấu hình.",
+    )
 
 
 @router.post(
