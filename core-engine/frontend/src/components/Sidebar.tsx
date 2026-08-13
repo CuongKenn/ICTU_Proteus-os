@@ -8,7 +8,7 @@ import {
   Package, 
   LayoutGrid, 
   MessageSquare,
-  FolderOpen,
+  AppWindow,
   BookOpen,
   Settings
 } from "lucide-react";
@@ -26,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
   const navigationLinks = [
     { name: "Launchpad", href: "/launchpad", icon: LayoutGrid, requiredRole: null },
     { name: "Chat", href: "/chat", icon: MessageSquare, requiredRole: null },
-    { name: "Files", href: "/files", icon: FolderOpen, requiredRole: null },
+    { name: "Apps", href: "/apps", icon: AppWindow, requiredRole: null, tooltip: "Low-code Application Builder (Appsmith)" },
     { name: "Wiki", href: "/wiki", icon: BookOpen, requiredRole: null },
     { name: "Marketplace", href: "/marketplace", icon: Package, requiredRole: "tenant_admin" },
     { name: "Settings", href: "/settings", icon: Settings, requiredRole: "tenant_admin" },
