@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     KEYCLOAK_URL: str = "http://localhost:8080"
     KEYCLOAK_REALM: str = "proteus"
     KEYCLOAK_CLIENT_ID: str = "proteus-bff"
+    KEYCLOAK_CLIENT_SECRET: str = ""
     KEYCLOAK_WEBHOOK_SECRET: str = ""
 
     # ─── n8n (Workflow Engine) ────────────────────────────────
