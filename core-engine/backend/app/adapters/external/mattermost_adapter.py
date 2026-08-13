@@ -72,7 +72,9 @@ class MattermostAdapter:
         # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
         # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
         # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định Mattermost có thể phân giải được URL backend.
-        backend_url = getattr(settings, "BACKEND_URL", "http://proteus-backend:8000").rstrip("/")
+        backend_url = getattr(
+            settings, "BACKEND_URL", "http://proteus-backend:8000"
+        ).rstrip("/")
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
 
         payload = {
