@@ -32,7 +32,8 @@ class KeycloakAdapter:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cached_at: float = 0.0
-        # Nếu không truyền client (VD: fallback hoặc test), tạo mới nhưng không tối ưu pooling
+        # Nếu không truyền client (VD: fallback hoặc test),
+        # tạo mới nhưng không tối ưu pooling
         self._client = client or httpx.AsyncClient()
 
     async def _get_jwks(self) -> dict[str, Any]:
@@ -78,15 +79,14 @@ class KeycloakAdapter:
         return cast(dict[str, Any], payload)
 
     async def get_admin_token(self) -> str:
-        """Lấy Admin Token dùng Client Credentials (Service Account)."""
+        """Lấy token của admin-cli qua Client Credentials Grant để gọi Admin API."""
+        url = f"{settings.KEYCLOAK_URL}/realms/master/protocol/openid-connect/token"
         data = {
             "grant_type": "client_credentials",
-            "client_id": settings.KEYCLOAK_CLIENT_ID,
-            "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
+            "client_id": settings.KEYCLOAK_ADMIN_CLIENT_ID,
+            "client_secret": settings.KEYCLOAK_ADMIN_CLIENT_SECRET,
         }
-        response = await self._client.post(
-            settings.keycloak_token_url, data=data, timeout=10.0
-        )
+        response = await self._client.post(url, data=data, timeout=10.0)
         response.raise_for_status()
         return response.json()["access_token"]
 
