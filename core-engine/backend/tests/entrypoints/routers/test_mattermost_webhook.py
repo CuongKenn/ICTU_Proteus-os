@@ -15,6 +15,16 @@ from main import app
 def override_mattermost_secret(monkeypatch):
     monkeypatch.setattr(settings, "MATTERMOST_WEBHOOK_SECRET", "test-secret")
 
+@pytest.fixture(autouse=True)
+def mock_ai_use_case():
+    from app.entrypoints.dependencies import get_ai_command_use_case
+    from unittest.mock import AsyncMock
+    mock_use_case = AsyncMock()
+    mock_use_case.process_approval.return_value = True
+    app.dependency_overrides[get_ai_command_use_case] = lambda: mock_use_case
+    yield mock_use_case
+    app.dependency_overrides.pop(get_ai_command_use_case, None)
+
 
 @pytest.fixture
 def mock_mattermost_payload():

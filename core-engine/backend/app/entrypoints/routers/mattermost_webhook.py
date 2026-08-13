@@ -42,10 +42,15 @@ def verify_mattermost_signature(raw_body: bytes, signature: str) -> bool:
     return hmac.compare_digest(expected_hmac, signature)
 
 
+from app.core.use_cases.ai_command import AICommandUseCase
+from app.entrypoints.dependencies import get_ai_command_use_case
+from fastapi import Depends
+
 @router.post("/callback", status_code=status.HTTP_200_OK)
 async def mattermost_interactive_callback(
     request: Request,
     mattermost_signature: str = Header(None, alias="Mattermost-Signature"),
+    ai_use_case: AICommandUseCase = Depends(get_ai_command_use_case),
 ):
     """
     Webhook nhận callback từ Mattermost Interactive Message.
@@ -73,7 +78,7 @@ async def mattermost_interactive_callback(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Payload không hợp lệ"
         )
 
-    # 3. Handle Action (Mock logic for now, will integrate with AI Command Use Case later)
+    # 3. Handle Action
     action_id = payload.context.action_id
     action = payload.context.action
     user_id = payload.user_id
@@ -82,15 +87,17 @@ async def mattermost_interactive_callback(
         logger.info(
             f"Yêu cầu {action_id} được PHÊ DUYỆT bởi user {user_id}. Kích hoạt n8n execute."
         )
-        # TODO: Cập nhật trạng thái lệnh trong DB thành APPROVED
-        # TODO: Gọi n8n_adapter.trigger_webhook()
-        # TODO: Ghi log vào AUDIT_LOG
-
+        success = await ai_use_case.process_approval(action_id, user_id, "approve")
+        if not success:
+            return {"ephemeral_text": "Không thể phê duyệt (lệnh không tồn tại hoặc đã xử lý)."}
+        
         return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
     elif action == "reject":
         logger.info(f"Yêu cầu {action_id} BỊ TỪ CHỐI bởi user {user_id}.")
-        # TODO: Cập nhật trạng thái lệnh trong DB thành REJECTED
-
+        success = await ai_use_case.process_approval(action_id, user_id, "reject")
+        if not success:
+            return {"ephemeral_text": "Không thể từ chối (lệnh không tồn tại hoặc đã xử lý)."}
+            
         return {"ephemeral_text": f"Bạn đã từ chối hành động {action_id}."}
     else:
         logger.warning(f"Unknown action {action} from mattermost")

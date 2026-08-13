@@ -14,6 +14,7 @@ from app.adapters.repositories.base import (
     AbstractAICommandRepository,
     AbstractDSLDryRunRepository,
     AbstractPluginRepository,
+    AbstractAuditLogRepository,
 )
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
@@ -35,12 +36,14 @@ class AICommandUseCase:
         dsl_dry_run_repo: AbstractDSLDryRunRepository,
         mattermost_adapter: MattermostAdapter,
         n8n_adapter: N8nAdapter,
+        audit_log_repo: AbstractAuditLogRepository = None,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
         self.dsl_dry_run_repo = dsl_dry_run_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
+        self.audit_log_repo = audit_log_repo
 
     async def execute(
         self, body: AICommandRequest, ctx: TenantContext
@@ -164,8 +167,8 @@ class AICommandUseCase:
             f"Vui lòng phê duyệt hoặc từ chối tại Dashboard."
         )
         try:
-            await self.mattermost_adapter.send_message(
-                channel="admin-channel", text=msg_text
+            await self.mattermost_adapter.send_interactive_message(
+                channel_id="admin-channel", text=msg_text, action_id=str(body.command_id)
             )
         except Exception as e:
             logger.warning(f"Could not send Mattermost approval request: {e}")
@@ -189,8 +192,21 @@ class AICommandUseCase:
                 cmd_id=cmd_id, status="REJECTED"
             )
             await self.ai_command_repo.commit()
+            if self.audit_log_repo:
+                import json
+                await self.audit_log_repo.insert_log(
+                    tenant_id=cmd["tenant_id"],
+                    actor_type="user",
+                    action=f"REJECT_COMMAND_{cmd['action']}",
+                    resource_type="ai_command",
+                    resource_id=cmd["id"],
+                    command_id=cmd["id"],
+                    metadata_json=json.dumps({"approver_id": str(approver_id)})
+                )
+                await self.audit_log_repo.commit()
             return True
 
+        is_fully_approved = False
         if cmd["effect"] == "critical":
             if not cmd["approved_by"]:
                 await self.ai_command_repo.update_command_approval(
@@ -203,7 +219,7 @@ class AICommandUseCase:
                     cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
                 )
                 await self.ai_command_repo.commit()
-                return True
+                is_fully_approved = True
             else:
                 return False
         else:
@@ -211,4 +227,35 @@ class AICommandUseCase:
                 cmd_id=cmd_id, approved_by=approver_id, status="APPROVED"
             )
             await self.ai_command_repo.commit()
-            return True
+            is_fully_approved = True
+
+        if is_fully_approved:
+            import json
+            if self.audit_log_repo:
+                await self.audit_log_repo.insert_log(
+                    tenant_id=cmd["tenant_id"],
+                    actor_type="user",
+                    action=f"APPROVE_COMMAND_{cmd['action']}",
+                    resource_type="ai_command",
+                    resource_id=cmd["id"],
+                    command_id=cmd["id"],
+                    metadata_json=json.dumps({"approver_id": str(approver_id)})
+                )
+                await self.audit_log_repo.commit()
+
+            base_url = settings.N8N_WEBHOOK_URL.rstrip("/")
+            webhook_url = f"{base_url}/webhook/{cmd['action'].replace('.', '-')}"
+            try:
+                payload = cmd.get("parameters", {})
+                if isinstance(payload, str):
+                    try:
+                        payload = json.loads(payload)
+                    except:
+                        pass
+                await self.n8n_adapter.trigger_webhook(
+                    webhook_url=webhook_url, payload=payload
+                )
+            except Exception as e:
+                logger.error(f"Lỗi gọi n8n API sau khi approve: {e}")
+                
+        return True

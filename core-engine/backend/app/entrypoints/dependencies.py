@@ -30,6 +30,7 @@ from app.adapters.repositories.base import (
     AbstractPluginRepository,
     AbstractTenantRepository,
     AbstractUserRepository,
+    AbstractAuditLogRepository,
 )
 from app.adapters.repositories.dsl_dry_run_repo import SQLAlchemyDSLDryRunRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
@@ -322,12 +323,22 @@ async def get_dsl_dry_run_repo(
     return SQLAlchemyDSLDryRunRepository(session=db)
 
 
+async def get_audit_log_repo(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> AbstractAuditLogRepository:
+    """Inject Audit Log Repository."""
+    from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
+
+    return SQLAlchemyAuditLogRepository(session=db)
+
+
 async def get_ai_command_use_case(
     plugin_repo: AbstractPluginRepository = Depends(get_plugin_repo),
     ai_command_repo: AbstractAICommandRepository = Depends(get_ai_command_repo),
     dsl_dry_run_repo: AbstractDSLDryRunRepository = Depends(get_dsl_dry_run_repo),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),
 ) -> AICommandUseCase:
     """Inject AICommandUseCase."""
     return AICommandUseCase(
@@ -336,6 +347,7 @@ async def get_ai_command_use_case(
         dsl_dry_run_repo=dsl_dry_run_repo,
         mattermost_adapter=mattermost_adapter,
         n8n_adapter=n8n_adapter,
+        audit_log_repo=audit_log_repo,
     )
 
 

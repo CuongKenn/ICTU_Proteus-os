@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Sửa lỗi `mattermost_webhook` không gọi AICommandUseCase, bổ sung trigger cho lệnh N8n thực thi qua webhook N8n và ghi log Audit sau khi nhận callback từ Mattermost (Issue #277).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 ### Added
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
