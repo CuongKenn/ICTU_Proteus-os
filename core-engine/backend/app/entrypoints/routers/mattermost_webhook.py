@@ -68,7 +68,7 @@ async def mattermost_interactive_callback(
         payload_dict = await request.json()
         payload = MattermostCallbackPayload(**payload_dict)
     except Exception as e:
-        logger.error(f"Error parsing mattermost payload: {e}")
+        logger.error("Error parsing mattermost payload: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Payload không hợp lệ"
         )
@@ -80,7 +80,9 @@ async def mattermost_interactive_callback(
 
     if action == "approve":
         logger.info(
-            f"Yêu cầu {action_id} được PHÊ DUYỆT bởi user {user_id}. Kích hoạt n8n execute."
+            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n execute.",
+            action_id,
+            user_id,
         )
         # TODO: Cập nhật trạng thái lệnh trong DB thành APPROVED
         # TODO: Gọi n8n_adapter.trigger_webhook()
@@ -88,12 +90,12 @@ async def mattermost_interactive_callback(
 
         return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
     elif action == "reject":
-        logger.info(f"Yêu cầu {action_id} BỊ TỪ CHỐI bởi user {user_id}.")
+        logger.info("Yêu cầu %s BỊ TỪ CHỐI bởi user %s.", action_id, user_id)
         # TODO: Cập nhật trạng thái lệnh trong DB thành REJECTED
 
         return {"ephemeral_text": f"Bạn đã từ chối hành động {action_id}."}
     else:
-        logger.warning(f"Unknown action {action} from mattermost")
+        logger.warning("Unknown action %s from mattermost", action)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Action không hợp lệ"
         )

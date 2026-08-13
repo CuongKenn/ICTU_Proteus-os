@@ -50,7 +50,7 @@ async def test_configure_plugin_credentials_success(override_auth):
         "credential_id": "cred-123",
         "safe_name": "tenant_11111111-1111-1111-1111-111111111111_my_smtp",
     }
-    
+
     app.dependency_overrides[get_plugin_credentials_use_case] = lambda: mock_use_case
 
     async with AsyncClient(app=app, base_url="http://test") as client:
@@ -67,7 +67,7 @@ async def test_configure_plugin_credentials_success(override_auth):
     assert response.status_code == 201
     assert response.json()["credential_id"] == "cred-123"
     mock_use_case.execute.assert_called_once()
-    
+
     # Cleanup
     app.dependency_overrides.pop(get_plugin_credentials_use_case, None)
 
@@ -76,7 +76,7 @@ async def test_configure_plugin_credentials_success(override_auth):
 async def test_configure_plugin_credentials_failure(override_auth):
     mock_use_case = AsyncMock(spec=ConfigurePluginCredentialsUseCase)
     mock_use_case.execute.side_effect = N8nAdapterError("API Error")
-    
+
     app.dependency_overrides[get_plugin_credentials_use_case] = lambda: mock_use_case
 
     async with AsyncClient(app=app, base_url="http://test") as client:
@@ -92,6 +92,6 @@ async def test_configure_plugin_credentials_failure(override_auth):
 
     assert response.status_code == 400
     assert "API Error" in response.json()["detail"]
-    
+
     # Cleanup
     app.dependency_overrides.pop(get_plugin_credentials_use_case, None)
