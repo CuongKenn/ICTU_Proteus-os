@@ -231,6 +231,9 @@ export const AIChatWidget: React.FC = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendCommand();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      minimizeWidget();
     }
   };
 
