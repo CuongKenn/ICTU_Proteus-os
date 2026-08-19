@@ -147,6 +147,7 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
 fi
 
 
+
 # 8. Tự động hóa cấu hình n8n (Zero-Touch Provisioning)
 echo "⚙️  Đang cấu hình n8n (Tạo Owner Account & API Key)..."
 N8N_URL="http://localhost:5678"
@@ -250,6 +251,80 @@ if [ $APP_ELAPSED -lt $APP_TIMEOUT ] && grep -q "APPSMITH_API_KEY=CHANGE_ME_GET_
     echo "⚠️ Không thể đăng nhập Appsmith để lấy cookie. Vui lòng lấy thủ công tại: http://apps.$DOMAIN"
   fi
   rm -f /tmp/appsmith_cookie.txt
+fi
+
+
+
+
+# 10. Tự động hóa lấy Keycloak Secrets và Outline Secrets
+echo "⚙️  Đang lấy Keycloak Secrets và cấu hình Outline..."
+
+# Sinh Outline secrets
+if grep -q "OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL" .env; then
+  OUTLINE_SECRET_KEY=$(openssl rand -hex 32)
+  OUTLINE_UTILS_SECRET=$(openssl rand -hex 32)
+  sed -i.bak "s|OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL|OUTLINE_SECRET_KEY=$OUTLINE_SECRET_KEY|g" .env
+  sed -i.bak "s|OUTLINE_UTILS_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL|OUTLINE_UTILS_SECRET=$OUTLINE_UTILS_SECRET|g" .env
+  rm -f .env.bak
+  echo "✅ Đã sinh OUTLINE_SECRET_KEY và OUTLINE_UTILS_SECRET"
+fi
+
+KC_ADMIN_USER=$(grep -E "^KEYCLOAK_ADMIN_USER=" .env | cut -d '=' -f2)
+KC_ADMIN_PASS=$(grep -E "^KEYCLOAK_ADMIN_PASSWORD=" .env | cut -d '=' -f2)
+KC_REALM=$(grep -E "^KEYCLOAK_REALM=" .env | cut -d '=' -f2)
+KC_URL="http://localhost:8080" # Gọi trực tiếp tới container keycloak qua port 8080 (cần đảm bảo port 8080 được expose hoặc dùng docker exec)
+
+# Thực tế Keycloak có thể không expose port 8080 ra host, nếu chạy trên host không gọi được localhost:8080.
+# Thử gọi qua Traefik (auth.proteus.local) bằng cách thêm Host header nếu dùng localhost:80.
+KC_URL_TRAEFIK="http://localhost:80"
+HOST_HEADER="Host: auth.$DOMAIN"
+
+KC_TIMEOUT=120
+KC_ELAPSED=0
+while [ $KC_ELAPSED -lt $KC_TIMEOUT ]; do
+  if curl -sf -H "$HOST_HEADER" "$KC_URL_TRAEFIK/health/ready" > /dev/null; then
+    break
+  fi
+  sleep 5
+  KC_ELAPSED=$((KC_ELAPSED + 5))
+done
+
+if [ $KC_ELAPSED -lt $KC_TIMEOUT ]; then
+  # Lấy Token
+  KC_TOKEN=$(curl -s -X POST "$KC_URL_TRAEFIK/realms/master/protocol/openid-connect/token"     -H "$HOST_HEADER"     -d "client_id=admin-cli&grant_type=password&username=$KC_ADMIN_USER&password=$KC_ADMIN_PASS"     | jq -r '.access_token // empty')
+
+  if [ -n "$KC_TOKEN" ]; then
+    # Lấy BFF Client Secret
+    if grep -q "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
+      BFF_CLIENT_ID=$(curl -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=proteus-bff"         -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty')
+      if [ -n "$BFF_CLIENT_ID" ] && [ "$BFF_CLIENT_ID" != "null" ]; then
+        BFF_SECRET=$(curl -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$BFF_CLIENT_ID/client-secret"           -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.value // empty')
+        if [ -n "$BFF_SECRET" ] && [ "$BFF_SECRET" != "null" ]; then
+          sed -i.bak "s|KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI|KEYCLOAK_BFF_CLIENT_SECRET=$BFF_SECRET|g" .env
+          echo "✅ Đã lấy KEYCLOAK_BFF_CLIENT_SECRET"
+        fi
+      fi
+    fi
+
+    # Lấy Outline OIDC Secret
+    if grep -q "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
+      OUTLINE_CLIENT_ID=$(curl -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=outline"         -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty')
+      if [ -n "$OUTLINE_CLIENT_ID" ] && [ "$OUTLINE_CLIENT_ID" != "null" ]; then
+        OUTLINE_SECRET=$(curl -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$OUTLINE_CLIENT_ID/client-secret"           -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.value // empty')
+        if [ -n "$OUTLINE_SECRET" ] && [ "$OUTLINE_SECRET" != "null" ]; then
+          sed -i.bak "s|OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI|OUTLINE_OIDC_SECRET=$OUTLINE_SECRET|g" .env
+          echo "✅ Đã lấy OUTLINE_OIDC_SECRET"
+        fi
+      fi
+    fi
+    
+    rm -f .env.bak
+    
+    # Restart Frontend và Outline
+    docker compose restart frontend outline
+  else
+    echo "⚠️ Không thể đăng nhập vào Keycloak Admin CLI để lấy Secret. Vui lòng kiểm tra lại KEYCLOAK_ADMIN_PASSWORD."
+  fi
 fi
 
 

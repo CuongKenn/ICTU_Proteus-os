@@ -1,3 +1,6 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 "use client";
 
 import React from "react";
@@ -8,7 +11,7 @@ import {
   Package, 
   LayoutGrid, 
   MessageSquare,
-  FolderOpen,
+  AppWindow,
   BookOpen,
   Settings
 } from "lucide-react";
@@ -26,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
   const navigationLinks = [
     { name: "Launchpad", href: "/launchpad", icon: LayoutGrid, requiredRole: null },
     { name: "Chat", href: "/chat", icon: MessageSquare, requiredRole: null },
-    { name: "Files", href: "/files", icon: FolderOpen, requiredRole: null },
+    { name: "Apps", href: "/apps", icon: AppWindow, requiredRole: null, tooltip: "Low-code Application Builder (Appsmith)" },
     { name: "Wiki", href: "/wiki", icon: BookOpen, requiredRole: null },
     { name: "Marketplace", href: "/marketplace", icon: Package, requiredRole: "tenant_admin" },
     { name: "Settings", href: "/settings", icon: Settings, requiredRole: "tenant_admin" },
@@ -64,6 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
                 <Link
                   key={link.name}
                   href={link.href}
+                  title={link.tooltip || link.name}
                   className={clsx(
                     "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
                     isActive 

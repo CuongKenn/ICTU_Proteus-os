@@ -18,6 +18,7 @@ from app.adapters.repositories.base import (
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.entrypoints.schemas.ai_command import AICommandRequest
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class AICommandUseCase:
         )
         try:
             await self.mattermost_adapter.send_message(
-                channel="admin-channel", text=msg_text
+                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
             )
         except Exception as e:
             logger.warning("Could not send Mattermost approval request: %s", e)
@@ -218,9 +219,7 @@ class AICommandUseCase:
 
         if is_approved:
             try:
-                webhook_url = (
-                    f"http://n8n:5678/webhook/{cmd['action'].replace('.', '-')}"
-                )
+                webhook_url = self.n8n_adapter.build_webhook_url(cmd["action"])
                 await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=cmd["parameters"]
                 )

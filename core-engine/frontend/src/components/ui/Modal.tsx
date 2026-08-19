@@ -55,6 +55,23 @@ export const Modal: React.FC<ModalProps> = ({
     }
   }, [isOpen]);
 
+  // Bổ sung lắng nghe phím Escape để đóng Modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isRendered) return null;
 
   const canConfirm = !confirmKeyword || keywordInput === confirmKeyword;
