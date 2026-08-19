@@ -16,6 +16,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - Bổ sung công cụ `curl` vào cấu hình healthcheck của Keycloak để khắc phục lỗi container bị unhealthy (Issue #249).
 - **[core-engine/frontend]** Cập nhật `AuthProvider` thêm logic đồng bộ state từ NextAuth session sang Zustand `authStore`, sửa lỗi dead code khiến `useAuthStore.hasRole()` luôn trả về `false` (Issue #258).
 - **[core-engine/frontend]** Sửa lỗi Marketplace truyền sai `plugin.id` (UUID) thay vì `code_name` khi gọi API cài đặt, gây lỗi 422 Unprocessable Entity (Issue #259).
+- **[core-engine/frontend]** Cập nhật toàn bộ source code frontend sử dụng `logger` wrapper thay vì `console.*` thô để tuân thủ AGENTS.md §7 (Logging Standards). Thêm quy tắc ESLint `no-console` (Issue #256).
 - Loại bỏ `METABASE_EMBEDDING_KEY` khỏi `.env.example`, `docker-compose.yml` và config (Optional) vì hệ thống đã chuyển sang Metabase OSS (Issue #253).
 - **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
 - **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).

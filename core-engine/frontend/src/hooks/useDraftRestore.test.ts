@@ -4,6 +4,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useDraftRestore } from './useDraftRestore';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { logger } from '@/lib/logger';
 
 describe('useDraftRestore', () => {
   beforeEach(() => {
@@ -59,7 +60,7 @@ describe('useDraftRestore', () => {
 
   it('should handle invalid JSON during restore gracefully', () => {
     sessionStorage.setItem('badJSON', '{ invalid');
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     
     const { result } = renderHook(() => useDraftRestore());
     
@@ -69,8 +70,8 @@ describe('useDraftRestore', () => {
     });
 
     expect(data).toBeNull();
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalled();
     
-    consoleWarnSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 });
