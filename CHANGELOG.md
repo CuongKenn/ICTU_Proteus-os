@@ -6,10 +6,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app]** Đổi tên `PermissionError` thành `TenantPermissionError` và cập nhật logic kiểm tra quyền trong `get_tenant()` để làm rõ các lỗi liên quan đến phân quyền Tenant (Issue #278).
 - **[core-engine/frontend/src/components/AIChatWidget.tsx]** Bổ sung sự kiện lắng nghe phím `Escape` (`keydown`) để tự động thu nhỏ/đóng AIChatWidget khi người dùng bấm phím Esc. Cải thiện trải nghiệm người dùng (UX) và tính khả dụng của giao diện (Issue #380).
 - **[core-engine/backend/app/adapters/external/keycloak_adapter.py]** Fix lỗi truyền hardcode `admin_token` khi cài đặt Plugin và Onboarding Tenant. Sử dụng Client Credentials Grant để gọi Admin API an toàn (Issue #279).
 - **[core-engine/backend]** Implement logic xử lý phê duyệt AI Command từ Mattermost Webhook callback. Inject `AICommandUseCase` và `AuditLogRepository` vào webhook handler, tự động cập nhật trạng thái lệnh (APPROVED/REJECTED), ghi log và kích hoạt `n8n` webhook khi được phê duyệt (Issue #277).
-- **[core-engine/backend]** Tự động lấy admin_token thông qua Client Credentials Grant để KeycloakAdapter giao tiếp với Admin API. Loại bỏ hardcode dummy token khi tạo role trong quá trình cài đặt plugin và tenant onboarding (Issue #279).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 - **[core-engine/frontend]** Bổ sung `middleware.ts` để bảo vệ các route yêu cầu đăng nhập, khắc phục lỗ hổng cho phép truy cập trái phép vào `/launchpad` (Issue #265).
 - **[deploy/docker-compose.yml]** Hạ cấp Traefik từ `v3.1` xuống `v2.11` để khắc phục lỗi không thể discover Docker services do Traefik v3.1 hardcode Docker API version 1.24 không tương thích (Issue #264).
