@@ -56,7 +56,7 @@ class MetabaseAdapter:
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._base_url: str = settings.METABASE_URL.rstrip("/")
-        self._embedding_key: str = settings.METABASE_EMBEDDING_KEY
+        self._embedding_key: str | None = settings.METABASE_EMBEDDING_KEY
         self._headers: dict[str, str] = {
             "Content-Type": "application/json",
         }
@@ -259,6 +259,9 @@ class MetabaseAdapter:
         Returns:
             Signed URL dạng: {METABASE_URL}/embed/dashboard/{token}#bordered=true&titled=true
         """
+        if not self._embedding_key:
+            raise MetabaseAdapterError("METABASE_EMBEDDING_KEY is not configured.")
+
         # Tạo payload JWT-like theo chuẩn Metabase embedding
         # Metabase OSS sử dụng JWT token signed với EMBEDDING_KEY
         payload = {

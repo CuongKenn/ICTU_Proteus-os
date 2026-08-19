@@ -205,7 +205,6 @@ services:
       MB_DB_HOST: postgres
       MB_DB_SCHEMA: metabase
       MB_SITE_URL: http://analytics.${DOMAIN}
-      MB_EMBEDDING_SECRET_KEY: ${METABASE_EMBEDDING_KEY}
     depends_on:
       postgres:
         condition: service_healthy
