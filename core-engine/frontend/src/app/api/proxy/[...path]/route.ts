@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
+import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
@@ -41,7 +42,7 @@ async function proxyHandler(
     try {
       body = await request.text();
     } catch (error) {
-      console.error("[BFF] Lỗi đọc request body:", error);
+      logger.error("[BFF] Lỗi đọc request body:", error);
       return NextResponse.json(
         { error: "Invalid request body format or stream interrupted" },
         { status: 400 }

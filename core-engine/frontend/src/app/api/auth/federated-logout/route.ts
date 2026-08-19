@@ -3,6 +3,7 @@
 
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     const issuerUrl = process.env.KEYCLOAK_ISSUER;
     if (!issuerUrl) {
-      console.warn("Missing KEYCLOAK_ISSUER for federated logout");
+      logger.warn("Missing KEYCLOAK_ISSUER for federated logout");
       return NextResponse.json({ url: "/login" });
     }
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ url: logoutUrl });
   } catch (error) {
-    console.error("Federated logout error:", error);
+    logger.error("Federated logout error:", error);
     return NextResponse.json({ url: "/login" });
   }
 }

@@ -301,11 +301,6 @@ async def get_user_provisioning_use_case(
     return UserProvisioningUseCase(user_repo=repo)
 
 
-async def get_mattermost_adapter() -> MattermostAdapter:
-    """Inject MattermostAdapter."""
-    return MattermostAdapter()
-
-
 async def get_keycloak_webhook_use_case(
     user_repo: AbstractUserRepository = Depends(get_user_repo),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),

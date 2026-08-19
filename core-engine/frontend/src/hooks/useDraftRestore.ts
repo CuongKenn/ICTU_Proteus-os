@@ -4,6 +4,7 @@
 // useDraftRestore — Custom Hook xử lý dữ liệu draft qua sessionStorage
 
 import { useCallback } from "react";
+import { logger } from "@/lib/logger";
 
 interface UseDraftRestoreReturn {
   saveDraft: <T>(key: string, data: T) => void;
@@ -18,7 +19,7 @@ export function useDraftRestore(): UseDraftRestoreReturn {
         sessionStorage.setItem(key, JSON.stringify(data));
       }
     } catch (error) {
-      console.warn("[useDraftRestore] Failed to save draft:", error);
+      logger.warn("[useDraftRestore] Failed to save draft:", error);
     }
   }, []);
 
@@ -32,7 +33,7 @@ export function useDraftRestore(): UseDraftRestoreReturn {
       }
       return null;
     } catch (error) {
-      console.warn("[useDraftRestore] Failed to restore draft:", error);
+      logger.warn("[useDraftRestore] Failed to restore draft:", error);
       return null;
     }
   }, []);
@@ -43,7 +44,7 @@ export function useDraftRestore(): UseDraftRestoreReturn {
         sessionStorage.removeItem(key);
       }
     } catch (error) {
-      console.warn("[useDraftRestore] Failed to clear draft:", error);
+      logger.warn("[useDraftRestore] Failed to clear draft:", error);
     }
   }, []);
 

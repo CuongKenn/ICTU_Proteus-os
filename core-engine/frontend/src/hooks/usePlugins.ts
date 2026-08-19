@@ -7,6 +7,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import type { Plugin, PluginListResponse } from "@/types";
 
@@ -42,9 +43,7 @@ export function usePlugins(): UsePluginsReturn {
           setPlugins(response.data.items);
         }
       } catch (err: unknown) {
-        if (process.env.NODE_ENV === "development") {
-          console.error("[usePlugins] fetch error:", err);
-        }
+        logger.error("[usePlugins] fetch error:", err);
         if (!cancelled) {
           setError("Không thể tải danh sách Plugin. Vui lòng thử lại.");
           useNotificationStore.getState().addToast("error", "Không thể tải danh sách Plugin.");

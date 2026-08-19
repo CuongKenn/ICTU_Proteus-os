@@ -5,6 +5,7 @@
 # Xử lý DX-DSL actions với các effect: read, write, critical.
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -68,14 +69,15 @@ class AICommandUseCase:
 
         # 2. Xử lý theo effect
         if body.effect == "read":
-            # Chạy ngay lập tức thông qua n8n webhook
+            # Lệnh Read → Gửi n8n execute lập tức (vì là webhook trigger proxy)
             try:
                 webhook_url = self.n8n_adapter.build_webhook_url(body.action)
                 response = await self.n8n_adapter.trigger_webhook(
-                    webhook_url=webhook_url, payload=body.parameters
+                    webhook_url=webhook_url,
+                    payload=body.model_dump(),
                 )
 
-                # Ghi log command thành công
+                # Lưu DB ngay
                 await self.ai_command_repo.create_command(
                     {
                         "id": body.command_id,
@@ -85,9 +87,13 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": (
+                            json.dumps(body.parameters) if body.parameters else "{}"
+                        ),
                         "status": AICommandStatus.COMPLETED.value,
-                        "execution_result": str(response).replace("'", '"'),
+                        "execution_result": (
+                            json.dumps(response) if response is not None else None
+                        ),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -110,9 +116,11 @@ class AICommandUseCase:
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": str(body.parameters).replace("'", '"'),
+                        "parameters": (
+                            json.dumps(body.parameters) if body.parameters else "{}"
+                        ),
                         "status": AICommandStatus.FAILED.value,
-                        "execution_result": str({"error": str(e)}).replace("'", '"'),
+                        "execution_result": json.dumps({"error": str(e)}),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -145,10 +153,12 @@ class AICommandUseCase:
                 "dsl_version": body.dsl_version,
                 "action": body.action,
                 "effect": body.effect,
-                "parameters": str(body.parameters).replace("'", '"'),
+                "parameters": json.dumps(body.parameters) if body.parameters else "{}",
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
-                "dry_run_result": str(dry_run_res).replace("'", '"'),
+                "dry_run_result": (
+                    json.dumps(dry_run_res) if dry_run_res is not None else None
+                ),
                 "created_at": now,
             }
         )
