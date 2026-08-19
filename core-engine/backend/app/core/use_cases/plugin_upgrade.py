@@ -139,6 +139,8 @@ class PluginUpgradeUseCase:
 
         # Thuc thi Migration voi RLS
         try:
+            schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+            await self.session.execute(text(f"SET LOCAL search_path TO {schema_name}"))
             await self.session.execute(text("SET LOCAL role = 'tenant_admin'"))
             await self.session.execute(
                 text(f"SET LOCAL app.current_tenant = '{context.tenant_id}'")

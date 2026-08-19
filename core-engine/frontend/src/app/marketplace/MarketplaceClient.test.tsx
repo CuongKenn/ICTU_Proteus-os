@@ -77,9 +77,9 @@ describe("MarketplaceClient", () => {
     expect(screen.getByText("CRM Tối giản")).toBeInTheDocument();
   });
 
-  it("opens install preview dialog when INSTALL is clicked", async () => {
+  it("opens install preview dialog when Nhận is clicked", async () => {
     render(<MarketplaceClient />);
-    const installBtn = screen.getByText("INSTALL");
+    const installBtn = screen.getByText("Nhận");
     fireEvent.click(installBtn);
 
     expect(screen.getByText("Xác nhận cài đặt Plugin")).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("MarketplaceClient", () => {
 
   it("calls installPlugin when confirmed", async () => {
     render(<MarketplaceClient />);
-    fireEvent.click(screen.getByText("INSTALL"));
+    fireEvent.click(screen.getByText("Nhận"));
 
     const confirmBtn = screen.getByRole("button", { name: "Cài đặt" });
     fireEvent.click(confirmBtn);
@@ -130,7 +130,7 @@ describe("MarketplaceClient", () => {
     });
     render(<MarketplaceClient />);
 
-    expect(screen.queryByText("INSTALL")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nhận")).not.toBeInTheDocument();
     expect(screen.queryByTitle("Gỡ cài đặt")).not.toBeInTheDocument();
   });
 });

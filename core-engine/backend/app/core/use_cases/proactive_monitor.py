@@ -58,7 +58,7 @@ class ProactiveMonitorAgent:
                     f"[Quản lý Plugin]({settings.FRONTEND_URL}/admin/plugins)"
                 )
                 await self.mattermost_adapter.send_message(
-                    channel="admin-alerts", text=msg
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
                 )
 
         except Exception as e:
@@ -76,7 +76,7 @@ class ProactiveMonitorAgent:
                     f"Nếu không có ai phê duyệt, lệnh này sẽ bị huỷ bỏ tự động."
                 )
                 await self.mattermost_adapter.send_message(
-                    channel="approval-alerts", text=msg
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
                 )
         except Exception as e:
             logger.error("[Proactive Monitor] Lỗi quét ai_commands: %s", e)
@@ -103,7 +103,7 @@ class ProactiveMonitorAgent:
                     f"[Duyệt Nghỉ Phép]({settings.FRONTEND_URL}/apps/hr)"
                 )
                 await self.mattermost_adapter.send_message(
-                    channel="hr-alerts", text=msg
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
                 )
         except Exception as e:
             logger.error("[Proactive Monitor] Lỗi quét HR leaves: %s", e)
@@ -116,6 +116,8 @@ class ProactiveMonitorAgent:
                 "- Scheduler: `Active` ⏱️\n\n"
                 "Chúc mọi người một ngày làm việc hiệu quả!"
             )
-            await self.mattermost_adapter.send_message(channel="general", text=msg)
+            await self.mattermost_adapter.send_message(
+                settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+            )
         except Exception as e:
             logger.error("[Proactive Monitor] Lỗi gửi morning report: %s", e)
