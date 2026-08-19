@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     # ─── Metabase (BI & Reports) ──────────────────────────────
     METABASE_URL: str = "http://localhost:3001"
-    METABASE_EMBEDDING_KEY: str = ""
+    METABASE_EMBEDDING_KEY: str | None = None
 
     # ─── Appsmith (Low-code UI) ───────────────────────────────
     APPSMITH_URL: str = "http://localhost:8085"

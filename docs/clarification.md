@@ -81,7 +81,7 @@ Kịch bản: Nhân viên nghỉ việc, Admin bấm "Disable" trong Keycloak.
 
 ### 4.2. Phương án cho Proteus OS (Metabase OSS)
 
-Proteus OS sử dụng **Public Embedding kết hợp Row-Level Security** để đạt mức bảo mật tương đương:
+Proteus OS sử dụng **Public Embedding kết hợp Row-Level Security** để đạt mức bảo mật tương đương. Do đó, hệ thống hoàn toàn không cần cấu hình biến `METABASE_EMBEDDING_KEY`:
 
 1. **Bộ lọc cứng trên Dashboard:** Mỗi Metabase Question/Dashboard được cấu hình sẵn filter `tenant_id = {{tenant_id}}` dưới dạng Locked Parameter. Người xem không thể thay đổi filter này từ giao diện.
 
