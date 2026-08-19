@@ -49,9 +49,15 @@ async def test_metabase_adapter_delete_dashboard_success(adapter):
 
 
 def test_metabase_adapter_get_embed_url(adapter):
+    adapter._embedding_key = "dummy_key_for_test_purposes"
     url = adapter.get_embed_url(dashboard_id="123", tenant_id="tenant-1", ttl=60)
     assert "embed/dashboard/" in url
     assert "bordered=true&titled=true" in url
+
+def test_metabase_adapter_get_embed_url_no_key(adapter):
+    adapter._embedding_key = None
+    with pytest.raises(MetabaseAdapterError, match="METABASE_EMBEDDING_KEY is not configured."):
+        adapter.get_embed_url(dashboard_id="123", tenant_id="tenant-1", ttl=60)
 
 
 @pytest.mark.asyncio
