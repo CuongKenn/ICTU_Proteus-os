@@ -14,8 +14,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix SQL injection risk bằng cách cấm các lệnh SQL nguy hiểm bổ sung. Cấu hình schema `search_path` để sandbox SQL cho từng tenant. Bổ sung database rollback (DROP TABLE) trong quá trình cài đặt plugin (Issue #281).
 - **[core-engine/frontend]** Bổ sung `middleware.ts` để bảo vệ các route yêu cầu đăng nhập, khắc phục lỗ hổng cho phép truy cập trái phép vào `/launchpad` (Issue #265).
 - **[deploy/docker-compose.yml]** Hạ cấp Traefik từ `v3.1` xuống `v2.11` để khắc phục lỗi không thể discover Docker services do Traefik v3.1 hardcode Docker API version 1.24 không tương thích (Issue #264).
+- Bổ sung công cụ `curl` vào cấu hình healthcheck của Keycloak để khắc phục lỗi container bị unhealthy (Issue #249).
 - **[core-engine/frontend]** Cập nhật `AuthProvider` thêm logic đồng bộ state từ NextAuth session sang Zustand `authStore`, sửa lỗi dead code khiến `useAuthStore.hasRole()` luôn trả về `false` (Issue #258).
 - **[core-engine/frontend]** Sửa lỗi Marketplace truyền sai `plugin.id` (UUID) thay vì `code_name` khi gọi API cài đặt, gây lỗi 422 Unprocessable Entity (Issue #259).
+- Loại bỏ `METABASE_EMBEDDING_KEY` khỏi `.env.example`, `docker-compose.yml` và config (Optional) vì hệ thống đã chuyển sang Metabase OSS (Issue #253).
 - **[core-engine/backend/app/core/use_cases/plugin_cleanup_agent.py]** Sửa lỗi hardcode `channel_id="admin-channel"` thành giá trị `settings.MATTERMOST_SYSTEM_CHANNEL_ID` cấu hình từ hệ thống, đồng thời sửa lỗi gọi sai phương thức (`send_notification` thành `send_message`) để sửa lỗi gọi Mattermost API thất bại (Issue #329).
 - **[core-engine/frontend]** Sửa lỗi không đăng xuất hoàn toàn khỏi Keycloak. Thêm API Route `/api/auth/federated-logout` để thực hiện Federated Logout, đảm bảo xóa cả session cục bộ và session trên IdP (Issue #330).
 - **[core-engine/frontend]** Cập nhật `LaunchpadClient` sử dụng biến môi trường `NEXT_PUBLIC_*` thay vì hardcode localhost URLs, đảm bảo các link đến Mattermost, Outline Wiki, và n8n hoạt động đúng trên môi trường deploy qua Traefik (Issue #260).
