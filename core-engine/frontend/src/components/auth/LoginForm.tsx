@@ -21,6 +21,8 @@ export const LoginForm: React.FC = () => {
   React.useEffect(() => {
     if (error === "RefreshAccessTokenError") {
       addToast("error", "Phiên làm việc hết hạn. Vui lòng đăng nhập lại.", 10000);
+    } else if (error === "InvalidEmailDomain") {
+      addToast("error", "Đăng nhập thất bại. Vui lòng sử dụng email @ictu.edu.vn.", 10000);
     } else if (error) {
       addToast("error", "Đăng nhập không thành công. Vui lòng thử lại.");
     }
