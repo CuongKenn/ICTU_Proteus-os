@@ -13,6 +13,7 @@ export type PluginStatus = "available" | "installing" | "active" | "update_avail
 
 export interface PluginData {
   id: string;
+  code_name: string;
   name: string;
   version: string;
   description: string;

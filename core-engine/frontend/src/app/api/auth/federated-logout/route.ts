@@ -1,3 +1,6 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 

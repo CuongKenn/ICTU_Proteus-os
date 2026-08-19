@@ -56,6 +56,7 @@ export const MarketplaceClient: React.FC = () => {
       list.push({
         data: {
           id: p.id,
+          codeName: p.code_name,
           name: p.display_name,
           version: p.version,
           description: (p as any).description || "Không có mô tả cho ứng dụng này.",
@@ -72,7 +73,7 @@ export const MarketplaceClient: React.FC = () => {
 
     // Add available plugins
     availablePlugins.forEach(p => {
-      // Don't add if already in installed list (by code_name)
+      // Don't add if already in installed list (by codeName)
       if (!installedPlugins.find(ip => ip.code_name === p.code_name)) {
         let cat = (p as any).category;
         if (!cat) {
@@ -85,6 +86,7 @@ export const MarketplaceClient: React.FC = () => {
         list.push({
           data: {
             id: p.id,
+            codeName: p.code_name,
             name: p.display_name,
             version: p.version,
             description: p.description || "Không có mô tả cho ứng dụng này.",
@@ -136,7 +138,7 @@ export const MarketplaceClient: React.FC = () => {
         }
       }
       setIsInstallPreviewOpen(false);
-      await installPlugin(previewPlugin.id);
+      await installPlugin(previewPlugin.codeName || "");
     }
   };
 

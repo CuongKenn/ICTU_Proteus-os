@@ -6,6 +6,10 @@
 import React, { useState } from "react";
 import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
+
+const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://localhost:8065";
+const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://localhost:3000";
+const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://localhost:5678";
 import { useNotificationStore } from "@/store/notificationStore";
 import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -69,17 +73,17 @@ export function LaunchpadClient() {
         <AppIcon
           appName="Mattermost"
           icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
-          onClick={() => openInNewTab("http://localhost:8065")}
+          onClick={() => openInNewTab(MATTERMOST_URL)}
         />
         <AppIcon
           appName="Outline Wiki"
           icon={<FileText className="w-8 h-8 text-text-secondary" />}
-          onClick={() => openInNewTab("http://localhost:3000")} // Assuming Outline URL port
+          onClick={() => openInNewTab(OUTLINE_URL)}
         />
         <AppIcon
           appName="n8n Workflow"
           icon={<Network className="w-8 h-8 text-orange-500" />}
-          onClick={() => openIframe("n8n", "http://localhost:5678")}
+          onClick={() => openIframe("n8n", N8N_URL)}
         />
         <AppIcon
           appName="Metabase"
