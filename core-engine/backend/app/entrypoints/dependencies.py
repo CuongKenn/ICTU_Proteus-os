@@ -24,8 +24,10 @@ from app.adapters.external.outline_adapter import OutlineAdapter
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
+from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
+    AbstractAuditLogRepository,
     AbstractDSLDryRunRepository,
     AbstractPluginRepository,
     AbstractTenantRepository,
@@ -61,6 +63,15 @@ async def get_plugin_repo(
 ) -> AbstractPluginRepository:
     """Inject Plugin Repository."""
     return SQLAlchemyPluginRepository(session=db)
+
+
+async def get_audit_log_repo(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> AbstractAuditLogRepository:
+    """Inject Audit Log Repository."""
+    from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
+
+    return SQLAlchemyAuditLogRepository(session=db)
 
 
 async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
@@ -320,6 +331,13 @@ async def get_dsl_dry_run_repo(
 ) -> AbstractDSLDryRunRepository:
     """Inject DSL Dry Run Repository."""
     return SQLAlchemyDSLDryRunRepository(session=db)
+
+
+async def get_audit_log_repo(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> AbstractAuditLogRepository:
+    """Inject Audit Log Repository."""
+    return SQLAlchemyAuditLogRepository(session=db)
 
 
 async def get_ai_command_use_case(
