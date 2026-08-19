@@ -15,6 +15,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/docker-compose.yml]** Hạ cấp Traefik từ `v3.1` xuống `v2.11` để khắc phục lỗi không thể discover Docker services do Traefik v3.1 hardcode Docker API version 1.24 không tương thích (Issue #264).
 - Bổ sung công cụ `curl` vào cấu hình healthcheck của Keycloak để khắc phục lỗi container bị unhealthy (Issue #249).
 - **[core-engine/frontend]** Cập nhật `AuthProvider` thêm logic đồng bộ state từ NextAuth session sang Zustand `authStore`, sửa lỗi dead code khiến `useAuthStore.hasRole()` luôn trả về `false` (Issue #258).
+- **[core-engine/backend/app/adapters/external/mattermost_adapter.py]** Tái sử dụng `http_client` toàn cục để khắc phục lỗi connection leak, thay thế hardcode URL bằng biến môi trường (Issue #274).
 - **[core-engine/frontend]** Sửa lỗi Marketplace truyền sai `plugin.id` (UUID) thay vì `code_name` khi gọi API cài đặt, gây lỗi 422 Unprocessable Entity (Issue #259).
 - **[core-engine/frontend]** Cập nhật toàn bộ source code frontend sử dụng `logger` wrapper thay vì `console.*` thô để tuân thủ AGENTS.md §7 (Logging Standards). Thêm quy tắc ESLint `no-console` (Issue #256).
 - Loại bỏ `METABASE_EMBEDDING_KEY` khỏi `.env.example`, `docker-compose.yml` và config (Optional) vì hệ thống đã chuyển sang Metabase OSS (Issue #253).

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
     FRONTEND_URL: str = "http://localhost:3000"
+    BACKEND_URL: str = "http://localhost:8000"
 
     # ─── Database ─────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://proteus:proteus@localhost:5432/proteus"
