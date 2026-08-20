@@ -110,6 +110,7 @@ async def install_plugin(
     )
 
     # Chạy cài đặt ngầm bằng BackgroundTasks
+    task_id = str(plugin_id)
     background_tasks.add_task(
         use_case.execute, context=ctx, plugin_code_name=plugin.code_name
     )
@@ -118,6 +119,37 @@ async def install_plugin(
         "message": "Plugin installation queued.",
         "plugin_id": str(plugin_id),
         "status": "INSTALLING",
+        "data": {"task_id": task_id}
+    }
+
+
+@router.get(
+    "/install/{task_id}/status",
+    status_code=status.HTTP_200_OK,
+    summary="Kiểm tra trạng thái cài đặt",
+)
+async def get_install_status(
+    task_id: uuid.UUID,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+) -> dict[str, Any]:
+    # In this simplified architecture, task_id is actually plugin_id
+    status_val = await repo.get_installation_status(ctx.tenant_id, task_id)
+    
+    overall_status = "PENDING"
+    if status_val == PluginStatus.ACTIVE:
+        overall_status = "COMPLETED"
+    elif status_val == PluginStatus.INSTALLING:
+        overall_status = "IN_PROGRESS"
+    elif status_val == PluginStatus.FAILED_DIRTY:
+        overall_status = "FAILED"
+        
+    return {
+        "data": {
+            "task_id": str(task_id),
+            "overall_status": overall_status,
+            "steps": []
+        }
     }
 
 

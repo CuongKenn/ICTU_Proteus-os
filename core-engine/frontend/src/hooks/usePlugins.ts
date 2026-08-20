@@ -17,7 +17,7 @@ interface UsePluginsReturn {
   error: string | null;
   refetch: () => void;
   install: (pluginId: string) => Promise<{ task_id: string }>;
-  uninstall: (pluginId: string) => Promise<void>;
+  uninstall: (pluginId: string, confirmName: string) => Promise<void>;
   disable: (pluginId: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
   configureCredentials: (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => Promise<any>;
@@ -71,9 +71,9 @@ export function usePlugins(): UsePluginsReturn {
     }
   }, []);
 
-  const uninstall = useCallback(async (pluginId: string) => {
+  const uninstall = useCallback(async (pluginId: string, confirmName: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/uninstall`, {});
+      await api.delete(`/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
       useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
       refetch();
     } catch (err) {
