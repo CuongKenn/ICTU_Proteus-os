@@ -21,6 +21,7 @@ class PluginListUseCase:
     def __init__(self, plugin_repo: AbstractPluginRepository):
         self.plugin_repo = plugin_repo
         from app.adapters.external.local_manifest_parser import LocalManifestParser
+
         self.manifest_parser = LocalManifestParser()
 
     async def list_marketplace(
@@ -28,7 +29,9 @@ class PluginListUseCase:
     ) -> tuple[list[PluginEntity], int]:
         """Liệt kê tất cả Plugin trên Marketplace."""
         logger.info("Listing marketplace plugins (limit=%s, offset=%s)", limit, offset)
-        plugins, total = await self.plugin_repo.list_marketplace(limit=limit, offset=offset)
+        plugins, total = await self.plugin_repo.list_marketplace(
+            limit=limit, offset=offset
+        )
         self._enrich_with_manifest(plugins)
         return plugins, total
 
@@ -46,8 +49,12 @@ class PluginListUseCase:
         for plugin in plugins:
             try:
                 manifest = self.manifest_parser.parse(plugin.code_name)
-                plugin.tables_count = len(manifest.database.tables) if manifest.database else 0
+                plugin.tables_count = (
+                    len(manifest.database.tables) if manifest.database else 0
+                )
                 plugin.workflows_count = len(manifest.workflows)
                 plugin.roles = [r.name for r in manifest.roles]
             except Exception as e:
-                logger.warning("Failed to load manifest for %s: %s", plugin.code_name, e)
+                logger.warning(
+                    "Failed to load manifest for %s: %s", plugin.code_name, e
+                )
