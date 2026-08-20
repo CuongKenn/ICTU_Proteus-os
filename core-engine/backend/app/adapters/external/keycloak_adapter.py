@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, cast
@@ -32,6 +33,7 @@ class KeycloakAdapter:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cached_at: float = 0.0
+        self._jwks_lock = asyncio.Lock()
         # Nếu không truyền client (VD: fallback hoặc test),
         # tạo mới nhưng không tối ưu pooling
         self._client = client or httpx.AsyncClient()
@@ -48,15 +50,24 @@ class KeycloakAdapter:
         ):
             return self._jwks_cache
 
-        logger.debug(
-            "Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url}
-        )
-        response = await self._client.get(settings.keycloak_jwks_url, timeout=10.0)
-        response.raise_for_status()
-        self._jwks_cache = response.json()
-        self._jwks_cached_at = now
-        logger.info("JWKS cache refreshed")
-        return self._jwks_cache
+        async with self._jwks_lock:
+            # Double-check sau khi có lock
+            now_locked = time.monotonic()
+            if (
+                self._jwks_cache is not None
+                and (now_locked - self._jwks_cached_at) < self._JWKS_TTL_SECONDS
+            ):
+                return self._jwks_cache
+
+            logger.debug(
+                "Fetching JWKS from Keycloak", extra={"url": settings.keycloak_jwks_url}
+            )
+            response = await self._client.get(settings.keycloak_jwks_url, timeout=10.0)
+            response.raise_for_status()
+            self._jwks_cache = response.json()
+            self._jwks_cached_at = now_locked
+            logger.info("JWKS cache refreshed")
+            return self._jwks_cache
 
     async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
