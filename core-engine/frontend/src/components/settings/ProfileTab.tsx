@@ -22,9 +22,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-xl font-bold text-text-primary">Profile Details</h2>
+        <h2 className="text-xl font-bold text-text-primary">Thông tin Cá nhân</h2>
         <p className="text-text-secondary text-sm mt-1">
-          Manage your personal information and preferences.
+          Quản lý thông tin cá nhân và tuỳ chọn của bạn.
         </p>
       </div>
 
@@ -40,7 +40,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
 
       <div className="space-y-6">
         <div className="grid gap-2">
-          <label className="text-sm font-medium text-text-primary">Full Name</label>
+          <label className="text-sm font-medium text-text-primary">Họ và Tên</label>
           <input
             type="text"
             readOnly
@@ -49,7 +49,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
           />
         </div>
         <div className="grid gap-2">
-          <label className="text-sm font-medium text-text-primary">Email Address</label>
+          <label className="text-sm font-medium text-text-primary">Địa chỉ Email</label>
           <input
             type="email"
             readOnly
@@ -63,17 +63,17 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
             <User className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-sm font-medium text-text-primary">Managed by Keycloak</h4>
+            <h4 className="text-sm font-medium text-text-primary">Quản lý bởi Keycloak</h4>
             <p className="text-xs text-text-secondary mt-1 max-w-md">
-              Your profile information is securely managed by the central identity provider. 
-              To change your name, email, or password, please visit the account portal.
+              Thông tin cá nhân của bạn được quản lý bởi Identity Provider trung tâm.
+              Để thay đổi họ tên, email hoặc mật khẩu, vui lòng truy cập cổng Keycloak.
             </p>
             <Button
               variant="secondary"
               className="mt-4"
               onClick={() => window.open(accountUrl, "_blank")}
             >
-              Manage Account <ExternalLink className="w-4 h-4 ml-2" />
+              Quản lý Tài khoản <ExternalLink className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </div>

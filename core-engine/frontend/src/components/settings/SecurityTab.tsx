@@ -14,9 +14,9 @@ export const SecurityTab = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-xl font-bold text-text-primary">Security Settings</h2>
+        <h2 className="text-xl font-bold text-text-primary">Cài đặt Bảo mật</h2>
         <p className="text-text-secondary text-sm mt-1">
-          Manage your account security, passwords, and active sessions.
+          Quản lý bảo mật tài khoản, mật khẩu và phiên đăng nhập.
         </p>
       </div>
 
@@ -27,14 +27,14 @@ export const SecurityTab = () => {
               <Key className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">Password</h3>
+              <h3 className="font-semibold text-text-primary">Mật khẩu</h3>
               <p className="text-sm text-text-secondary mt-1">
-                Change your password regularly to keep your account secure.
+                Thay đổi mật khẩu thường xuyên để bảo vệ tài khoản.
               </p>
             </div>
           </div>
           <Button variant="secondary" onClick={() => window.open(securityUrl, "_blank")}>
-            Change Password
+            Đổi Mật khẩu
           </Button>
         </div>
 
@@ -44,30 +44,30 @@ export const SecurityTab = () => {
               <Smartphone className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">Two-Factor Authentication</h3>
+              <h3 className="font-semibold text-text-primary">Xác thực 2 Bước (2FA)</h3>
               <p className="text-sm text-text-secondary mt-1">
-                Add an extra layer of security to your account.
+                Thêm một lớp bảo mật bổ sung cho tài khoản của bạn.
               </p>
             </div>
           </div>
           <Button variant="secondary" onClick={() => window.open(keycloakUrl + "/realms/proteus/account/", "_blank")}>
-            Setup 2FA
+            Thiết lập 2FA
           </Button>
         </div>
 
         <div className="pt-4 border-t border-border">
           <h3 className="font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4" /> Active Sessions
+            <Clock className="w-4 h-4" /> Phiên Đăng nhập Hiện tại
           </h3>
           <div className="text-sm text-text-secondary p-4 bg-bg-surface rounded-lg border border-dashed border-border flex items-center justify-center">
-            Session management is handled by Keycloak. 
+            Phiên đăng nhập được quản lý bởi Keycloak. 
             <a 
               href={keycloakUrl + "/realms/proteus/account/sessions"} 
               target="_blank"
               rel="noreferrer"
               className="text-primary hover:underline ml-1"
             >
-              View active sessions
+              Xem các phiên đăng nhập
             </a>
           </div>
         </div>
