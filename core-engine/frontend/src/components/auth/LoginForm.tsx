@@ -7,7 +7,8 @@ import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { ShieldCheck, AlertCircle } from "lucide-react";
+import { ShieldCheck, AlertCircle, LayoutGrid, Zap, Shield } from "lucide-react";
+import { clsx } from "clsx";
 import { useNotificationStore } from "@/store/notificationStore";
 
 export const LoginForm: React.FC = () => {
@@ -35,47 +36,128 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-bg-base to-[#0a1128] p-4 relative overflow-hidden">
-      {/* Subtle Glow Animation Background */}
-      <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[100px] animate-pulse-slow pointer-events-none" />
-      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-[100px] animate-pulse-slow pointer-events-none delay-1000" />
+    <div className="min-h-screen w-full flex bg-bg-base">
+      {/* LEFT PANEL - Hidden on mobile, visible on lg screens */}
+      <div className="hidden lg:flex w-1/2 relative flex-col justify-between overflow-hidden bg-[#050B14]">
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-60 animate-pulse-slow" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,_var(--tw-gradient-stops))] from-accent/20 via-transparent to-transparent opacity-60 animate-pulse-slow delay-1000" />
+        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay" />
 
-      <div className="glass-card w-full max-w-md p-8 flex flex-col items-center gap-6 z-10 animate-fade-in relative">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mb-2">
-          <ShieldCheck className="w-8 h-8 text-primary" />
-        </div>
-        
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-text-primary">Proteus OS</h1>
-          <p className="text-sm text-text-secondary">
-            Hệ điều hành Đa năng cho Tổ chức
-          </p>
-        </div>
-
-        {error === "RefreshAccessTokenError" && (
-          <div className="w-full bg-danger/10 border border-danger/30 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
-            <p className="text-sm text-danger">
-              Phiên làm việc đã hết hạn. Dữ liệu đang nhập dở sẽ được tự động khôi phục sau khi bạn đăng nhập lại.
-            </p>
+        <div className="relative z-10 p-12 flex flex-col h-full">
+          <div className="flex items-center gap-3 animate-fade-in-up">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+              <span className="text-white font-black text-xl">Pr</span>
+            </div>
+            <span className="text-2xl font-bold text-white tracking-tight">Proteus OS</span>
           </div>
-        )}
 
-        <div className="w-full pt-4">
-          <Button
-            variant="primary"
-            className="w-full text-lg h-12"
-            onClick={handleLogin}
-            disabled={isLoading}
-            isLoading={isLoading}
-          >
-            Đăng nhập với SSO
-          </Button>
+          <div className="my-auto max-w-md animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight leading-tight mb-6">
+              Hệ điều hành Đa năng cho Tổ chức Việt Nam
+            </h2>
+            <p className="text-lg text-white/60 mb-12 leading-relaxed">
+              Kiến trúc đa hình, tích hợp AI mạnh mẽ và bảo mật cấp doanh nghiệp. Sẵn sàng mở rộng quy mô cùng doanh nghiệp của bạn.
+            </p>
+
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 shrink-0">
+                  <LayoutGrid className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold mb-1">All-in-One Workspace</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">
+                    Giao diện hợp nhất cho mọi công cụ làm việc của tổ chức.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 shrink-0">
+                  <Zap className="w-6 h-6 text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold mb-1">AI-Powered Automation</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">
+                    Tích hợp tác tử AI tự động hóa quy trình nghiệp vụ phức tạp.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 shrink-0">
+                  <Shield className="w-6 h-6 text-success" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold mb-1">Enterprise Security</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">
+                    Bảo vệ dữ liệu toàn diện với hệ thống quản lý danh tính Keycloak.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-white/40 text-sm font-medium flex gap-4 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+            <span>Trusted by ICTU</span>
+            <span>&bull;</span>
+            <span>AGPL-3.0 License</span>
+          </div>
         </div>
-        
-        <p className="text-xs text-text-disabled mt-4 text-center">
-          Bảo mật bởi Keycloak &bull; Copyright &copy; 2026 CuongKenn &amp; ICTU Team
-        </p>
+      </div>
+
+      {/* RIGHT PANEL - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative overflow-hidden bg-bg-base">
+        {/* Mobile Background Elements */}
+        <div className="lg:hidden absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
+        <div className="lg:hidden absolute bottom-0 inset-x-0 h-64 bg-gradient-to-t from-accent/5 to-transparent pointer-events-none" />
+
+        <div className="w-full max-w-md relative z-10 animate-fade-in">
+          <div className="bg-bg-glass backdrop-blur-3xl rounded-3xl p-8 sm:p-10 border border-border/50 shadow-[0_0_40px_rgba(0,0,0,0.1)] relative overflow-hidden group">
+            {/* Subtle glow effect on hover */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-primary/30 mb-8 mx-auto shadow-inner animate-fade-in-up">
+                <ShieldCheck className="w-8 h-8 text-primary" />
+              </div>
+              
+              <div className="text-center space-y-3 mb-10 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">Chào mừng trở lại</h1>
+                <p className="text-base text-text-secondary">
+                  Đăng nhập để truy cập không gian làm việc của bạn
+                </p>
+              </div>
+
+              {error === "RefreshAccessTokenError" && (
+                <div className="w-full bg-danger/10 border border-danger/30 rounded-xl p-4 flex items-start gap-3 mb-6 animate-fade-in">
+                  <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
+                  <p className="text-sm text-danger leading-relaxed">
+                    Phiên làm việc đã hết hạn. Dữ liệu đang nhập dở sẽ được tự động khôi phục sau khi bạn đăng nhập lại.
+                  </p>
+                </div>
+              )}
+
+              <div className="w-full animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                <Button
+                  variant="primary"
+                  className={clsx(
+                    "w-full text-base h-14 rounded-xl font-semibold shadow-lg shadow-primary/20 transition-all duration-300",
+                    !isLoading && "hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0"
+                  )}
+                  onClick={handleLogin}
+                  disabled={isLoading}
+                  isLoading={isLoading}
+                >
+                  Tiếp tục với SSO
+                </Button>
+              </div>
+              
+              <p className="text-sm text-text-disabled mt-8 text-center animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+                Bảo mật bởi <span className="font-medium text-text-secondary">Keycloak</span> &bull; &copy; 2026 ICTU Team
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
