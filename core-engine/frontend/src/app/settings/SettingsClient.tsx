@@ -4,6 +4,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Settings } from "lucide-react";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { ProfileTab } from "@/components/settings/ProfileTab";
 import { Settings } from "lucide-react";
