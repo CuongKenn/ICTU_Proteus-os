@@ -75,6 +75,26 @@ class TenantModel(BaseModel, SoftDeleteMixin):
     tenant_plugins: Mapped[list["TenantPluginModel"]] = relationship(
         "TenantPluginModel", back_populates="tenant"
     )
+    integrations: Mapped[list["TenantIntegrationModel"]] = relationship(
+        "TenantIntegrationModel", back_populates="tenant"
+    )
+
+
+class TenantIntegrationModel(BaseModel, SoftDeleteMixin):
+    __tablename__ = "tenant_integrations"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    config_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Relationships
+    tenant: Mapped["TenantModel"] = relationship("TenantModel", back_populates="integrations")
 
 
 class UserModel(BaseModel, SoftDeleteMixin):

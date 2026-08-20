@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.base import AbstractTenantRepository
-from app.core.domain.entities import TenantEntity
+from app.core.domain.entities import TenantEntity, TenantIntegrationEntity
 
 
 class SQLAlchemyTenantRepository(AbstractTenantRepository):
@@ -88,3 +88,42 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
             text("UPDATE tenants SET deleted_at = CURRENT_TIMESTAMP WHERE id = :id"),
             {"id": tenant_id},
         )
+
+    # -- Integrations --
+
+    def _to_integration_entity(self, row: dict) -> TenantIntegrationEntity:
+        return TenantIntegrationEntity(
+            id=row["id"],
+            tenant_id=row["tenant_id"],
+            provider=row["provider"],
+            config_data=row["config_data"],
+            is_active=row["is_active"],
+        )
+
+    async def get_integrations(self, tenant_id: uuid.UUID) -> list[TenantIntegrationEntity]:
+        result = await self._session.execute(
+            text("SELECT * FROM tenant_integrations WHERE tenant_id = :tenant_id AND deleted_at IS NULL"),
+            {"tenant_id": tenant_id},
+        )
+        return [self._to_integration_entity(dict(row)) for row in result.mappings()]
+
+    async def upsert_integration(self, integration: TenantIntegrationEntity) -> TenantIntegrationEntity:
+        import json
+        await self._session.execute(
+            text("""
+                INSERT INTO tenant_integrations (id, tenant_id, provider, config_data, is_active)
+                VALUES (:id, :tenant_id, :provider, :config_data, :is_active)
+                ON CONFLICT (id) DO UPDATE 
+                SET config_data = EXCLUDED.config_data,
+                    is_active = EXCLUDED.is_active,
+                    deleted_at = NULL
+            """),
+            {
+                "id": integration.id,
+                "tenant_id": integration.tenant_id,
+                "provider": integration.provider,
+                "config_data": json.dumps(integration.config_data),
+                "is_active": integration.is_active,
+            },
+        )
+        return integration

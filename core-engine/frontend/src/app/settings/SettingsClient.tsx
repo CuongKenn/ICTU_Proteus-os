@@ -6,6 +6,8 @@
 import React, { useState } from "react";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { ProfileTab } from "@/components/settings/ProfileTab";
+import { TenantTab } from "@/components/settings/TenantTab";
+import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { AppearanceTab } from "@/components/settings/AppearanceTab";
 import { SecurityTab } from "@/components/settings/SecurityTab";
 import { AboutTab } from "@/components/settings/AboutTab";
@@ -21,6 +23,10 @@ export const SettingsClient = () => {
     switch (activeTab) {
       case "profile":
         return <ProfileTab session={session} />;
+      case "tenant":
+        return <TenantTab />;
+      case "integrations":
+        return <IntegrationsTab />;
       case "appearance":
         return <AppearanceTab />;
       case "security":

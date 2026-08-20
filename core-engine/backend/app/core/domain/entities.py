@@ -92,6 +92,18 @@ class TenantEntity(BaseModel):
     is_active: bool = True
 
 
+class TenantIntegrationEntity(BaseModel):
+    """
+    Domain Entity cho Integrations (Mattermost, N8n, Outline...).
+    """
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    provider: str
+    config_data: dict[str, str | int | bool | None] = Field(default_factory=dict)
+    is_active: bool = True
+
+
 class UserEntity(BaseModel):
     """
     Domain Entity cho User.

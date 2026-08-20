@@ -33,3 +33,19 @@ class TenantResponse(BaseModel):
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class IntegrationCreateRequest(BaseModel):
+    provider: str = Field(..., description="Tên provider tích hợp (mattermost, outline, metabase, etc.)")
+    config_data: dict = Field(..., description="Dữ liệu cấu hình tích hợp (JSON)")
+    is_active: bool = Field(True, description="Trạng thái hoạt động")
+
+
+class IntegrationResponse(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    provider: str
+    config_data: dict
+    is_active: bool
+
+    model_config = {"from_attributes": True}
