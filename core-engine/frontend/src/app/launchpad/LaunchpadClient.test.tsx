@@ -138,7 +138,7 @@ describe("LaunchpadClient", () => {
     const mattermostApp = screen.getByText("Mattermost");
     fireEvent.click(mattermostApp);
 
-    expect(mockWindowOpen).toHaveBeenCalledWith("http://localhost:8065", "_blank", "noopener,noreferrer");
+    expect(mockPush).toHaveBeenCalledWith("/chat");
   });
 
   it("opens n8n in iframe overlay", () => {
