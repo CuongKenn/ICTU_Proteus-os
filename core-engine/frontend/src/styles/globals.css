@@ -38,15 +38,7 @@
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
 
-  /* Spacing (base 4px) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-12: 48px;
-  --space-16: 64px;
+  /* Spacing (base 4px) - using Tailwind defaults */
 
   /* Border Radius */
   --radius-sm: 0.375rem;

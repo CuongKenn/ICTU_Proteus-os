@@ -42,16 +42,7 @@ const config: Config = {
         '2xl': ['var(--text-2xl)', '2rem'],
         '3xl': ['var(--text-3xl)', '2.25rem'],
       },
-      spacing: {
-        1: 'var(--space-1)',
-        2: 'var(--space-2)',
-        3: 'var(--space-3)',
-        4: 'var(--space-4)',
-        6: 'var(--space-6)',
-        8: 'var(--space-8)',
-        12: 'var(--space-12)',
-        16: 'var(--space-16)',
-      },
+      // spacing overrides removed (using default Tailwind rem scale)
       backdropBlur: {
         glass: "12px",
       },
