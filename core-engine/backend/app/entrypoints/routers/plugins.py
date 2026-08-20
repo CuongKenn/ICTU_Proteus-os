@@ -25,14 +25,22 @@ from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeU
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_plugin_credentials_use_case,
-    get_plugin_install_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
     get_plugin_toggle_use_case,
     get_plugin_uninstall_use_case,
     get_plugin_upgrade_use_case,
     require_permission,
+    get_n8n_adapter,
+    get_metabase_adapter,
+    get_appsmith_adapter,
+    get_keycloak_adapter,
+    get_mattermost_adapter,
 )
+from app.adapters.external.metabase_adapter import MetabaseAdapter
+from app.adapters.external.appsmith_adapter import AppsmithAdapter
+from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.entrypoints.schemas.plugin import (
     PluginCredentialPayload,
     PluginListResponse,
@@ -43,6 +51,40 @@ from app.entrypoints.schemas.plugin import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins")
+
+
+async def _install_plugin_background(
+    ctx: TenantContext,
+    plugin_code_name: str,
+    n8n_adapter: N8nAdapter,
+    metabase_adapter: MetabaseAdapter,
+    appsmith_adapter: AppsmithAdapter,
+    keycloak_adapter: KeycloakAdapter,
+    mattermost_adapter: MattermostAdapter,
+):
+    from app.infrastructure.database import AsyncSessionLocal
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+
+    async with AsyncSessionLocal() as session:
+        try:
+            repo = SQLAlchemyPluginRepository(session=session)
+            use_case = PluginInstallUseCase(
+                plugin_repo=repo,
+                manifest_parser=LocalManifestParser(),
+                n8n_adapter=n8n_adapter,
+                metabase_adapter=metabase_adapter,
+                appsmith_adapter=appsmith_adapter,
+                keycloak_adapter=keycloak_adapter,
+                mattermost_adapter=mattermost_adapter,
+                session=session,
+            )
+            await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Background plugin install failed")
+            raise
 
 
 @router.get("", response_model=PluginListResponse, summary="Liệt kê Plugin Marketplace")
@@ -85,7 +127,11 @@ async def install_plugin(
     background_tasks: BackgroundTasks,
     ctx: TenantContext = Depends(require_permission("plugins.install")),
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
-    use_case: PluginInstallUseCase = Depends(get_plugin_install_use_case),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
+    appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
+    keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
 ) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin.
@@ -111,7 +157,14 @@ async def install_plugin(
 
     # Chạy cài đặt ngầm bằng BackgroundTasks
     background_tasks.add_task(
-        use_case.execute, context=ctx, plugin_code_name=plugin.code_name
+        _install_plugin_background,
+        ctx,
+        plugin.code_name,
+        n8n_adapter,
+        metabase_adapter,
+        appsmith_adapter,
+        keycloak_adapter,
+        mattermost_adapter,
     )
 
     return {
