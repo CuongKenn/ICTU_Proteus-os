@@ -35,7 +35,6 @@ export const SecurityTab = () => {
           </div>
           <Button 
             variant="secondary" 
-            size="sm"
             onClick={() => window.open(accountUrl, "_blank")}
           >
             Đổi Mật khẩu <ExternalLink className="w-4 h-4 ml-2" />
@@ -56,7 +55,6 @@ export const SecurityTab = () => {
           </div>
           <Button 
             variant="secondary" 
-            size="sm"
             onClick={() => window.open(accountUrl, "_blank")}
           >
             Thiết lập 2FA <ExternalLink className="w-4 h-4 ml-2" />

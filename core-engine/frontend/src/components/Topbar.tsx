@@ -9,7 +9,6 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Bell, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useNotificationStore } from "@/store/useNotificationStore";
 
 interface TopbarProps {
   toggleMobileMenu: () => void;
@@ -20,7 +19,6 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
   const { data: session } = useSession();
   const pathname = usePathname();
   const [hasNotification, setHasNotification] = React.useState(true);
-  const addToast = useNotificationStore(state => state.addToast);
 
   const handleLogout = async () => {
     try {
