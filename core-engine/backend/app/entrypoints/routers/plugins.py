@@ -117,7 +117,27 @@ async def install_plugin(
     return {
         "message": "Plugin installation queued.",
         "plugin_id": str(plugin_id),
+        "task_id": f"mock_task_{plugin_id}",
         "status": "INSTALLING",
+    }
+
+
+@router.get(
+    "/install/{task_id}/status",
+    status_code=status.HTTP_200_OK,
+    summary="Lấy trạng thái cài đặt Plugin (Mock)",
+)
+async def get_install_status(
+    task_id: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+) -> dict[str, Any]:
+    # TODO: Implement real task tracking. For now, mock success.
+    return {
+        "overall_status": "COMPLETED",
+        "steps": [
+            {"name": "Download", "status": "DONE"},
+            {"name": "Install", "status": "DONE"},
+        ]
     }
 
 
