@@ -134,7 +134,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "status = EXCLUDED.status, "
                 "installed_version = COALESCE(EXCLUDED.installed_version, tenant_plugins.installed_version), "
                 "install_error_log = EXCLUDED.install_error_log, "
-                "last_updated_at = NOW()"
+                "updated_at = NOW()"
             ),
             {
                 "tenant_id": tenant_id,
@@ -163,7 +163,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
+                "SET status = :status, install_error_log = :error_log, updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -179,11 +179,11 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
 
         now = datetime.now(UTC)
         sql = text("""
-            SELECT tp.tenant_id, p.code_name as plugin_name, tp.status, tp.last_updated_at as updated_at
+            SELECT tp.tenant_id, p.code_name as plugin_name, tp.status, tp.updated_at as updated_at
             FROM tenant_plugins tp
             JOIN plugins p ON p.id = tp.plugin_id
             WHERE tp.status = 'FAILED_DIRTY' 
-              AND tp.last_updated_at < :time_ago
+              AND tp.updated_at < :time_ago
         """)
         result = await self._session.execute(
             sql, {"time_ago": now - timedelta(hours=hours)}
