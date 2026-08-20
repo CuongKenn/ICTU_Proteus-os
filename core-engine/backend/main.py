@@ -70,15 +70,10 @@ async def lifespan(app: FastAPI):
         try:
             async with AsyncSessionLocal() as session:
                 plugin_repo = SQLAlchemyPluginRepository(session=session)
+                mattermost_adapter = MattermostAdapter(client=app.state.http_client)
                 agent = PluginCleanupAgent(
                     plugin_repo=plugin_repo,
-                    manifest_parser=LocalManifestParser(),
-                    n8n_adapter=N8nAdapter(),
-                    metabase_adapter=MetabaseAdapter(),
-                    appsmith_adapter=AppsmithAdapter(),
-                    keycloak_adapter=KeycloakAdapter(),
-                    mattermost_adapter=MattermostAdapter(client=app.state.http_client),
-                    session=session,
+                    mattermost_adapter=mattermost_adapter,
                 )
                 await agent.run()
                 logger.info("Plugin cleanup job completed successfully.")
