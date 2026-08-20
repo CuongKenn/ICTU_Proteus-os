@@ -64,9 +64,6 @@ export function usePlugins(): UsePluginsReturn {
       const response = await api.post<{ data: { task_id: string } }>(`/plugins/${pluginId}/install`, {});
       return response.data.data;
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        return { task_id: "fake-task-id-" + Date.now() };
-      }
       throw err;
     }
   }, []);
@@ -77,13 +74,8 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin (Mock).");
-        refetch();
-      } else {
-        useNotificationStore.getState().addToast("error", "Không thể gỡ cài đặt Plugin.");
-        throw err;
-      }
+      useNotificationStore.getState().addToast("error", "Không thể gỡ cài đặt Plugin.");
+      throw err;
     }
   }, [refetch]);
 
@@ -93,13 +85,8 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin (Mock).");
-        refetch();
-      } else {
-        useNotificationStore.getState().addToast("error", "Không thể vô hiệu hoá Plugin.");
-        throw err;
-      }
+      useNotificationStore.getState().addToast("error", "Không thể vô hiệu hoá Plugin.");
+      throw err;
     }
   }, [refetch]);
 
@@ -109,13 +96,8 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin (Mock).");
-        refetch();
-      } else {
-        useNotificationStore.getState().addToast("error", "Không thể nâng cấp Plugin.");
-        throw err;
-      }
+      useNotificationStore.getState().addToast("error", "Không thể nâng cấp Plugin.");
+      throw err;
     }
   }, [refetch]);
 
