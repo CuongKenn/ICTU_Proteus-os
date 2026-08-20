@@ -13,8 +13,10 @@ const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://localhost:5678";
 import { useNotificationStore } from "@/store/notificationStore";
 import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export function LaunchpadClient() {
+  const { data: session } = useSession();
   const { plugins, isLoading } = usePlugins();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
@@ -63,6 +65,17 @@ export function LaunchpadClient() {
     router.push(`/plugins/${code_name}`);
   };
 
+  const getPluginColor = (codeName: string) => {
+    const colors = ["text-blue-500", "text-purple-500", "text-pink-500", "text-emerald-500", "text-amber-500", "text-rose-500", "text-indigo-500", "text-cyan-500"];
+    let hash = 0;
+    for (let i = 0; i < codeName.length; i++) {
+      hash = codeName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const userName = session?.user?.name || "Admin";
+
   return (
     <div className="relative min-h-screen">
       {/* Dynamic Background Mesh */}
@@ -70,54 +83,71 @@ export function LaunchpadClient() {
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-brand-primary/5 to-transparent -z-10 pointer-events-none" />
 
       <div className="p-10 max-w-7xl mx-auto relative z-0">
-        <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-text-primary to-text-secondary mb-10 animate-fade-in tracking-tight">
-          Launchpad
-        </h1>
+        <div className="mb-10 animate-fade-in">
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-text-primary to-text-secondary tracking-tight mb-2">
+            Chào {userName}!
+          </h1>
+          <p className="text-text-secondary text-lg">
+            Truy cập nhanh các ứng dụng và không gian làm việc của bạn.
+          </p>
+        </div>
       
-      {/* Grid Container */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-8 justify-items-center">
-        
-        {/* System Apps */}
-        <AppIcon
-          appName="Mattermost"
-          icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
-          onClick={() => router.push("/chat")}
-        />
-        <AppIcon
-          appName="Outline Wiki"
-          icon={<FileText className="w-8 h-8 text-text-secondary" />}
-          onClick={() => router.push("/wiki")}
-        />
-        <AppIcon
-          appName="n8n Workflow"
-          icon={<Network className="w-8 h-8 text-orange-500" />}
-          onClick={() => openIframe("n8n", N8N_URL)}
-        />
-        <AppIcon
-          appName="Metabase"
-          icon={<Box className="w-8 h-8 text-brand-primary" />}
-          onClick={handleOpenMetabase}
-        />
+        <section className="mb-10">
+          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6 pl-2 border-l-2 border-brand-primary">
+            Hệ thống
+          </h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-8 justify-items-center">
+            <AppIcon
+              appName="Mattermost"
+              icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
+              onClick={() => router.push("/chat")}
+            />
+            <AppIcon
+              appName="Outline Wiki"
+              icon={<FileText className="w-8 h-8 text-text-secondary" />}
+              onClick={() => router.push("/wiki")}
+            />
+            <AppIcon
+              appName="n8n Workflow"
+              icon={<Network className="w-8 h-8 text-orange-500" />}
+              onClick={() => openIframe("n8n", N8N_URL)}
+            />
+            <AppIcon
+              appName="Metabase"
+              icon={<Box className="w-8 h-8 text-brand-primary" />}
+              onClick={handleOpenMetabase}
+            />
+          </div>
+        </section>
 
-        {/* Plugin Skeletons */}
-        {isLoading &&
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-2 w-24 animate-pulse-slow">
-              <div className="w-20 h-20 rounded-[20px] bg-bg-surface/50 border border-border/50 shrink-0" />
-              <div className="h-3 bg-bg-surface/40 rounded w-16 mt-1" />
-            </div>
-          ))}
+        <div className="h-px bg-border/50 my-10" />
 
-        {/* Plugins */}
-        {!isLoading && plugins.map((plugin) => (
-          <AppIcon
-            key={plugin.id}
-            appName={plugin.display_name}
-            icon={<Blocks className="w-8 h-8 text-text-secondary/80" />}
-            onClick={() => handleOpenPlugin(plugin.code_name)}
-          />
-        ))}
-      </div>
+        <section>
+          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6 pl-2 border-l-2 border-accent">
+            Ứng dụng cài đặt
+          </h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-8 justify-items-center">
+            {/* Plugin Skeletons */}
+            {isLoading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-2 w-24 animate-pulse-slow">
+                  <div className="w-20 h-20 rounded-[20px] bg-bg-surface/50 border border-border/50 shrink-0" />
+                  <div className="h-3 bg-bg-surface/40 rounded w-16 mt-1" />
+                </div>
+              ))}
+
+            {/* Plugins */}
+            {!isLoading && plugins.map((plugin) => (
+              <AppIcon
+                key={plugin.id}
+                appName={plugin.display_name}
+                icon={<Blocks className={`w-8 h-8 ${getPluginColor(plugin.code_name)}`} />}
+                isActive={plugin.status === "ACTIVE"}
+                onClick={() => handleOpenPlugin(plugin.code_name)}
+              />
+            ))}
+          </div>
+        </section>
 
       {/* Empty State for Plugins */}
       {!isLoading && plugins.length === 0 && (
