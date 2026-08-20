@@ -91,6 +91,11 @@ class PluginUninstallUseCase:
         )
         await self.session.commit()
 
+        # Lấy created assets từ config_override
+        created_assets = await self.plugin_repo.get_installation_config(
+            context.tenant_id, plugin.id
+        ) or {}
+
         # Thực hiện 6 bước ngược
         completed_steps: list[str] = []
 
@@ -104,15 +109,15 @@ class PluginUninstallUseCase:
             completed_steps.append("keycloak")
 
             # BƯỚC 3: Xóa Appsmith Apps
-            await self._step_3_appsmith(context, plugin_code_name, manifest)
+            await self._step_3_appsmith(context, plugin_code_name, manifest, created_assets.get("appsmith", []))
             completed_steps.append("appsmith")
 
             # BƯỚC 4: Xóa Metabase Dashboards
-            await self._step_4_metabase(context, plugin_code_name, manifest)
+            await self._step_4_metabase(context, plugin_code_name, manifest, created_assets.get("metabase", []))
             completed_steps.append("metabase")
 
             # BƯỚC 5: Xóa n8n Workflows
-            await self._step_5_n8n(context, plugin_code_name, manifest)
+            await self._step_5_n8n(context, plugin_code_name, manifest, created_assets.get("n8n", []))
             completed_steps.append("n8n")
 
             # BƯỚC 6: Drop Database Tables
@@ -187,28 +192,40 @@ class PluginUninstallUseCase:
                 logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)
 
     async def _step_3_appsmith(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, app_ids: list[str]
     ) -> None:
         """Xóa UI apps khỏi Appsmith."""
-        for app in manifest.ui_apps:
-            # await self.appsmith_adapter.delete_app(...)
-            pass
+        if not hasattr(self.appsmith_adapter, "delete_app"):
+            return
+        for app_id in app_ids:
+            try:
+                await self.appsmith_adapter.delete_app(app_id)
+            except Exception as e:
+                logger.warning("Không thể xóa Appsmith app %s: %s", app_id, e)
 
     async def _step_4_metabase(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, dashboard_ids: list[str]
     ) -> None:
         """Xóa Dashboards khỏi Metabase."""
-        for db in manifest.dashboards:
-            # await self.metabase_adapter.delete_dashboard(...)
-            pass
+        if not hasattr(self.metabase_adapter, "delete_dashboard"):
+            return
+        for dashboard_id in dashboard_ids:
+            try:
+                await self.metabase_adapter.delete_dashboard(dashboard_id)
+            except Exception as e:
+                logger.warning("Không thể xóa Metabase dashboard %s: %s", dashboard_id, e)
 
     async def _step_5_n8n(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, workflow_ids: list[str]
     ) -> None:
         """Xóa workflows khỏi n8n."""
-        for wf in manifest.workflows:
-            # await self.n8n_adapter.delete_workflow(...)
-            pass
+        if not hasattr(self.n8n_adapter, "delete_workflow"):
+            return
+        for workflow_id in workflow_ids:
+            try:
+                await self.n8n_adapter.delete_workflow(workflow_id)
+            except Exception as e:
+                logger.warning("Không thể xóa n8n workflow %s: %s", workflow_id, e)
 
     async def _step_6_database(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest

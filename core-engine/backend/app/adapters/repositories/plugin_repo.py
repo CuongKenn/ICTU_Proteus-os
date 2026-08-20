@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import UTC
@@ -110,6 +111,21 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         row = result.first()
         return PluginStatus(row[0]) if row else None
 
+    async def get_installation_config(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> dict | None:
+        result = await self._session.execute(
+            text(
+                "SELECT config_override FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        row = result.first()
+        if row and row[0]:
+            return row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        return None
+
     async def upsert_installation(
         self,
         tenant_id: uuid.UUID,
@@ -162,8 +178,9 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         )
         await self._session.execute(
             text(
-                "UPDATE tenant_plugins "
-                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
+                "UPDATE tenant_plugins SET status = :status, "
+                "install_error_log = COALESCE(:error_log, install_error_log), "
+                "last_updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -171,6 +188,32 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "plugin_id": plugin_id,
                 "status": status.value,
                 "error_log": error_log,
+            },
+        )
+
+    async def update_config(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        config_override: dict,
+    ) -> None:
+        logger.info(
+            "Updating plugin config_override",
+            extra={
+                "tenant_id": str(tenant_id),
+                "plugin_id": str(plugin_id),
+            },
+        )
+        await self._session.execute(
+            text(
+                "UPDATE tenant_plugins "
+                "SET config_override = :config, last_updated_at = NOW() "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "config": json.dumps(config_override),
             },
         )
 

@@ -132,6 +132,12 @@ class PluginInstallUseCase:
                 plugin_id=plugin.id,
                 status=PluginStatus.ACTIVE,
             )
+            if created_assets:
+                await self.plugin_repo.update_config(
+                    tenant_id=context.tenant_id,
+                    plugin_id=plugin.id,
+                    config_override=created_assets,
+                )
             await self.session.commit()
 
             # Notify Mattermost (Best effort)
