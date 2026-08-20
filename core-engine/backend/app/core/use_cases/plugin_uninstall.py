@@ -100,23 +100,33 @@ class PluginUninstallUseCase:
 
         try:
             # BƯỚC 1: Xóa Event Subscriptions
-            await self._step_1_events(context, plugin_code_name, manifest, config_override.get("events", []))
+            await self._step_1_events(
+                context, plugin_code_name, manifest, config_override.get("events", [])
+            )
             completed_steps.append("subscriptions")
 
             # BƯỚC 2: Xóa Keycloak Roles
-            await self._step_2_keycloak(context, plugin_code_name, manifest, config_override.get("keycloak", []))
+            await self._step_2_keycloak(
+                context, plugin_code_name, manifest, config_override.get("keycloak", [])
+            )
             completed_steps.append("keycloak")
 
             # BƯỚC 3: Xóa Appsmith Apps
-            await self._step_3_appsmith(context, plugin_code_name, manifest, config_override.get("appsmith", []))
+            await self._step_3_appsmith(
+                context, plugin_code_name, manifest, config_override.get("appsmith", [])
+            )
             completed_steps.append("appsmith")
 
             # BƯỚC 4: Xóa Metabase Dashboards
-            await self._step_4_metabase(context, plugin_code_name, manifest, config_override.get("metabase", []))
+            await self._step_4_metabase(
+                context, plugin_code_name, manifest, config_override.get("metabase", [])
+            )
             completed_steps.append("metabase")
 
             # BƯỚC 5: Xóa n8n Workflows
-            await self._step_5_n8n(context, plugin_code_name, manifest, config_override.get("n8n", []))
+            await self._step_5_n8n(
+                context, plugin_code_name, manifest, config_override.get("n8n", [])
+            )
             completed_steps.append("n8n")
 
             # BƯỚC 6: Drop Database Tables
@@ -169,7 +179,11 @@ class PluginUninstallUseCase:
             raise PluginUninstallError(f"Gỡ cài đặt plugin thất bại: {e}")
 
     async def _step_1_events(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, asset_ids: list[str]
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        asset_ids: list[str],
     ) -> None:
         """Xóa webhooks từ n8n."""
         for sub in manifest.event_subscriptions:
@@ -177,7 +191,11 @@ class PluginUninstallUseCase:
             pass
 
     async def _step_2_keycloak(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, asset_ids: list[str]
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        asset_ids: list[str],
     ) -> None:
         """Xóa roles khỏi Keycloak."""
         for role in manifest.roles:
@@ -191,7 +209,11 @@ class PluginUninstallUseCase:
                 logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)
 
     async def _step_3_appsmith(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, asset_ids: list[str]
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        asset_ids: list[str],
     ) -> None:
         """Xóa UI apps khỏi Appsmith."""
         for app_id in asset_ids:
@@ -202,7 +224,11 @@ class PluginUninstallUseCase:
                     logger.warning("Không thể xóa Appsmith app %s: %s", app_id, e)
 
     async def _step_4_metabase(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, asset_ids: list[str]
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        asset_ids: list[str],
     ) -> None:
         """Xóa Dashboards khỏi Metabase."""
         for db_id in asset_ids:
@@ -213,7 +239,11 @@ class PluginUninstallUseCase:
                     logger.warning("Không thể xóa Metabase dashboard %s: %s", db_id, e)
 
     async def _step_5_n8n(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, asset_ids: list[str]
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        asset_ids: list[str],
     ) -> None:
         """Xóa workflows khỏi n8n."""
         for wf_id in asset_ids:

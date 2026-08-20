@@ -64,11 +64,20 @@ class PluginCleanupAgent:
                     channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                     text=f"Plugin {plugin_code_name} (Tenant {tenant_id}) bị kẹt FAILED_DIRTY > 1 giờ. Cần thủ công gỡ cài đặt.",
                     action_id=str(plugin_id),
-                    extra_context={"tenant_id": str(tenant_id), "action_type": "plugin_cleanup"}
+                    extra_context={
+                        "tenant_id": str(tenant_id),
+                        "action_type": "plugin_cleanup",
+                    },
                 )
-                logger.warning("Plugin %s on tenant %s flagged for manual cleanup", plugin_code_name, tenant_id)
+                logger.warning(
+                    "Plugin %s on tenant %s flagged for manual cleanup",
+                    plugin_code_name,
+                    tenant_id,
+                )
             except Exception as e:
-                logger.error("Cleanup warning thất bại cho plugin %s: %s", plugin_code_name, e)
+                logger.error(
+                    "Cleanup warning thất bại cho plugin %s: %s", plugin_code_name, e
+                )
                 await self.mattermost_adapter.send_message(
                     text=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
                     channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
