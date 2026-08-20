@@ -30,7 +30,7 @@ export const SettingsClient = () => {
       default:
         return (
           <div className="flex flex-col items-center justify-center h-64 bg-bg-surface rounded-xl border border-border border-dashed">
-            <p className="text-text-secondary">This section is coming soon.</p>
+            <p className="text-text-secondary">Tính năng này đang trong quá trình phát triển. Vui lòng quay lại sau.</p>
           </div>
         );
     }
