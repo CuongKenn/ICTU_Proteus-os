@@ -18,6 +18,8 @@ from app.entrypoints.dependencies import (
 )
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
 
+from app.infrastructure.rate_limiter import limiter
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai")
 
@@ -28,7 +30,9 @@ router = APIRouter(prefix="/ai")
     status_code=status.HTTP_202_ACCEPTED,
     summary="Gửi DX-DSL Command đến AI Orchestrator",
 )
+@limiter.limit("10/minute")
 async def submit_ai_command(
+    request: Request,
     body: AICommandRequest,
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case: AICommandUseCase = Depends(get_ai_command_use_case),

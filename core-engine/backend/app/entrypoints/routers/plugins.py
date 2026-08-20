@@ -8,7 +8,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
@@ -47,8 +47,8 @@ router = APIRouter(prefix="/plugins")
 
 @router.get("", response_model=PluginListResponse, summary="Liệt kê Plugin Marketplace")
 async def list_marketplace_plugins(
-    limit: int = 20,
-    offset: int = 0,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case: PluginListUseCase = Depends(get_plugin_list_use_case),
 ) -> PluginListResponse:

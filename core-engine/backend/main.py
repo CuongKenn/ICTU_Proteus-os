@@ -14,6 +14,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from qdrant_client import AsyncQdrantClient
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
@@ -39,7 +41,8 @@ from app.entrypoints.routers import (
     tenants,
 )
 from app.infrastructure.config import settings
-from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
+from app.infrastructure.database import AsyncSessionLocal, current_tenant_id, init_db
+from app.infrastructure.rate_limiter import limiter
 from app.infrastructure.logging_config import setup_logging
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
@@ -152,17 +155,17 @@ async def lifespan(app: FastAPI):
 
 # ─── FastAPI Application ──────────────────────────────────────
 app = FastAPI(
-    title="Proteus OS — Core Engine API",
-    description=(
-        "API trung tâm của nền tảng Proteus OS. "
-        "Tham chiếu đầy đủ: docs/api-swagger.yaml"
-    ),
-    version="0.1.0",
+    title="Proteus OS Core Engine",
+    description="API Gateway for AI & Integration (Hexagonal Architecture)",
+    version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
-    redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
-    openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
 )
+
+# Rate Limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ─── CORS ─────────────────────────────────────────────────────
 # Chỉ cho phép Next.js BFF gọi vào, không cho phép browser gọi trực tiếp
