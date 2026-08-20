@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.base import AbstractTenantRepository
-from app.core.domain.entities import TenantContext, TenantEntity
+from app.core.domain.entities import TenantContext, TenantEntity, TenantIntegrationEntity
 
 logger = logging.getLogger(__name__)
 
@@ -138,3 +138,20 @@ class TenantOnboardingUseCase:
             raise TenantOnboardingError("Tenant không tồn tại.")
 
         await self.tenant_repo.soft_delete(tenant_id)
+
+    async def get_integrations(self, context: TenantContext) -> list[TenantIntegrationEntity]:
+        if "tenant_admin" not in context.roles and "superadmin" not in context.roles:
+            raise TenantPermissionError("Chỉ tenant_admin mới có quyền xem integrations.")
+        return await self.tenant_repo.get_integrations(context.tenant_id)
+
+    async def add_integration(self, context: TenantContext, provider: str, config: dict[str, Any]) -> TenantIntegrationEntity:
+        if "tenant_admin" not in context.roles and "superadmin" not in context.roles:
+            raise TenantPermissionError("Chỉ tenant_admin mới có quyền thêm integration.")
+        integration = TenantIntegrationEntity(
+            id=uuid.uuid4(),
+            tenant_id=context.tenant_id,
+            provider=provider,
+            config=config,
+            is_active=True,
+        )
+        return await self.tenant_repo.add_integration(integration)

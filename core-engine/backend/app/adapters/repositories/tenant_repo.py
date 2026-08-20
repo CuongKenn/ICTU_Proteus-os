@@ -9,7 +9,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.base import AbstractTenantRepository
-from app.core.domain.entities import TenantEntity
+import json
+from app.core.domain.entities import TenantEntity, TenantIntegrationEntity
 
 
 class SQLAlchemyTenantRepository(AbstractTenantRepository):
@@ -88,3 +89,36 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
             text("UPDATE tenants SET deleted_at = CURRENT_TIMESTAMP WHERE id = :id"),
             {"id": tenant_id},
         )
+
+    async def get_integrations(self, tenant_id: uuid.UUID) -> list[TenantIntegrationEntity]:
+        result = await self._session.execute(
+            text("SELECT * FROM tenant_integrations WHERE tenant_id = :tenant_id AND deleted_at IS NULL"),
+            {"tenant_id": tenant_id},
+        )
+        rows = result.mappings().all()
+        return [
+            TenantIntegrationEntity(
+                id=row["id"],
+                tenant_id=row["tenant_id"],
+                provider=row["provider"],
+                config=row["config"] if isinstance(row["config"], dict) else json.loads(row["config"]),
+                is_active=row["is_active"],
+            )
+            for row in rows
+        ]
+
+    async def add_integration(self, integration: TenantIntegrationEntity) -> TenantIntegrationEntity:
+        await self._session.execute(
+            text("""
+                INSERT INTO tenant_integrations (id, tenant_id, provider, config, is_active)
+                VALUES (:id, :tenant_id, :provider, :config, :is_active)
+                """),
+            {
+                "id": integration.id,
+                "tenant_id": integration.tenant_id,
+                "provider": integration.provider,
+                "config": json.dumps(integration.config),
+                "is_active": integration.is_active,
+            },
+        )
+        return integration

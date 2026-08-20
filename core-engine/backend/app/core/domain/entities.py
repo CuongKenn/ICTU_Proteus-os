@@ -92,6 +92,14 @@ class TenantEntity(BaseModel):
     is_active: bool = True
 
 
+class TenantIntegrationEntity(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    provider: str
+    config: dict[str, Any]
+    is_active: bool = True
+
+
 class UserEntity(BaseModel):
     """
     Domain Entity cho User.
