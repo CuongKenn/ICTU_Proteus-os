@@ -10,6 +10,10 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
+from app.adapters.external.appsmith_adapter import AppsmithAdapter
+from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.mattermost_adapter import MattermostAdapter
+from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
@@ -23,7 +27,12 @@ from app.core.use_cases.plugin_uninstall import (
 )
 from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeUseCase
 from app.entrypoints.dependencies import (
+    get_appsmith_adapter,
     get_current_tenant_context,
+    get_keycloak_adapter,
+    get_mattermost_adapter,
+    get_metabase_adapter,
+    get_n8n_adapter,
     get_plugin_credentials_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
@@ -31,16 +40,7 @@ from app.entrypoints.dependencies import (
     get_plugin_uninstall_use_case,
     get_plugin_upgrade_use_case,
     require_permission,
-    get_n8n_adapter,
-    get_metabase_adapter,
-    get_appsmith_adapter,
-    get_keycloak_adapter,
-    get_mattermost_adapter,
 )
-from app.adapters.external.metabase_adapter import MetabaseAdapter
-from app.adapters.external.appsmith_adapter import AppsmithAdapter
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
-from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.entrypoints.schemas.plugin import (
     PluginCredentialPayload,
     PluginListResponse,
@@ -62,9 +62,9 @@ async def _install_plugin_background(
     keycloak_adapter: KeycloakAdapter,
     mattermost_adapter: MattermostAdapter,
 ):
-    from app.infrastructure.database import AsyncSessionLocal
-    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
     from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.infrastructure.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
         try:
