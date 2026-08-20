@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
 
@@ -21,6 +21,14 @@ export function LaunchpadClient() {
   const [isIframeLoading, setIsIframeLoading] = useState(false);
   const addToast = useNotificationStore((state) => state.addToast);
   const router = useRouter();
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeApp) closeIframe();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [activeApp]);
 
   const openInNewTab = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
@@ -73,12 +81,12 @@ export function LaunchpadClient() {
         <AppIcon
           appName="Mattermost"
           icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
-          onClick={() => openInNewTab(MATTERMOST_URL)}
+          onClick={() => router.push("/chat")}
         />
         <AppIcon
           appName="Outline Wiki"
           icon={<FileText className="w-8 h-8 text-text-secondary" />}
-          onClick={() => openInNewTab(OUTLINE_URL)}
+          onClick={() => router.push("/wiki")}
         />
         <AppIcon
           appName="n8n Workflow"
