@@ -347,6 +347,8 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
+      METABASE_URL: ${METABASE_SITE_URL:-http://localhost:3001}
+      METABASE_EMBEDDING_KEY: ${METABASE_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy
