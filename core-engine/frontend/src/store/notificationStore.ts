@@ -14,12 +14,15 @@ export interface ToastMessage {
 
 interface NotificationState {
   toasts: ToastMessage[];
+  unreadCount: number;
   addToast: (type: ToastType, message: string, duration?: number, title?: string) => void;
   removeToast: (id: string) => void;
+  setUnreadCount: (count: number) => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
   toasts: [],
+  unreadCount: 0,
   addToast: (type, message, duration = 5000, title) => {
     const id = crypto.randomUUID();
     set((state) => ({
@@ -35,4 +38,5 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     set((state) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
+  setUnreadCount: (count) => set({ unreadCount: count }),
 }));
