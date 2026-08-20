@@ -21,6 +21,8 @@ from app.entrypoints.schemas.tenant import (
     TenantCreateRequest,
     TenantResponse,
     TenantUpdateRequest,
+    TenantIntegrationResponse,
+    TenantIntegrationCreateRequest,
 )
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
@@ -46,6 +48,91 @@ async def create_tenant(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.get(
+    "/me",
+    response_model=TenantResponse,
+    summary="Lấy thông tin Tenant hiện tại của User",
+)
+async def get_my_tenant(
+    context: TenantContext = Depends(get_current_tenant_context),
+    use_case: TenantOnboardingUseCase = Depends(get_tenant_onboarding_use_case),
+):
+    try:
+        tenant = await use_case.get_tenant(context, context.tenant_id)
+        return tenant
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except TenantOnboardingError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.patch(
+    "/me",
+    response_model=TenantResponse,
+    summary="Cập nhật Tenant hiện tại",
+)
+async def update_my_tenant(
+    request: TenantUpdateRequest,
+    context: TenantContext = Depends(get_current_tenant_context),
+    use_case: TenantOnboardingUseCase = Depends(get_tenant_onboarding_use_case),
+):
+    try:
+        data = request.model_dump(exclude_unset=True)
+        tenant = await use_case.update_tenant(context, context.tenant_id, data)
+        return tenant
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except TenantOnboardingError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.get(
+    "/me/integrations",
+    response_model=list[TenantIntegrationResponse],
+    summary="Lấy danh sách tích hợp của Tenant hiện tại",
+)
+async def get_my_integrations(
+    context: TenantContext = Depends(get_current_tenant_context),
+    use_case: TenantOnboardingUseCase = Depends(get_tenant_onboarding_use_case),
+):
+    try:
+        return await use_case.get_integrations(context)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/me/integrations",
+    response_model=TenantIntegrationResponse,
+    summary="Thêm tích hợp mới cho Tenant hiện tại",
+)
+async def add_my_integration(
+    request: TenantIntegrationCreateRequest,
+    context: TenantContext = Depends(get_current_tenant_context),
+    use_case: TenantOnboardingUseCase = Depends(get_tenant_onboarding_use_case),
+):
+    try:
+        return await use_case.add_integration(context, request.provider, request.config)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)

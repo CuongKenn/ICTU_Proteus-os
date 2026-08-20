@@ -3,6 +3,7 @@
 
 import uuid
 
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -30,6 +31,21 @@ class TenantResponse(BaseModel):
     slug: str
     keycloak_realm: str
     plan: str
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class TenantIntegrationCreateRequest(BaseModel):
+    provider: str = Field(..., description="Tên provider (vd: github, slack, aws)")
+    config: dict[str, Any] = Field(..., description="Cấu hình tích hợp")
+
+
+class TenantIntegrationResponse(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    provider: str
+    config: dict[str, Any]
     is_active: bool
 
     model_config = {"from_attributes": True}

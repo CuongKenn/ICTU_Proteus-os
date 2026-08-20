@@ -16,6 +16,7 @@ from app.core.domain.entities import (
     PluginEntity,
     PluginStatus,
     TenantEntity,
+    TenantIntegrationEntity,
     UserEntity,
 )
 
@@ -151,6 +152,20 @@ class AbstractTenantRepository(ABC):
     @abstractmethod
     async def soft_delete(self, tenant_id: uuid.UUID) -> None:
         """Soft delete Tenant."""
+        ...
+
+    @abstractmethod
+    async def get_integrations(
+        self, tenant_id: uuid.UUID
+    ) -> list[TenantIntegrationEntity]:
+        """Lấy danh sách integrations của Tenant."""
+        ...
+
+    @abstractmethod
+    async def add_integration(
+        self, integration: TenantIntegrationEntity
+    ) -> TenantIntegrationEntity:
+        """Thêm integration mới cho Tenant."""
         ...
 
 
