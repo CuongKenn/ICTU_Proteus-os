@@ -79,7 +79,7 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
             <span className="text-xl">📦</span>
             <div>
               <div className="font-semibold text-text-primary">Database Schema</div>
-              <div className="text-xs text-text-secondary">Tạo {plugin.tablesCount} bảng dữ liệu độc lập cho Tenant.</div>
+              <div className="text-xs text-text-secondary">Tạo {plugin.tablesCount !== undefined ? plugin.tablesCount : "các"} bảng dữ liệu độc lập cho Tenant.</div>
             </div>
           </div>
           
@@ -87,7 +87,7 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
             <span className="text-xl">🔄</span>
             <div>
               <div className="font-semibold text-text-primary">Automation Workflows</div>
-              <div className="text-xs text-text-secondary">Đăng ký {plugin.workflowsCount} quy trình tự động trên n8n.</div>
+              <div className="text-xs text-text-secondary">Đăng ký {plugin.workflowsCount !== undefined ? plugin.workflowsCount : "các"} quy trình tự động trên n8n.</div>
             </div>
           </div>
           
@@ -96,7 +96,7 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
             <div>
               <div className="font-semibold text-text-primary">RBAC Roles</div>
               <div className="text-xs text-text-secondary">
-                Tạo các role: <span className="text-primary font-mono bg-primary/10 px-1 rounded">{plugin.requiredRoles?.join(", ") || "N/A"}</span>
+                Tạo các role: <span className="text-primary font-mono bg-primary/10 px-1 rounded">{plugin.requiredRoles?.join(", ") || "Dựa trên cấu hình Plugin"}</span>
               </div>
             </div>
           </div>
