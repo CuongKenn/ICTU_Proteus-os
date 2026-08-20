@@ -38,7 +38,11 @@ class DSLVersionCompatError(DSLValidationError):
 
 class DSLValidator:
     def __init__(
-        self, plugin_repo: AbstractPluginRepository, role_repo, tenant_id: str, user_id: str
+        self,
+        plugin_repo: AbstractPluginRepository,
+        role_repo,
+        tenant_id: str,
+        user_id: str,
     ):
         """
         Khởi tạo Validator với Plugin Repository để kiểm tra DB constraint.
@@ -95,7 +99,10 @@ class DSLValidator:
         # Rule 2: Permission check
         req_permission = f"{plugin_code}:{resource}:{method}"
         import uuid
-        user_permissions = await self.role_repo.get_user_permissions(uuid.UUID(self.user_id))
+
+        user_permissions = await self.role_repo.get_user_permissions(
+            uuid.UUID(self.user_id)
+        )
         if req_permission not in user_permissions:
             raise DSLPermissionDeniedError(
                 f"User {self.user_id} lacks permission {req_permission}"

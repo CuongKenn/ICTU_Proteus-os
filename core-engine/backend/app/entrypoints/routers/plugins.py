@@ -80,7 +80,9 @@ async def list_installed_plugins(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Cài đặt Plugin",
 )
-async def _run_install_plugin_background(ctx: TenantContext, plugin_code_name: str, app_state):
+async def _run_install_plugin_background(
+    ctx: TenantContext, plugin_code_name: str, app_state
+):
     from app.infrastructure.database import async_session_maker
     from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
     from app.adapters.external.n8n_adapter import N8nAdapter
@@ -142,7 +144,10 @@ async def install_plugin(
 
     # Chạy cài đặt ngầm bằng BackgroundTasks
     background_tasks.add_task(
-        _run_install_plugin_background, ctx=ctx, plugin_code_name=plugin.code_name, app_state=request.app.state
+        _run_install_plugin_background,
+        ctx=ctx,
+        plugin_code_name=plugin.code_name,
+        app_state=request.app.state,
     )
 
     return {

@@ -65,9 +65,6 @@ async def get_plugin_repo(
     return SQLAlchemyPluginRepository(session=db)
 
 
-
-
-
 async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
     """Inject KeycloakAdapter."""
     return KeycloakAdapter(client=request.app.state.http_client)
