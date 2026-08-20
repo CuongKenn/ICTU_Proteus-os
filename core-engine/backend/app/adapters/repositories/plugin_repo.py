@@ -181,6 +181,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         config_override: dict,
     ) -> None:
         import json
+
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
@@ -209,6 +210,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         row = result.fetchone()
         if row and row[0]:
             import json
+
             return json.loads(row[0]) if isinstance(row[0], str) else row[0]
         return {}
 

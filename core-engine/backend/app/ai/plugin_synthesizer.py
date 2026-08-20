@@ -28,7 +28,9 @@ class PluginSynthesizer:
 
         # Initialize LLM with a fallback if API key is missing
         if not settings.OPENAI_API_KEY:
-            logger.warning("OPENAI_API_KEY chua duoc cau hinh, PluginSynthesizer se dung mock mode")
+            logger.warning(
+                "OPENAI_API_KEY chua duoc cau hinh, PluginSynthesizer se dung mock mode"
+            )
             self.llm = None
         else:
             model_name = getattr(settings, "LLM_MODEL_NAME", "gpt-4o")

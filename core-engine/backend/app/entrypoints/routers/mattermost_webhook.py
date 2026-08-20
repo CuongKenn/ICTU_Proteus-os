@@ -102,12 +102,18 @@ async def mattermost_interactive_callback(
         logger.info(
             f"Yêu cầu {action_id} được PHÊ DUYỆT bởi user {user_id}. Kích hoạt n8n."
         )
-        cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(uuid.UUID(action_id))
+        cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
+            uuid.UUID(action_id)
+        )
         success = await ai_command_use_case.process_approval(
             cmd_id=action_id, approver_id=user_id, action_taken="approve"
         )
         if success and cmd:
-            actual_tenant_id = uuid.UUID(str(cmd["tenant_id"])) if cmd.get("tenant_id") else uuid.UUID(int=0)
+            actual_tenant_id = (
+                uuid.UUID(str(cmd["tenant_id"]))
+                if cmd.get("tenant_id")
+                else uuid.UUID(int=0)
+            )
             await audit_log_repo.insert_log(
                 tenant_id=actual_tenant_id,
                 actor_type="mattermost_user",
@@ -126,12 +132,18 @@ async def mattermost_interactive_callback(
         return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
     elif action == "reject":
         logger.info(f"Yêu cầu {action_id} BỊ TỪ CHỐI bởi user {user_id}.")
-        cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(uuid.UUID(action_id))
+        cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
+            uuid.UUID(action_id)
+        )
         success = await ai_command_use_case.process_approval(
             cmd_id=action_id, approver_id=user_id, action_taken="reject"
         )
         if success and cmd:
-            actual_tenant_id = uuid.UUID(str(cmd["tenant_id"])) if cmd.get("tenant_id") else uuid.UUID(int=0)
+            actual_tenant_id = (
+                uuid.UUID(str(cmd["tenant_id"]))
+                if cmd.get("tenant_id")
+                else uuid.UUID(int=0)
+            )
             await audit_log_repo.insert_log(
                 tenant_id=actual_tenant_id,
                 actor_type="mattermost_user",

@@ -8,7 +8,15 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status, Query
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+    Query,
+)
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
@@ -137,7 +145,7 @@ async def get_install_status(
         "steps": [
             {"name": "Download", "status": "DONE"},
             {"name": "Install", "status": "DONE"},
-        ]
+        ],
     }
 
 
