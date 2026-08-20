@@ -141,28 +141,10 @@ export function useMarketplace(): UseMarketplaceReturn {
         }
       }
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        setInstallProgress((prev) => {
-          const next = prev + 30;
-          if (next >= 100) {
-            if (pollingRef.current) clearInterval(pollingRef.current);
-            setInstallStatus("active");
-            useNotificationStore.getState().addToast("success", "Cài đặt Plugin thành công!");
-            setTimeout(() => {
-              setInstallingId(null);
-              setInstallStatus(null);
-              setInstallProgress(0);
-            }, 2000);
-            return 100;
-          }
-          return next;
-        });
-      } else {
-        if (pollingRef.current) clearInterval(pollingRef.current);
-        setInstallStatus("failed");
-        useNotificationStore.getState().addToast("error", "Lỗi khi kiểm tra tiến trình cài đặt.");
-        setTimeout(() => setInstallingId(null), 2000);
-      }
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      setInstallStatus("failed");
+      useNotificationStore.getState().addToast("error", "Không thể kiểm tra tiến trình cài đặt. Vui lòng kiểm tra lại Backend.");
+      setTimeout(() => setInstallingId(null), 2000);
     }
   }, []);
 
