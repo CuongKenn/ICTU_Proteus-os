@@ -86,6 +86,20 @@ class PluginSynthesizer:
             data = json.loads(content)
 
             plugin_name = data.get("code_name", "unknown-plugin")
+
+            SAFE_PLUGIN_NAME_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+            MAX_PLUGIN_NAME_LENGTH = 64
+
+            if not SAFE_PLUGIN_NAME_PATTERN.match(plugin_name):
+                raise ValueError(f"LLM trả về plugin_name không hợp lệ: {plugin_name}")
+
+            if len(plugin_name) > MAX_PLUGIN_NAME_LENGTH:
+                raise ValueError(f"plugin_name quá dài: {len(plugin_name)} chars")
+
+            plugin_path = (self._plugins_dir / plugin_name).resolve()
+            if not str(plugin_path).startswith(str(self._plugins_dir.resolve())):
+                raise ValueError(f"Path traversal detected: {plugin_path}")
+
             self._write_plugin_files(plugin_name, data)
 
             return plugin_name

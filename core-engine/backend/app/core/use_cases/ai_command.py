@@ -16,6 +16,7 @@ from app.adapters.repositories.base import (
     AbstractDSLDryRunRepository,
     AbstractPluginRepository,
 )
+from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.entrypoints.schemas.ai_command import AICommandRequest
@@ -35,12 +36,14 @@ class AICommandUseCase:
         plugin_repo: AbstractPluginRepository,
         ai_command_repo: AbstractAICommandRepository,
         dsl_dry_run_repo: AbstractDSLDryRunRepository,
+        role_repo: RoleRepository,
         mattermost_adapter: MattermostAdapter,
         n8n_adapter: N8nAdapter,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
         self.dsl_dry_run_repo = dsl_dry_run_repo
+        self.role_repo = role_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
 
@@ -57,13 +60,14 @@ class AICommandUseCase:
             "parameters": body.parameters,
         }
 
-        # 1. Validate DSL
+        # 1. Validate DSL theo dsl-spec.md
         dsl_validator = DSLValidator(
             plugin_repo=self.plugin_repo,
+            role_repo=self.role_repo,
             tenant_id=str(ctx.tenant_id),
             user_id=str(ctx.user_id),
         )
-        await dsl_validator.validate(payload)
+        await dsl_validator.validate(dsl_payload=body.model_dump())
 
         now = datetime.now(UTC)
 
