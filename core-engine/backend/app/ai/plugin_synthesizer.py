@@ -89,7 +89,19 @@ class PluginSynthesizer:
             raise e
 
     def _write_plugin_files(self, plugin_name: str, data: dict) -> None:
-        plugin_path = self._plugins_dir / plugin_name
+        SAFE_PLUGIN_NAME_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+        MAX_PLUGIN_NAME_LENGTH = 64
+
+        if not SAFE_PLUGIN_NAME_PATTERN.match(plugin_name):
+            raise ValueError(f"LLM tra ve plugin_name khong hop le: {plugin_name}")
+
+        if len(plugin_name) > MAX_PLUGIN_NAME_LENGTH:
+            raise ValueError(f"plugin_name qua dai: {len(plugin_name)} chars")
+
+        plugin_path = (self._plugins_dir / plugin_name).resolve()
+        if not str(plugin_path).startswith(str(self._plugins_dir.resolve())):
+            raise ValueError(f"Path traversal detected: {plugin_path}")
+
         plugin_path.mkdir(parents=True, exist_ok=True)
 
         manifest_content = data.get("manifest_yaml", "")
