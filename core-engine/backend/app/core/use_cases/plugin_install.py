@@ -127,6 +127,11 @@ class PluginInstallUseCase:
             completed_steps.append("events")
 
             # SUCCESS
+            await self.plugin_repo.update_config(
+                tenant_id=context.tenant_id,
+                plugin_id=plugin.id,
+                config_override=created_assets,
+            )
             await self.plugin_repo.update_status(
                 tenant_id=context.tenant_id,
                 plugin_id=plugin.id,
