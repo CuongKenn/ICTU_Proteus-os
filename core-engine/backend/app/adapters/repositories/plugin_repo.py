@@ -134,7 +134,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "status = EXCLUDED.status, "
                 "installed_version = COALESCE(EXCLUDED.installed_version, tenant_plugins.installed_version), "
                 "install_error_log = EXCLUDED.install_error_log, "
-                "last_updated_at = NOW()"
+                "updated_at = NOW()"
             ),
             {
                 "tenant_id": tenant_id,
@@ -163,7 +163,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
+                "SET status = :status, install_error_log = :error_log, updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -173,6 +173,46 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "error_log": error_log,
             },
         )
+
+    async def update_config(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        config_override: dict,
+    ) -> None:
+        import json
+
+        await self._session.execute(
+            text(
+                "UPDATE tenant_plugins "
+                "SET config_override = :config, updated_at = NOW() "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "config": json.dumps(config_override),
+            },
+        )
+
+    async def get_config(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+    ) -> dict:
+        result = await self._session.execute(
+            text(
+                "SELECT config_override FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            import json
+
+            return json.loads(row[0]) if isinstance(row[0], str) else row[0]
+        return {}
 
     async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
         from datetime import datetime, timedelta

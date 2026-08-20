@@ -12,6 +12,11 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
 from fastapi.responses import JSONResponse
 from qdrant_client import AsyncQdrantClient
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -164,6 +169,9 @@ app = FastAPI(
     redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
     openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ─── CORS ─────────────────────────────────────────────────────
 # Chỉ cho phép Next.js BFF gọi vào, không cho phép browser gọi trực tiếp

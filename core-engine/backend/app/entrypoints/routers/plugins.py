@@ -8,7 +8,15 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+    Query,
+)
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
@@ -47,8 +55,8 @@ router = APIRouter(prefix="/plugins")
 
 @router.get("", response_model=PluginListResponse, summary="Liệt kê Plugin Marketplace")
 async def list_marketplace_plugins(
-    limit: int = 20,
-    offset: int = 0,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case: PluginListUseCase = Depends(get_plugin_list_use_case),
 ) -> PluginListResponse:
@@ -117,7 +125,27 @@ async def install_plugin(
     return {
         "message": "Plugin installation queued.",
         "plugin_id": str(plugin_id),
+        "task_id": f"mock_task_{plugin_id}",
         "status": "INSTALLING",
+    }
+
+
+@router.get(
+    "/install/{task_id}/status",
+    status_code=status.HTTP_200_OK,
+    summary="Lấy trạng thái cài đặt Plugin (Mock)",
+)
+async def get_install_status(
+    task_id: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+) -> dict[str, Any]:
+    # TODO: Implement real task tracking. For now, mock success.
+    return {
+        "overall_status": "COMPLETED",
+        "steps": [
+            {"name": "Download", "status": "DONE"},
+            {"name": "Install", "status": "DONE"},
+        ],
     }
 
 

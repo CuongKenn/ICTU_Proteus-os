@@ -59,46 +59,24 @@ class PluginCleanupAgent:
             return
 
         for tenant_id, plugin_id, plugin_code_name in failed_plugins:
-            logger.info(
-                "Đang dọn dẹp plugin %s cho tenant %s", plugin_code_name, tenant_id
-            )
-            context = TenantContext(
-                tenant_id=tenant_id,
-                user_id=uuid.uuid4(),  # System User
-                roles=["superadmin"],  # Bypass permissions
-                full_name="SYSTEM_AGENT",
-            )
             try:
-                # Forced uninstall ignoring failures inside uninstall_plugin
-                await self.uninstall_use_case.uninstall_plugin(
-                    context=context,
-                    plugin_id=plugin_id,
-                    confirm_name=plugin_code_name,
-                )
-                logger.info(
-                    "Đã dọn dẹp thành công",
-                    extra={
-                        "action": "audit_log",
-                        "actor_type": "SYSTEM",
+                await self.mattermost_adapter.send_interactive_message(
+                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
+                    text=f"Plugin {plugin_code_name} (Tenant {tenant_id}) bị kẹt FAILED_DIRTY > 1 giờ. Cần thủ công gỡ cài đặt.",
+                    action_id=str(plugin_id),
+                    extra_context={
                         "tenant_id": str(tenant_id),
-                        "plugin_id": str(plugin_id),
+                        "action_type": "plugin_cleanup",
                     },
                 )
-                # Gửi thông báo Mattermost
-                await self.mattermost_adapter.send_message(
-                    text=f"Plugin {plugin_code_name} đã được dọn dẹp khỏi Tenant {tenant_id}.",
-                    channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
+                logger.warning(
+                    "Plugin %s on tenant %s flagged for manual cleanup",
+                    plugin_code_name,
+                    tenant_id,
                 )
             except Exception as e:
                 logger.error(
-                    "Cleanup thất bại cho plugin %s",
-                    plugin_code_name,
-                    exc_info=True,
-                    extra={
-                        "tenant_id": str(tenant_id),
-                        "plugin_id": str(plugin_id),
-                        "error": str(e),
-                    },
+                    "Cleanup warning thất bại cho plugin %s: %s", plugin_code_name, e
                 )
                 await self.mattermost_adapter.send_message(
                     text=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
