@@ -176,15 +176,24 @@ class PluginUninstallUseCase:
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
     ) -> None:
         """Xóa roles khỏi Keycloak."""
+        result = await self.session.execute(
+            text("SELECT keycloak_realm FROM tenants WHERE id = :tenant_id"),
+            {"tenant_id": context.tenant_id}
+        )
+        keycloak_realm = result.scalar()
+        if not keycloak_realm:
+            logger.warning("Không tìm thấy tenant %s, bỏ qua xóa roles", context.tenant_id)
+            return
+
         for role in manifest.roles:
-            # Lấy admin token
+            role_name = f"{plugin_code_name}_{role.name}"
             try:
                 await self.keycloak_adapter.delete_role(
-                    realm="proteus",
-                    role_name=role.name,
+                    realm=keycloak_realm,
+                    role_name=role_name,
                 )
             except Exception as e:
-                logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)
+                logger.warning("Không thể xóa role %s trong Keycloak: %s", role_name, e)
 
     async def _step_3_appsmith(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest

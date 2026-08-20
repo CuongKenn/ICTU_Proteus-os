@@ -273,13 +273,24 @@ class PluginInstallUseCase:
     ) -> list[str]:
         """Tạo Roles trong Keycloak."""
         created_roles = []
+        
+        # Lay keycloak_realm cua tenant tu DB
+        result = await self.session.execute(
+            text("SELECT keycloak_realm FROM tenants WHERE id = :tenant_id"),
+            {"tenant_id": context.tenant_id}
+        )
+        keycloak_realm = result.scalar()
+        if not keycloak_realm:
+            raise PluginInstallError(f"Khong tim thay tenant {context.tenant_id} hoac thieu keycloak_realm")
+
         for role in manifest.roles:
             if hasattr(self.keycloak_adapter, "create_role"):
+                role_name = f"{plugin_code_name}_{role.name}"
                 await self.keycloak_adapter.create_role(
-                    realm="proteus",
-                    role_name=role.name,
+                    realm=keycloak_realm,
+                    role_name=role_name,
                 )
-                created_roles.append(role.name)
+                created_roles.append(role_name)
         return created_roles
 
     async def _step_6_events(
