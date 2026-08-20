@@ -136,12 +136,16 @@ class AbstractTenantRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_integrations(self, tenant_id: uuid.UUID) -> list[TenantIntegrationEntity]:
+    async def get_integrations(
+        self, tenant_id: uuid.UUID
+    ) -> list[TenantIntegrationEntity]:
         """Lấy danh sách integrations của Tenant."""
         ...
 
     @abstractmethod
-    async def add_integration(self, integration: TenantIntegrationEntity) -> TenantIntegrationEntity:
+    async def add_integration(
+        self, integration: TenantIntegrationEntity
+    ) -> TenantIntegrationEntity:
         """Thêm integration mới cho Tenant."""
         ...
 

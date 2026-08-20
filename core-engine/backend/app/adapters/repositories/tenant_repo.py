@@ -90,9 +90,13 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
             {"id": tenant_id},
         )
 
-    async def get_integrations(self, tenant_id: uuid.UUID) -> list[TenantIntegrationEntity]:
+    async def get_integrations(
+        self, tenant_id: uuid.UUID
+    ) -> list[TenantIntegrationEntity]:
         result = await self._session.execute(
-            text("SELECT * FROM tenant_integrations WHERE tenant_id = :tenant_id AND deleted_at IS NULL"),
+            text(
+                "SELECT * FROM tenant_integrations WHERE tenant_id = :tenant_id AND deleted_at IS NULL"
+            ),
             {"tenant_id": tenant_id},
         )
         rows = result.mappings().all()
@@ -101,13 +105,19 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
                 id=row["id"],
                 tenant_id=row["tenant_id"],
                 provider=row["provider"],
-                config=row["config"] if isinstance(row["config"], dict) else json.loads(row["config"]),
+                config=(
+                    row["config"]
+                    if isinstance(row["config"], dict)
+                    else json.loads(row["config"])
+                ),
                 is_active=row["is_active"],
             )
             for row in rows
         ]
 
-    async def add_integration(self, integration: TenantIntegrationEntity) -> TenantIntegrationEntity:
+    async def add_integration(
+        self, integration: TenantIntegrationEntity
+    ) -> TenantIntegrationEntity:
         await self._session.execute(
             text("""
                 INSERT INTO tenant_integrations (id, tenant_id, provider, config, is_active)

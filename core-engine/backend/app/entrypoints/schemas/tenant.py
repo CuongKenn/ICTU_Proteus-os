@@ -35,6 +35,7 @@ class TenantResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class TenantIntegrationCreateRequest(BaseModel):
     provider: str = Field(..., description="Tên provider (vd: github, slack, aws)")
     config: dict[str, Any] = Field(..., description="Cấu hình tích hợp")
