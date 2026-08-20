@@ -243,7 +243,7 @@ export const AIChatWidget: React.FC = () => {
   return (
     <div
       id="ai-chat-widget-root"
-      className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3"
+      className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3"
       role="complementary"
       aria-label="Proteus AI Chat"
     >

@@ -5,18 +5,18 @@
 
 import React from "react";
 import { Button } from "@/components/ui/Button";
-import { Shield, Key, Smartphone, Clock } from "lucide-react";
+import { Shield, Key, Smartphone, Clock, ExternalLink } from "lucide-react";
 
 export const SecurityTab = () => {
   const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "http://auth.proteus.local";
-  const securityUrl = `${keycloakUrl}/realms/proteus/account/password`;
+  const accountUrl = `${keycloakUrl}/realms/proteus/account/`;
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-xl font-bold text-text-primary">Security Settings</h2>
+        <h2 className="text-xl font-bold text-text-primary">Cài đặt Bảo mật</h2>
         <p className="text-text-secondary text-sm mt-1">
-          Manage your account security, passwords, and active sessions.
+          Quản lý bảo mật tài khoản và các phiên đăng nhập.
         </p>
       </div>
 
@@ -27,14 +27,18 @@ export const SecurityTab = () => {
               <Key className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">Password</h3>
-              <p className="text-sm text-text-secondary mt-1">
-                Change your password regularly to keep your account secure.
+              <h3 className="text-sm font-medium text-text-primary">Mật khẩu</h3>
+              <p className="text-xs text-text-secondary mt-1">
+                Thay đổi mật khẩu thường xuyên để bảo mật tài khoản.
               </p>
             </div>
           </div>
-          <Button variant="secondary" onClick={() => window.open(securityUrl, "_blank")}>
-            Change Password
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={() => window.open(accountUrl, "_blank")}
+          >
+            Đổi Mật khẩu <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
         </div>
 
@@ -44,32 +48,39 @@ export const SecurityTab = () => {
               <Smartphone className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">Two-Factor Authentication</h3>
-              <p className="text-sm text-text-secondary mt-1">
-                Add an extra layer of security to your account.
+              <h3 className="text-sm font-medium text-text-primary">Xác thực 2 Bước (2FA)</h3>
+              <p className="text-xs text-text-secondary mt-1">
+                Thêm một lớp bảo mật bổ sung cho tài khoản của bạn.
               </p>
             </div>
           </div>
-          <Button variant="secondary" onClick={() => window.open(keycloakUrl + "/realms/proteus/account/", "_blank")}>
-            Setup 2FA
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={() => window.open(accountUrl, "_blank")}
+          >
+            Thiết lập 2FA <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
         </div>
 
         <div className="pt-4 border-t border-border">
           <h3 className="font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4" /> Active Sessions
+            <Clock className="w-4 h-4" /> Phiên Đăng nhập Hiện tại
           </h3>
-          <div className="text-sm text-text-secondary p-4 bg-bg-surface rounded-lg border border-dashed border-border flex items-center justify-center">
-            Session management is handled by Keycloak. 
-            <a 
-              href={keycloakUrl + "/realms/proteus/account/sessions"} 
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline ml-1"
-            >
-              View active sessions
-            </a>
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-text-primary">Quản lý phiên</h3>
+            <p className="text-xs text-text-secondary mt-1">
+              Phiên đăng nhập được quản lý thông qua Keycloak SSO.
+            </p>
           </div>
+          <a 
+            href={accountUrl + "sessions"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:text-primary-hover flex items-center"
+          >
+            Xem các phiên đăng nhập <ExternalLink className="w-4 h-4 ml-1" />
+          </a>
         </div>
       </div>
     </div>
