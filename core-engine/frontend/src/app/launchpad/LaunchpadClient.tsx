@@ -142,7 +142,7 @@ export function LaunchpadClient() {
 
       {/* Iframe Overlay */}
       {activeApp && iframeUrl && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-bg-base/95 backdrop-blur-2xl animate-fade-in">
+        <div className="fixed inset-0 z-[300] flex flex-col bg-bg-base/95 backdrop-blur-2xl animate-fade-in">
           {/* Header Bar */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-bg-surface/40 shadow-sm">
             <h2 className="text-lg font-bold text-text-primary uppercase tracking-widest flex items-center gap-2">
