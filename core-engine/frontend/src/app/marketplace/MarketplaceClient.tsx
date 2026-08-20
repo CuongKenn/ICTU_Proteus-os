@@ -20,8 +20,8 @@ export const MarketplaceClient: React.FC = () => {
   const { hasRole } = useSession();
   const isAdmin = hasRole("tenant_admin");
 
-  const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
-  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled, configureCredentials } = usePlugins();
+  const { installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
+  const { plugins: allPlugins, isLoading, refetch: refetchInstalled, configureCredentials } = usePlugins();
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
   const [isInstallPreviewOpen, setIsInstallPreviewOpen] = useState(false);
@@ -34,15 +34,19 @@ export const MarketplaceClient: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   // Combine both lists
-  const allPlugins = useMemo(() => {
+  const mergedPluginsList = useMemo(() => {
     const list: Array<{ data: PluginData; status: PluginStatus; isInstalled: boolean }> = [];
     
-    // Add installed plugins
-    installedPlugins.forEach(p => {
-      let uiStatus: PluginStatus = "active";
-      if (p.status === "FAILED_DIRTY") uiStatus = "failed";
-      else if (p.status === "DISABLED") uiStatus = "disabled";
-      else if (p.status === "INSTALLING") uiStatus = "installing";
+    allPlugins.forEach(p => {
+      const isInstalled = p.status !== null && p.status !== undefined;
+      let uiStatus: PluginStatus = "available";
+      
+      if (isInstalled) {
+        uiStatus = "active";
+        if (p.status === "FAILED_DIRTY") uiStatus = "failed";
+        else if (p.status === "DISABLED") uiStatus = "disabled";
+        else if (p.status === "INSTALLING") uiStatus = "installing";
+      }
 
       // Mock category if undefined
       let cat = (p as any).category;
@@ -60,67 +64,34 @@ export const MarketplaceClient: React.FC = () => {
           name: p.display_name,
           version: p.version,
           description: (p as any).description || "Không có mô tả cho ứng dụng này.",
-          tablesCount: 5, // mock
-          workflowsCount: 2, // mock
-          requiredRoles: ["tenant_admin"], // mock
+          tablesCount: p.tables_count ?? 5, // mock fallback until PR 444 is merged
+          workflowsCount: p.workflows_count ?? 2,
+          requiredRoles: p.roles ?? ["tenant_admin"],
           isOfficial: p.is_official,
           category: cat,
         },
         status: uiStatus,
-        isInstalled: true,
+        isInstalled,
       });
     });
 
-    // Add available plugins
-    availablePlugins.forEach(p => {
-      // Don't add if already in installed list (by codeName)
-      if (!installedPlugins.find(ip => ip.code_name === p.code_name)) {
-        let cat = (p as any).category;
-        if (!cat) {
-          if (p.code_name?.includes("hr")) cat = "HR";
-          else if (p.code_name?.includes("crm")) cat = "CRM";
-          else if (p.code_name?.includes("finance")) cat = "Finance";
-          else cat = "Utilities";
-        }
-
-        list.push({
-          data: {
-            id: p.id,
-            codeName: p.code_name,
-            name: p.display_name,
-            version: p.version,
-            description: p.description || "Không có mô tả cho ứng dụng này.",
-            tablesCount: 5, // mock
-            workflowsCount: 3, // mock
-            requiredRoles: ["tenant_admin"], // mock
-            isOfficial: p.is_official,
-            category: cat,
-          },
-          status: "available",
-          isInstalled: false,
-        });
-      }
-    });
-
     return list;
-  }, [availablePlugins, installedPlugins]);
+  }, [allPlugins]);
 
   // Filter plugins based on search and category
   const filteredPlugins = useMemo(() => {
-    return allPlugins.filter(p => {
+    return mergedPluginsList.filter(p => {
       const matchCategory = selectedCategory === "All" || p.data.category === selectedCategory;
       const matchSearch = p.data.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.data.description.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCategory && matchSearch;
     });
-  }, [allPlugins, searchQuery, selectedCategory]);
-
-  const isLoading = isLoadingAvailable || isLoadingInstalled;
+  }, [mergedPluginsList, searchQuery, selectedCategory]);
 
   // Handlers
   const handleInstallClick = (id: string) => {
     if (!isAdmin) return;
-    const plugin = allPlugins.find(p => p.data.id === id)?.data;
+    const plugin = mergedPluginsList.find(p => p.data.id === id)?.data;
     if (plugin) {
       setPreviewPlugin(plugin);
       setIsInstallPreviewOpen(true);
@@ -162,6 +133,18 @@ export const MarketplaceClient: React.FC = () => {
       setTimeout(() => refetchInstalled(), 1000);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-6 min-h-[500px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8 pb-20 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 mt-8">

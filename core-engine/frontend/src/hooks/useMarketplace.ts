@@ -13,10 +13,6 @@ import type { PluginInfo, InstallTaskStatus } from "@/types";
 import type { PluginStatus } from "@/components/ui/PluginCard";
 
 interface UseMarketplaceReturn {
-  plugins: PluginInfo[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
   // Install Flow State Machine
   installingId: string | null;
   installProgress: number;
@@ -26,10 +22,6 @@ interface UseMarketplaceReturn {
 }
 
 export function useMarketplace(): UseMarketplaceReturn {
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [trigger, setTrigger] = useState(0);
 
   // Install State Machine
   const [installingId, setInstallingId] = useState<string | null>(null);
@@ -49,59 +41,7 @@ export function useMarketplace(): UseMarketplaceReturn {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
 
-    const fetchPlugins = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await api.get<{ items: PluginInfo[]; total: number }>("/plugins");
-        if (!cancelled) {
-          setPlugins(response.data.items || []);
-        }
-      } catch (err: unknown) {
-        logger.error("[useMarketplace] fetch error:", err);
-        if (!cancelled) {
-          if (process.env.NODE_ENV === "development") {
-            const mockPlugins: PluginInfo[] = [
-              {
-                id: "hr-module",
-                code_name: "hr-module",
-                display_name: "Quản lý Nhân sự Pro",
-                description: "Quản lý nhân sự toàn diện: chấm công, nghỉ phép, lương.",
-                version: "2.1.0",
-                author: "ICTU Team",
-                is_official: true,
-                download_count: 120,
-              },
-              {
-                id: "crm-module",
-                code_name: "crm-module",
-                display_name: "CRM Tối giản",
-                description: "Quản lý khách hàng, cơ hội bán hàng và ticket hỗ trợ.",
-                version: "1.0.0",
-                author: "ICTU Team",
-                is_official: true,
-                download_count: 85,
-              },
-            ];
-            setPlugins(mockPlugins);
-          } else {
-            setError("Không thể tải danh sách Plugin. Vui lòng thử lại.");
-            useNotificationStore.getState().addToast("error", "Không thể tải danh sách Plugin.");
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchPlugins();
-    return () => { cancelled = true; };
-  }, [trigger]);
 
   const pollStatus = useCallback(async (taskId: string, pluginId: string) => {
     try {
@@ -200,10 +140,6 @@ export function useMarketplace(): UseMarketplaceReturn {
   }, [install, pollStatus]);
 
   return {
-    plugins,
-    isLoading,
-    error,
-    refetch: () => setTrigger((t) => t + 1),
     installingId,
     installProgress,
     installStatus,
