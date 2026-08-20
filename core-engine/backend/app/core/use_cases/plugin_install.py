@@ -45,6 +45,7 @@ class PluginInstallUseCase:
         keycloak_adapter: KeycloakAdapter,
         mattermost_adapter: MattermostAdapter,
         session: AsyncSession,
+        tenant_repo=None,  # Added for backwards compatibility during refactor
     ) -> None:
         self.plugin_repo = plugin_repo
         self.manifest_parser = manifest_parser
@@ -54,6 +55,7 @@ class PluginInstallUseCase:
         self.keycloak_adapter = keycloak_adapter
         self.mattermost_adapter = mattermost_adapter
         self.session = session
+        self.tenant_repo = tenant_repo
 
     async def execute(self, context: TenantContext, plugin_code_name: str) -> None:
         logger.info(
@@ -127,6 +129,11 @@ class PluginInstallUseCase:
             completed_steps.append("events")
 
             # SUCCESS
+            await self.plugin_repo.update_config(
+                tenant_id=context.tenant_id,
+                plugin_id=plugin.id,
+                config_override=created_assets,
+            )
             await self.plugin_repo.update_status(
                 tenant_id=context.tenant_id,
                 plugin_id=plugin.id,
@@ -272,12 +279,18 @@ class PluginInstallUseCase:
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
     ) -> list[str]:
         """Tạo Roles trong Keycloak."""
+        keycloak_realm = "proteus"
+        if self.tenant_repo:
+            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+            if tenant:
+                keycloak_realm = tenant.keycloak_realm
+
         created_roles = []
         for role in manifest.roles:
             if hasattr(self.keycloak_adapter, "create_role"):
                 await self.keycloak_adapter.create_role(
-                    realm="proteus",
-                    role_name=role.name,
+                    realm=keycloak_realm,
+                    role_name=f"{plugin_code_name}_{role.name}",
                 )
                 created_roles.append(role.name)
         return created_roles

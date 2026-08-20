@@ -65,15 +65,6 @@ async def get_plugin_repo(
     return SQLAlchemyPluginRepository(session=db)
 
 
-async def get_audit_log_repo(
-    db: AsyncSession = Depends(get_db_transactional),
-) -> AbstractAuditLogRepository:
-    """Inject Audit Log Repository."""
-    from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
-
-    return SQLAlchemyAuditLogRepository(session=db)
-
-
 async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
     """Inject KeycloakAdapter."""
     return KeycloakAdapter(client=request.app.state.http_client)
@@ -140,6 +131,7 @@ async def get_plugin_install_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
+    tenant_repo: AbstractTenantRepository = Depends(get_tenant_repo),
 ) -> PluginInstallUseCase:
     """Inject Plugin Install Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -153,6 +145,7 @@ async def get_plugin_install_use_case(
         keycloak_adapter=keycloak_adapter,
         mattermost_adapter=mattermost_adapter,
         session=db,
+        tenant_repo=tenant_repo,
     )
 
 
@@ -164,6 +157,7 @@ async def get_plugin_uninstall_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
+    tenant_repo: AbstractTenantRepository = Depends(get_tenant_repo),
 ) -> PluginUninstallUseCase:
     """Inject Plugin Uninstall Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -177,6 +171,7 @@ async def get_plugin_uninstall_use_case(
         keycloak_adapter=keycloak_adapter,
         mattermost_adapter=mattermost_adapter,
         session=db,
+        tenant_repo=tenant_repo,
     )
 
 
@@ -344,6 +339,7 @@ async def get_ai_command_use_case(
     plugin_repo: AbstractPluginRepository = Depends(get_plugin_repo),
     ai_command_repo: AbstractAICommandRepository = Depends(get_ai_command_repo),
     dsl_dry_run_repo: AbstractDSLDryRunRepository = Depends(get_dsl_dry_run_repo),
+    role_repo: RoleRepository = Depends(get_role_repo),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
 ) -> AICommandUseCase:
@@ -352,6 +348,7 @@ async def get_ai_command_use_case(
         plugin_repo=plugin_repo,
         ai_command_repo=ai_command_repo,
         dsl_dry_run_repo=dsl_dry_run_repo,
+        role_repo=role_repo,
         mattermost_adapter=mattermost_adapter,
         n8n_adapter=n8n_adapter,
     )

@@ -18,8 +18,9 @@ export default function WikiPage() {
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-text-secondary">
           <BookOpen className="w-16 h-16 opacity-30" />
-          <h1 className="text-2xl font-bold text-text-primary">Outline Wiki</h1>
-          <p>The Wiki integration is currently disabled or not configured properly.</p>
+          <p className="mt-4 text-text-secondary">
+            Tích hợp Wiki chưa được cấu hình. Vui lòng liên hệ Admin để thiết lập.
+          </p>
         </div>
       )}
     </AppShell>

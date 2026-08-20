@@ -16,6 +16,7 @@ from app.core.domain.entities import (
     PluginEntity,
     PluginStatus,
     TenantEntity,
+    TenantIntegrationEntity,
     UserEntity,
 )
 
@@ -78,6 +79,25 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def update_config(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        config_override: dict,
+    ) -> None:
+        """Cập nhật cấu hình config_override cho một plugin installation."""
+        ...
+
+    @abstractmethod
+    async def get_config(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+    ) -> dict:
+        """Lấy cấu hình config_override của một plugin installation."""
+        ...
+
+    @abstractmethod
     async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
         """Lấy danh sách các plugin bị lỗi (FAILED_DIRTY) quá thời gian."""
         ...
@@ -132,6 +152,20 @@ class AbstractTenantRepository(ABC):
     @abstractmethod
     async def soft_delete(self, tenant_id: uuid.UUID) -> None:
         """Soft delete Tenant."""
+        ...
+
+    @abstractmethod
+    async def get_integrations(
+        self, tenant_id: uuid.UUID
+    ) -> list[TenantIntegrationEntity]:
+        """Lấy danh sách integrations của Tenant."""
+        ...
+
+    @abstractmethod
+    async def add_integration(
+        self, integration: TenantIntegrationEntity
+    ) -> TenantIntegrationEntity:
+        """Thêm integration mới cho Tenant."""
         ...
 
 
