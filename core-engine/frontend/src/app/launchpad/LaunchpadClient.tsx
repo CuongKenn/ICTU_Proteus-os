@@ -62,7 +62,8 @@ export function LaunchpadClient() {
   };
 
   const handleOpenPlugin = (code_name: string) => {
-    router.push(`/plugins/${code_name}`);
+    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://localhost:8080"}/app/${code_name}`;
+    openIframe(code_name, appsmithUrl);
   };
 
   return (
