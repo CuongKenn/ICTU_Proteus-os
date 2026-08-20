@@ -113,7 +113,8 @@ async def get_plugin_list_use_case(
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
 ) -> PluginListUseCase:
     """Inject Plugin List Use Case."""
-    return PluginListUseCase(plugin_repo=repo)
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    return PluginListUseCase(plugin_repo=repo, manifest_parser=LocalManifestParser())
 
 
 async def get_rag_ingestion_use_case(

@@ -76,6 +76,9 @@ class PluginEntity(BaseModel):
     version: str
     is_official: bool = False
     status: PluginStatus | None = None  # None nếu chưa cài cho Tenant này
+    tables_count: int | None = None
+    workflows_count: int | None = None
+    roles: list[str] | None = None
 
 
 class TenantEntity(BaseModel):

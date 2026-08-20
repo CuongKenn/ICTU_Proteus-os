@@ -32,6 +32,9 @@ export interface Plugin {
   version: string;
   is_official: boolean;
   status?: PluginStatus;
+  tables_count?: number;
+  workflows_count?: number;
+  roles?: string[];
 }
 
 export interface PluginListResponse {

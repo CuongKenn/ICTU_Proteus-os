@@ -20,6 +20,9 @@ class PluginResponse(BaseModel):
     status: PluginStatus | None = (
         None  # Type-safe: chỉ nhận giá trị PluginStatus hợp lệ
     )
+    tables_count: int | None = None
+    workflows_count: int | None = None
+    roles: list[str] | None = None
 
     model_config = {"from_attributes": True}
 
