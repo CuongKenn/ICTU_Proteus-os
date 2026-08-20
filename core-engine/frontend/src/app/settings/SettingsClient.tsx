@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { ProfileTab } from "@/components/settings/ProfileTab";
+import { Settings } from "lucide-react";
 import { AppearanceTab } from "@/components/settings/AppearanceTab";
 import { SecurityTab } from "@/components/settings/SecurityTab";
 import { AboutTab } from "@/components/settings/AboutTab";

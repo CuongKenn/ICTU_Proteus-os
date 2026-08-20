@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/Button";
-import { Shield, Key, Smartphone, Clock } from "lucide-react";
+import { Shield, Key, Smartphone, Clock, ExternalLink } from "lucide-react";
 
 export const SecurityTab = () => {
   const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "http://auth.proteus.local";

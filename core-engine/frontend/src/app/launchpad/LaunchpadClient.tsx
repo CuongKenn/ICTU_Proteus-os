@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
+import { useSession } from "next-auth/react";
 
 const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://localhost:8065";
 const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://localhost:3000";
@@ -15,6 +16,7 @@ import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function LaunchpadClient() {
+  const { data: session } = useSession();
   const { plugins, isLoading } = usePlugins();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
@@ -70,54 +72,84 @@ export function LaunchpadClient() {
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-brand-primary/5 to-transparent -z-10 pointer-events-none" />
 
       <div className="p-10 max-w-7xl mx-auto relative z-0">
-        <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-text-primary to-text-secondary mb-10 animate-fade-in tracking-tight">
-          Launchpad
-        </h1>
+        <div className="mb-10 animate-fade-in">
+          <h1 className="text-3xl font-bold text-text-primary tracking-tight mb-2">
+            Chào buổi {new Date().getHours() < 12 ? 'sáng' : new Date().getHours() < 18 ? 'chiều' : 'tối'}, {session?.user?.name || 'bạn'}!
+          </h1>
+          <p className="text-text-secondary">
+            Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
       
-      {/* Grid Container */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-8 justify-items-center">
-        
-        {/* System Apps */}
-        <AppIcon
-          appName="Mattermost"
-          icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
-          onClick={() => router.push("/chat")}
-        />
-        <AppIcon
-          appName="Outline Wiki"
-          icon={<FileText className="w-8 h-8 text-text-secondary" />}
-          onClick={() => router.push("/wiki")}
-        />
-        <AppIcon
-          appName="n8n Workflow"
-          icon={<Network className="w-8 h-8 text-orange-500" />}
-          onClick={() => openIframe("n8n", N8N_URL)}
-        />
-        <AppIcon
-          appName="Metabase"
-          icon={<Box className="w-8 h-8 text-brand-primary" />}
-          onClick={handleOpenMetabase}
-        />
-
-        {/* Plugin Skeletons */}
-        {isLoading &&
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-2 w-24 animate-pulse-slow">
-              <div className="w-20 h-20 rounded-[20px] bg-bg-surface/50 border border-border/50 shrink-0" />
-              <div className="h-3 bg-bg-surface/40 rounded w-16 mt-1" />
-            </div>
-          ))}
-
-        {/* Plugins */}
-        {!isLoading && plugins.map((plugin) => (
+      {/* System Apps Section */}
+      <section className="mb-12 animate-fade-in" style={{ animationDelay: '100ms' }}>
+        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+          Hệ thống
+          <div className="flex-1 h-px bg-border/50" />
+        </h2>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 sm:gap-8 justify-items-center">
           <AppIcon
-            key={plugin.id}
-            appName={plugin.display_name}
-            icon={<Blocks className="w-8 h-8 text-text-secondary/80" />}
-            onClick={() => handleOpenPlugin(plugin.code_name)}
+            appName="Mattermost"
+            icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
+            onClick={() => router.push("/chat")}
+            isActive
           />
-        ))}
-      </div>
+          <AppIcon
+            appName="Outline Wiki"
+            icon={<FileText className="w-8 h-8 text-text-secondary" />}
+            onClick={() => router.push("/wiki")}
+            isActive
+          />
+          <AppIcon
+            appName="n8n Workflow"
+            icon={<Network className="w-8 h-8 text-orange-500" />}
+            onClick={() => openIframe("n8n", N8N_URL)}
+            isActive
+          />
+          <AppIcon
+            appName="Metabase"
+            icon={<Box className="w-8 h-8 text-brand-primary" />}
+            onClick={handleOpenMetabase}
+            isActive
+          />
+        </div>
+      </section>
+
+      {/* Plugin Apps Section */}
+      <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+          Ứng dụng cài đặt
+          <div className="flex-1 h-px bg-border/50" />
+        </h2>
+        
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 sm:gap-8 justify-items-center">
+          {/* Plugin Skeletons */}
+          {isLoading &&
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 w-24 animate-pulse-slow">
+                <div className="w-20 h-20 rounded-[20px] bg-bg-surface/50 border border-border/50 shrink-0" />
+                <div className="h-3 bg-bg-surface/40 rounded w-16 mt-1" />
+              </div>
+            ))}
+
+          {/* Plugins */}
+          {!isLoading && plugins.map((plugin) => {
+            // Generate a color based on the plugin's code_name
+            const colors = ['text-blue-400', 'text-green-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400', 'text-indigo-400'];
+            const colorClass = colors[plugin.code_name.length % colors.length];
+            
+            return (
+              <AppIcon
+                key={plugin.id}
+                appName={plugin.display_name}
+                icon={<Blocks className={`w-8 h-8 ${colorClass}`} />}
+                onClick={() => handleOpenPlugin(plugin.code_name)}
+                isActive={plugin.status === "ACTIVE"}
+              />
+            );
+          })}
+        </div>
+      </section>
 
       {/* Empty State for Plugins */}
       {!isLoading && plugins.length === 0 && (
