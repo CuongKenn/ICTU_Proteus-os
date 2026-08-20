@@ -80,12 +80,43 @@ async def list_installed_plugins(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Cài đặt Plugin",
 )
+async def _run_install_plugin_background(ctx: TenantContext, plugin_code_name: str, app_state):
+    from app.infrastructure.database import async_session_maker
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.adapters.external.n8n_adapter import N8nAdapter
+    from app.adapters.external.metabase_adapter import MetabaseAdapter
+    from app.adapters.external.appsmith_adapter import AppsmithAdapter
+    from app.adapters.external.keycloak_adapter import KeycloakAdapter
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.core.use_cases.plugin_install import PluginInstallUseCase
+
+    async with async_session_maker() as session:
+        repo = SQLAlchemyPluginRepository(session=session)
+        use_case = PluginInstallUseCase(
+            plugin_repo=repo,
+            manifest_parser=LocalManifestParser(),
+            n8n_adapter=N8nAdapter(client=app_state.http_client),
+            metabase_adapter=MetabaseAdapter(client=app_state.http_client),
+            appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
+            keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
+            mattermost_adapter=MattermostAdapter(client=app_state.http_client),
+            session=session,
+        )
+        await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
+
+
+@router.post(
+    "/{plugin_id}/install",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Cài đặt Plugin",
+)
 async def install_plugin(
+    request: Request,
     plugin_id: uuid.UUID,
     background_tasks: BackgroundTasks,
     ctx: TenantContext = Depends(require_permission("plugins.install")),
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
-    use_case: PluginInstallUseCase = Depends(get_plugin_install_use_case),
 ) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin.
@@ -111,7 +142,7 @@ async def install_plugin(
 
     # Chạy cài đặt ngầm bằng BackgroundTasks
     background_tasks.add_task(
-        use_case.execute, context=ctx, plugin_code_name=plugin.code_name
+        _run_install_plugin_background, ctx=ctx, plugin_code_name=plugin.code_name, app_state=request.app.state
     )
 
     return {
