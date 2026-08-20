@@ -32,6 +32,9 @@ export interface Plugin {
   version: string;
   is_official: boolean;
   status?: PluginStatus;
+  tables_count?: number;
+  workflows_count?: number;
+  roles?: string[];
 }
 
 export interface PluginListResponse {
@@ -65,6 +68,9 @@ export interface PluginInfo {
   icon_url?: string;
   is_official: boolean;
   download_count: number;
+  tables_count?: number;
+  workflows_count?: number;
+  roles?: string[];
 }
 
 export type InstallTaskOverallStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "ROLLING_BACK";

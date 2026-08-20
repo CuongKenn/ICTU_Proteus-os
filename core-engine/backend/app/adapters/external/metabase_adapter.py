@@ -55,7 +55,7 @@ class MetabaseAdapter:
     """
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        self._base_url: str = settings.METABASE_URL.rstrip("/")
+        self._base_url: str = settings.METABASE_SITE_URL.rstrip("/")
         self._embedding_key: str | None = settings.METABASE_EMBEDDING_KEY
         self._headers: dict[str, str] = {
             "Content-Type": "application/json",
@@ -257,7 +257,7 @@ class MetabaseAdapter:
             ttl: Thời gian sống của URL tính bằng giây (mặc định 60s).
 
         Returns:
-            Signed URL dạng: {METABASE_URL}/embed/dashboard/{token}#bordered=true&titled=true
+            Signed URL dạng: {METABASE_SITE_URL}/embed/dashboard/{token}#bordered=true&titled=true
         """
         if not self._embedding_key:
             raise MetabaseAdapterError("METABASE_EMBEDDING_KEY is not configured.")

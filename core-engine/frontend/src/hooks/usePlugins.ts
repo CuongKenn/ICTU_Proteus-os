@@ -38,7 +38,7 @@ export function usePlugins(): UsePluginsReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await api.get<PluginListResponse>("/plugins");
+        const response = await api.get<PluginListResponse>("/plugins/installed");
         if (!cancelled) {
           setPlugins(response.data.items);
         }
@@ -64,9 +64,6 @@ export function usePlugins(): UsePluginsReturn {
       const response = await api.post<{ data: { task_id: string } }>(`/plugins/${pluginId}/install`, {});
       return response.data.data;
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        return { task_id: "fake-task-id-" + Date.now() };
-      }
       throw err;
     }
   }, []);

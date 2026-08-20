@@ -60,9 +60,9 @@ export const MarketplaceClient: React.FC = () => {
           name: p.display_name,
           version: p.version,
           description: (p as any).description || "Không có mô tả cho ứng dụng này.",
-          tablesCount: 5, // mock
-          workflowsCount: 2, // mock
-          requiredRoles: ["tenant_admin"], // mock
+          tablesCount: (p as any).tables_count ?? 0,
+          workflowsCount: (p as any).workflows_count ?? 0,
+          requiredRoles: (p as any).roles ?? [],
           isOfficial: p.is_official,
           category: cat,
         },
@@ -90,9 +90,9 @@ export const MarketplaceClient: React.FC = () => {
             name: p.display_name,
             version: p.version,
             description: p.description || "Không có mô tả cho ứng dụng này.",
-            tablesCount: 5, // mock
-            workflowsCount: 3, // mock
-            requiredRoles: ["tenant_admin"], // mock
+            tablesCount: p.tables_count ?? 0,
+            workflowsCount: p.workflows_count ?? 0,
+            requiredRoles: p.roles ?? [],
             isOfficial: p.is_official,
             category: cat,
           },
