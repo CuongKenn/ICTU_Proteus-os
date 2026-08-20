@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Metadata } from "next";
+import { AppShell } from "@/components/AppShell";
 import { MarketplaceClient } from "./MarketplaceClient";
 
 export const metadata: Metadata = {
@@ -11,8 +12,10 @@ export const metadata: Metadata = {
 
 export default function MarketplacePage() {
   return (
-    <main className="min-h-[calc(100vh-56px)] bg-bg-base overflow-y-auto">
-      <MarketplaceClient />
-    </main>
+    <AppShell>
+      <div className="overflow-y-auto">
+        <MarketplaceClient />
+      </div>
+    </AppShell>
   );
 }

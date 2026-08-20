@@ -27,6 +27,8 @@ const config: Config = {
         "text-disabled": "var(--color-text-disabled)",
         "text-muted": "var(--color-text-disabled)",
         "brand-primary": "var(--color-primary)",
+        "brand-secondary": "var(--color-accent)",
+        "bg-surface-elevated": "var(--color-bg-hover)",
         "border-subtle": "hsla(220, 60%, 60%, 0.08)",
       },
       fontFamily: {
