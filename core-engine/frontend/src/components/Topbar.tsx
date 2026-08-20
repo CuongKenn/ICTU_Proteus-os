@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Bell, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useNotificationStore } from "@/store/useNotificationStore";
 
 interface TopbarProps {
   toggleMobileMenu: () => void;
@@ -18,6 +19,8 @@ interface TopbarProps {
 export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin }) => {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const [hasNotification, setHasNotification] = React.useState(true);
+  const addToast = useNotificationStore(state => state.addToast);
 
   const handleLogout = async () => {
     try {
@@ -53,9 +56,19 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
 
       <div className="flex items-center gap-2 sm:gap-4">
         {/* Notification Center */}
-        <button className="relative p-2 text-text-secondary hover:bg-bg-hover rounded-full transition-colors">
+        <button 
+          className="relative p-2 text-text-secondary hover:bg-bg-hover rounded-full transition-colors"
+          onClick={() => {
+            if (hasNotification) {
+              setHasNotification(false);
+              addToast("info", "Không có thông báo mới.");
+            }
+          }}
+        >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full border border-bg-surface animate-pulse" />
+          {hasNotification && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full border border-bg-surface animate-pulse" />
+          )}
         </button>
 
         <div className="w-px h-6 bg-border mx-1" />

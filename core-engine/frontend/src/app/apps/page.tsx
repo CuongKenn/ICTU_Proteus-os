@@ -18,8 +18,8 @@ export default function AppsPage() {
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-text-secondary">
           <AppWindow className="w-16 h-16 opacity-30" />
-          <h1 className="text-2xl font-bold text-text-primary">Low-code Apps</h1>
-          <p>The Appsmith integration is currently disabled or not configured properly.</p>
+          <h1 className="text-2xl font-bold text-text-primary">Ứng dụng nội bộ</h1>
+          <p>Tích hợp Ứng dụng nội bộ chưa được cấu hình. Vui lòng liên hệ Admin để thiết lập.</p>
         </div>
       )}
     </AppShell>
