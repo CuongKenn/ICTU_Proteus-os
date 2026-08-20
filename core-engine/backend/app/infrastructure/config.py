@@ -47,8 +47,9 @@ class Settings(BaseSettings):
     # Plugins Directory
     PLUGINS_DIR: str = "/plugins"  # Container path
 
-    # ─── Metabase (BI & Reports) ──────────────────────────────
-    METABASE_URL: str = "http://localhost:3001"
+    # ─── Metabase (Analytics) ───────────────────────────────
+    METABASE_SITE_URL: str = "http://localhost:3000"
+    METABASE_SECRET_KEY: str = ""
     METABASE_EMBEDDING_KEY: str | None = None
 
     # ─── Appsmith (Low-code UI) ───────────────────────────────

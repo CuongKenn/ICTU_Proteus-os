@@ -32,6 +32,7 @@ from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
 from app.entrypoints.routers import (
     ai,
     auth,
+    embed,
     health,
     keycloak_webhook,
     mattermost_webhook,
@@ -230,3 +231,4 @@ app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
 app.include_router(tenants.router, prefix="/api/v1", tags=["Tenants"])
 app.include_router(mattermost_webhook.router, prefix="/api/v1")
 app.include_router(keycloak_webhook.router, prefix="/api/v1")
+app.include_router(embed.router, prefix="/api/v1", tags=["Embed"])

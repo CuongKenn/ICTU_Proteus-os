@@ -497,8 +497,34 @@ tags:
     description: Quản lý tài liệu cho RAG pipeline
   - name: Webhooks
     description: Callback endpoints nhận tín hiệu từ hệ thống ngoài
+  - name: Embed
+    description: Embed token endpoints
 
 paths:
+  # ==============================
+  # EMBED
+  # ==============================
+  /embed/metabase/{dashboard_id}:
+    get:
+      summary: Lấy Metabase embed URL
+      description: Tạo Signed URL cho iframe Metabase. Yêu cầu quyền analytics.view
+      tags: [Embed]
+      parameters:
+        - name: dashboard_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: URL được tạo thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
   # ==============================
   # SYSTEM
   # ==============================
