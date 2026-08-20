@@ -44,6 +44,7 @@ class PluginUninstallUseCase:
         keycloak_adapter: KeycloakAdapter,
         mattermost_adapter: MattermostAdapter,
         session: AsyncSession,
+        tenant_repo=None,  # Added for backwards compatibility during refactor
     ) -> None:
         self.plugin_repo = plugin_repo
         self.manifest_parser = manifest_parser
@@ -53,6 +54,7 @@ class PluginUninstallUseCase:
         self.keycloak_adapter = keycloak_adapter
         self.mattermost_adapter = mattermost_adapter
         self.session = session
+        self.tenant_repo = tenant_repo
 
     async def uninstall_plugin(
         self, context: TenantContext, plugin_id: uuid.UUID, confirm_name: str
@@ -180,12 +182,18 @@ class PluginUninstallUseCase:
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest, asset_ids: list[str]
     ) -> None:
         """Xóa roles khỏi Keycloak."""
+        keycloak_realm = "proteus"
+        if self.tenant_repo:
+            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+            if tenant:
+                keycloak_realm = tenant.keycloak_realm
+
         for role in manifest.roles:
             # Lấy admin token
             try:
                 await self.keycloak_adapter.delete_role(
-                    realm="proteus",
-                    role_name=role.name,
+                    realm=keycloak_realm,
+                    role_name=f"{plugin_code_name}_{role.name}",
                 )
             except Exception as e:
                 logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)
