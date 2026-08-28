@@ -65,6 +65,20 @@ async def get_plugin_repo(
     return SQLAlchemyPluginRepository(session=db)
 
 
+async def get_user_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> AbstractUserRepository:
+    """Inject User Repository."""
+    return SQLAlchemyUserRepository(session=db)
+
+
+async def get_tenant_repo(
+    db: AsyncSession = Depends(get_db_readonly),
+) -> AbstractTenantRepository:
+    """Inject Tenant Repository."""
+    return SQLAlchemyTenantRepository(session=db)
+
+
 async def get_keycloak_adapter(request: Request) -> KeycloakAdapter:
     """Inject KeycloakAdapter."""
     return KeycloakAdapter(client=request.app.state.http_client)
@@ -263,19 +277,6 @@ async def get_current_tenant_context(
         full_name=full_name,
     )
 
-
-async def get_user_repo(
-    db: AsyncSession = Depends(get_db_readonly),
-) -> AbstractUserRepository:
-    """Inject User Repository."""
-    return SQLAlchemyUserRepository(session=db)
-
-
-async def get_tenant_repo(
-    db: AsyncSession = Depends(get_db_readonly),
-) -> AbstractTenantRepository:
-    """Inject Tenant Repository."""
-    return SQLAlchemyTenantRepository(session=db)
 
 
 async def get_tenant_onboarding_use_case(
