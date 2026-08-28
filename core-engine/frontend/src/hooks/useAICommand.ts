@@ -9,8 +9,11 @@
 import { useState, useCallback, useRef } from "react";
 import { useNotificationStore } from "@/store/notificationStore";
 
-// Helper: dùng native crypto.randomUUID() — không cần package uuid
-const uuid = () => crypto.randomUUID();
+// Helper: dùng fallback khi chạy trên HTTP không có crypto.randomUUID
+const uuid = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -172,7 +175,7 @@ export function useAICommand(): UseAICommandReturn {
         const detectedEffect = detectEffectFromInput(trimmed);
         const mockData = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
         if (mockData.status === "pending_approval" && mockData.dsl_preview) {
-          setDslPreview({ ...mockData.dsl_preview, command_id: crypto.randomUUID() });
+          setDslPreview({ ...mockData.dsl_preview, command_id: uuid() });
           appendMessage(
             "assistant",
             `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${mockData.dsl_preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`

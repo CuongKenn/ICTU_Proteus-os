@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/frontend]** Sửa lỗi `TypeError: crypto.randomUUID is not a function` khi chạy trên môi trường không có HTTPS (HTTP / localhost) bằng cách bổ sung cơ chế fallback tự động chuyển sang dùng `Math.random()` để tạo ID (Issue #...).
 - **[core-engine/backend/app]** Đổi tên `PermissionError` thành `TenantPermissionError` và cập nhật logic kiểm tra quyền trong `get_tenant()` để làm rõ các lỗi liên quan đến phân quyền Tenant (Issue #278).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Khắc phục lỗi truyền webhook URL hardcode và lỗi serialize tham số dict bằng `str().replace()` thành JSON không hợp lệ khi gửi payload sang N8n (Issue #287, #276).
 - **[core-engine/frontend/src/components/AIChatWidget.tsx]** Bổ sung sự kiện lắng nghe phím `Escape` (`keydown`) để tự động thu nhỏ/đóng AIChatWidget khi người dùng bấm phím Esc. Cải thiện trải nghiệm người dùng (UX) và tính khả dụng của giao diện (Issue #380).
