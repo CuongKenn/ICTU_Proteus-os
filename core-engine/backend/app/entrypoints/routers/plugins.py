@@ -21,7 +21,6 @@ from fastapi import (
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
-from app.core.domain.entities import PluginStatus
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -172,10 +171,10 @@ async def get_install_status(
 
     try:
         plugin_uuid = uuid.UUID(task_id)
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400, detail="Invalid task_id (must be UUID of plugin)"
-        )
+        ) from e
 
     repo = request.app.state.plugin_repo
     status_val = await repo.get_installation_status(ctx.tenant_id, plugin_uuid)
@@ -216,7 +215,7 @@ async def uninstall_plugin(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return {"message": "Gỡ cài đặt Plugin thành công."}
 
@@ -237,7 +236,7 @@ async def disable_plugin(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return {"message": "Plugin đã được vô hiệu hóa."}
 
@@ -258,7 +257,7 @@ async def enable_plugin(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return {"message": "Plugin đã được bật lại."}
 
@@ -279,7 +278,7 @@ async def upgrade_plugin(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     return {"message": "Nâng cấp Plugin thành công."}
 
 
@@ -339,7 +338,7 @@ async def synthesize_plugin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi sinh Plugin: {e}",
-        )
+        ) from e
 
 
 @router.post(
@@ -371,10 +370,10 @@ async def configure_plugin_credentials(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         logger.error("Lỗi không xác định khi tạo credential: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
-        )
+        ) from e
