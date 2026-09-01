@@ -5,8 +5,8 @@
 
 import logging
 
-from app.adapters.external.n8n_adapter import N8nAdapter
 from app.core.domain.entities import TenantContext
+from app.core.domain.ports import AbstractWorkflowEnginePort
 from app.entrypoints.schemas.plugin import PluginCredentialPayload
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class ConfigurePluginCredentialsUseCase:
     mà không lưu trữ trong database của Proteus OS.
     """
 
-    def __init__(self, n8n_adapter: N8nAdapter):
+    def __init__(self, n8n_adapter: AbstractWorkflowEnginePort):
         self.n8n_adapter = n8n_adapter
 
     async def execute(

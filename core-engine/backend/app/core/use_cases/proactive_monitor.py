@@ -12,12 +12,12 @@
 import logging
 from datetime import UTC, datetime
 
-from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
     AbstractHRLeaveRepository,
     AbstractPluginRepository,
 )
+from app.core.domain.ports import AbstractChatOpsPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class ProactiveMonitorAgent:
         plugin_repo: AbstractPluginRepository,
         ai_command_repo: AbstractAICommandRepository,
         hr_leave_repo: AbstractHRLeaveRepository,
-        mattermost_adapter: MattermostAdapter,
+        mattermost_adapter: AbstractChatOpsPort,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo

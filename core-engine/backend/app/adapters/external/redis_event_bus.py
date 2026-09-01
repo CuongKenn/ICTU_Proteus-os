@@ -19,6 +19,7 @@ from typing import Any
 
 import redis.asyncio as aioredis
 
+from app.core.domain.ports import AbstractEventBusPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class EventBusPublishError(Exception):
     """Lỗi khi publish event lên Redis — bắt ở Use Case layer."""
 
 
-class RedisEventBusPublisher:
+class RedisEventBusPublisher(AbstractEventBusPort):
     """
     Secondary Adapter phát sự kiện qua Redis Pub/Sub.
 

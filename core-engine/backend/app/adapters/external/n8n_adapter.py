@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.core.domain.ports import AbstractWorkflowEnginePort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ class N8nWorkflowNotFoundError(N8nAdapterError):
     """Workflow không tồn tại trên n8n."""
 
 
-class N8nAdapter:
+class N8nAdapter(AbstractWorkflowEnginePort):
     """
     Secondary Adapter giao tiếp với n8n Workflow Engine.
 

@@ -1,0 +1,11 @@
+Fixes #485
+Fixes #486
+
+## Description
+This PR resolves major Hexagonal Architecture violations where Core Use Cases were importing and depending directly on external Infrastructure Adapters. 
+
+Changes:
+- Added abstract ports for external services in `core/domain/ports.py`.
+- Updated external adapters to explicitly inherit from their respective abstract ports.
+- Refactored `plugin_install.py`, `plugin_uninstall.py`, `ai_command.py`, `tenant_onboarding.py`, `keycloak_webhook.py`, and `plugin_credentials.py` to type-hint the injected dependencies as Abstract Ports instead of concrete Adapters.
+- Modified Dependency Injection via FastAPI's `dependencies.py` to seamlessly inject the valid concrete adapters satisfying the new Ports.

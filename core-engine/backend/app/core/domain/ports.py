@@ -42,3 +42,27 @@ class AbstractVectorDBPort(ABC):
     ) -> list[dict[str, Any]]:
         """Tìm kiếm hybrid (vector + text)."""
         pass
+
+
+class AbstractWorkflowEnginePort(ABC):
+    pass
+
+
+class AbstractUIBuilderPort(ABC):
+    pass
+
+
+class AbstractAnalyticsPort(ABC):
+    pass
+
+
+class AbstractIdentityProviderPort(ABC):
+    pass
+
+
+class AbstractChatOpsPort(ABC):
+    pass
+
+
+class AbstractEventBusPort(ABC):
+    pass
