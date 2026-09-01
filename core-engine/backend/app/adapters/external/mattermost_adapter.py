@@ -46,13 +46,17 @@ class MattermostAdapter:
             return response.json()
         except httpx.HTTPStatusError as e:
             logger.error("Lỗi khi gửi tin nhắn tới Mattermost: %s", e.response.text)
-            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}")
+            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}") from e
         except Exception as e:
             logger.error("Lỗi kết nối Mattermost: %s", e)
-            raise MattermostAdapterError(str(e))
+            raise MattermostAdapterError(str(e)) from e
 
     async def send_interactive_message(
-        self, channel_id: str, text: str, action_id: str, extra_context: dict = None
+        self,
+        channel_id: str,
+        text: str,
+        action_id: str,
+        extra_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Gửi tin nhắn có chứa nút Interactive (Phê duyệt / Từ chối).
@@ -60,7 +64,8 @@ class MattermostAdapter:
         """
         if not self.token:
             logger.warning(
-                "MATTERMOST_BOT_TOKEN chưa được cấu hình, bỏ qua send_interactive_message."
+                "MATTERMOST_BOT_TOKEN chưa được cấu hình, "
+                "bỏ qua send_interactive_message."
             )
             return {}
 
@@ -68,10 +73,12 @@ class MattermostAdapter:
         context["action_id"] = action_id
 
         # Webhook callback URL mà Mattermost sẽ gọi về
-        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình qua biến môi trường ở thực tế,
+        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình
+        # qua biến môi trường ở thực tế,
         # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
         # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
-        # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định Mattermost có thể phân giải được URL backend.
+        # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định
+        # Mattermost có thể phân giải được URL backend.
         backend_url = getattr(
             settings, "BACKEND_URL", "http://proteus-backend:8000"
         ).rstrip("/")
@@ -117,7 +124,7 @@ class MattermostAdapter:
             return response.json()
         except httpx.HTTPStatusError as e:
             logger.error("Lỗi khi gửi interactive message: %s", e.response.text)
-            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}")
+            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}") from e
         except Exception as e:
             logger.error("Lỗi kết nối Mattermost: %s", e)
-            raise MattermostAdapterError(str(e))
+            raise MattermostAdapterError(str(e)) from e

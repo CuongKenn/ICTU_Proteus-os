@@ -11,6 +11,7 @@ from app.core.domain.entities import TenantContext
 from app.core.use_cases.tenant_onboarding import (
     TenantOnboardingError,
     TenantOnboardingUseCase,
+    TenantPermissionError,
 )
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
@@ -44,13 +45,15 @@ async def create_tenant(
         )
         return tenant
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.get(
@@ -66,13 +69,13 @@ async def get_my_tenant(
         tenant = await use_case.get_tenant(context, context.tenant_id)
         return tenant
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.patch(
@@ -90,13 +93,13 @@ async def update_my_tenant(
         tenant = await use_case.update_tenant(context, context.tenant_id, data)
         return tenant
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.get(
@@ -111,11 +114,11 @@ async def get_my_integrations(
     try:
         return await use_case.get_integrations(context)
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.post(
@@ -131,11 +134,11 @@ async def add_my_integration(
     try:
         return await use_case.add_integration(context, request.provider, request.config)
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.get(
@@ -152,13 +155,13 @@ async def get_tenant(
         tenant = await use_case.get_tenant(context, tenant_id)
         return tenant
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.patch(
@@ -177,13 +180,13 @@ async def update_tenant(
         tenant = await use_case.update_tenant(context, tenant_id, data)
         return tenant
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
 
 
 @router.delete(
@@ -199,10 +202,10 @@ async def delete_tenant(
     try:
         await use_case.delete_tenant(context, tenant_id)
     except TenantPermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        ) from e
