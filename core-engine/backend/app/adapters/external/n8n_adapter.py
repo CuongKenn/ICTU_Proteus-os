@@ -309,11 +309,11 @@ class N8nAdapter:
                 f"khong khop voi N8N_URL '{n8n_parsed.netloc}'"
             )
 
-        response = await self._client.post(
+        response = await self._request_with_retry(
+            "POST",
             webhook_url,
             json=payload,
             timeout=timeout,
-            follow_redirects=False,
         )
 
         if response.status_code not in (200, 201):

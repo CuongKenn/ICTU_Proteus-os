@@ -75,17 +75,8 @@ class DSLValidator:
         resource = parts[1]
         method = parts[2]
 
-        # Rule 1: Action whitelist (Mock)
-        # Thực tế cần lấy danh sách whitelist từ Registry
-        whitelist_actions = [
-            "hr.leave_requests.batch_approve",
-            "hr.employees.get",
-            "finance.invoices.create",
-            "core.users.invite",
-        ]
-        if action not in whitelist_actions:
-            raise DSLInvalidActionError(f"Action not in whitelist: {action}")
-
+        # Rule 1: Action whitelist (Removed to follow Open/Closed Principle)
+        # We rely on Rule 2 (Permission) and Rule 3 (Plugin status) to secure the action.
         # Rule 3: Plugin installed + ACTIVE
         if plugin_code != "core":
             status = await self.plugin_repo.get_tenant_plugin_status_by_code(

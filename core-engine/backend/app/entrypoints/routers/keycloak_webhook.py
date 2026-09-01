@@ -1,6 +1,7 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import hmac
 import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -36,7 +37,7 @@ async def handle_keycloak_event(
         )
 
     token = authorization.split(" ")[1]
-    if token != settings.KEYCLOAK_WEBHOOK_SECRET:
+    if not hmac.compare_digest(token, settings.KEYCLOAK_WEBHOOK_SECRET):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret",

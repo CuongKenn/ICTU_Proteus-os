@@ -71,11 +71,6 @@ async def test_validate_invalid_action_format(validator):
         await validator.validate(payload)
 
 
-@pytest.mark.asyncio
-async def test_validate_action_not_in_whitelist(validator):
-    payload = {"version": "1.0", "action": "hr.leave_requests.unknown_method"}
-    with pytest.raises(DSLInvalidActionError):
-        await validator.validate(payload)
 
 
 @pytest.mark.asyncio
