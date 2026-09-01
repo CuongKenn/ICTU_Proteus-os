@@ -11,7 +11,6 @@ from app.core.domain.entities import TenantContext
 from app.core.use_cases.tenant_onboarding import (
     TenantOnboardingError,
     TenantOnboardingUseCase,
-    TenantPermissionError,
 )
 from app.entrypoints.dependencies import (
     get_current_tenant_context,

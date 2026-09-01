@@ -34,7 +34,6 @@ from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeU
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_plugin_credentials_use_case,
-    get_plugin_install_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
     get_plugin_toggle_use_case,
@@ -92,9 +91,7 @@ async def _run_install_plugin_background(
     from app.adapters.external.local_manifest_parser import LocalManifestParser
     from app.adapters.external.mattermost_adapter import MattermostAdapter
     from app.adapters.external.metabase_adapter import MetabaseAdapter
-    from app.adapters.external.n8n_adapter import N8nAdapter
     from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
-    from app.core.use_cases.plugin_install import PluginInstallUseCase
     from app.infrastructure.database import async_session_maker
 
     async with async_session_maker() as session:
