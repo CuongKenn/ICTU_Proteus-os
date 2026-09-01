@@ -85,6 +85,11 @@ docs(erd): add AI_COMMAND table schema
 - **Architecture:** Tuân thủ **Hexagonal Architecture** — cấm gọi Database hay thư viện ngoài trực tiếp từ Router. Phải đi qua Use Cases → Adapters.
 - **API Schema:** Mọi Endpoint phải có Pydantic Model cho cả Input và Output (để Swagger tự sinh tài liệu).
 - **Multi-tenancy:** Mọi bảng dữ liệu nghiệp vụ **bắt buộc có cột `tenant_id`**. Logic query phải lấy `tenant_id` từ JWT Token.
+- **Database Migrations:** Sử dụng Alembic. Khi thay đổi models, tạo migration script bằng lệnh:
+  ```bash
+  alembic revision --autogenerate -m "Mô tả thay đổi"
+  ```
+  *Lưu ý:* Cần kiểm tra lại script migration sinh ra xem có chính xác không (đặc biệt các logic migrate data, seed data).
 - **Bản quyền:** Chèn header AGPL-3.0 vào đầu mọi file Python mới:
 
 ```python
