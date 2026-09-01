@@ -17,8 +17,7 @@ from app.entrypoints.dependencies import (
     get_rag_ingestion_use_case,
 )
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
-from main import limiter
-
+from app.infrastructure.rate_limiter import limiter
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai")
 
