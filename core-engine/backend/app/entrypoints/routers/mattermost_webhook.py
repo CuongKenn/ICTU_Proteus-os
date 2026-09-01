@@ -3,7 +3,9 @@
 
 import hashlib
 import hmac
+import json
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
@@ -95,12 +97,9 @@ async def mattermost_interactive_callback(
 
     # The user_id from Mattermost payload is Mattermost's internal user id,
     # but in our context it acts as the approver_id.
-    import json
-    import uuid
-
     if action == "approve":
         logger.info(
-            f"Yêu cầu {action_id} được PHÊ DUYỆT bởi user {user_id}. Kích hoạt n8n."
+            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n.", action_id, user_id
         )
         cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
             uuid.UUID(action_id)
@@ -131,7 +130,7 @@ async def mattermost_interactive_callback(
 
         return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
     elif action == "reject":
-        logger.info(f"Yêu cầu {action_id} BỊ TỪ CHỐI bởi user {user_id}.")
+        logger.info("Yêu cầu %s BỊ TỪ CHỐI bởi user %s.", action_id, user_id)
         cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
             uuid.UUID(action_id)
         )

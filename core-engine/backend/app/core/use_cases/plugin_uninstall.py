@@ -4,6 +4,7 @@
 # Core Domain — Plugin Uninstall Use Case (6-step reverse)
 
 import logging
+import re
 import uuid
 
 from sqlalchemy import text
@@ -189,8 +190,11 @@ class PluginUninstallUseCase:
     ) -> None:
         """Xóa webhooks từ n8n."""
         for sub in manifest.event_subscriptions:
-            # await self.n8n_adapter.delete_webhook(context.tenant_id, plugin_code_name, sub)
-            pass
+            # Dummy logic until event bus registry is fully spec'd
+            logger.info(
+                "Deleting event subscription: %s",
+                f"{sub.source_plugin}_{'-'.join(sub.event_types)}",
+            )
 
     async def _step_2_keycloak(
         self,
@@ -265,15 +269,13 @@ class PluginUninstallUseCase:
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
     ) -> None:
         """DROP Tables thuộc plugin (destructive)."""
-        import re
-
         if manifest.database and manifest.database.tables:
             schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
             await self.session.execute(text(f"SET search_path TO {schema_name}"))
             for table_name in manifest.database.tables:
                 if not re.match(r"^[a-zA-Z0-9_]+$", table_name):
                     logger.warning(
-                        f"Bỏ qua DROP TABLE vì tên bảng không hợp lệ: {table_name}"
+                        "Bỏ qua DROP TABLE vì tên bảng không hợp lệ: %s", table_name
                     )
                     continue
                 drop_sql = f'DROP TABLE IF EXISTS "{table_name}" CASCADE;'
