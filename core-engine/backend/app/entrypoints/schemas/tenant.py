@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import uuid
-
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 

@@ -278,7 +278,6 @@ async def get_current_tenant_context(
     )
 
 
-
 async def get_tenant_onboarding_use_case(
     repo: AbstractTenantRepository = Depends(get_tenant_repo),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),

@@ -19,10 +19,10 @@ from app.entrypoints.dependencies import (
 )
 from app.entrypoints.schemas.tenant import (
     TenantCreateRequest,
+    TenantIntegrationCreateRequest,
+    TenantIntegrationResponse,
     TenantResponse,
     TenantUpdateRequest,
-    TenantIntegrationResponse,
-    TenantIntegrationCreateRequest,
 )
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
