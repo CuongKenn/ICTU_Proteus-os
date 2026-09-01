@@ -196,7 +196,7 @@ class AICommandUseCase:
         """
         Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ].
         """
-        cmd = await self.ai_command_repo.get_command_by_id(cmd_id)
+        cmd = await self.ai_command_repo.get_command_by_id(cmd_id, for_update=True)
 
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
             return False

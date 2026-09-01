@@ -25,7 +25,11 @@ def override_mattermost_secret(monkeypatch):
 def mock_mattermost_payload():
     return {
         "user_id": "usr_123",
-        "context": {"action_id": "12345678-1234-5678-1234-567812345678", "action": "approve", "foo": "bar"},
+        "context": {
+            "action_id": "12345678-1234-5678-1234-567812345678",
+            "action": "approve",
+            "foo": "bar",
+        },
     }
 
 
@@ -38,8 +42,11 @@ def override_webhook_dependencies():
     class MockAICommandUseCase:
         def __init__(self):
             from unittest.mock import AsyncMock
+
             self.ai_command_repo = AsyncMock()
-            self.ai_command_repo.get_command_by_id.return_value = {"tenant_id": "12345678-1234-5678-1234-567812345678"}
+            self.ai_command_repo.get_command_by_id.return_value = {
+                "tenant_id": "12345678-1234-5678-1234-567812345678"
+            }
 
         async def process_approval(self, cmd_id, approver_id, action_taken):
             return True

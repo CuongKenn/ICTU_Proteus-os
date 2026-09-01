@@ -68,8 +68,13 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         result = await self._session.execute(sql, command_data)
         return result.scalar()
 
-    async def get_command_by_id(self, cmd_id: uuid.UUID) -> dict | None:
-        sql = text("SELECT * FROM ai_commands WHERE id = :cmd_id")
+    async def get_command_by_id(
+        self, cmd_id: uuid.UUID, for_update: bool = False
+    ) -> dict | None:
+        sql_str = "SELECT * FROM ai_commands WHERE id = :cmd_id"
+        if for_update:
+            sql_str += " FOR UPDATE"
+        sql = text(sql_str)
         result = await self._session.execute(sql, {"cmd_id": cmd_id})
         row = result.mappings().first()
         return dict(row) if row else None
