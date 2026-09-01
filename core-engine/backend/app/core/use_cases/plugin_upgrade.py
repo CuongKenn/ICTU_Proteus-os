@@ -3,6 +3,7 @@
 
 import logging
 import os
+import re
 import uuid
 from typing import Any
 
@@ -70,14 +71,16 @@ class PluginUpgradeUseCase:
         try:
             parsed_installed = parse(installed_version)
             parsed_new = parse(new_version)
-        except InvalidVersion:
+        except InvalidVersion as e:
             raise PluginUpgradeError(
-                f"Định dạng phiên bản không hợp lệ: installed={installed_version}, new={new_version}"
-            )
+                f"Định dạng phiên bản không hợp lệ: installed={installed_version}, "
+                f"new={new_version}"
+            ) from e
 
         if parsed_new <= parsed_installed:
             raise PluginUpgradeError(
-                f"Phiên bản mới ({new_version}) phải lớn hơn phiên bản hiện tại ({installed_version})."
+                f"Phiên bản mới ({new_version}) phải lớn hơn phiên bản hiện tại "
+                f"({installed_version})."
             )
 
         # Tim va chay file migration
@@ -140,10 +143,17 @@ class PluginUpgradeUseCase:
         # Thuc thi Migration voi RLS
         try:
             schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
-            await self.session.execute(text(f"SET LOCAL search_path TO {schema_name}"))
-            await self.session.execute(text("SET LOCAL role = 'tenant_admin'"))
+            if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                raise PluginUpgradeError("Invalid schema name.")
             await self.session.execute(
-                text(f"SET LOCAL app.current_tenant = '{context.tenant_id}'")
+                text(f'SET LOCAL search_path TO "{schema_name}"')
+            )
+            await self.session.execute(
+                text("SELECT set_config('role', 'tenant_admin', true)")
+            )
+            await self.session.execute(
+                text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                {"tid": str(context.tenant_id)},
             )
             for _, file_path in migrations_to_run:
                 with open(file_path, encoding="utf-8") as file:
@@ -167,4 +177,4 @@ class PluginUpgradeUseCase:
                 error_log=f"Upgrade failed: {str(e)}",
             )
             await self.session.commit()
-            raise PluginUpgradeError(f"Lỗi khi chạy migration: {str(e)}")
+            raise PluginUpgradeError(f"Lỗi khi chạy migration: {str(e)}") from e

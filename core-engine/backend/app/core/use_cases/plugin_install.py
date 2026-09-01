@@ -216,15 +216,20 @@ class PluginInstallUseCase:
 
                 # Set search_path để sandbox SQL execution trong schema của Tenant
                 schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+                if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                    raise PluginInstallError("Invalid schema name.")
                 await self.session.execute(
-                    text(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                    text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                 )
-                await self.session.execute(text(f"SET search_path TO {schema_name}"))
+                await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
 
                 # Setup RLS context cho tenant
-                await self.session.execute(text("SET LOCAL role = 'tenant_admin'"))
                 await self.session.execute(
-                    text(f"SET LOCAL app.current_tenant = '{context.tenant_id}'")
+                    text("SELECT set_config('role', 'tenant_admin', true)")
+                )
+                await self.session.execute(
+                    text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                    {"tid": str(context.tenant_id)},
                 )
 
                 # Execute raw SQL
@@ -346,12 +351,16 @@ class PluginInstallUseCase:
                 elif step == "database":
                     if manifest.database and manifest.database.tables:
                         schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+                        if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                            continue
                         await self.session.execute(
-                            text(f"SET search_path TO {schema_name}")
+                            text(f'SET search_path TO "{schema_name}"')
                         )
                         for table in reversed(manifest.database.tables):
+                            if not re.match(r"^[a-zA-Z0-9_]+$", table):
+                                continue
                             await self.session.execute(
-                                text(f"DROP TABLE IF EXISTS {table} CASCADE")
+                                text(f'DROP TABLE IF EXISTS "{table}" CASCADE')
                             )
             except Exception as e:
                 logger.error(
