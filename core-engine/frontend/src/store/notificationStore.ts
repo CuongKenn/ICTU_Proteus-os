@@ -21,7 +21,9 @@ interface NotificationState {
 export const useNotificationStore = create<NotificationState>((set) => ({
   toasts: [],
   addToast: (type, message, duration = 5000, title) => {
-    const id = crypto.randomUUID();
+    const id = typeof crypto !== "undefined" && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : Math.random().toString(36).substring(2, 15);
     set((state) => ({
       toasts: [...state.toasts, { id, type, message, title }],
     }));

@@ -1,8 +1,11 @@
 // Copyright (c) 2026 CuongKenn & ICTU Team
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Helper: dùng native crypto.randomUUID()
-const uuid = () => crypto.randomUUID();
+// Helper: dùng fallback khi chạy trên HTTP không có crypto.randomUUID
+const uuid = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
 
 export const MOCK_RESPONSES = {
   read: {
