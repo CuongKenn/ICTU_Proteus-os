@@ -83,7 +83,7 @@ async def trigger_rag_ingestion(
     use_case: RAGIngestionUseCase = Depends(get_rag_ingestion_use_case),
 ):
     """
-    Kích hoạt thủ công quá trình Ingestion tài liệu từ Outline vào Qdrant 
+    Kích hoạt thủ công quá trình Ingestion tài liệu từ Outline vào Qdrant
     cho tenant hiện tại.
     """
     result = await use_case.execute(str(ctx.tenant_id))

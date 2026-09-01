@@ -24,6 +24,7 @@ from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.infrastructure.config import settings
 
+
 @dataclass
 class AICommandDTO:
     command_id: uuid.UUID
