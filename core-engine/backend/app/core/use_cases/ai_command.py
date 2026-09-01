@@ -35,7 +35,6 @@ class AICommandDTO:
     parameters: dict[str, Any]
 
 
-
 logger = logging.getLogger(__name__)
 
 
