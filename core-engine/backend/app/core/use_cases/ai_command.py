@@ -12,8 +12,6 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from app.adapters.external.mattermost_adapter import MattermostAdapter
-from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
     AbstractDSLDryRunRepository,
@@ -21,6 +19,7 @@ from app.adapters.repositories.base import (
 )
 from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
+from app.core.domain.ports import AbstractChatOpsPort, AbstractWorkflowEnginePort
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.infrastructure.config import settings
 
@@ -50,8 +49,8 @@ class AICommandUseCase:
         ai_command_repo: AbstractAICommandRepository,
         dsl_dry_run_repo: AbstractDSLDryRunRepository,
         role_repo: RoleRepository,
-        mattermost_adapter: MattermostAdapter,
-        n8n_adapter: N8nAdapter,
+        mattermost_adapter: AbstractChatOpsPort,
+        n8n_adapter: AbstractWorkflowEnginePort,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo

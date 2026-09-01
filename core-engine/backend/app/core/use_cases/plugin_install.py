@@ -11,15 +11,17 @@ import re
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.external.appsmith_adapter import AppsmithAdapter
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.local_manifest_parser import LocalManifestParser
-from app.adapters.external.mattermost_adapter import MattermostAdapter
-from app.adapters.external.metabase_adapter import MetabaseAdapter
-from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
+from app.core.domain.ports import (
+    AbstractAnalyticsPort,
+    AbstractChatOpsPort,
+    AbstractIdentityProviderPort,
+    AbstractUIBuilderPort,
+    AbstractWorkflowEnginePort,
+)
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -39,11 +41,11 @@ class PluginInstallUseCase:
         self,
         plugin_repo: AbstractPluginRepository,
         manifest_parser: LocalManifestParser,
-        n8n_adapter: N8nAdapter,
-        metabase_adapter: MetabaseAdapter,
-        appsmith_adapter: AppsmithAdapter,
-        keycloak_adapter: KeycloakAdapter,
-        mattermost_adapter: MattermostAdapter,
+        n8n_adapter: AbstractWorkflowEnginePort,
+        metabase_adapter: AbstractAnalyticsPort,
+        appsmith_adapter: AbstractUIBuilderPort,
+        keycloak_adapter: AbstractIdentityProviderPort,
+        mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
         tenant_repo=None,  # Added for backwards compatibility during refactor
     ) -> None:

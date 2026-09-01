@@ -4,9 +4,9 @@
 import logging
 import uuid
 
-from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.exceptions import NotFoundError
+from app.core.domain.ports import AbstractChatOpsPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class KeycloakWebhookUseCase:
     def __init__(
         self,
         user_repo: AbstractUserRepository,
-        mattermost_adapter: MattermostAdapter,
+        mattermost_adapter: AbstractChatOpsPort,
     ):
         self.user_repo = user_repo
         self.mattermost_adapter = mattermost_adapter

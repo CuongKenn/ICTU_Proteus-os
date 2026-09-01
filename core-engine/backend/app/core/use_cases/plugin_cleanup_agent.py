@@ -5,13 +5,15 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.external.appsmith_adapter import AppsmithAdapter
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.local_manifest_parser import LocalManifestParser
-from app.adapters.external.mattermost_adapter import MattermostAdapter
-from app.adapters.external.metabase_adapter import MetabaseAdapter
-from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.repositories.base import AbstractPluginRepository
+from app.core.domain.ports import (
+    AbstractAnalyticsPort,
+    AbstractChatOpsPort,
+    AbstractIdentityProviderPort,
+    AbstractUIBuilderPort,
+    AbstractWorkflowEnginePort,
+)
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
 from app.infrastructure.config import settings
 
@@ -28,11 +30,11 @@ class PluginCleanupAgent:
         self,
         plugin_repo: AbstractPluginRepository,
         manifest_parser: LocalManifestParser,
-        n8n_adapter: N8nAdapter,
-        metabase_adapter: MetabaseAdapter,
-        appsmith_adapter: AppsmithAdapter,
-        keycloak_adapter: KeycloakAdapter,
-        mattermost_adapter: MattermostAdapter,
+        n8n_adapter: AbstractWorkflowEnginePort,
+        metabase_adapter: AbstractAnalyticsPort,
+        appsmith_adapter: AbstractUIBuilderPort,
+        keycloak_adapter: AbstractIdentityProviderPort,
+        mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
     ) -> None:
         self.plugin_repo = plugin_repo

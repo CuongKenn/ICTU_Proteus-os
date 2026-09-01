@@ -14,12 +14,13 @@ from typing import Any, cast
 import httpx
 from jose import jwt
 
+from app.core.domain.ports import AbstractIdentityProviderPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-class KeycloakAdapter:
+class KeycloakAdapter(AbstractIdentityProviderPort):
     """
     Adapter giao tiếp với Keycloak.
     - Xác thực JWT (verify signature qua JWKS)

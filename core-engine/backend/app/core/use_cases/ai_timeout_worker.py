@@ -8,12 +8,12 @@
 import logging
 from datetime import UTC, datetime
 
-from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
     AbstractAuditLogRepository,
 )
 from app.core.domain.entities import AICommandStatus
+from app.core.domain.ports import AbstractChatOpsPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class AITimeoutWorker:
         self,
         ai_command_repo: AbstractAICommandRepository,
         audit_log_repo: AbstractAuditLogRepository,
-        mattermost_adapter: MattermostAdapter,
+        mattermost_adapter: AbstractChatOpsPort,
     ):
         self.ai_command_repo = ai_command_repo
         self.audit_log_repo = audit_log_repo

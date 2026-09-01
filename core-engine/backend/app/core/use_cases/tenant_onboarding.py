@@ -9,13 +9,13 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.base import AbstractTenantRepository
 from app.core.domain.entities import (
     TenantContext,
     TenantEntity,
     TenantIntegrationEntity,
 )
+from app.core.domain.ports import AbstractIdentityProviderPort
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class TenantOnboardingUseCase:
     def __init__(
         self,
         tenant_repo: AbstractTenantRepository,
-        keycloak_adapter: KeycloakAdapter,
+        keycloak_adapter: AbstractIdentityProviderPort,
         session: AsyncSession,
     ) -> None:
         self.tenant_repo = tenant_repo

@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 from app.core.domain.exceptions import PathConflictError
+from app.core.domain.ports import AbstractUIBuilderPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class AppsmithAppNotFoundError(AppsmithAdapterError):
     """UI App không tồn tại trên Appsmith."""
 
 
-class AppsmithAdapter:
+class AppsmithAdapter(AbstractUIBuilderPort):
     """
     Secondary Adapter giao tiếp với Appsmith Low-code Platform.
 

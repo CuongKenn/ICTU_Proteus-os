@@ -1,11 +1,11 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
 import logging
 from typing import Any
 
 import httpx
 
+from app.core.domain.ports import AbstractChatOpsPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ class MattermostAdapterError(Exception):
     pass
 
 
-class MattermostAdapter:
+class MattermostAdapter(AbstractChatOpsPort):
     def __init__(self, client: httpx.AsyncClient | None = None):
         self.base_url = settings.MATTERMOST_URL.rstrip("/")
         self.token = settings.MATTERMOST_BOT_TOKEN
