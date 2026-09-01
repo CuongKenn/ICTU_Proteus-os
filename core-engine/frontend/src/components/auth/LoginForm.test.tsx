@@ -32,7 +32,7 @@ describe("LoginForm", () => {
 
     render(<LoginForm />);
 
-    expect(screen.getByText("Proteus OS")).toBeInTheDocument();
+    expect(screen.getAllByText("Proteus OS")[0]).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /đăng nhập với sso/i })).toBeInTheDocument();
   });
 

@@ -54,7 +54,6 @@ describe("LaunchpadClient", () => {
 
     render(<LaunchpadClient />);
 
-    expect(screen.getByText("Launchpad")).toBeInTheDocument();
     expect(screen.getByText("Mattermost")).toBeInTheDocument();
     expect(screen.getByText("Outline Wiki")).toBeInTheDocument();
     expect(screen.getByText("n8n Workflow")).toBeInTheDocument();
