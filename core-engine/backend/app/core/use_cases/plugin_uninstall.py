@@ -79,12 +79,12 @@ class PluginUninstallUseCase:
         plugin_code_name = plugin.code_name
         try:
             manifest = self.manifest_parser.parse(plugin_code_name)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise PluginUninstallError(
                 f"Không tìm thấy thư mục plugin: {plugin_code_name}"
-            )
+            ) from e
         except Exception as e:
-            raise PluginUninstallError(f"Lỗi đọc manifest plugin: {e}")
+            raise PluginUninstallError(f"Lỗi đọc manifest plugin: {e}") from e
 
         # Update status -> UNINSTALLING
         await self.plugin_repo.update_status(
@@ -179,7 +179,7 @@ class PluginUninstallUseCase:
             except Exception:
                 pass
 
-            raise PluginUninstallError(f"Gỡ cài đặt plugin thất bại: {e}")
+            raise PluginUninstallError(f"Gỡ cài đặt plugin thất bại: {e}") from e
 
     async def _step_1_events(
         self,
@@ -272,7 +272,10 @@ class PluginUninstallUseCase:
         if manifest.database and manifest.database.tables:
             schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
             if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
-                logger.warning("Bỏ qua DROP TABLE vì schema_name không hợp lệ: %s", schema_name)
+                logger.warning(
+                    "Bỏ qua DROP TABLE vì schema_name không hợp lệ: %s",
+                    schema_name,
+                )
                 return
             await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
             for table_name in manifest.database.tables:

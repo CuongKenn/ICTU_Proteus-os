@@ -224,7 +224,9 @@ class PluginInstallUseCase:
                 await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
 
                 # Setup RLS context cho tenant
-                await self.session.execute(text("SELECT set_config('role', 'tenant_admin', true)"))
+                await self.session.execute(
+                    text("SELECT set_config('role', 'tenant_admin', true)")
+                )
                 await self.session.execute(
                     text("SELECT set_config('app.current_tenant_id', :tid, true)"),
                     {"tid": str(context.tenant_id)},
