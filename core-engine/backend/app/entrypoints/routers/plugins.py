@@ -47,6 +47,7 @@ from app.entrypoints.schemas.plugin import (
     PluginSynthesizeRequest,
     PluginUninstallRequest,
 )
+from app.infrastructure.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins")
@@ -310,6 +311,7 @@ async def reload_plugins(
     status_code=status.HTTP_200_OK,
     summary="Tự động sinh Plugin bằng AI",
 )
+@limiter.limit("3/hour")
 async def synthesize_plugin(
     request: Request,
     body: PluginSynthesizeRequest,
