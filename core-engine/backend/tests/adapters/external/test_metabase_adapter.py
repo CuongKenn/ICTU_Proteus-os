@@ -54,9 +54,12 @@ def test_metabase_adapter_get_embed_url(adapter):
     assert "embed/dashboard/" in url
     assert "bordered=true&titled=true" in url
 
+
 def test_metabase_adapter_get_embed_url_no_key(adapter):
     adapter._embedding_key = None
-    with pytest.raises(MetabaseAdapterError, match="METABASE_EMBEDDING_KEY is not configured."):
+    with pytest.raises(
+        MetabaseAdapterError, match="METABASE_EMBEDDING_KEY is not configured."
+    ):
         adapter.get_embed_url(dashboard_id="123", tenant_id="tenant-1", ttl=60)
 
 

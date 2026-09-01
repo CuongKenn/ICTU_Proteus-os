@@ -68,7 +68,9 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         result = await self._session.execute(sql, command_data)
         return result.scalar()
 
-    async def get_command_by_id(self, cmd_id: uuid.UUID, for_update: bool = False) -> dict | None:
+    async def get_command_by_id(
+        self, cmd_id: uuid.UUID, for_update: bool = False
+    ) -> dict | None:
         sql_str = "SELECT * FROM ai_commands WHERE id = :cmd_id"
         if for_update:
             sql_str += " FOR UPDATE"
