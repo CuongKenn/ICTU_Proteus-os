@@ -4,8 +4,8 @@
 # Use Case — DSL Validator Engine
 # Xác thực 5 quy tắc trước khi chạy AI Command theo dsl-spec.md §6.
 
-from typing import Any
 import uuid
+from typing import Any
 
 import jsonschema
 

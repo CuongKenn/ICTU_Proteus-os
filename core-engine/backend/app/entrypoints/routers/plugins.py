@@ -7,8 +7,6 @@
 import logging
 import uuid
 from typing import Any
-import uuid
-from app.core.plugin_system.models import PluginStatus
 
 from fastapi import (
     APIRouter,
@@ -23,6 +21,7 @@ from fastapi import (
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
+from app.core.plugin_system.models import PluginStatus
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
