@@ -8,7 +8,7 @@ import pytest
 
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.ai_command import AICommandUseCase
-from app.entrypoints.schemas.ai_command import AICommandRequest
+from app.core.use_cases.ai_command import AICommandDTO
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ def tenant_ctx():
 async def test_execute_read_command(
     use_case, mock_ai_command_repo, mock_n8n_adapter, tenant_ctx
 ):
-    request = AICommandRequest(
+    request = AICommandDTO(
         command_id=uuid.uuid4(),
         session_id=uuid.uuid4(),
         dsl_version="1.0",
@@ -114,7 +114,7 @@ async def test_execute_write_command(
     mock_dsl_dry_run_repo,
     tenant_ctx,
 ):
-    request = AICommandRequest(
+    request = AICommandDTO(
         command_id=uuid.uuid4(),
         session_id=uuid.uuid4(),
         dsl_version="1.0",
@@ -150,7 +150,7 @@ async def test_execute_write_command(
 async def test_execute_critical_command(
     use_case, mock_ai_command_repo, mock_mattermost_adapter, tenant_ctx
 ):
-    request = AICommandRequest(
+    request = AICommandDTO(
         command_id=uuid.uuid4(),
         session_id=uuid.uuid4(),
         dsl_version="1.0",
