@@ -219,11 +219,11 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
 
         now = datetime.now(UTC)
         sql = text("""
-            SELECT tp.tenant_id, p.code_name as plugin_name, tp.status, tp.last_updated_at as updated_at
+            SELECT tp.tenant_id, p.code_name as plugin_name, tp.status, tp.updated_at as updated_at
             FROM tenant_plugins tp
             JOIN plugins p ON p.id = tp.plugin_id
             WHERE tp.status = 'FAILED_DIRTY' 
-              AND tp.last_updated_at < :time_ago
+              AND tp.updated_at < :time_ago
         """)
         result = await self._session.execute(
             sql, {"time_ago": now - timedelta(hours=hours)}
