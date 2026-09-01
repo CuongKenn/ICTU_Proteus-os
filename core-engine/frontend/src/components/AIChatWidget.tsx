@@ -140,7 +140,7 @@ const DslPreviewPanel: React.FC<{
               bản ghi:
             </div>
             <div className="space-y-1 max-h-[80px] overflow-y-auto">
-              {preview.dry_run_result.preview.slice(0, 3).map((item, i) => (
+              {preview.dry_run_result?.preview?.slice(0, 3).map((item, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-1.5 text-[11px] text-text-secondary"
@@ -149,9 +149,9 @@ const DslPreviewPanel: React.FC<{
                   <span>{String(item.employee_name || item.id || JSON.stringify(item))}</span>
                 </div>
               ))}
-              {preview.dry_run_result.preview.length > 3 && (
+              {(preview.dry_run_result?.preview?.length || 0) > 3 && (
                 <div className="text-[10px] text-text-disabled pl-2.5">
-                  +{preview.dry_run_result.preview.length - 3} bản ghi khác…
+                  +{(preview.dry_run_result?.preview?.length || 0) - 3} bản ghi khác…
                 </div>
               )}
             </div>
@@ -194,7 +194,7 @@ const DslPreviewPanel: React.FC<{
 
 // ─── Main Widget Component ────────────────────────────────────────────────────
 
-export const AIChatWidget: React.FC = () => {
+const AIChatWidgetInner: React.FC = () => {
   const {
     widgetState,
     messages,
@@ -419,3 +419,48 @@ export const AIChatWidget: React.FC = () => {
     </div>
   );
 };
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+
+class AIChatErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("AIChatWidget Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed bottom-6 right-6 z-[9999] w-[300px] rounded-2xl border border-danger/20 bg-bg-surface flex flex-col items-center justify-center gap-2 p-6 shadow-xl">
+          <AlertTriangle className="w-8 h-8 text-danger mb-1" />
+          <div className="text-sm text-text-primary font-semibold text-center">AI Chat gặp lỗi</div>
+          <div className="text-xs text-text-secondary text-center mb-2">Đã có lỗi xảy ra trong quá trình hiển thị.</div>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="px-4 py-2 bg-bg-hover text-text-primary rounded-lg text-xs font-medium hover:bg-border transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const AIChatWidget: React.FC = () => (
+  <AIChatErrorBoundary>
+    <AIChatWidgetInner />
+  </AIChatErrorBoundary>
+);
