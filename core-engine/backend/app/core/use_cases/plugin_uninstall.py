@@ -271,7 +271,10 @@ class PluginUninstallUseCase:
         """DROP Tables thuộc plugin (destructive)."""
         if manifest.database and manifest.database.tables:
             schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
-            await self.session.execute(text(f"SET search_path TO {schema_name}"))
+            if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                logger.warning("Bỏ qua DROP TABLE vì schema_name không hợp lệ: %s", schema_name)
+                return
+            await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
             for table_name in manifest.database.tables:
                 if not re.match(r"^[a-zA-Z0-9_]+$", table_name):
                     logger.warning(

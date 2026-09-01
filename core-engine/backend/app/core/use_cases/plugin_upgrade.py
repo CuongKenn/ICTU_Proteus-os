@@ -3,6 +3,7 @@
 
 import logging
 import os
+import re
 import uuid
 from typing import Any
 
@@ -140,10 +141,13 @@ class PluginUpgradeUseCase:
         # Thuc thi Migration voi RLS
         try:
             schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
-            await self.session.execute(text(f"SET LOCAL search_path TO {schema_name}"))
-            await self.session.execute(text("SET LOCAL role = 'tenant_admin'"))
+            if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                raise PluginUpgradeError("Invalid schema name.")
+            await self.session.execute(text(f'SET LOCAL search_path TO "{schema_name}"'))
+            await self.session.execute(text("SELECT set_config('role', 'tenant_admin', true)"))
             await self.session.execute(
-                text(f"SET LOCAL app.current_tenant = '{context.tenant_id}'")
+                text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                {"tid": str(context.tenant_id)},
             )
             for _, file_path in migrations_to_run:
                 with open(file_path, encoding="utf-8") as file:
