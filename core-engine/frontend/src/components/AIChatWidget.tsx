@@ -436,6 +436,7 @@ class AIChatErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: any, errorInfo: any) {
+    // eslint-disable-next-line no-console
     console.error("AIChatWidget Error:", error, errorInfo);
   }
 
