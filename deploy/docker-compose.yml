@@ -20,7 +20,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"   # Traefik Dashboard (dev only)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -283,8 +282,6 @@ services:
     image: grafana/loki:2.9.2
     container_name: proteus-loki
     restart: unless-stopped
-    ports:
-      - "3100:3100"
     volumes:
       - loki-data:/loki
     networks:
@@ -360,7 +357,7 @@ services:
       - proteus-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/health`))"
       - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.routers.backend.priority=10"   # Cao hơn frontend (1) — PathPrefix cụ thể hơn
       - "traefik.http.services.backend.loadbalancer.server.port=8000"

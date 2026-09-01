@@ -52,12 +52,14 @@ async def test_run_success(agent, mock_plugin_repo, mock_mattermost_adapter):
 
     agent.uninstall_use_case.uninstall_plugin = AsyncMock()
 
+    agent.uninstall_use_case.uninstall_plugin = AsyncMock()
+
     await agent.run()
 
-    agent.uninstall_use_case.uninstall_plugin.assert_called_once()
-    mock_mattermost_adapter.send_message.assert_called_once()
-    call_kwargs = mock_mattermost_adapter.send_message.call_args.kwargs
-    assert "đã được dọn dẹp khỏi Tenant" in call_kwargs["text"]
+    agent.uninstall_use_case.uninstall_plugin.assert_not_called()
+    mock_mattermost_adapter.send_interactive_message.assert_called_once()
+    call_kwargs = mock_mattermost_adapter.send_interactive_message.call_args.kwargs
+    assert "bị kẹt FAILED_DIRTY" in call_kwargs["text"]
 
 
 @pytest.mark.asyncio
@@ -70,13 +72,14 @@ async def test_run_failure_sends_alert(
         (tenant_id, plugin_id, "test-plugin")
     ]
 
-    agent.uninstall_use_case.uninstall_plugin = AsyncMock(
+    agent.uninstall_use_case.uninstall_plugin = AsyncMock()
+    mock_mattermost_adapter.send_interactive_message = AsyncMock(
         side_effect=Exception("DB Error")
     )
 
     await agent.run()
 
-    agent.uninstall_use_case.uninstall_plugin.assert_called_once()
+    agent.uninstall_use_case.uninstall_plugin.assert_not_called()
     mock_mattermost_adapter.send_message.assert_called_once()
     call_kwargs = mock_mattermost_adapter.send_message.call_args.kwargs
     assert "CRITICAL ALERT" in call_kwargs["text"]

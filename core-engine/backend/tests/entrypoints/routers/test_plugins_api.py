@@ -1,7 +1,7 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
@@ -11,7 +11,6 @@ from app.core.domain.entities import TenantContext
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_role_repo,
-    require_permission,
 )
 from main import app
 

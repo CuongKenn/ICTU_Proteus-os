@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import text
@@ -180,8 +181,6 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         plugin_id: uuid.UUID,
         config_override: dict,
     ) -> None:
-        import json
-
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
@@ -209,21 +208,17 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         )
         row = result.fetchone()
         if row and row[0]:
-            import json
-
             return json.loads(row[0]) if isinstance(row[0], str) else row[0]
         return {}
 
     async def get_dirty_installations_older_than(self, hours: int) -> list[dict]:
-        from datetime import datetime, timedelta
-
         now = datetime.now(UTC)
         sql = text("""
-            SELECT tp.tenant_id, p.code_name as plugin_name, tp.status, tp.last_updated_at as updated_at
+            SELECT tp.tenant_id, p.code_name as plugin_name, tp.status, tp.updated_at as updated_at
             FROM tenant_plugins tp
             JOIN plugins p ON p.id = tp.plugin_id
             WHERE tp.status = 'FAILED_DIRTY' 
-              AND tp.last_updated_at < :time_ago
+              AND tp.updated_at < :time_ago
         """)
         result = await self._session.execute(
             sql, {"time_ago": now - timedelta(hours=hours)}

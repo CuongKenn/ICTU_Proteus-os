@@ -12,13 +12,10 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
-limiter = Limiter(key_func=get_remote_address)
 from fastapi.responses import JSONResponse
 from qdrant_client import AsyncQdrantClient
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
@@ -47,6 +44,7 @@ from app.entrypoints.routers import (
 from app.infrastructure.config import settings
 from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
 from app.infrastructure.logging_config import setup_logging
+from app.infrastructure.rate_limiter import limiter
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)
@@ -62,9 +60,7 @@ async def lifespan(app: FastAPI):
     )
     # Khởi tạo các global clients
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
-    app.state.qdrant_client = AsyncQdrantClient(
-        url=settings.QDRANT_URL, httpx_client=app.state.http_client
-    )
+    app.state.qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL)
     app.state.redis_event_bus = RedisEventBusPublisher()
 
     # Khởi tạo scheduler

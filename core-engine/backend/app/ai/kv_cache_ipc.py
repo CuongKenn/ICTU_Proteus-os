@@ -8,7 +8,7 @@ import logging
 import time
 import uuid
 
-from app.adapters.external.qdrant_adapter import QdrantAdapter, QdrantAdapterError
+from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 
 logger = logging.getLogger(__name__)

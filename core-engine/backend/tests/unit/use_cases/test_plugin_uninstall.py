@@ -21,7 +21,9 @@ from app.core.use_cases.plugin_uninstall import (
 
 @pytest.fixture
 def mock_plugin_repo():
-    return AsyncMock()
+    mock = AsyncMock()
+    mock.get_config.return_value = {}
+    return mock
 
 
 @pytest.fixture
@@ -145,7 +147,7 @@ async def test_uninstall_success(
 
     # Verify keycloak deletion called
     mock_keycloak_adapter.delete_role.assert_called_once_with(
-        realm="proteus", role_name="test_role"
+        realm="proteus", role_name="test_plugin_test_role"
     )
 
     # Verify drop table executed

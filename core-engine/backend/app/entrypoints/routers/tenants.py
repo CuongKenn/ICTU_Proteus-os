@@ -11,7 +11,6 @@ from app.core.domain.entities import TenantContext
 from app.core.use_cases.tenant_onboarding import (
     TenantOnboardingError,
     TenantOnboardingUseCase,
-    TenantPermissionError,
 )
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
@@ -19,10 +18,10 @@ from app.entrypoints.dependencies import (
 )
 from app.entrypoints.schemas.tenant import (
     TenantCreateRequest,
+    TenantIntegrationCreateRequest,
+    TenantIntegrationResponse,
     TenantResponse,
     TenantUpdateRequest,
-    TenantIntegrationResponse,
-    TenantIntegrationCreateRequest,
 )
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
@@ -44,7 +43,7 @@ async def create_tenant(
             context=context, name=request.name, slug=request.slug, plan=request.plan
         )
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -66,7 +65,7 @@ async def get_my_tenant(
     try:
         tenant = await use_case.get_tenant(context, context.tenant_id)
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -90,7 +89,7 @@ async def update_my_tenant(
         data = request.model_dump(exclude_unset=True)
         tenant = await use_case.update_tenant(context, context.tenant_id, data)
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -111,7 +110,7 @@ async def get_my_integrations(
 ):
     try:
         return await use_case.get_integrations(context)
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -131,7 +130,7 @@ async def add_my_integration(
 ):
     try:
         return await use_case.add_integration(context, request.provider, request.config)
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -152,7 +151,7 @@ async def get_tenant(
     try:
         tenant = await use_case.get_tenant(context, tenant_id)
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -177,7 +176,7 @@ async def update_tenant(
         data = request.model_dump(exclude_unset=True)
         tenant = await use_case.update_tenant(context, tenant_id, data)
         return tenant
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -199,7 +198,7 @@ async def delete_tenant(
 ):
     try:
         await use_case.delete_tenant(context, tenant_id)
-    except PermissionError as e:
+    except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

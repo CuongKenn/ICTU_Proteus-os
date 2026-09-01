@@ -224,7 +224,9 @@ class AbstractAICommandRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_command_by_id(self, cmd_id: uuid.UUID) -> dict | None:
+    async def get_command_by_id(
+        self, cmd_id: uuid.UUID, for_update: bool = False
+    ) -> dict | None:
         """Lấy thông tin command."""
         ...
 

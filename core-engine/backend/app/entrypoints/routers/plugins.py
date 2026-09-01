@@ -13,14 +13,15 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     HTTPException,
+    Query,
     Request,
     status,
-    Query,
 )
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
+from app.core.plugin_system.models import PluginStatus
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -33,7 +34,6 @@ from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeU
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_plugin_credentials_use_case,
-    get_plugin_install_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
     get_plugin_toggle_use_case,
@@ -83,23 +83,16 @@ async def list_installed_plugins(
     )
 
 
-@router.post(
-    "/{plugin_id}/install",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Cài đặt Plugin",
-)
 async def _run_install_plugin_background(
     ctx: TenantContext, plugin_code_name: str, app_state
 ):
-    from app.infrastructure.database import async_session_maker
-    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
-    from app.adapters.external.n8n_adapter import N8nAdapter
-    from app.adapters.external.metabase_adapter import MetabaseAdapter
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
-    from app.adapters.external.mattermost_adapter import MattermostAdapter
     from app.adapters.external.local_manifest_parser import LocalManifestParser
-    from app.core.use_cases.plugin_install import PluginInstallUseCase
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+    from app.adapters.external.metabase_adapter import MetabaseAdapter
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.infrastructure.database import async_session_maker
 
     async with async_session_maker() as session:
         repo = SQLAlchemyPluginRepository(session=session)
@@ -161,7 +154,7 @@ async def install_plugin(
     return {
         "message": "Plugin installation queued.",
         "plugin_id": str(plugin_id),
-        "task_id": f"mock_task_{plugin_id}",
+        "task_id": str(plugin_id),
         "status": "INSTALLING",
     }
 
@@ -173,15 +166,28 @@ async def install_plugin(
 )
 async def get_install_status(
     task_id: str,
+    request: Request,
     ctx: TenantContext = Depends(get_current_tenant_context),
 ) -> dict[str, Any]:
-    # TODO: Implement real task tracking. For now, mock success.
+
+    try:
+        plugin_uuid = uuid.UUID(task_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="Invalid task_id (must be UUID of plugin)"
+        )
+
+    repo = request.app.state.plugin_repo
+    status_val = await repo.get_installation_status(ctx.tenant_id, plugin_uuid)
+
+    if status_val is None:
+        raise HTTPException(
+            status_code=404, detail="Plugin installation not found for this tenant"
+        )
+
     return {
-        "overall_status": "COMPLETED",
-        "steps": [
-            {"name": "Download", "status": "DONE"},
-            {"name": "Install", "status": "DONE"},
-        ],
+        "overall_status": status_val.value,
+        "steps": [],
     }
 
 
