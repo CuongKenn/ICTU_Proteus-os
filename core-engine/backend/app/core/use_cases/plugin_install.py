@@ -197,7 +197,7 @@ class PluginInstallUseCase:
         """Thực thi seed_file của plugin."""
         if manifest.database and manifest.database.seed_file:
             seed_path = (
-                self.manifest_parser._plugins_dir
+                self.manifest_parser.plugins_dir
                 / plugin_code_name
                 / manifest.database.seed_file
             )
@@ -245,7 +245,7 @@ class PluginInstallUseCase:
         """Import workflows vào n8n."""
         workflow_ids = []
         for wf in manifest.workflows:
-            wf_path = self.manifest_parser._plugins_dir / plugin_code_name / wf.file
+            wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
             if wf_path.exists() and hasattr(self.n8n_adapter, "import_workflow"):
                 with open(wf_path, encoding="utf-8") as f:
                     wf_json = json.load(f)
@@ -260,7 +260,7 @@ class PluginInstallUseCase:
         """Import dashboards vào Metabase."""
         dashboard_ids = []
         for db in manifest.dashboards:
-            db_path = self.manifest_parser._plugins_dir / plugin_code_name / db.file
+            db_path = self.manifest_parser.plugins_dir / plugin_code_name / db.file
             if db_path.exists() and hasattr(self.metabase_adapter, "create_dashboard"):
                 with open(db_path, encoding="utf-8") as f:
                     db_json = json.load(f)
@@ -274,7 +274,7 @@ class PluginInstallUseCase:
         """Import UI apps vào Appsmith."""
         app_ids = []
         for app in manifest.ui_apps:
-            app_path = self.manifest_parser._plugins_dir / plugin_code_name / app.file
+            app_path = self.manifest_parser.plugins_dir / plugin_code_name / app.file
             if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
                 with open(app_path, encoding="utf-8") as f:
                     app_json = json.load(f)

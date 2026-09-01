@@ -35,6 +35,11 @@ class LocalManifestParser:
             root_dir = backend_dir.parent.parent
             self._plugins_dir = (root_dir / settings.PLUGINS_DIR).resolve()
 
+    @property
+    def plugins_dir(self) -> Path:
+        """Thư mục gốc chứa tất cả plugins."""
+        return self._plugins_dir
+
     def parse(self, plugin_code_name: str) -> PluginManifest:
         """
         Đọc file manifest.yaml của plugin và parse thành PluginManifest entity.
