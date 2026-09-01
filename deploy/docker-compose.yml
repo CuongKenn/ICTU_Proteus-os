@@ -79,8 +79,10 @@ services:
     image: quay.io/keycloak/keycloak:25.0
     container_name: proteus-keycloak
     restart: unless-stopped
-    command: start-dev --import-realm   # Đổi thành "start" + TLS khi production
+    command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
     environment:
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/cert.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/key.pem
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-proteus}
       KC_DB_USERNAME: ${POSTGRES_USER:-proteus}
