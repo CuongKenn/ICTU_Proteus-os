@@ -21,7 +21,7 @@ from fastapi import (
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import TenantContext
-from app.core.plugin_system.models import PluginStatus
+from app.core.domain.entities import PluginStatus
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -92,9 +92,9 @@ async def _run_install_plugin_background(
     from app.adapters.external.mattermost_adapter import MattermostAdapter
     from app.adapters.external.metabase_adapter import MetabaseAdapter
     from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
-    from app.infrastructure.database import async_session_maker
+    from app.infrastructure.database import AsyncSessionLocal
 
-    async with async_session_maker() as session:
+    async with AsyncSessionLocal() as session:
         repo = SQLAlchemyPluginRepository(session=session)
         use_case = PluginInstallUseCase(
             plugin_repo=repo,
