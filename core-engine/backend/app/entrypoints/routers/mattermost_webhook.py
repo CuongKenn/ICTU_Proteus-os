@@ -99,8 +99,7 @@ async def mattermost_interactive_callback(
     # but in our context it acts as the approver_id.
     if action == "approve":
         logger.info(
-            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n.",
-            action_id, user_id
+            "Yêu cầu %s được PHÊ DUYỆT bởi user %s. Kích hoạt n8n.", action_id, user_id
         )
         cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
             uuid.UUID(action_id)

@@ -191,7 +191,10 @@ class PluginUninstallUseCase:
         """Xóa webhooks từ n8n."""
         for sub in manifest.event_subscriptions:
             # Dummy logic until event bus registry is fully spec'd
-            logger.info("Deleting event subscription: %s", f"{sub.source_plugin}_{'-'.join(sub.event_types)}")
+            logger.info(
+                "Deleting event subscription: %s",
+                f"{sub.source_plugin}_{'-'.join(sub.event_types)}",
+            )
 
     async def _step_2_keycloak(
         self,
