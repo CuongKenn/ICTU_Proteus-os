@@ -7,7 +7,10 @@
 
 import json
 import logging
+import uuid
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
@@ -19,8 +22,18 @@ from app.adapters.repositories.base import (
 from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.dsl_validator import DSLValidator
-from app.entrypoints.schemas.ai_command import AICommandRequest
 from app.infrastructure.config import settings
+
+
+@dataclass
+class AICommandDTO:
+    command_id: uuid.UUID
+    session_id: uuid.UUID
+    dsl_version: str
+    action: str
+    effect: str
+    parameters: dict[str, Any]
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,18 +61,11 @@ class AICommandUseCase:
         self.n8n_adapter = n8n_adapter
 
     async def execute(
-        self, body: AICommandRequest, ctx: TenantContext
+        self, body: AICommandDTO, ctx: TenantContext
     ) -> tuple[AICommandStatus, str, dict | None]:
         """
         Thực thi lệnh. Trả về (status, message, result).
         """
-        payload = {
-            "version": body.dsl_version,
-            "action": body.action,
-            "effect": body.effect,
-            "parameters": body.parameters,
-        }
-
         # 1. Validate DSL theo dsl-spec.md
         dsl_validator = DSLValidator(
             plugin_repo=self.plugin_repo,
@@ -67,7 +73,7 @@ class AICommandUseCase:
             tenant_id=str(ctx.tenant_id),
             user_id=str(ctx.user_id),
         )
-        await dsl_validator.validate(dsl_payload=body.model_dump())
+        await dsl_validator.validate(dsl_payload=asdict(body))
 
         now = datetime.now(UTC)
 
@@ -78,7 +84,7 @@ class AICommandUseCase:
                 webhook_url = self.n8n_adapter.build_webhook_url(body.action)
                 response = await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url,
-                    payload=body.model_dump(),
+                    payload=asdict(body),
                 )
 
                 # Lưu DB ngay

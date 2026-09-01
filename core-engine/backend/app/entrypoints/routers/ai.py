@@ -9,7 +9,7 @@ import logging
 from fastapi import APIRouter, Depends, Request, status
 
 from app.core.domain.entities import AICommandStatus, TenantContext
-from app.core.use_cases.ai_command import AICommandUseCase
+from app.core.use_cases.ai_command import AICommandDTO, AICommandUseCase
 from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.entrypoints.dependencies import (
     get_ai_command_use_case,
@@ -55,7 +55,15 @@ async def submit_ai_command(
         },
     )
 
-    status_code, message, result = await use_case.execute(body, ctx)
+    dto = AICommandDTO(
+        command_id=body.command_id,
+        session_id=body.session_id,
+        dsl_version=body.dsl_version,
+        action=body.action,
+        effect=body.effect,
+        parameters=body.parameters,
+    )
+    status_code, message, result = await use_case.execute(dto, ctx)
 
     return AICommandResponse(
         command_id=body.command_id,
@@ -75,7 +83,8 @@ async def trigger_rag_ingestion(
     use_case: RAGIngestionUseCase = Depends(get_rag_ingestion_use_case),
 ):
     """
-    Kích hoạt thủ công quá trình Ingestion tài liệu từ Outline vào Qdrant cho tenant hiện tại.
+    Kích hoạt thủ công quá trình Ingestion tài liệu từ Outline vào Qdrant
+    cho tenant hiện tại.
     """
     result = await use_case.execute(str(ctx.tenant_id))
     return result
