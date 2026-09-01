@@ -29,7 +29,7 @@ class DynamicPluginLoader:
 
         # Thêm thư mục plugins vào sys.path để có thể import
         if str(self._plugins_dir) not in sys.path:
-            sys.path.insert(0, str(self._plugins_dir))
+            sys.path.append(str(self._plugins_dir))
 
     def load_plugin(self, plugin_code_name: str) -> bool:
         """

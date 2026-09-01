@@ -7,6 +7,8 @@
 import logging
 import uuid
 from typing import Any
+import uuid
+from app.core.plugin_system.models import PluginStatus
 
 from fastapi import (
     APIRouter,
@@ -156,7 +158,7 @@ async def install_plugin(
     return {
         "message": "Plugin installation queued.",
         "plugin_id": str(plugin_id),
-        "task_id": f"mock_task_{plugin_id}",
+        "task_id": str(plugin_id),
         "status": "INSTALLING",
     }
 
@@ -168,15 +170,24 @@ async def install_plugin(
 )
 async def get_install_status(
     task_id: str,
+    request: Request,
     ctx: TenantContext = Depends(get_current_tenant_context),
 ) -> dict[str, Any]:
-    # TODO: Implement real task tracking. For now, mock success.
+
+    try:
+        plugin_uuid = uuid.UUID(task_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid task_id (must be UUID of plugin)")
+
+    repo = request.app.state.plugin_repo
+    status_val = await repo.get_installation_status(ctx.tenant_id, plugin_uuid)
+
+    if status_val is None:
+        raise HTTPException(status_code=404, detail="Plugin installation not found for this tenant")
+
     return {
-        "overall_status": "COMPLETED",
-        "steps": [
-            {"name": "Download", "status": "DONE"},
-            {"name": "Install", "status": "DONE"},
-        ],
+        "overall_status": status_val.value,
+        "steps": [],
     }
 
 

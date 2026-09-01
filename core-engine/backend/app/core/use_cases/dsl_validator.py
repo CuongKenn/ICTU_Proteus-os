@@ -5,6 +5,7 @@
 # Xác thực 5 quy tắc trước khi chạy AI Command theo dsl-spec.md §6.
 
 from typing import Any
+import uuid
 
 import jsonschema
 
@@ -98,8 +99,6 @@ class DSLValidator:
 
         # Rule 2: Permission check
         req_permission = f"{plugin_code}:{resource}:{method}"
-        import uuid
-
         user_permissions = await self.role_repo.get_user_permissions(
             uuid.UUID(self.user_id)
         )
