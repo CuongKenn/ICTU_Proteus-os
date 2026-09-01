@@ -29,6 +29,10 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { role: "tenant_admin" } }, status: "authenticated" }),
+}));
+
 describe("LaunchpadClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
