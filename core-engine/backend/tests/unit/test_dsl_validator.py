@@ -30,8 +30,20 @@ def mock_plugin_repo():
 
 
 @pytest.fixture
-def validator(mock_plugin_repo):
-    return DSLValidator(plugin_repo=mock_plugin_repo, tenant_id="t1", user_id="u1")
+def mock_role_repo():
+    from unittest.mock import AsyncMock
+    mock = AsyncMock()
+    # Allow user 'u1' to have required permissions
+    mock.get_user_permissions.return_value = [
+        "hr:leave_requests:batch_approve",
+        "finance:invoices:create"
+    ]
+    return mock
+
+
+@pytest.fixture
+def validator(mock_plugin_repo, mock_role_repo):
+    return DSLValidator(plugin_repo=mock_plugin_repo, role_repo=mock_role_repo, tenant_id="t1", user_id="12345678-1234-5678-1234-567812345678")
 
 
 @pytest.mark.asyncio
@@ -98,9 +110,9 @@ async def test_validate_z3_tenant_mismatch(validator):
 
 
 @pytest.mark.asyncio
-async def test_validate_z3_finance_negative_amount(mock_plugin_repo):
+async def test_validate_z3_finance_negative_amount(mock_plugin_repo, mock_role_repo):
     validator_finance = DSLValidator(
-        plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1"
+        plugin_repo=mock_plugin_repo, role_repo=mock_role_repo, tenant_id="t_finance", user_id="12345678-1234-5678-1234-567812345678"
     )
     payload = {
         "version": "1.0",
@@ -114,9 +126,9 @@ async def test_validate_z3_finance_negative_amount(mock_plugin_repo):
 
 
 @pytest.mark.asyncio
-async def test_validate_z3_finance_valid(mock_plugin_repo):
+async def test_validate_z3_finance_valid(mock_plugin_repo, mock_role_repo):
     validator_finance = DSLValidator(
-        plugin_repo=mock_plugin_repo, tenant_id="t_finance", user_id="u1"
+        plugin_repo=mock_plugin_repo, role_repo=mock_role_repo, tenant_id="t_finance", user_id="12345678-1234-5678-1234-567812345678"
     )
     payload = {
         "version": "1.0",

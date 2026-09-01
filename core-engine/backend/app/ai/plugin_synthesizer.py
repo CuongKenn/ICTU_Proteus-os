@@ -69,13 +69,12 @@ class PluginSynthesizer:
             [("system", system_prompt), ("human", prompt)]
         )
 
-        chain = chat_prompt | self.llm
-
         try:
             # Fallback mock for testing without API Key
-            if os.getenv("OPENAI_API_KEY", "dummy") == "dummy":
+            if os.getenv("OPENAI_API_KEY", "dummy") == "dummy" or self.llm is None:
                 return self._mock_synthesize(prompt)
 
+            chain = chat_prompt | self.llm
             response = await chain.ainvoke({})
             content = response.content
 

@@ -24,6 +24,12 @@ def mock_ai_command_repo():
 
 
 @pytest.fixture
+def mock_role_repo():
+    repo = AsyncMock()
+    return repo
+
+
+@pytest.fixture
 def mock_dsl_dry_run_repo():
     repo = AsyncMock()
     repo.execute_dry_run.return_value = {"affected_count": 5, "preview": []}
@@ -50,6 +56,7 @@ def use_case(
     mock_dsl_dry_run_repo,
     mock_mattermost_adapter,
     mock_n8n_adapter,
+    mock_role_repo,
 ):
     return AICommandUseCase(
         plugin_repo=mock_plugin_repo,
@@ -57,6 +64,7 @@ def use_case(
         dsl_dry_run_repo=mock_dsl_dry_run_repo,
         mattermost_adapter=mock_mattermost_adapter,
         n8n_adapter=mock_n8n_adapter,
+        role_repo=mock_role_repo,
     )
 
 

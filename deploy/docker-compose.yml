@@ -360,7 +360,7 @@ services:
       - proteus-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/health`))"
       - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.routers.backend.priority=10"   # Cao hơn frontend (1) — PathPrefix cụ thể hơn
       - "traefik.http.services.backend.loadbalancer.server.port=8000"

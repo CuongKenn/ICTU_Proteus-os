@@ -3,13 +3,13 @@
 #
 # Outbound Adapter — Tenant Repository
 
+import json
 import uuid
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.base import AbstractTenantRepository
-import json
 from app.core.domain.entities import TenantEntity, TenantIntegrationEntity
 
 
