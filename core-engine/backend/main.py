@@ -12,12 +12,10 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-
-from app.infrastructure.rate_limiter import limiter
 from fastapi.responses import JSONResponse
 from qdrant_client import AsyncQdrantClient
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
@@ -46,6 +44,7 @@ from app.entrypoints.routers import (
 from app.infrastructure.config import settings
 from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
 from app.infrastructure.logging_config import setup_logging
+from app.infrastructure.rate_limiter import limiter
 
 # ─── Setup logging TRƯỚC KHI làm bất cứ gì ───────────────────
 setup_logging(level=settings.LOG_LEVEL)

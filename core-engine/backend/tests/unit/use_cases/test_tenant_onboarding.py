@@ -8,9 +8,9 @@ import pytest
 
 from app.core.domain.entities import TenantContext, TenantEntity
 from app.core.use_cases.tenant_onboarding import (
-    TenantPermissionError,
     TenantOnboardingError,
     TenantOnboardingUseCase,
+    TenantPermissionError,
 )
 
 

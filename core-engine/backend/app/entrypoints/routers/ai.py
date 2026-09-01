@@ -18,6 +18,7 @@ from app.entrypoints.dependencies import (
 )
 from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse
 from app.infrastructure.rate_limiter import limiter
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai")
 

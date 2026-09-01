@@ -4,7 +4,7 @@ import logging
 import random
 import time
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
