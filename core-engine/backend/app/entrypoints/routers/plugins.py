@@ -83,11 +83,6 @@ async def list_installed_plugins(
     )
 
 
-@router.post(
-    "/{plugin_id}/install",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Cài đặt Plugin",
-)
 async def _run_install_plugin_background(
     ctx: TenantContext, plugin_code_name: str, app_state
 ):
