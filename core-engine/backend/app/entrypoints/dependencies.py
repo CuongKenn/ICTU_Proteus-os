@@ -279,13 +279,14 @@ async def get_current_tenant_context(
 
 
 async def get_tenant_onboarding_use_case(
-    repo: AbstractTenantRepository = Depends(get_tenant_repo),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
-    db: AsyncSession = Depends(get_db_readonly),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> TenantOnboardingUseCase:
-    """Inject Tenant Onboarding Use Case."""
+    """Inject Tenant Onboarding Use Case với Transactional Session để persist thay đổi vào DB."""
     return TenantOnboardingUseCase(
-        tenant_repo=repo, keycloak_adapter=keycloak_adapter, session=db
+        tenant_repo=SQLAlchemyTenantRepository(session=db),
+        keycloak_adapter=keycloak_adapter,
+        session=db,
     )
 
 
