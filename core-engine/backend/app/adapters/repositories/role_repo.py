@@ -67,12 +67,18 @@ class RoleRepository:
         )
         result = await self.session.execute(stmt)
 
-        # permissions là một list of strings do dùng JSONB(astext_type=Text()), hoặc array of strings.
-        # Ở đây Model định nghĩa permissions: Mapped[list[str]] = mapped_column(JSONB, default=list)
         all_permissions = set()
         for row in result.all():
-            permissions_list = row[0]
-            if permissions_list:
-                all_permissions.update(permissions_list)
+            permissions_data = row[0]
+            if not permissions_data:
+                continue
+            if isinstance(permissions_data, list):
+                all_permissions.update(str(p) for p in permissions_data)
+            elif isinstance(permissions_data, dict):
+                if "allowed" in permissions_data and isinstance(permissions_data["allowed"], list):
+                    all_permissions.update(str(p) for p in permissions_data["allowed"])
+                else:
+                    all_permissions.update(k for k, v in permissions_data.items() if v is True)
 
         return list(all_permissions)
+
