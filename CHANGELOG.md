@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Sửa lỗi `DSLValidator.validate()` kiểm tra trường `dsl_version` từ `AICommandDTO` (kèm fallback sang `version`), tránh việc mọi AI Command bị từ chối với lỗi "Unsupported DSL version: None" (Issue #517).
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
