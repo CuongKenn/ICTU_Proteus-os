@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/entrypoints/routers/ai.py]** Sửa lỗi Redis Connection Leak trong endpoint `POST /api/v1/ai/ipc/transmit` bằng cách tái sử dụng singleton `request.app.state.redis_event_bus` thay vì khởi tạo instance mới mỗi request (Issue #513).
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
