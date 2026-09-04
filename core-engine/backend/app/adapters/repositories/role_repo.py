@@ -75,10 +75,13 @@ class RoleRepository:
             if isinstance(permissions_data, list):
                 all_permissions.update(str(p) for p in permissions_data)
             elif isinstance(permissions_data, dict):
-                if "allowed" in permissions_data and isinstance(permissions_data["allowed"], list):
+                if "allowed" in permissions_data and isinstance(
+                    permissions_data["allowed"], list
+                ):
                     all_permissions.update(str(p) for p in permissions_data["allowed"])
                 else:
-                    all_permissions.update(k for k, v in permissions_data.items() if v is True)
+                    all_permissions.update(
+                        k for k, v in permissions_data.items() if v is True
+                    )
 
         return list(all_permissions)
-
