@@ -55,6 +55,8 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
       // issuer: used for OIDC discovery — resolves via Traefik network alias inside Docker
       issuer: process.env.KEYCLOAK_ISSUER!,
+      // Only request 'openid' scope — email/profile not registered as separate scopes in this realm
+      authorization: { params: { scope: "openid email profile" } },
     }),
   ],
 
