@@ -6,7 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
-- **[core-engine/backend]** Sửa lỗi SQL Error do mismatch tên cột (`approved_by` và `second_approver`) trong `SQLAlchemyAICommandRepository.update_command_approval()` và `AICommandUseCase.process_approval()`, đổi thành đúng tên cột ORM model `approved_by_user_id` và `second_approver_id` (Issue #511).
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi dữ liệu Tenant không persist vào CSDL bằng cách đổi `get_tenant_onboarding_use_case` sang inject transactional database session (`get_db_transactional`) thay vì `get_db_readonly` (Issue #514).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
 
