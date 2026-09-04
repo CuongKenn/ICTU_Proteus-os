@@ -49,6 +49,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
+  debug: process.env.NODE_ENV !== "production", // Debug log in dev
   providers: [
     KeycloakProvider({
       clientId: process.env.KEYCLOAK_CLIENT_ID!,

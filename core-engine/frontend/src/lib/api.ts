@@ -18,11 +18,13 @@ const api = axios.create({
 // Response interceptor — xử lý lỗi global
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      // Session hết hạn — redirect về trang login
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+      // Session hết hạn — chỉ redirect khi đang ở trang protected (không phải /login)
+      // Dùng NextAuth signOut để xóa sạch session trước khi redirect
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        const { signOut } = await import("next-auth/react");
+        await signOut({ callbackUrl: "/login" });
       }
     }
     return Promise.reject(error);
