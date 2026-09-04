@@ -68,11 +68,8 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user }) {
-      // Only enforce email domain in production
-      if (process.env.NODE_ENV === "production" && user?.email && !user.email.endsWith('@ictu.edu.vn')) {
-        return "/login?error=InvalidEmailDomain";
-      }
+    async signIn() {
+      // Allow any user authenticated by Keycloak — role-based access is handled by RBAC middleware
       return true;
     },
 
