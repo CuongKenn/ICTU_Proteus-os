@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
 - **[core-engine/backend/app/infrastructure/models.py]** Bổ sung `UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin")` vào `TenantPluginModel` kèm migration Alembic `f5b23cdff26f_add_uq_tenant_plugin.py`, cho phép câu lệnh `ON CONFLICT (tenant_id, plugin_id)` trong `upsert_installation()` thực thi chính xác (Issue #519).
+- **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Sửa lỗi `DSLValidator.validate()` kiểm tra trường `dsl_version` từ `AICommandDTO` (kèm fallback sang `version`), tránh việc mọi AI Command bị từ chối với lỗi "Unsupported DSL version: None" (Issue #517).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
 

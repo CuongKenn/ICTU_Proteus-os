@@ -58,13 +58,14 @@ class DSLValidator:
         Kiểm tra 5 quy tắc theo đặc tả DSL.
         """
         # Rule 5: Version compat
-        version = dsl_payload.get("version")
+        version = dsl_payload.get("dsl_version") or dsl_payload.get("version")
         if version != "1.0":
             raise DSLVersionCompatError(
                 f"Unsupported DSL version: {version}. Expected 1.0."
             )
 
         # Parse action structure: e.g. "hr.leave_requests.batch_approve"
+
         action = dsl_payload.get("action", "")
         parts = action.split(".")
         if len(parts) < 3:
