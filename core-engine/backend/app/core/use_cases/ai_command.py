@@ -92,7 +92,6 @@ class AICommandUseCase:
                         "id": body.command_id,
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
-                        "session_id": body.session_id,
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
@@ -121,7 +120,6 @@ class AICommandUseCase:
                         "id": body.command_id,
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
-                        "session_id": body.session_id,
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
@@ -158,7 +156,6 @@ class AICommandUseCase:
                 "id": body.command_id,
                 "tenant_id": ctx.tenant_id,
                 "issued_by_user_id": ctx.user_id,
-                "session_id": body.session_id,
                 "dsl_version": body.dsl_version,
                 "action": body.action,
                 "effect": body.effect,
@@ -204,6 +201,16 @@ class AICommandUseCase:
         cmd = await self.ai_command_repo.get_command_by_id(cmd_id, for_update=True)
 
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
+            return False
+
+        if (
+            cmd.get("approval_deadline")
+            and datetime.now(UTC) > cmd["approval_deadline"]
+        ):
+            await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id, status="TIMEOUT"
+            )
+            await self.ai_command_repo.commit()
             return False
 
         is_approved = False

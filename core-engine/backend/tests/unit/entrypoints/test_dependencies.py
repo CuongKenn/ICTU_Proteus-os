@@ -107,4 +107,3 @@ async def test_get_tenant_onboarding_use_case_injects_transactional():
     assert isinstance(use_case.tenant_repo, SQLAlchemyTenantRepository)
     assert use_case.session is mock_db
     assert use_case.tenant_repo._session is mock_db
-

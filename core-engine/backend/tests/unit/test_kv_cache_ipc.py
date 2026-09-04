@@ -72,7 +72,9 @@ async def test_retrieve_context(mock_qdrant, mock_redis):
 
 import uuid
 from unittest.mock import patch
+
 from httpx import AsyncClient
+
 from app.core.domain.entities import TenantContext
 from app.entrypoints.dependencies import get_current_tenant_context
 from main import app
@@ -94,7 +96,9 @@ async def test_transmit_ipc_endpoint_reuses_singleton_redis(mock_qdrant, mock_re
 
     app.dependency_overrides[get_current_tenant_context] = mock_ctx
 
-    with patch("app.adapters.external.qdrant_adapter.QdrantAdapter", return_value=mock_qdrant):
+    with patch(
+        "app.adapters.external.qdrant_adapter.QdrantAdapter", return_value=mock_qdrant
+    ):
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/ai/ipc/transmit",
@@ -111,4 +115,3 @@ async def test_transmit_ipc_endpoint_reuses_singleton_redis(mock_qdrant, mock_re
     assert "pointer_uuid" in data
     mock_redis.publish.assert_called_once()
     app.dependency_overrides.clear()
-
