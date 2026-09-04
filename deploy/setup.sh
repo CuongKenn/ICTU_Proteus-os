@@ -25,16 +25,21 @@ if [ ! -f .env ]; then
     echo "📄 Khởi tạo file .env từ .env.example..."
     cp .env.example .env
     
-    # 3. Auto-generate NEXTAUTH_SECRET (and N8N_ENCRYPTION_KEY if possible)
+    # 3. Auto-generate Secrets
     NEXTAUTH_SECRET=$(openssl rand -base64 32)
     sed -i.bak "s|NEXTAUTH_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL|NEXTAUTH_SECRET=$NEXTAUTH_SECRET|g" .env
     
     N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)
     sed -i.bak "s|N8N_ENCRYPTION_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL|N8N_ENCRYPTION_KEY=$N8N_ENCRYPTION_KEY|g" .env
     
+    OUTLINE_SECRET_KEY=$(openssl rand -hex 32)
+    sed -i.bak "s|OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL.*|OUTLINE_SECRET_KEY=$OUTLINE_SECRET_KEY|g" .env
+    
+    OUTLINE_UTILS_SECRET=$(openssl rand -hex 32)
+    sed -i.bak "s|OUTLINE_UTILS_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL.*|OUTLINE_UTILS_SECRET=$OUTLINE_UTILS_SECRET|g" .env
+    
     rm -f .env.bak
     echo "✅ Đã tạo .env và generate secret keys."
-  else
     echo "❌ Lỗi: Không tìm thấy file .env.example"
     exit 1
   fi
@@ -167,41 +172,47 @@ while [ $N8N_ELAPSED -lt $N8N_TIMEOUT ]; do
   N8N_ELAPSED=$((N8N_ELAPSED + 5))
 done
 
-if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME_GET_FROM_N8N_SETTINGS" .env; then
+if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; then
   # 8.1 Tạo tài khoản Owner qua REST API ẩn
-  # Lưu session cookie vào file
-  curl -sf -c n8n_cookie.txt -X POST "$N8N_URL/rest/owner/setup"     -H "Content-Type: application/json"     -d '{
+  curl -sf -X POST "$N8N_URL/rest/owner/setup"     -H "Content-Type: application/json"     -d '{
       "email": "'"$N8N_ADMIN_EMAIL"'",
       "password": "'"$N8N_ADMIN_PASSWORD"'",
       "firstName": "Admin",
       "lastName": "Proteus"
     }' > /dev/null || true
+    
+  echo "✅ Đã khởi tạo n8n Owner."
+  
+  # 8.2 Inject API Key via Database bypass for n8n 1.52+
+  NEW_N8N_API_KEY=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9')
+  echo "UPDATE n8n.\"user\" SET \"apiKey\"='$NEW_N8N_API_KEY' WHERE email='admin@proteus.local';" | docker compose exec -T postgres psql -U proteus -d proteus > /dev/null || true
+  
+  sed -i.bak "s|N8N_API_KEY=CHANGE_ME.*|N8N_API_KEY=$NEW_N8N_API_KEY|g" .env
+  rm -f .env.bak
+  echo "✅ Đã tạo N8N_API_KEY qua Database."
+  docker compose restart backend
+fi
 
-  # 8.2 Sinh API Key (Cần CSRF Token & Cookie)
-  # Đăng nhập để lấy lại cookie (nếu owner đã được tạo từ trước)
-  if [ ! -s n8n_cookie.txt ]; then
-    curl -sf -c n8n_cookie.txt -X POST "$N8N_URL/rest/login"       -H "Content-Type: application/json"       -d '{
-        "email": "'"$N8N_ADMIN_EMAIL"'",
-        "password": "'"$N8N_ADMIN_PASSWORD"'"
-      }' > /dev/null || true
-  fi
-
-  if [ -s n8n_cookie.txt ]; then
-    # Parse cookie authentication string
-    N8N_API_KEY=$(curl -sf -b n8n_cookie.txt -X POST "$N8N_URL/rest/api-keys"       -H "Content-Type: application/json"       -d '{"label": "Proteus OS AI Orchestrator"}'       | jq -r '.data.apiKey')
-
-    if [ -n "$N8N_API_KEY" ] && [ "$N8N_API_KEY" != "null" ]; then
-      sed -i.bak "s|N8N_API_KEY=CHANGE_ME_GET_FROM_N8N_SETTINGS|N8N_API_KEY=$N8N_API_KEY|g" .env
-      rm -f .env.bak
-      echo "✅ Đã tạo N8N_API_KEY và ghi vào .env"
-      
-      # Restart backend để nạp biến mới
-      docker compose restart backend
+# 8.5 Sync Keycloak OIDC Secrets
+echo "⚙️  Đang đồng bộ Keycloak OIDC Secrets..."
+if grep -q "CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
+  SECRETS=$(echo "SELECT client_id, secret FROM keycloak.client WHERE client_id IN ('outline', 'n8n', 'appsmith', 'proteus-bff');" | docker compose exec -T postgres psql -U proteus -d proteus -t -A -F ',')
+  
+  while IFS=, read -r client_id secret; do
+    if [ "$client_id" = "outline" ]; then
+      sed -i.bak "s|OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|OUTLINE_OIDC_SECRET=$secret|g" .env
+    elif [ "$client_id" = "n8n" ]; then
+      sed -i.bak "s|N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|N8N_OIDC_SECRET=$secret|g" .env
+    elif [ "$client_id" = "appsmith" ]; then
+      sed -i.bak "s|APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|APPSMITH_OIDC_SECRET=$secret|g" .env
+    elif [ "$client_id" = "proteus-bff" ]; then
+      sed -i.bak "s|KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|KEYCLOAK_BFF_CLIENT_SECRET=$secret|g" .env
     fi
-  else
-    echo "⚠️ Không thể đăng nhập n8n để tạo API Key."
-  fi
-  rm -f n8n_cookie.txt
+  done <<< "$SECRETS"
+  
+  rm -f .env.bak
+  docker compose restart backend outline
+  echo "✅ Đã đồng bộ Keycloak Secrets thành công."
 fi
 
 # 9. Tự động hóa cấu hình Appsmith
