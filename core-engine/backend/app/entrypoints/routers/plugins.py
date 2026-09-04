@@ -112,7 +112,6 @@ async def _run_install_plugin_background(
         await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
 
 
-
 @router.post(
     "/{plugin_id}/install",
     status_code=status.HTTP_202_ACCEPTED,

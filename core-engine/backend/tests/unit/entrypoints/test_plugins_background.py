@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from app.core.domain.entities import TenantContext
@@ -20,19 +21,14 @@ async def test_run_install_plugin_background_passes_tenant_repo():
     app_state.http_client = MagicMock()
 
     with (
-        patch(
-            "app.infrastructure.database.AsyncSessionLocal"
-        ) as mock_session_cls,
+        patch("app.infrastructure.database.AsyncSessionLocal") as mock_session_cls,
         patch(
             "app.entrypoints.routers.plugins.PluginInstallUseCase"
         ) as mock_use_case_cls,
-
         patch(
             "app.adapters.repositories.tenant_repo.SQLAlchemyTenantRepository"
         ) as mock_tenant_repo_cls,
-        patch(
-            "app.adapters.repositories.plugin_repo.SQLAlchemyPluginRepository"
-        ),
+        patch("app.adapters.repositories.plugin_repo.SQLAlchemyPluginRepository"),
     ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__.return_value = mock_session
