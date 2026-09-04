@@ -8,7 +8,6 @@
 
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import KeycloakProvider from "next-auth/providers/keycloak";
 
 // ─── Silent Token Refresh ─────────────────────────────────────
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
@@ -51,14 +50,40 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV !== "production", // Debug log in dev
   providers: [
-    KeycloakProvider({
+    // Dùng manual OAuth provider thay vì KeycloakProvider để bypass OIDC discovery
+    // KeycloakProvider dùng openid-client dynamically discover endpoints
+    // gây lỗi "expected 200 OK, got: 404 Not Found at y.discover" không ổn định.
+    // Solution: hardcode tất cả Keycloak endpoints để tránh discovery hoàn toàn.
+    {
+      id: "keycloak",
+      name: "Keycloak SSO",
+      type: "oauth",
+      // Hardcode well-known để NextAuth fetch config 1 lần, không re-discover trong callback
+      wellKnown: `${process.env.KEYCLOAK_ISSUER}/.well-known/openid-configuration`,
+      // Hardcode authorization endpoint — không phụ thuộc vào discovery
+      authorization: {
+        url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
+        params: { scope: "openid email profile", response_type: "code" },
+      },
+      // Hardcode token endpoint
+      token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+      // Hardcode userinfo endpoint
+      userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
+      // Issuer phải khớp với iss trong JWT token từ Keycloak
+      issuer: process.env.KEYCLOAK_ISSUER!,
+      idToken: true,
+      checks: ["pkce", "state"],
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
-      // issuer: used for OIDC discovery — resolves via Traefik network alias inside Docker
-      issuer: process.env.KEYCLOAK_ISSUER!,
-      // Only request 'openid' scope — email/profile not registered as separate scopes in this realm
-      authorization: { params: { scope: "openid email profile" } },
-    }),
+      profile(profile: any) {
+        return {
+          id: profile.sub,
+          name: profile.name ?? profile.preferred_username,
+          email: profile.email,
+          image: profile.picture ?? null,
+        };
+      },
+    },
   ],
 
   callbacks: {
