@@ -6,6 +6,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[deploy/setup.ps1]** Fix lỗi Crash Loop trong luồng Zero-Touch Provisioning (ZTP) khi API khởi tạo Mattermost Bot/Webhook trả về mã lỗi 400 (Bad Request). Wrap các HTTP call bằng cấu trúc try-catch, bỏ qua các lỗi không nghiêm trọng để luồng script có thể chạy Idempotent. Cập nhật timeout và fix lỗi n8n API.
+- **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Metabase (tạo db `metabase`) để khắc phục lỗi khởi tạo `databasechangelog` do trùng lặp schema với Core Data khiến Metabase v0.50 văng lỗi 502 Bad Gateway.
+- **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Outline (tạo db `outline`), xóa bỏ biến môi trường `DATABASE_SCHEMA` để khắc phục lỗi xung đột khi Sequelize tạo bảng nhầm vào `public` thay vì `outline`, gây lỗi 404 Crash-loop.
+- **[deploy/docker-compose.yml, deploy/.env.example]** Cập nhật `PGSSLMODE=disable` cho Outline để fix lỗi kết nối HTTPS với Postgres nội bộ. Generate các biến môi trường cấu hình `SECRET_KEY` bằng định dạng 32-byte HEX để tránh lỗi invalid config từ Outline container.
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
@@ -43,6 +47,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Changed
 - **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
+- **[deploy/setup.ps1]** Bổ sung các bước Zero-Touch Provisioning (ZTP) cho môi trường Windows: tự động hóa cấu hình Mattermost (Bot/Webhook), n8n (Owner/API Key), Appsmith (Admin/API Key) và đồng bộ Keycloak/Outline Secrets thông qua PowerShell REST API.
 - **[deploy/setup.ps1]** Bổ sung script cài đặt `setup.ps1` bằng PowerShell dành riêng cho môi trường Windows, hỗ trợ tự động hóa việc cấu hình `.env`, sinh credential keys và khởi chạy Docker Compose tương tự như `setup.sh` (Issue #293).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).

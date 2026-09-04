@@ -81,8 +81,7 @@ services:
     restart: unless-stopped
     command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
     environment:
-      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/cert.pem
-      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/key.pem
+
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-proteus}
       KC_DB_USERNAME: ${POSTGRES_USER:-proteus}
@@ -145,6 +144,7 @@ services:
       N8N_PROTOCOL: http
       WEBHOOK_URL: http://workflow.${DOMAIN}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_SECURE_COOKIE: "false"
       N8N_BASIC_AUTH_ACTIVE: "false"   # Auth qua Keycloak OIDC
     depends_on:
       postgres:
@@ -199,12 +199,11 @@ services:
     restart: unless-stopped
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_DBNAME: ${POSTGRES_DB:-proteus}
+      MB_DB_DBNAME: metabase
       MB_DB_PORT: 5432
       MB_DB_USER: ${POSTGRES_USER:-proteus}
       MB_DB_PASS: ${POSTGRES_PASSWORD}
       MB_DB_HOST: postgres
-      MB_DB_SCHEMA: metabase
       MB_SITE_URL: http://analytics.${DOMAIN}
     depends_on:
       postgres:
@@ -247,8 +246,8 @@ services:
     container_name: proteus-outline
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
-      DATABASE_SCHEMA: outline
+      DATABASE_URL: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/outline
+      PGSSLMODE: disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       URL: http://wiki.${DOMAIN}
       SECRET_KEY: ${OUTLINE_SECRET_KEY}

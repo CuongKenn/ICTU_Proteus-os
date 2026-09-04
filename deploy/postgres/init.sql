@@ -22,8 +22,11 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";  -- Full-text search support
 -- ─────────────────────────────────────────────────────────────
 CREATE SCHEMA IF NOT EXISTS keycloak;
 CREATE SCHEMA IF NOT EXISTS n8n;
-CREATE SCHEMA IF NOT EXISTS metabase;
-CREATE SCHEMA IF NOT EXISTS outline;
+-- Metabase requires a dedicated database to avoid liquibase clashes with Core tables
+-- We handle CREATE DATABASE outside of this script if needed, or assume it's created.
+-- We will just remove the schema metabase here.
+-- Outline requires a dedicated database to avoid Sequelize schema bugs
+-- We handle CREATE DATABASE outside of this script if needed, or assume it's created.
 CREATE SCHEMA IF NOT EXISTS mattermost;
 
 -- ─────────────────────────────────────────────────────────────
