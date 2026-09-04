@@ -4,6 +4,16 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-09-05)
+### Fixed
+- **[deploy/setup.ps1]** Rewrite toàn bộ script sang pure ASCII để loại bỏ lỗi encoding UTF-8 gây ParseException trong PowerShell. Thay thế cơ chế pipe bash (`echo|base64 -d`) bằng PowerShell-native temp file approach.
+- **[deploy/setup.ps1]** Fix lỗi `NullArray` khi Mattermost login trả về null — thêm null guard trước khi truy cập `.Headers["Token"]`.
+- **[deploy/setup.ps1, deploy/setup.sh]** Fix lỗi n8n API Key automation: endpoint `/rest/api-keys` bị n8n 1.52+ loại bỏ. Thay thế bằng cơ chế inject API Key trực tiếp vào PostgreSQL (`n8n."user"` table) — hoạt động ngay lập tức, không cần restart.
+
+### Changed
+- **[deploy/setup.ps1, deploy/setup.sh]** Nâng cấp Zero-Touch Provisioning (ZTP): tự động sinh `OUTLINE_SECRET_KEY` và `OUTLINE_UTILS_SECRET` (32-byte HEX) ngay khi khởi tạo `.env`, không cần can thiệp thủ công.
+- **[deploy/setup.ps1, deploy/setup.sh]** Tự động đồng bộ toàn bộ Keycloak OIDC client secrets (`outline`, `n8n`, `appsmith`, `proteus-bff`) từ PostgreSQL vào `.env` — loại bỏ bước thủ công "Copy từ Keycloak UI".
+
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
 - **[deploy/setup.ps1]** Fix lỗi Crash Loop trong luồng Zero-Touch Provisioning (ZTP) khi API khởi tạo Mattermost Bot/Webhook trả về mã lỗi 400 (Bad Request). Wrap các HTTP call bằng cấu trúc try-catch, bỏ qua các lỗi không nghiêm trọng để luồng script có thể chạy Idempotent. Cập nhật timeout và fix lỗi n8n API.
