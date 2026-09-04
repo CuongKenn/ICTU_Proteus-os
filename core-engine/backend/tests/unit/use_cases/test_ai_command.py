@@ -103,6 +103,8 @@ async def test_execute_read_command(
         assert result == {"status": "ok"}
         mock_n8n_adapter.trigger_webhook.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
+        call_args_read = mock_ai_command_repo.create_command.call_args[0][0]
+        assert "session_id" not in call_args_read
         mock_ai_command_repo.commit.assert_called_once()
 
 
@@ -139,6 +141,7 @@ async def test_execute_write_command(
 
         # check deadline is 30 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]
+        assert "session_id" not in call_args
         assert call_args["status"] == "PENDING_APPROVAL"
         deadline = call_args["approval_deadline"]
         created = call_args["created_at"]
@@ -171,6 +174,7 @@ async def test_execute_critical_command(
 
         # check deadline is 15 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]
+        assert "session_id" not in call_args
         assert call_args["status"] == "PENDING_APPROVAL"
         deadline = call_args["approval_deadline"]
         created = call_args["created_at"]
