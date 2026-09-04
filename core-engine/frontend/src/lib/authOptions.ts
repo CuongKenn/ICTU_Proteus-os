@@ -50,28 +50,24 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV !== "production", // Debug log in dev
   providers: [
-    // Dùng manual OAuth provider thay vì KeycloakProvider để bypass OIDC discovery
-    // KeycloakProvider dùng openid-client dynamically discover endpoints
-    // gây lỗi "expected 200 OK, got: 404 Not Found at y.discover" không ổn định.
-    // Solution: hardcode tất cả Keycloak endpoints để tránh discovery hoàn toàn.
+    // Manual OAuth provider — bypass ALL OIDC discovery
+    // wellKnown bị xóa: dù hardcode endpoints, wellKnown vẫn trigger OIDC discovery
+    // để lấy JWKS cho ID token verification → gây 404 intermittent.
+    // idToken:false → không verify ID token → không cần JWKS → không cần discovery gì cả.
+    // Profile được lấy từ userinfo endpoint bằng access_token.
     {
       id: "keycloak",
       name: "Keycloak SSO",
       type: "oauth",
-      // Hardcode well-known để NextAuth fetch config 1 lần, không re-discover trong callback
-      wellKnown: `${process.env.KEYCLOAK_ISSUER}/.well-known/openid-configuration`,
-      // Hardcode authorization endpoint — không phụ thuộc vào discovery
+      // KHÔNG có wellKnown — tránh hoàn toàn OIDC discovery
       authorization: {
         url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
         params: { scope: "openid email profile", response_type: "code" },
       },
-      // Hardcode token endpoint
       token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
-      // Hardcode userinfo endpoint
       userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
-      // Issuer phải khớp với iss trong JWT token từ Keycloak
-      issuer: process.env.KEYCLOAK_ISSUER!,
-      idToken: true,
+      // idToken: false — không verify ID token, không cần JWKS, không cần discovery
+      idToken: false,
       checks: ["pkce", "state"],
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
@@ -84,6 +80,7 @@ export const authOptions: NextAuthOptions = {
         };
       },
     },
+
   ],
 
   callbacks: {
