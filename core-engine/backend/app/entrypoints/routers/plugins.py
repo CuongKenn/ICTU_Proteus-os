@@ -92,10 +92,12 @@ async def _run_install_plugin_background(
     from app.adapters.external.mattermost_adapter import MattermostAdapter
     from app.adapters.external.metabase_adapter import MetabaseAdapter
     from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
     from app.infrastructure.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
         repo = SQLAlchemyPluginRepository(session=session)
+        tenant_repo = SQLAlchemyTenantRepository(session=session)
         use_case = PluginInstallUseCase(
             plugin_repo=repo,
             manifest_parser=LocalManifestParser(),
@@ -105,8 +107,10 @@ async def _run_install_plugin_background(
             keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
             mattermost_adapter=MattermostAdapter(client=app_state.http_client),
             session=session,
+            tenant_repo=tenant_repo,
         )
         await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
+
 
 
 @router.post(
