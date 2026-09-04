@@ -50,23 +50,25 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV !== "production", // Debug log in dev
   providers: [
-    // Manual OAuth provider — bypass ALL OIDC discovery
-    // wellKnown bị xóa: dù hardcode endpoints, wellKnown vẫn trigger OIDC discovery
-    // để lấy JWKS cho ID token verification → gây 404 intermittent.
-    // idToken:false → không verify ID token → không cần JWKS → không cần discovery gì cả.
-    // Profile được lấy từ userinfo endpoint bằng access_token.
+    // Manual OAuth provider — bypass OIDC discovery completely
+    // Không dùng wellKnown: NextAuth tạo openid-client Issuer qua new Issuer({...})
+    // thay vì Issuer.discover() → không có HTTP request nào đến discovery endpoint.
+    // issuer: cần thiết để openid-client pass assertIssuerConfiguration.
+    // idToken:false: không verify ID token signature → không cần JWKS.
     {
       id: "keycloak",
       name: "Keycloak SSO",
       type: "oauth",
-      // KHÔNG có wellKnown — tránh hoàn toàn OIDC discovery
+      // issuer bắt buộc để openid-client's assertIssuerConfiguration pass
+      // Nhưng không có wellKnown → KHÔNG trigger HTTP discovery
+      issuer: process.env.KEYCLOAK_ISSUER!,
       authorization: {
         url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
         params: { scope: "openid email profile", response_type: "code" },
       },
       token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
       userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
-      // idToken: false — không verify ID token, không cần JWKS, không cần discovery
+      // idToken:false → không verify ID token signature → không cần JWKS → không cần discovery
       idToken: false,
       checks: ["pkce", "state"],
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
@@ -80,6 +82,7 @@ export const authOptions: NextAuthOptions = {
         };
       },
     },
+
 
   ],
 
