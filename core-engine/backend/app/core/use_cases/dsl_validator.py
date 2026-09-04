@@ -64,8 +64,8 @@ class DSLValidator:
                 f"Unsupported DSL version: {version}. Expected 1.0."
             )
 
-
         # Parse action structure: e.g. "hr.leave_requests.batch_approve"
+
         action = dsl_payload.get("action", "")
         parts = action.split(".")
         if len(parts) < 3:
