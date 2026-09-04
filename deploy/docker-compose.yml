@@ -92,9 +92,15 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HOSTNAME: auth.${DOMAIN}
+      KC_HOSTNAME_STRICT: "false"        # Allow HTTP in dev; don't enforce HTTPS-only hostnames
+      KC_HOSTNAME_STRICT_HTTPS: "false"  # Don't redirect HTTP -> HTTPS
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
+      # Fix "Cookie not found" on HTTP: Chrome rejects SameSite=None without Secure.
+      # Setting SameSite=Lax allows AUTH_SESSION_ID cookie to work over plain HTTP.
+      JAVA_OPTS_APPEND: >-
+        -Dkeycloak.cookies.auth-session-id.same-site=Lax
     depends_on:
       postgres:
         condition: service_healthy
