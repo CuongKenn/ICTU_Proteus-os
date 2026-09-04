@@ -88,3 +88,23 @@ async def test_require_permission_tenant_admin_bypass(
     result = await checker(context=tenant_admin_context, role_repo=mock_role_repo)
     assert result == tenant_admin_context
     mock_role_repo.get_user_permissions.assert_not_called()
+
+
+from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
+from app.entrypoints.dependencies import get_tenant_onboarding_use_case
+
+
+@pytest.mark.asyncio
+async def test_get_tenant_onboarding_use_case_injects_transactional():
+    mock_keycloak = AsyncMock()
+    mock_db = AsyncMock()
+
+    use_case = await get_tenant_onboarding_use_case(
+        keycloak_adapter=mock_keycloak,
+        db=mock_db,
+    )
+
+    assert isinstance(use_case.tenant_repo, SQLAlchemyTenantRepository)
+    assert use_case.session is mock_db
+    assert use_case.tenant_repo._session is mock_db
+
