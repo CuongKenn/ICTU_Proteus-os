@@ -334,7 +334,7 @@ class PluginInstallUseCase:
                             tenant = await self.tenant_repo.get_by_id(context.tenant_id)
                             if tenant:
                                 keycloak_realm = tenant.keycloak_realm
-                                
+
                         roles = created_assets.get("keycloak", [])
                         for role_name in reversed(roles):
                             await self.keycloak_adapter.delete_role(
