@@ -26,7 +26,9 @@ services:
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik-certs:/letsencrypt
     networks:
-      - proteus-net
+      proteus-net:
+        aliases:
+          - auth.proteus.local  # Internal containers reach Keycloak via Traefik -> proper X-Forwarded headers -> correct port in OIDC discovery
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
@@ -379,8 +381,6 @@ services:
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_BFF_CLIENT_SECRET}
       KEYCLOAK_ISSUER: http://auth.${DOMAIN}/realms/${KEYCLOAK_REALM:-proteus}
-      # Internal URL used by Next.js server-side (Docker network) — avoids DNS resolution failure
-      KEYCLOAK_INTERNAL_ISSUER: http://keycloak:8080/realms/${KEYCLOAK_REALM:-proteus}
       BACKEND_URL: http://backend:8000
     depends_on:
       - backend
