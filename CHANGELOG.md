@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Security
 - **[core-engine/backend]** Vá lỗ hổng SQL Injection tiềm ẩn trong TenantRepository.update() (Issue #520).
+- **[.gitignore]** Ngăn chặn việc track các file `.env` chứa thông tin nhạy cảm. Đã loại bỏ `deploy/.env` khỏi git cache.
 ### Changed
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
