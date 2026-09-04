@@ -329,10 +329,16 @@ class PluginInstallUseCase:
                     pass
                 elif step == "keycloak":
                     if hasattr(self.keycloak_adapter, "delete_role"):
+                        keycloak_realm = "proteus"
+                        if self.tenant_repo:
+                            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+                            if tenant:
+                                keycloak_realm = tenant.keycloak_realm
+                                
                         roles = created_assets.get("keycloak", [])
                         for role_name in reversed(roles):
                             await self.keycloak_adapter.delete_role(
-                                realm="proteus",
+                                realm=keycloak_realm,
                                 role_name=role_name,
                             )
                 elif step == "appsmith":
