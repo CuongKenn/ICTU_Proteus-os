@@ -203,6 +203,16 @@ class AICommandUseCase:
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
             return False
 
+        if (
+            cmd.get("approval_deadline")
+            and datetime.now(UTC) > cmd["approval_deadline"]
+        ):
+            await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id, status="TIMEOUT"
+            )
+            await self.ai_command_repo.commit()
+            return False
+
         is_approved = False
         if action_taken == "reject":
             await self.ai_command_repo.update_command_approval(

@@ -7,8 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.core.domain.entities import AICommandStatus, TenantContext
-from app.core.use_cases.ai_command import AICommandUseCase
-from app.core.use_cases.ai_command import AICommandDTO
+from app.core.use_cases.ai_command import AICommandDTO, AICommandUseCase
 
 
 @pytest.fixture
@@ -183,7 +182,9 @@ async def test_execute_critical_command(
 
 
 @pytest.mark.asyncio
-async def test_process_approval_write_success(use_case, mock_ai_command_repo, mock_n8n_adapter):
+async def test_process_approval_write_success(
+    use_case, mock_ai_command_repo, mock_n8n_adapter
+):
     cmd_id = uuid.uuid4()
     approver_id = str(uuid.uuid4())
     mock_ai_command_repo.get_command_by_id.return_value = {
@@ -206,7 +207,9 @@ async def test_process_approval_write_success(use_case, mock_ai_command_repo, mo
 
 
 @pytest.mark.asyncio
-async def test_process_approval_critical_two_approvers(use_case, mock_ai_command_repo, mock_n8n_adapter):
+async def test_process_approval_critical_two_approvers(
+    use_case, mock_ai_command_repo, mock_n8n_adapter
+):
     cmd_id = uuid.uuid4()
     approver1_id = str(uuid.uuid4())
     approver2_id = str(uuid.uuid4())
@@ -230,7 +233,9 @@ async def test_process_approval_critical_two_approvers(use_case, mock_ai_command
 
     # Step 2: Same approver tries again -> should fail
     mock_ai_command_repo.update_command_approval.reset_mock()
-    mock_ai_command_repo.get_command_by_id.return_value["approved_by_user_id"] = approver1_id
+    mock_ai_command_repo.get_command_by_id.return_value["approved_by_user_id"] = (
+        approver1_id
+    )
     result_same = await use_case.process_approval(cmd_id, approver1_id, "approve")
     assert result_same is False
     mock_ai_command_repo.update_command_approval.assert_not_called()
@@ -263,4 +268,3 @@ async def test_process_approval_reject(use_case, mock_ai_command_repo):
         cmd_id=cmd_id, status="REJECTED"
     )
     mock_ai_command_repo.commit.assert_called_once()
-
