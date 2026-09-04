@@ -6,22 +6,41 @@
 // Token được inject tự động. Browser KHÔNG bao giờ gọi Backend trực tiếp.
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { getServerSession } from "next-auth";
-import { getToken } from "next-auth/jwt";
+import { decode } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/authOptions";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+
+// Next.js 14 App Router: getToken({ req }) không đọc được RequestCookies object đúng cách.
+// Dùng decode() trực tiếp với cookie value đọc qua request.cookies.get().value.
+async function getJWTToken(request: NextRequest) {
+  // HTTP → next-auth.session-token, HTTPS → __Secure-next-auth.session-token
+  const isSecure = process.env.NEXTAUTH_URL?.startsWith("https://");
+  const cookieName = isSecure
+    ? "__Secure-next-auth.session-token"
+    : "next-auth.session-token";
+
+  const cookieValue = request.cookies.get(cookieName)?.value;
+  if (!cookieValue) return null;
+
+  return decode({
+    token: cookieValue,
+    secret: process.env.NEXTAUTH_SECRET!,
+  });
+}
+
+
 
 async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  const token = await getToken({ req: request });
-  const session = await getServerSession(authOptions);
+  // Dùng getJWTToken thay vì getToken — Next.js 14 App Router compatible
+  const token = await getJWTToken(request);
 
   if (!token?.accessToken) {
+    logger.error("[BFF] Proxy 401: token missing or accessToken null", { hasToken: !!token });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
