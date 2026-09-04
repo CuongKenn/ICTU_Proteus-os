@@ -15,7 +15,8 @@ import KeycloakProvider from "next-auth/providers/keycloak";
 // Được gọi tự động khi access_token hết hạn trong JWT callback.
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
-    const tokenUrl = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
+    // Server-side calls (token refresh) use internal Docker hostname to avoid DNS issues
+    const tokenUrl = `${process.env.KEYCLOAK_INTERNAL_ISSUER ?? process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
     const response = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -53,13 +54,23 @@ export const authOptions: NextAuthOptions = {
     KeycloakProvider({
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
-      issuer: process.env.KEYCLOAK_ISSUER!,
+      // issuer is used for OIDC discovery (server-side) — must be reachable from Docker container
+      issuer: process.env.KEYCLOAK_INTERNAL_ISSUER ?? process.env.KEYCLOAK_ISSUER!,
+      // Override authorization URL to use the public browser-facing URL
+      authorization: {
+        url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
+        params: { scope: "openid email profile" },
+      },
+      token: `${process.env.KEYCLOAK_INTERNAL_ISSUER ?? process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+      userinfo: `${process.env.KEYCLOAK_INTERNAL_ISSUER ?? process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
+      jwks_endpoint: `${process.env.KEYCLOAK_INTERNAL_ISSUER ?? process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/certs`,
     }),
   ],
 
   callbacks: {
     async signIn({ user }) {
-      if (user?.email && !user.email.endsWith('@ictu.edu.vn')) {
+      // Only enforce email domain in production
+      if (process.env.NODE_ENV === "production" && user?.email && !user.email.endsWith('@ictu.edu.vn')) {
         return "/login?error=InvalidEmailDomain";
       }
       return true;

@@ -379,6 +379,8 @@ services:
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_BFF_CLIENT_SECRET}
       KEYCLOAK_ISSUER: http://auth.${DOMAIN}/realms/${KEYCLOAK_REALM:-proteus}
+      # Internal URL used by Next.js server-side (Docker network) — avoids DNS resolution failure
+      KEYCLOAK_INTERNAL_ISSUER: http://keycloak:8080/realms/${KEYCLOAK_REALM:-proteus}
       BACKEND_URL: http://backend:8000
     depends_on:
       - backend
