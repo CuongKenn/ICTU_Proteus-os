@@ -74,7 +74,6 @@ async def test_validate_valid_payload_with_dsl_version(validator):
     assert result is True
 
 
-
 @pytest.mark.asyncio
 async def test_validate_invalid_version(validator):
     payload = {"version": "2.0", "action": "hr.leave_requests.batch_approve"}

@@ -123,4 +123,3 @@ async def test_get_user_permissions(role_repo, mock_session):
     assert set(result) == {"users:read", "users:write", "plugins:read", "audit:read"}
     mock_session.execute.assert_called_once()
     mock_result.all.assert_called_once()
-
