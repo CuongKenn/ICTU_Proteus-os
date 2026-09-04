@@ -50,26 +50,26 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV !== "production", // Debug log in dev
   providers: [
-    // Manual OAuth provider — bypass OIDC discovery completely
-    // Không dùng wellKnown: NextAuth tạo openid-client Issuer qua new Issuer({...})
-    // thay vì Issuer.discover() → không có HTTP request nào đến discovery endpoint.
-    // issuer: cần thiết để openid-client pass assertIssuerConfiguration.
-    // idToken:false: không verify ID token signature → không cần JWKS.
+    // Manual OAuth provider — Keycloak luôn trả id_token nên phải dùng idToken:true
+    // Dùng wellKnown để NextAuth lấy jwks_uri (cho ID token verification)
+    // Tất cả endpoints được hardcode để tránh dependency vào discovery cho routing
     {
       id: "keycloak",
       name: "Keycloak SSO",
       type: "oauth",
-      // issuer bắt buộc để openid-client's assertIssuerConfiguration pass
-      // Nhưng không có wellKnown → KHÔNG trigger HTTP discovery
-      issuer: process.env.KEYCLOAK_ISSUER!,
+      // wellKnown cần để lấy JWKS cho ID token verification
+      // Nhưng discovery chỉ xảy ra 1 lần và được cache
+      wellKnown: `${process.env.KEYCLOAK_ISSUER}/.well-known/openid-configuration`,
+      // Hardcode authorization endpoint — không phụ thuộc vào discovery cho redirect
       authorization: {
         url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
         params: { scope: "openid email profile", response_type: "code" },
       },
+      // Hardcode token và userinfo endpoints
       token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
       userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
-      // idToken:false → không verify ID token signature → không cần JWKS → không cần discovery
-      idToken: false,
+      // idToken: true — Keycloak luôn trả id_token, phải dùng client.callback()
+      idToken: true,
       checks: ["pkce", "state"],
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
