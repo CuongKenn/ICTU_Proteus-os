@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/infrastructure/models.py]** Bổ sung `UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin")` vào `TenantPluginModel` kèm migration Alembic `f5b23cdff26f_add_uq_tenant_plugin.py`, cho phép câu lệnh `ON CONFLICT (tenant_id, plugin_id)` trong `upsert_installation()` thực thi chính xác (Issue #519).
 - **[core-engine/backend/app/entrypoints/routers/ai.py]** Sửa lỗi Redis Connection Leak trong endpoint `POST /api/v1/ai/ipc/transmit` bằng cách tái sử dụng singleton `request.app.state.redis_event_bus` thay vì khởi tạo instance mới mỗi request (Issue #513).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Bổ sung khởi tạo `SQLAlchemyTenantRepository` và inject vào `PluginInstallUseCase` trong `_run_install_plugin_background()`, đảm bảo Keycloak roles của plugin được tạo đúng realm của tenant thay vì fallback về realm mặc định (Issue #518).
 - **[core-engine/backend/app/adapters/repositories/role_repo.py]** Chuẩn hóa việc xử lý cột `permissions` kiểu JSONB trong `RoleRepository.get_user_permissions()`. Hỗ trợ đầy đủ dữ liệu permissions dưới dạng list, dict boolean (`{perm: bool}`) hoặc dict wrapper (`{"allowed": [...]}`), tránh việc trích xuất sai tên key hoặc bỏ sót permission strings (Issue #516).
