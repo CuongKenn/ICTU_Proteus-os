@@ -6,38 +6,49 @@
 // Token được inject tự động. Browser KHÔNG bao giờ gọi Backend trực tiếp.
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
+import { cookies } from "next/headers";
 import { decode } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-// Next.js 14 App Router: getToken({ req }) không đọc được RequestCookies object đúng cách.
-// Dùng decode() trực tiếp với cookie value đọc qua request.cookies.get().value.
-async function getJWTToken(request: NextRequest) {
-  // HTTP → next-auth.session-token, HTTPS → __Secure-next-auth.session-token
+// Dùng cookies() từ next/headers — cách chuẩn của Next.js 14 App Router
+// để đọc cookie trong Route Handler (không dùng request.cookies)
+async function getJWTToken() {
+  const cookieStore = cookies();
   const isSecure = process.env.NEXTAUTH_URL?.startsWith("https://");
   const cookieName = isSecure
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
 
-  const cookieValue = request.cookies.get(cookieName)?.value;
-  if (!cookieValue) return null;
+  const cookieValue = cookieStore.get(cookieName)?.value;
 
-  return decode({
-    token: cookieValue,
-    secret: process.env.NEXTAUTH_SECRET!,
-  });
+  // Debug: log tất cả cookie names nếu không tìm thấy
+  if (!cookieValue) {
+    const allNames = cookieStore.getAll().map((c) => c.name);
+    logger.error("[BFF] Cookie not found. Available cookies:", allNames);
+    return null;
+  }
+
+  try {
+    return await decode({
+      token: cookieValue,
+      secret: process.env.NEXTAUTH_SECRET!,
+    });
+  } catch (e) {
+    logger.error("[BFF] Failed to decode session token:", e);
+    return null;
+  }
 }
-
 
 
 async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  // Dùng getJWTToken thay vì getToken — Next.js 14 App Router compatible
-  const token = await getJWTToken(request);
+  // Dùng getJWTToken() không cần request — cookies() từ next/headers tự đọc
+  const token = await getJWTToken();
 
   if (!token?.accessToken) {
     logger.error("[BFF] Proxy 401: token missing or accessToken null", { hasToken: !!token });
