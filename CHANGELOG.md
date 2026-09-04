@@ -7,6 +7,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
 - **[core-engine/backend/app/infrastructure/models.py]** Bổ sung `UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin")` vào `TenantPluginModel` kèm migration Alembic `f5b23cdff26f_add_uq_tenant_plugin.py`, cho phép câu lệnh `ON CONFLICT (tenant_id, plugin_id)` trong `upsert_installation()` thực thi chính xác (Issue #519).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
+
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
