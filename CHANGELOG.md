@@ -6,6 +6,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend]** Sửa lỗi SQL Error do truyền cột không tồn tại `session_id` khi insert vào bảng `ai_commands` trong `AICommandUseCase.execute()` và loại bỏ `session_id` phòng thủ trong `SQLAlchemyAICommandRepository.create_command()` (Issue #512).
+- **[core-engine/backend/app/infrastructure/models.py]** Bổ sung `UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin")` vào `TenantPluginModel` kèm migration Alembic `f5b23cdff26f_add_uq_tenant_plugin.py`, cho phép câu lệnh `ON CONFLICT (tenant_id, plugin_id)` trong `upsert_installation()` thực thi chính xác (Issue #519).
+- **[core-engine/backend/app/entrypoints/routers/ai.py]** Sửa lỗi Redis Connection Leak trong endpoint `POST /api/v1/ai/ipc/transmit` bằng cách tái sử dụng singleton `request.app.state.redis_event_bus` thay vì khởi tạo instance mới mỗi request (Issue #513).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Bổ sung khởi tạo `SQLAlchemyTenantRepository` và inject vào `PluginInstallUseCase` trong `_run_install_plugin_background()`, đảm bảo Keycloak roles của plugin được tạo đúng realm của tenant thay vì fallback về realm mặc định (Issue #518).
+- **[core-engine/backend/app/adapters/repositories/role_repo.py]** Chuẩn hóa việc xử lý cột `permissions` kiểu JSONB trong `RoleRepository.get_user_permissions()`. Hỗ trợ đầy đủ dữ liệu permissions dưới dạng list, dict boolean (`{perm: bool}`) hoặc dict wrapper (`{"allowed": [...]}`), tránh việc trích xuất sai tên key hoặc bỏ sót permission strings (Issue #516).
 - **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Sửa lỗi `DSLValidator.validate()` kiểm tra trường `dsl_version` từ `AICommandDTO` (kèm fallback sang `version`), tránh việc mọi AI Command bị từ chối với lỗi "Unsupported DSL version: None" (Issue #517).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
@@ -50,6 +55,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗi hardcode Keycloak realm ("proteus") trong bước xóa role, thay bằng ID của tenant (Issue #298).
 - **[core-engine/frontend/src/components/AppShell.tsx]** Fix lỗi `Sidebar` không tự đóng khi click ngoài vùng chọn trên thiết bị di động (Issue #291).
 ### Changed
+- **[.github/workflows/backend-ci.yml]** Nâng ngưỡng bao phủ mã (coverage threshold) cho Backend unit tests từ 10% lên 70% để đảm bảo chất lượng code.
 - **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
 - **[deploy/setup.ps1]** Bổ sung script cài đặt `setup.ps1` bằng PowerShell dành riêng cho môi trường Windows, hỗ trợ tự động hóa việc cấu hình `.env`, sinh credential keys và khởi chạy Docker Compose tương tự như `setup.sh` (Issue #293).
