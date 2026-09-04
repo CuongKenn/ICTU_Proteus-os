@@ -96,10 +96,10 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
             updates.append("status = :status")
             params["status"] = status
         if approved_by is not None:
-            updates.append("approved_by = :approved_by")
+            updates.append("approved_by_user_id = :approved_by")
             params["approved_by"] = approved_by
         if second_approver is not None:
-            updates.append("second_approver = :second_approver")
+            updates.append("second_approver_id = :second_approver")
             params["second_approver"] = second_approver
 
         sql_update = text(

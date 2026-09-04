@@ -212,13 +212,13 @@ class AICommandUseCase:
             return True
 
         if cmd["effect"] == "critical":
-            if not cmd["approved_by"]:
+            if not cmd.get("approved_by_user_id"):
                 await self.ai_command_repo.update_command_approval(
                     cmd_id=cmd_id, approved_by=approver_id
                 )
                 await self.ai_command_repo.commit()
                 return True
-            elif str(cmd["approved_by"]) != str(approver_id):
+            elif str(cmd.get("approved_by_user_id")) != str(approver_id):
                 await self.ai_command_repo.update_command_approval(
                     cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
                 )
@@ -241,7 +241,9 @@ class AICommandUseCase:
                 )
             except Exception as e:
                 logger.error(
-                    f"Failed to trigger n8n after approval for command {cmd_id}: {e}"
+                    "Failed to trigger n8n after approval for command %s: %s",
+                    cmd_id,
+                    e,
                 )
 
         return True
