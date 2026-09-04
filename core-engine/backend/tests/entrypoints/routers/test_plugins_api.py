@@ -155,4 +155,3 @@ async def test_get_install_status_invalid_uuid(override_auth):
 
     assert response.status_code == 400
     assert "Invalid task_id" in response.json()["detail"]
-
