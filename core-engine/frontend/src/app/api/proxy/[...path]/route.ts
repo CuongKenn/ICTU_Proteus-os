@@ -14,28 +14,37 @@ import { logger } from "@/lib/logger";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 // Dùng cookies() từ next/headers — cách chuẩn của Next.js 14 App Router
-// để đọc cookie trong Route Handler (không dùng request.cookies)
+// NextAuth tự động split JWT lớn (>4KB) thành nhiều cookies: .0, .1, .2 ...
+// Phải ghép lại trước khi decode.
 async function getJWTToken() {
   const cookieStore = cookies();
   const isSecure = process.env.NEXTAUTH_URL?.startsWith("https://");
-  const cookieName = isSecure
+  const baseName = isSecure
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
 
-  const cookieValue = cookieStore.get(cookieName)?.value;
-
-  // Debug: log tất cả cookie names nếu không tìm thấy
-  if (!cookieValue) {
-    const allNames = cookieStore.getAll().map((c) => c.name);
-    logger.error("[BFF] Cookie not found. Available cookies:", allNames);
-    return null;
-  }
-
   try {
-    return await decode({
-      token: cookieValue,
-      secret: process.env.NEXTAUTH_SECRET!,
-    });
+    // Thử đọc cookie đơn trước
+    const singleCookie = cookieStore.get(baseName)?.value;
+    if (singleCookie) {
+      return await decode({ token: singleCookie, secret: process.env.NEXTAUTH_SECRET! });
+    }
+
+    // JWT bị chunk: ghép next-auth.session-token.0 + .1 + .2 + ...
+    const chunks: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const chunk = cookieStore.get(`${baseName}.${i}`)?.value;
+      if (!chunk) break;
+      chunks.push(chunk);
+    }
+
+    if (chunks.length === 0) {
+      logger.error("[BFF] No session token cookies found. Available:", cookieStore.getAll().map((c) => c.name));
+      return null;
+    }
+
+    const fullToken = chunks.join("");
+    return await decode({ token: fullToken, secret: process.env.NEXTAUTH_SECRET! });
   } catch (e) {
     logger.error("[BFF] Failed to decode session token:", e);
     return null;
