@@ -50,6 +50,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗi hardcode Keycloak realm ("proteus") trong bước xóa role, thay bằng ID của tenant (Issue #298).
 - **[core-engine/frontend/src/components/AppShell.tsx]** Fix lỗi `Sidebar` không tự đóng khi click ngoài vùng chọn trên thiết bị di động (Issue #291).
 ### Changed
+- **[.github/workflows/backend-ci.yml]** Nâng ngưỡng bao phủ mã (coverage threshold) cho Backend unit tests từ 10% lên 70% để đảm bảo chất lượng code.
 - **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
 - **[deploy/setup.ps1]** Bổ sung script cài đặt `setup.ps1` bằng PowerShell dành riêng cho môi trường Windows, hỗ trợ tự động hóa việc cấu hình `.env`, sinh credential keys và khởi chạy Docker Compose tương tự như `setup.sh` (Issue #293).
