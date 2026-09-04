@@ -16,9 +16,9 @@ from app.core.use_cases.ai_command import AICommandUseCase
 from app.entrypoints.dependencies import (
     get_ai_command_use_case,
     get_audit_log_repo,
-    get_db_transactional,
 )
 from app.infrastructure.config import settings
+from app.infrastructure.database import get_db_transactional
 
 logger = logging.getLogger(__name__)
 
