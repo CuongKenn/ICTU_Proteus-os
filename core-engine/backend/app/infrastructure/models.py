@@ -5,10 +5,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+
 
 from app.infrastructure.database import Base
 
@@ -191,8 +192,12 @@ class PluginModel(BaseModel, SoftDeleteMixin):
 
 class TenantPluginModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "tenant_plugins"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin"),
+    )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
+
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
