@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Fixed
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Bổ sung khởi tạo `SQLAlchemyTenantRepository` và inject vào `PluginInstallUseCase` trong `_run_install_plugin_background()`, đảm bảo Keycloak roles của plugin được tạo đúng realm của tenant thay vì fallback về realm mặc định (Issue #518).
 - **[core-engine/backend/app/adapters/repositories/role_repo.py]** Chuẩn hóa việc xử lý cột `permissions` kiểu JSONB trong `RoleRepository.get_user_permissions()`. Hỗ trợ đầy đủ dữ liệu permissions dưới dạng list, dict boolean (`{perm: bool}`) hoặc dict wrapper (`{"allowed": [...]}`), tránh việc trích xuất sai tên key hoặc bỏ sót permission strings (Issue #516).
 - **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Sửa lỗi `DSLValidator.validate()` kiểm tra trường `dsl_version` từ `AICommandDTO` (kèm fallback sang `version`), tránh việc mọi AI Command bị từ chối với lỗi "Unsupported DSL version: None" (Issue #517).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
