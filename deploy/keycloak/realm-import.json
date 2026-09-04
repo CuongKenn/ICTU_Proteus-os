@@ -271,5 +271,26 @@
     "email",
     "tenant",
     "openid"
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@proteus.local",
+      "firstName": "Proteus",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["superadmin", "user"],
+      "attributes": {
+        "tenant_id": ["default"]
+      }
+    }
   ]
 }
