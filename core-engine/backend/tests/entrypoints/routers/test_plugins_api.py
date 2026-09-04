@@ -94,3 +94,65 @@ async def test_configure_plugin_credentials_failure(override_auth):
 
     # Cleanup
     app.dependency_overrides.pop(get_plugin_credentials_use_case, None)
+
+
+from app.adapters.repositories.base import AbstractPluginRepository
+from app.core.domain.entities import PluginStatus
+from app.entrypoints.dependencies import get_plugin_repo
+
+
+@pytest.mark.asyncio
+async def test_get_install_status_success(override_auth):
+    mock_repo = AsyncMock(spec=AbstractPluginRepository)
+    mock_repo.get_installation_status.return_value = PluginStatus.ACTIVE
+
+    app.dependency_overrides[get_plugin_repo] = lambda: mock_repo
+
+    plugin_id = "123e4567-e89b-12d3-a456-426614174000"
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            f"/api/v1/plugins/install/{plugin_id}/status",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["overall_status"] == PluginStatus.ACTIVE.value
+    mock_repo.get_installation_status.assert_called_once_with(
+        uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        uuid.UUID(plugin_id),
+    )
+
+    app.dependency_overrides.pop(get_plugin_repo, None)
+
+
+@pytest.mark.asyncio
+async def test_get_install_status_not_found(override_auth):
+    mock_repo = AsyncMock(spec=AbstractPluginRepository)
+    mock_repo.get_installation_status.return_value = None
+
+    app.dependency_overrides[get_plugin_repo] = lambda: mock_repo
+
+    plugin_id = "123e4567-e89b-12d3-a456-426614174000"
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            f"/api/v1/plugins/install/{plugin_id}/status",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"]
+
+    app.dependency_overrides.pop(get_plugin_repo, None)
+
+
+@pytest.mark.asyncio
+async def test_get_install_status_invalid_uuid(override_auth):
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            "/api/v1/plugins/install/not-a-valid-uuid/status",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 400
+    assert "Invalid task_id" in response.json()["detail"]
+
