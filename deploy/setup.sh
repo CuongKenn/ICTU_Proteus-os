@@ -85,7 +85,8 @@ fi
 
 # 7. Tự động hóa cấu hình Mattermost
 echo "⚙️  Đang cấu hình Mattermost (Tạo Bot, Webhook Secret)..."
-MM_URL="http://localhost:8065"
+MM_URL="http://localhost/api/v4"
+MM_HOST_HEADER="Host: chat.$DOMAIN"
 
 # 7.1 Sinh MATTERMOST_WEBHOOK_SECRET
 if grep -q "MATTERMOST_WEBHOOK_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL" .env; then
@@ -102,7 +103,7 @@ MM_ADMIN_PASS=$(grep -E "^MATTERMOST_ADMIN_PASSWORD=" .env | cut -d '=' -f2)
 MM_TIMEOUT=120
 MM_ELAPSED=0
 while [ $MM_ELAPSED -lt $MM_TIMEOUT ]; do
-  if curl -sf $MM_URL/api/v4/system/ping > /dev/null; then
+  if curl -sf -H "$MM_HOST_HEADER" $MM_URL/system/ping > /dev/null; then
     break
   fi
   sleep 5
@@ -111,31 +112,52 @@ done
 
 if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GET_FROM_MATTERMOST" .env; then
   # 7.3 Tạo Admin User đầu tiên (Bỏ qua nếu đã tạo)
-  curl -sf -X POST "$MM_URL/api/v4/users"     -H "Content-Type: application/json"     -d '{
+  curl -sf -X POST "$MM_URL/users" \
+    -H "$MM_HOST_HEADER" \
+    -H "Content-Type: application/json" \
+    -d '{
       "email": "admin@proteus.local",
       "username": "sysadmin",
       "password": "'"$MM_ADMIN_PASS"'",
       "allow_marketing": false
-    }' || true
+    }' > /dev/null || true
 
   # 7.4 Đăng nhập lấy Auth Token
-  MM_TOKEN=$(curl -si -X POST "$MM_URL/api/v4/users/login"     -H "Content-Type: application/json"     -d '{"login_id":"sysadmin","password":"'"$MM_ADMIN_PASS"'"}'     | grep -i "^token:" | awk '{print $2}' | tr -d '\r')
+  MM_TOKEN=$(curl -si -X POST "$MM_URL/users/login" \
+    -H "$MM_HOST_HEADER" \
+    -H "Content-Type: application/json" \
+    -d '{"login_id":"sysadmin","password":"'"$MM_ADMIN_PASS"'"}' \
+    | grep -i "^token:" | awk '{print $2}' | tr -d '\r')
     
   if [ -n "$MM_TOKEN" ]; then
     # 7.5 Enable Personal Access Tokens
-    curl -sf -X PUT "$MM_URL/api/v4/config"       -H "Authorization: Bearer $MM_TOKEN"       -H "Content-Type: application/json"       -d '{"ServiceSettings":{"EnableUserAccessTokens":true}}'
+    curl -sf -X PUT "$MM_URL/config" \
+      -H "$MM_HOST_HEADER" \
+      -H "Authorization: Bearer $MM_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"ServiceSettings":{"EnableUserAccessTokens":true}}' > /dev/null
 
     # 7.6 Tạo Bot account (hoặc lấy ID nếu đã có)
-    BOT_USER_ID=$(curl -s -X POST "$MM_URL/api/v4/bots"       -H "Authorization: Bearer $MM_TOKEN"       -H "Content-Type: application/json"       -d '{"username":"proteus-bot","display_name":"Proteus AI Bot","description":"AI Orchestrator Bot"}'       | jq -r '.user_id')
+    BOT_USER_ID=$(curl -s -X POST "$MM_URL/bots" \
+      -H "$MM_HOST_HEADER" \
+      -H "Authorization: Bearer $MM_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"username":"proteus-bot","display_name":"Proteus AI Bot","description":"AI Orchestrator Bot"}' \
+      | jq -r '.user_id')
       
     if [ "$BOT_USER_ID" = "null" ] || [ -z "$BOT_USER_ID" ]; then
       # Lấy user ID của bot nếu đã tồn tại
-      BOT_USER_ID=$(curl -s -X GET "$MM_URL/api/v4/users/username/proteus-bot" -H "Authorization: Bearer $MM_TOKEN" | jq -r '.id')
+      BOT_USER_ID=$(curl -s -X GET "$MM_URL/users/username/proteus-bot" -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" | jq -r '.id')
     fi
 
     if [ -n "$BOT_USER_ID" ] && [ "$BOT_USER_ID" != "null" ]; then
       # 7.7 Tạo Personal Access Token cho Bot
-      BOT_TOKEN=$(curl -sf -X POST "$MM_URL/api/v4/users/$BOT_USER_ID/tokens"         -H "Authorization: Bearer $MM_TOKEN"         -H "Content-Type: application/json"         -d '{"description":"Proteus OS Bot Token"}'         | jq -r '.token')
+      BOT_TOKEN=$(curl -sf -X POST "$MM_URL/users/$BOT_USER_ID/tokens" \
+        -H "$MM_HOST_HEADER" \
+        -H "Authorization: Bearer $MM_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"description":"Proteus OS Bot Token"}' \
+        | jq -r '.token')
 
       if [ -n "$BOT_TOKEN" ] && [ "$BOT_TOKEN" != "null" ]; then
         sed -i.bak "s|MATTERMOST_BOT_TOKEN=CHANGE_ME_GET_FROM_MATTERMOST|MATTERMOST_BOT_TOKEN=$BOT_TOKEN|g" .env

@@ -167,7 +167,8 @@ $mmAdminPass = ($envContent -split "`n" | Where-Object { $_ -match "^MATTERMOST_
 $mmAdminPass = $mmAdminPass.Trim(" `r")
 
 if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
-    $mmUrl = "http://localhost:8065/api/v4"
+    $mmUrl = "http://localhost/api/v4"
+    $mmHostHeader = @{ "Host" = "chat.$domain" }
     
     # Wait for Mattermost to be ready
     Write-Host "[INFO] Waiting for Mattermost to be ready..." -ForegroundColor Yellow
@@ -175,7 +176,7 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
     $mmElapsed = 0
     while ($mmElapsed -lt $mmTimeout) {
         try {
-            $pingRes = Invoke-RestMethod -Uri "$mmUrl/system/ping" -UseBasicParsing -ErrorAction Stop
+            $pingRes = Invoke-RestMethod -Uri "$mmUrl/system/ping" -Headers $mmHostHeader -UseBasicParsing -ErrorAction Stop
             if ($pingRes.status -eq "OK") {
                 break
             }
@@ -186,33 +187,45 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
 
     if ($mmElapsed -lt $mmTimeout) {
         try {
-            Invoke-RestMethod -Uri "$mmUrl/users" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"username`":`"sysadmin`",`"password`":`"$mmAdminPass`",`"allow_marketing`":false}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
+            Invoke-RestMethod -Uri "$mmUrl/users" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"username`":`"sysadmin`",`"password`":`"$mmAdminPass`",`"allow_marketing`":false}" -Headers $mmHostHeader -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
         } catch {}
 
-    $loginRes = $null
-    try { $loginRes = Invoke-WebRequest -Uri "$mmUrl/users/login" -Method Post -Body "{`"login_id`":`"sysadmin`",`"password`":`"$mmAdminPass`"}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-    if ($loginRes -and $loginRes.Headers["Token"]) {
-        $mmToken = $loginRes.Headers["Token"]
-        $headers = @{ "Authorization" = "Bearer $mmToken" }
-        try { Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body '{"ServiceSettings":{"EnableUserAccessTokens":true}}' -Headers $headers -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null } catch {}
-
-        try { $botRes = Invoke-RestMethod -Uri "$mmUrl/bots" -Method Post -Body '{"username":"proteus-bot","display_name":"Proteus AI Bot","description":"AI Orchestrator Bot"}' -Headers $headers -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-        $botId = $botRes.user_id
-        if (-not $botId) {
-            try { $botRes = Invoke-RestMethod -Uri "$mmUrl/users/username/proteus-bot" -Method Get -Headers $headers -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-            $botId = $botRes.id
+        $loginRes = $null
+        try { 
+            $loginRes = Invoke-WebRequest -Uri "$mmUrl/users/login" -Method Post -Body "{`"login_id`":`"sysadmin`",`"password`":`"$mmAdminPass`"}" -Headers $mmHostHeader -ContentType "application/json" -UseBasicParsing -ErrorAction Stop 
+        } catch {
+            Write-Host "[WARN] Mattermost login failed ($($_.Exception.Message)). Did you change the admin password?" -ForegroundColor Yellow
         }
+        
+        if ($loginRes -and $loginRes.Headers["Token"]) {
+            $mmToken = $loginRes.Headers["Token"]
+            $authHeaders = @{ "Authorization" = "Bearer $mmToken"; "Host" = "chat.$domain" }
+            try { Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body '{"ServiceSettings":{"EnableUserAccessTokens":true}}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null } catch {}
 
-        if ($botId) {
-            try { $tokenRes = Invoke-RestMethod -Uri "$mmUrl/users/$botId/tokens" -Method Post -Body '{"description":"Proteus OS Bot Token"}' -Headers $headers -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-            if ($tokenRes.token) {
-                $envContent = Get-Content .env -Raw
-                $envContent = $envContent -replace "MATTERMOST_BOT_TOKEN=CHANGE_ME_GET_FROM_MATTERMOST", "MATTERMOST_BOT_TOKEN=$($tokenRes.token)"
-                Set-Content .env -Value $envContent -Encoding UTF8
-                docker compose restart backend
+            try { $botRes = Invoke-RestMethod -Uri "$mmUrl/bots" -Method Post -Body '{"username":"proteus-bot","display_name":"Proteus AI Bot","description":"AI Orchestrator Bot"}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
+            $botId = $botRes.user_id
+            if (-not $botId) {
+                try { $botRes = Invoke-RestMethod -Uri "$mmUrl/users/username/proteus-bot" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
+                $botId = $botRes.id
+            }
+
+            if ($botId) {
+                try { $tokenRes = Invoke-RestMethod -Uri "$mmUrl/users/$botId/tokens" -Method Post -Body '{"description":"Proteus OS Bot Token"}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
+                if ($tokenRes.token) {
+                    $envContent = Get-Content .env -Raw
+                    $envContent = $envContent -replace "MATTERMOST_BOT_TOKEN=CHANGE_ME_GET_FROM_MATTERMOST", "MATTERMOST_BOT_TOKEN=$($tokenRes.token)"
+                    Set-Content .env -Value $envContent -Encoding UTF8
+                    Write-Host "[OK] MATTERMOST_BOT_TOKEN generated and saved." -ForegroundColor Green
+                    docker compose restart backend
+                } else {
+                    Write-Host "[WARN] Failed to generate Mattermost Bot Token." -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "[WARN] Failed to find or create Mattermost Bot user." -ForegroundColor Yellow
             }
         }
-    }
+    } else {
+        Write-Host "[WARN] Mattermost did not become ready in time." -ForegroundColor Yellow
     }
 }
 
