@@ -444,7 +444,9 @@ class PluginInstallUseCase:
                 or (schema_field.credential_type_name if schema_field else None)
                 or cred_input.key
             )
-            safe_name = f"tenant_{context.tenant_id}_{plugin_code_name}_{cred_input.key}"
+            safe_name = (
+                f"tenant_{context.tenant_id}_{plugin_code_name}_{cred_input.key}"
+            )
 
             if not hasattr(self.n8n_adapter, "create_credential"):
                 logger.warning("n8n_adapter không có create_credential, bỏ qua.")

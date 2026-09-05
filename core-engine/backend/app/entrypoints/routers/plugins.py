@@ -80,7 +80,8 @@ def _entity_to_response(p) -> PluginResponse:
         workflows_count=p.workflows_count,
         roles=p.roles or [],
         credentials_schema=[
-            CredentialFieldSchemaOut(**c.model_dump()) for c in (p.credentials_schema or [])
+            CredentialFieldSchemaOut(**c.model_dump())
+            for c in (p.credentials_schema or [])
         ],
     )
 
@@ -106,7 +107,8 @@ def _entity_to_detail_response(p) -> PluginDetailResponse:
         workflows_count=p.workflows_count,
         roles=p.roles or [],
         credentials_schema=[
-            CredentialFieldSchemaOut(**c.model_dump()) for c in (p.credentials_schema or [])
+            CredentialFieldSchemaOut(**c.model_dump())
+            for c in (p.credentials_schema or [])
         ],
         screenshots=p.screenshots or [],
         long_description=p.long_description,
@@ -312,7 +314,9 @@ async def get_install_status(
     # Lấy steps_log thực tế từ DB
     steps: list[InstallStepLog] = []
     if hasattr(repo, "get_install_steps_log"):
-        raw_steps = await repo.get_install_steps_log(ctx.tenant_id, plugin_uuid)  # type: ignore
+        raw_steps = await repo.get_install_steps_log(  # type: ignore
+            ctx.tenant_id, plugin_uuid
+        )
         steps = [
             InstallStepLog(
                 step=s.get("step", ""),
