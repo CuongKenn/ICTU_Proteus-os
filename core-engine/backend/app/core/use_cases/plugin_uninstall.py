@@ -70,6 +70,10 @@ class PluginUninstallUseCase:
         if not plugin:
             raise PluginUninstallError("Plugin không tồn tại trong hệ thống.")
 
+        tenant = None
+        if getattr(self, "tenant_repo", None):
+            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+        
         if plugin.status is None:
             raise PluginUninstallError(
                 "Plugin này chưa được cài đặt hoặc không có quyền."
@@ -153,8 +157,9 @@ class PluginUninstallUseCase:
             # Notify Mattermost
             try:
                 msg = f"🗑 Đã GỠ CÀI ĐẶT thành công Plugin **{manifest.display_name}**."
+                channel_id = tenant.notify_channel_id or settings.MATTERMOST_SYSTEM_CHANNEL_ID if tenant else settings.MATTERMOST_SYSTEM_CHANNEL_ID
                 await self.mattermost_adapter.send_message(
-                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                    channel_id, msg
                 )
             except Exception:
                 pass
@@ -188,8 +193,9 @@ class PluginUninstallUseCase:
 
             try:
                 msg = f"❌ Lỗi khi gỡ cài đặt Plugin **{manifest.display_name}**: {e}"
+                channel_id = tenant.notify_channel_id or settings.MATTERMOST_SYSTEM_CHANNEL_ID if tenant else settings.MATTERMOST_SYSTEM_CHANNEL_ID
                 await self.mattermost_adapter.send_message(
-                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                    channel_id, msg
                 )
             except Exception:
                 pass
@@ -230,10 +236,15 @@ class PluginUninstallUseCase:
     ) -> None:
         """Xóa roles khỏi Keycloak."""
         keycloak_realm = "proteus"
+        tenant = None
         if self.tenant_repo:
-            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
-            if tenant:
-                keycloak_realm = tenant.keycloak_realm
+            try:
+                if not tenant:
+                    tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+                if tenant:
+                    keycloak_realm = tenant.keycloak_realm
+            except Exception:
+                pass
 
         for role in manifest.roles:
             # Lấy admin token

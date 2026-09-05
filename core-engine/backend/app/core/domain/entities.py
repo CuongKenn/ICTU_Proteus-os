@@ -93,6 +93,7 @@ class TenantEntity(BaseModel):
     keycloak_realm: str
     plan: str = "starter"
     is_active: bool = True
+    notify_channel_id: str | None = None
 
 
 class TenantIntegrationEntity(BaseModel):

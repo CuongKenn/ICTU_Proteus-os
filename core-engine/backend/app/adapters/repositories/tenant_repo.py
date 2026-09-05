@@ -29,6 +29,7 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
             keycloak_realm=row["keycloak_realm"],
             plan=row["plan"],
             is_active=row["is_active"],
+            notify_channel_id=row.get("notify_channel_id"),
         )
 
     async def get_by_id(self, tenant_id: uuid.UUID) -> TenantEntity | None:
@@ -54,8 +55,8 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
     async def create(self, tenant: TenantEntity) -> TenantEntity:
         await self._session.execute(
             text("""
-                INSERT INTO tenants (id, name, slug, keycloak_realm, plan, is_active)
-                VALUES (:id, :name, :slug, :keycloak_realm, :plan, :is_active)
+                INSERT INTO tenants (id, name, slug, keycloak_realm, plan, is_active, notify_channel_id)
+                VALUES (:id, :name, :slug, :keycloak_realm, :plan, :is_active, :notify_channel_id)
                 """),
             {
                 "id": tenant.id,
@@ -64,12 +65,13 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
                 "keycloak_realm": tenant.keycloak_realm,
                 "plan": tenant.plan,
                 "is_active": tenant.is_active,
+                "notify_channel_id": tenant.notify_channel_id,
             },
         )
         return tenant
 
     _UPDATABLE_COLUMNS = frozenset(
-        {"name", "slug", "keycloak_realm", "plan", "is_active"}
+        {"name", "slug", "keycloak_realm", "plan", "is_active", "notify_channel_id"}
     )
 
     async def update(self, tenant_id: uuid.UUID, data: dict) -> TenantEntity:
