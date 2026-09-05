@@ -167,6 +167,8 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             "Keycloak group created", extra={"group": group_name, "realm": realm}
         )
 
-    async def assign_role_to_user(self, realm: str, user_id: str, role_name: str) -> None:
+    async def assign_role_to_user(
+        self, realm: str, user_id: str, role_name: str
+    ) -> None:
         """Chưa implement."""
         raise NotImplementedError("assign_role_to_user chưa được implement")
