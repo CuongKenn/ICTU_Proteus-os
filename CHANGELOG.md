@@ -11,6 +11,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
 - **[core-engine/backend]** Tích hợp ProactiveMonitorAgent vào APScheduler để chạy các job background (Issue #535).
+- **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Sửa lỗi format của JWT khi tạo Metabase Signed Embed URL (Issue #549).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật logic `_rollback()` lấy `keycloak_realm` từ CSDL thay vì hardcode chuỗi `"proteus"` để ngăn chặn xóa nhầm Keycloak role khi cài đặt plugin thất bại (Issue #534).
 - **[core-engine/backend/app/core/use_cases/ai_command.py]** Bổ sung kiểm tra `approval_deadline` trong `process_approval()` để ngăn chặn việc phê duyệt trễ hạn (Issue #539).
 - **[core-engine/backend/app/infrastructure/rate_limiter.py]** Sửa lỗi Rate Limiter chặn nhầm toàn bộ requests khi deploy sau Traefik reverse proxy bằng cách sử dụng `X-Forwarded-For` header để xác định đúng IP của client (Issue #537).
