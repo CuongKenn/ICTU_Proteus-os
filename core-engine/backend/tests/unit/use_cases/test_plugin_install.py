@@ -55,6 +55,11 @@ def mock_session():
 
 
 @pytest.fixture
+def mock_event_bus():
+    return AsyncMock()
+
+
+@pytest.fixture
 def plugin_install_use_case(
     mock_plugin_repo,
     mock_manifest_parser,
@@ -64,6 +69,7 @@ def plugin_install_use_case(
     mock_keycloak_adapter,
     mock_mattermost_adapter,
     mock_session,
+    mock_event_bus,
 ):
     return PluginInstallUseCase(
         plugin_repo=mock_plugin_repo,
@@ -74,6 +80,7 @@ def plugin_install_use_case(
         keycloak_adapter=mock_keycloak_adapter,
         mattermost_adapter=mock_mattermost_adapter,
         session=mock_session,
+        event_bus=mock_event_bus,
     )
 
 
@@ -130,6 +137,7 @@ async def test_execute_success(
     mock_manifest_parser,
     mock_session,
     mock_mattermost_adapter,
+    mock_event_bus,
     tenant_context,
     sample_plugin,
     sample_manifest,
@@ -162,6 +170,12 @@ async def test_execute_success(
         mock_session.execute.call_count == 5
     )  # CREATE SCHEMA, SET search_path, SET LOCAL role, SET LOCAL tenant, and seed.sql
     mock_mattermost_adapter.send_message.assert_called_once()
+    mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
+        action="installed",
+        tenant_id=str(tenant_context.tenant_id),
+        plugin_name="hr-module",
+        plugin_version=sample_manifest.version,
+    )
 
 
 @pytest.mark.asyncio
@@ -197,6 +211,7 @@ async def test_execute_rollback_on_failure(
     mock_manifest_parser,
     mock_session,
     mock_mattermost_adapter,
+    mock_event_bus,
     tenant_context,
     sample_plugin,
     sample_manifest,
@@ -220,6 +235,13 @@ async def test_execute_rollback_on_failure(
         plugin_id=sample_plugin.id,
         status=PluginStatus.FAILED_DIRTY,
         error_log="DB Error",
+    )
+    mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
+        action="failed",
+        tenant_id=str(tenant_context.tenant_id),
+        plugin_name="hr-module",
+        plugin_version=sample_manifest.version,
+        extra_data={"error": "DB Error"},
     )
 
 
