@@ -8,15 +8,12 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import hashlib
-import hmac
-import json
 import logging
 import time
 from typing import Any
 
 import httpx
+from jose import jwt
 
 from app.core.domain.ports import AbstractAnalyticsPort
 from app.infrastructure.config import settings
@@ -50,7 +47,8 @@ class MetabaseAdapter(AbstractAnalyticsPort):
       (không cần Metabase Enterprise plan)
 
     Pattern: Hexagonal Architecture (Outbound / Secondary Adapter)
-    Không chứa business logic — chỉ là translation layer giữa domain và Metabase HTTP API.
+    Không chứa business logic — chỉ là translation layer
+    giữa domain và Metabase HTTP API.
 
     Tham khảo: docs/clarification.md §4.2 — Metabase OSS embedding
     """
@@ -258,7 +256,8 @@ class MetabaseAdapter(AbstractAnalyticsPort):
             ttl: Thời gian sống của URL tính bằng giây (mặc định 60s).
 
         Returns:
-            Signed URL dạng: {METABASE_SITE_URL}/embed/dashboard/{token}#bordered=true&titled=true
+            Signed URL dạng:
+            {METABASE_SITE_URL}/embed/dashboard/{token}#bordered=true&titled=true
         """
         if not self._embedding_key:
             raise MetabaseAdapterError("METABASE_EMBEDDING_KEY is not configured.")
@@ -271,19 +270,12 @@ class MetabaseAdapter(AbstractAnalyticsPort):
             "exp": int(time.time()) + ttl,
         }
 
-        # Encode payload thành JSON bytes
-        payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-
-        # Tạo HMAC-SHA256 signature
-        signature = hmac.new(
-            self._embedding_key.encode("utf-8"),
-            payload_bytes,
-            hashlib.sha256,
-        ).hexdigest()
-
-        # Base64url encode payload (không padding)
-        token_payload = base64.urlsafe_b64encode(payload_bytes).rstrip(b"=").decode()
-        token = f"{token_payload}.{signature}"
+        # Tạo JWT token chuẩn hỗ trợ Metabase Signed Embedding
+        token = jwt.encode(
+            payload,
+            self._embedding_key,
+            algorithm="HS256",
+        )
 
         embed_url = (
             f"{self._base_url}/embed/dashboard/{token}" "#bordered=true&titled=true"
