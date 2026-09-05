@@ -18,6 +18,10 @@ class AbstractDocumentSourcePort(ABC):
         """Lấy danh sách documents từ nguồn."""
         pass
 
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
+
 
 class AbstractVectorDBPort(ABC):
     """
@@ -43,26 +47,42 @@ class AbstractVectorDBPort(ABC):
         """Tìm kiếm hybrid (vector + text)."""
         pass
 
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
+
 
 class AbstractWorkflowEnginePort(ABC):
-    pass
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
 
 
 class AbstractUIBuilderPort(ABC):
-    pass
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
 
 
 class AbstractAnalyticsPort(ABC):
-    pass
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
 
 
 class AbstractIdentityProviderPort(ABC):
-    pass
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
 
 
 class AbstractChatOpsPort(ABC):
-    pass
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
 
 
 class AbstractEventBusPort(ABC):
-    pass
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass

@@ -25,7 +25,7 @@ class MattermostAdapter(AbstractChatOpsPort):
         }
         self.client = client or httpx.AsyncClient(timeout=10.0)
 
-    async def close(self):
+    async def aclose(self):
         await self.client.aclose()
 
     async def send_message(self, channel_id: str, text: str) -> dict[str, Any]:

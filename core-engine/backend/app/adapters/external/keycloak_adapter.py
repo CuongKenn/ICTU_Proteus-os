@@ -39,6 +39,10 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         # tạo mới nhưng không tối ưu pooling
         self._client = client or httpx.AsyncClient()
 
+    async def aclose(self) -> None:
+        """Đóng httpx client. Nên được gọi khi application shutdown."""
+        await self._client.aclose()
+
     async def _get_jwks(self) -> dict[str, Any]:
         """
         Lấy JWKS từ Keycloak với in-memory cache có TTL.
