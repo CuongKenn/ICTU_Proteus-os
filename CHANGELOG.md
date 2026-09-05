@@ -5,6 +5,8 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+### Security
+- **[core-engine/backend]** Vá lỗ hổng SQL Injection tiềm ẩn trong TenantRepository.update() (Issue #520).
 ### Changed
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
