@@ -11,8 +11,8 @@ Create Date: 2026-09-05 15:07:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "f6c34deff27g"
@@ -22,7 +22,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("tenants", sa.Column("notify_channel_id", sa.String(length=255), nullable=True))
+    op.add_column(
+        "tenants", sa.Column("notify_channel_id", sa.String(length=255), nullable=True)
+    )
 
 
 def downgrade() -> None:
