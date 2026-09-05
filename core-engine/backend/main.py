@@ -27,10 +27,12 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
+from app.adapters.repositories.hr_leave_repo import SQLAlchemyHRLeaveRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain import exceptions as domain_exc
 from app.core.use_cases.ai_timeout_worker import AITimeoutWorker
 from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
+from app.core.use_cases.proactive_monitor import ProactiveMonitorAgent
 from app.entrypoints.routers import (
     ai,
     auth,
@@ -126,14 +128,73 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
 
+    async def run_proactive_monitor_scan() -> None:
+        """Proactive Monitor: Quét và cảnh báo 30 phút/lần."""
+        try:
+            async with AsyncSessionLocal() as session:
+                plugin_repo = SQLAlchemyPluginRepository(session=session)
+                ai_command_repo = SQLAlchemyAICommandRepository(session=session)
+                hr_leave_repo = SQLAlchemyHRLeaveRepository(session=session)
+                mattermost_adapter = MattermostAdapter(client=app.state.http_client)
+                agent = ProactiveMonitorAgent(
+                    plugin_repo=plugin_repo,
+                    ai_command_repo=ai_command_repo,
+                    hr_leave_repo=hr_leave_repo,
+                    mattermost_adapter=mattermost_adapter,
+                )
+                await agent.scan_and_alert_every_30m()
+        except Exception as e:
+            logger.error(
+                "Proactive Monitor (Scan) FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
+
+    async def run_proactive_monitor_morning() -> None:
+        """Proactive Monitor: Báo cáo sáng 7:00 AM."""
+        try:
+            async with AsyncSessionLocal() as session:
+                plugin_repo = SQLAlchemyPluginRepository(session=session)
+                ai_command_repo = SQLAlchemyAICommandRepository(session=session)
+                hr_leave_repo = SQLAlchemyHRLeaveRepository(session=session)
+                mattermost_adapter = MattermostAdapter(client=app.state.http_client)
+                agent = ProactiveMonitorAgent(
+                    plugin_repo=plugin_repo,
+                    ai_command_repo=ai_command_repo,
+                    hr_leave_repo=hr_leave_repo,
+                    mattermost_adapter=mattermost_adapter,
+                )
+                await agent.morning_report()
+        except Exception as e:
+            logger.error(
+                "Proactive Monitor (Morning) FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
+
     # Chạy cleanup mỗi 10 phút
     scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
     # Chạy timeout worker mỗi 5 phút
     scheduler.add_job(
         run_ai_timeout_worker, "interval", minutes=5, id="ai_timeout_worker"
     )
+    # Chạy proactive monitor scan mỗi 30 phút
+    scheduler.add_job(
+        run_proactive_monitor_scan, "interval", minutes=30, id="proactive_monitor_scan"
+    )
+    # Chạy proactive monitor morning report lúc 7:00 AM
+    scheduler.add_job(
+        run_proactive_monitor_morning,
+        "cron",
+        hour=7,
+        minute=0,
+        id="proactive_monitor_morning",
+    )
     scheduler.start()
-    logger.info("Đã khởi động APScheduler, Plugin Cleanup Agent và AI Timeout Worker.")
+    logger.info(
+        "Đã khởi động APScheduler, Plugin Cleanup Agent, AI Timeout Worker "
+        "và Proactive Monitor Agent."
+    )
 
     # Load Python extensions for plugins
     from app.core.dynamic_loader import DynamicPluginLoader
@@ -208,16 +269,16 @@ async def proteus_exception_handler(
     status_code = status.HTTP_400_BAD_REQUEST
 
     if isinstance(
-        exc, (domain_exc.TenantNotFoundError, domain_exc.PluginNotFoundError)
+        exc, domain_exc.TenantNotFoundError | domain_exc.PluginNotFoundError
     ):
         status_code = status.HTTP_404_NOT_FOUND
     elif isinstance(
         exc,
-        (domain_exc.InsufficientPermissionsError, domain_exc.DSLPermissionDeniedError),
+        domain_exc.InsufficientPermissionsError | domain_exc.DSLPermissionDeniedError,
     ):
         status_code = status.HTTP_403_FORBIDDEN
     elif isinstance(
-        exc, (domain_exc.PluginAlreadyInstalledError, domain_exc.PathConflictError)
+        exc, domain_exc.PluginAlreadyInstalledError | domain_exc.PathConflictError
     ):
         status_code = status.HTTP_409_CONFLICT
 
