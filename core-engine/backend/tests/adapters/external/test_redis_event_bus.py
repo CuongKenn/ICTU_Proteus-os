@@ -78,9 +78,8 @@ async def test_redis_publisher_publish_failure(publisher):
         mock_from_url.return_value = mock_redis
 
         with patch("app.adapters.external.redis_event_bus.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            with pytest.raises(EventBusPublishError) as exc_info:
+            with pytest.raises(EventBusPublishError, match="Redis down"):
                 await publisher.publish("test", "t1", "p1", {})
-            assert "Redis publish failed" in str(exc_info.value)
             assert mock_sleep.call_count == 2
 
 
