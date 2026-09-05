@@ -167,10 +167,27 @@ $mmAdminPass = ($envContent -split "`n" | Where-Object { $_ -match "^MATTERMOST_
 $mmAdminPass = $mmAdminPass.Trim(" `r")
 
 if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
-    $mmUrl = "http://chat.$domain/api/v4"
-    try {
-        Invoke-RestMethod -Uri "$mmUrl/users" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"username`":`"sysadmin`",`"password`":`"$mmAdminPass`",`"allow_marketing`":false}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+    $mmUrl = "http://localhost:8065/api/v4"
+    
+    # Wait for Mattermost to be ready
+    Write-Host "[INFO] Waiting for Mattermost to be ready..." -ForegroundColor Yellow
+    $mmTimeout = 120
+    $mmElapsed = 0
+    while ($mmElapsed -lt $mmTimeout) {
+        try {
+            $pingRes = Invoke-RestMethod -Uri "$mmUrl/system/ping" -UseBasicParsing -ErrorAction Stop
+            if ($pingRes.status -eq "OK") {
+                break
+            }
+        } catch {}
+        Start-Sleep -Seconds 5
+        $mmElapsed += 5
+    }
+
+    if ($mmElapsed -lt $mmTimeout) {
+        try {
+            Invoke-RestMethod -Uri "$mmUrl/users" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"username`":`"sysadmin`",`"password`":`"$mmAdminPass`",`"allow_marketing`":false}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
 
     $loginRes = $null
     try { $loginRes = Invoke-WebRequest -Uri "$mmUrl/users/login" -Method Post -Body "{`"login_id`":`"sysadmin`",`"password`":`"$mmAdminPass`"}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
@@ -195,6 +212,7 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
                 docker compose restart backend
             }
         }
+    }
     }
 }
 

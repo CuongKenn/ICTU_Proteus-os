@@ -29,6 +29,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/hr-module/workflows]** Implement 2 workflow còn stub: `attendance_checkin` (check-in/check-out với tính giờ làm) và `payroll_calculation` (tính lương ngày 25 — gross/net/thuế/BHXH).
 
 ### Fixed
+- **[deploy/setup.ps1]** Sửa lỗi không tự động cấu hình được Mattermost Bot Token do thiếu logic chờ dịch vụ khởi động hoàn tất.
 - **[deploy/setup.ps1]** Sửa lỗi bỏ qua bước tạo N8N API Key khi tài khoản Owner đã tồn tại trước đó.
 - **[tất cả 65 plugin JSON files]** Thêm `_license` header (`Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later`) vào tất cả JSON files. JSON không hỗ trợ comment nên license được đặt trong field `_license` ở đầu object.
 - **[tất cả plugin JSON files]** Không còn file stub trống (0 nodes) — 65/65 files được implement đầy đủ với nodes, connections, và business logic thực tế.
