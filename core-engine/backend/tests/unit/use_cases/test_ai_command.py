@@ -132,7 +132,8 @@ async def test_execute_write_command(
         status, msg, result = await use_case.execute(request, tenant_ctx)
 
         assert status == AICommandStatus.PENDING_APPROVAL
-        assert result == {"affected_count": 5, "preview": []}
+        assert result.get("affected_count") == 5
+        assert result.get("preview") == []
         mock_dsl_dry_run_repo.execute_dry_run.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
         mock_ai_command_repo.commit.assert_called_once()

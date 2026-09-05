@@ -8,14 +8,20 @@
 import logging
 from typing import Any
 
+from app.adapters.external.local_manifest_parser import LocalManifestParser
 from app.adapters.repositories.base import AbstractDSLDryRunRepository
 
 logger = logging.getLogger(__name__)
 
 
 class DSLDryRunEngine:
-    def __init__(self, dry_run_repo: AbstractDSLDryRunRepository):
+    def __init__(
+        self,
+        dry_run_repo: AbstractDSLDryRunRepository,
+        manifest_parser: LocalManifestParser | None = None,
+    ):
         self.dry_run_repo = dry_run_repo
+        self.manifest_parser = manifest_parser or LocalManifestParser()
 
     async def execute_dry_run(
         self, tenant_id: str, dsl_payload: dict
@@ -37,10 +43,24 @@ class DSLDryRunEngine:
 
         action = dsl_payload.get("action", "")
         # Phân tích action: vd "hr.leave_requests.batch_approve"
-        # -> table "hr_leave_requests"
-        # Trong thực tế, cần Mapping từ DSL action sang schema/query cụ thể
-        # Ở đây mock logic lấy table và filter
-        target_table = "hr_leave_requests" if "hr" in action else None
+        parts = action.split(".")
+        if len(parts) >= 2:
+            plugin_code = parts[0]
+            resource = parts[1]
+            candidate_table = f"{plugin_code}_{resource}"
+
+            try:
+                manifest = self.manifest_parser.parse(plugin_code)
+                if manifest.database and candidate_table in manifest.database.tables:
+                    target_table = candidate_table
+                else:
+                    # Nếu manifest không có config database, hoặc table không khớp, fallback:
+                    target_table = candidate_table
+            except Exception as e:
+                logger.warning("[Dry Run] Lỗi đọc manifest cho %s: %s", plugin_code, e)
+                target_table = candidate_table
+        else:
+            target_table = None
 
         if not target_table:
             # Fallback mock nếu không parse được
