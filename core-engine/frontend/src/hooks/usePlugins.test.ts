@@ -69,7 +69,7 @@ describe("usePlugins", () => {
 
   it("install returns task_id", async () => {
     (api.get as any) = vi.fn().mockResolvedValue({ data: { items: [] } });
-    (api.post as any) = vi.fn().mockResolvedValue({ data: { data: { task_id: "abc-123" } } });
+    (api.post as any) = vi.fn().mockResolvedValue({ data: { task_id: "abc-123" } });
 
     const { result } = renderHook(() => usePlugins());
 
