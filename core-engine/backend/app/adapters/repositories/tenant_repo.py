@@ -68,16 +68,20 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
         )
         return tenant
 
+    _UPDATABLE_COLUMNS = frozenset({"name", "slug", "keycloak_realm", "plan", "is_active"})
+
     async def update(self, tenant_id: uuid.UUID, data: dict) -> TenantEntity:
+        safe_data = {k: v for k, v in data.items() if k in self._UPDATABLE_COLUMNS}
+        
         set_clauses = []
-        for key in data.keys():
+        for key in safe_data.keys():
             set_clauses.append(f"{key} = :{key}")
 
         if not set_clauses:
             return await self.get_by_id(tenant_id)
 
         sql = f"UPDATE tenants SET {', '.join(set_clauses)} WHERE id = :id AND deleted_at IS NULL RETURNING *"
-        params = data.copy()
+        params = safe_data.copy()
         params["id"] = tenant_id
 
         result = await self._session.execute(text(sql), params)
