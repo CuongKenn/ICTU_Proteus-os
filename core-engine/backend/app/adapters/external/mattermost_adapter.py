@@ -57,7 +57,7 @@ class MattermostAdapter(AbstractChatOpsPort):
         text: str,
         action_id: str,
         extra_context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> str:
         """
         Gửi tin nhắn có chứa nút Interactive (Phê duyệt / Từ chối).
         - action_id: ID của lệnh (ví dụ: AI Command ID)
@@ -67,7 +67,7 @@ class MattermostAdapter(AbstractChatOpsPort):
                 "MATTERMOST_BOT_TOKEN chưa được cấu hình, "
                 "bỏ qua send_interactive_message."
             )
-            return {}
+            return ""
 
         context = extra_context or {}
         context["action_id"] = action_id

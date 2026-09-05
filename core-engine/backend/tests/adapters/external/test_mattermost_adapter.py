@@ -65,7 +65,7 @@ async def test_send_interactive_message_success(adapter):
             extra_context={"foo": "bar"},
         )
 
-        assert result == {"id": "msg_456"}
+        assert result == "msg_456"
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
         json_payload = kwargs["json"]
@@ -91,4 +91,4 @@ async def test_missing_token_returns_empty():
         assert res1 == {}
 
         res2 = await adapter.send_interactive_message("chan_123", "Hello", "act_1")
-        assert res2 == {}
+        assert res2 == ""
