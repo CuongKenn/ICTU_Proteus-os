@@ -77,12 +77,13 @@ async def lifespan(app: FastAPI):
                 agent = PluginCleanupAgent(
                     plugin_repo=plugin_repo,
                     manifest_parser=LocalManifestParser(),
-                    n8n_adapter=N8nAdapter(),
-                    metabase_adapter=MetabaseAdapter(),
-                    appsmith_adapter=AppsmithAdapter(),
-                    keycloak_adapter=KeycloakAdapter(),
+                    n8n_adapter=N8nAdapter(client=app.state.http_client),
+                    metabase_adapter=MetabaseAdapter(client=app.state.http_client),
+                    appsmith_adapter=AppsmithAdapter(client=app.state.http_client),
+                    keycloak_adapter=KeycloakAdapter(client=app.state.http_client),
                     mattermost_adapter=MattermostAdapter(client=app.state.http_client),
                     session=session,
+                    event_bus=app.state.redis_event_bus,
                 )
                 await agent.run()
                 logger.info("Plugin cleanup job completed successfully.")
@@ -268,9 +269,7 @@ async def proteus_exception_handler(
 
     status_code = status.HTTP_400_BAD_REQUEST
 
-    if isinstance(
-        exc, domain_exc.TenantNotFoundError | domain_exc.PluginNotFoundError
-    ):
+    if isinstance(exc, domain_exc.TenantNotFoundError | domain_exc.PluginNotFoundError):
         status_code = status.HTTP_404_NOT_FOUND
     elif isinstance(
         exc,

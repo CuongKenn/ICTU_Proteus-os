@@ -172,6 +172,7 @@ async def get_plugin_uninstall_use_case(
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
     tenant_repo: AbstractTenantRepository = Depends(get_tenant_repo),
+    event_bus: RedisEventBusPublisher = Depends(get_redis_event_bus),
 ) -> PluginUninstallUseCase:
     """Inject Plugin Uninstall Use Case."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -185,6 +186,7 @@ async def get_plugin_uninstall_use_case(
         keycloak_adapter=keycloak_adapter,
         mattermost_adapter=mattermost_adapter,
         session=db,
+        event_bus=event_bus,
         tenant_repo=tenant_repo,
     )
 
@@ -282,7 +284,10 @@ async def get_tenant_onboarding_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
     db: AsyncSession = Depends(get_db_transactional),
 ) -> TenantOnboardingUseCase:
-    """Inject Tenant Onboarding Use Case với Transactional Session để persist thay đổi vào DB."""
+    """
+    Inject Tenant Onboarding Use Case với Transactional Session
+    để persist thay đổi vào DB.
+    """
     return TenantOnboardingUseCase(
         tenant_repo=SQLAlchemyTenantRepository(session=db),
         keycloak_adapter=keycloak_adapter,
