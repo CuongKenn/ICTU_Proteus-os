@@ -48,7 +48,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
-  debug: process.env.NODE_ENV !== "production", // Debug log in dev
+  debug: true, // DEBUG ENABLED
   providers: [
     // Manual OAuth provider — Keycloak luôn trả id_token nên phải dùng idToken:true
     // Dùng wellKnown để NextAuth lấy jwks_uri (cho ID token verification)
@@ -104,8 +104,6 @@ export const authOptions: NextAuthOptions = {
         return {
           ...token,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          idToken: account.id_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ

@@ -6,58 +6,21 @@
 // Token được inject tự động. Browser KHÔNG bao giờ gọi Backend trực tiếp.
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { cookies } from "next/headers";
-import { decode } from "next-auth/jwt";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-// Dùng cookies() từ next/headers — cách chuẩn của Next.js 14 App Router
-// NextAuth tự động split JWT lớn (>4KB) thành nhiều cookies: .0, .1, .2 ...
-// Phải ghép lại trước khi decode.
-async function getJWTToken() {
-  const cookieStore = cookies();
-  const isSecure = process.env.NEXTAUTH_URL?.startsWith("https://");
-  const baseName = isSecure
-    ? "__Secure-next-auth.session-token"
-    : "next-auth.session-token";
-
-  try {
-    // Thử đọc cookie đơn trước
-    const singleCookie = cookieStore.get(baseName)?.value;
-    if (singleCookie) {
-      return await decode({ token: singleCookie, secret: process.env.NEXTAUTH_SECRET! });
-    }
-
-    // JWT bị chunk: ghép next-auth.session-token.0 + .1 + .2 + ...
-    const chunks: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const chunk = cookieStore.get(`${baseName}.${i}`)?.value;
-      if (!chunk) break;
-      chunks.push(chunk);
-    }
-
-    if (chunks.length === 0) {
-      logger.error("[BFF] No session token cookies found. Available:", cookieStore.getAll().map((c) => c.name));
-      return null;
-    }
-
-    const fullToken = chunks.join("");
-    return await decode({ token: fullToken, secret: process.env.NEXTAUTH_SECRET! });
-  } catch (e) {
-    logger.error("[BFF] Failed to decode session token:", e);
-    return null;
-  }
-}
-
-
 async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  // Dùng getJWTToken() không cần request — cookies() từ next/headers tự đọc
-  const token = await getJWTToken();
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+  if (request.nextUrl.pathname.endsWith('/debug-token')) {
+    return NextResponse.json({ token, hasToken: !!token });
+  }
 
   if (!token?.accessToken) {
     logger.error("[BFF] Proxy 401: token missing or accessToken null", { hasToken: !!token });
@@ -89,11 +52,25 @@ async function proxyHandler(
     }
   }
 
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      body,
+    });
+  } catch (err: any) {
+    logger.error(`[BFF] Fetch to backend failed: ${err.message}`);
+    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
+  }
+
+  logger.info(`[BFF] Proxy to ${targetUrl} returned ${response.status}`);
+
+  if (response.status === 401) {
+    const txt = await response.text();
+    logger.error(`[BFF] Backend returned 401 for ${targetUrl}: ${txt}`);
+    return NextResponse.json({ error: "Unauthorized from backend", detail: txt }, { status: 401 });
+  }
 
   // Proxy status code và response body nguyên vẹn
   const contentType = response.headers.get("content-type") ?? "";

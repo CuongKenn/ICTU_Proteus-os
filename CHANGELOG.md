@@ -6,6 +6,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-09-05)
 ### Fixed
+- **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Khắc phục lỗi vòng lặp đăng nhập (Login Loop 401) do lỗi đọc cookie bị phân mảnh (chunked cookies) khi gọi qua NextAuth BFF proxy.
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Thêm cơ chế dự phòng gán `tenant_id` mặc định khi token từ Keycloak chưa có thông tin `tenant_id`, tránh lỗi 500 khi xác thực API Backend.
+- **[deploy/docker-compose.yml]** Sửa lỗi N8N crash liên tục do xung đột mã hóa (`N8N_ENCRYPTION_KEY`) bằng cách cấu hình `N8N_DISABLE_UI_SECURITY=true` và xóa file config lỗi cũ. Cấu hình Traefik middleware xóa bỏ `X-Frame-Options` và ghi đè `Content-Security-Policy` (`frame-ancestors`) để hỗ trợ nhúng iFrame an toàn cho tất cả các Ứng dụng nội bộ (N8N, Mattermost, Appsmith, Wiki).
+- **[core-engine/frontend/src/app]** Thay thế địa chỉ fallback mặc định (từ `localhost` thành `.proteus.local`) cho tất cả các Ứng dụng con, chấm dứt hoàn toàn cảnh báo lỗi Next.js React Hydration mismatch.
 - **[deploy/setup.ps1]** Rewrite toàn bộ script sang pure ASCII để loại bỏ lỗi encoding UTF-8 gây ParseException trong PowerShell. Thay thế cơ chế pipe bash (`echo|base64 -d`) bằng PowerShell-native temp file approach.
 - **[deploy/setup.ps1]** Fix lỗi `NullArray` khi Mattermost login trả về null — thêm null guard trước khi truy cập `.Headers["Token"]`.
 - **[deploy/setup.ps1, deploy/setup.sh]** Fix lỗi n8n API Key automation: endpoint `/rest/api-keys` bị n8n 1.52+ loại bỏ. Thay thế bằng cơ chế inject API Key trực tiếp vào PostgreSQL (`n8n."user"` table) — hoạt động ngay lập tức, không cần restart.

@@ -8,7 +8,7 @@ export default function ChatPage() {
   return (
     <AppShell>
       <IframeEmbed
-        src={process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://localhost:8065"}
+        src={process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://chat.proteus.local"}
         title="Mattermost Chat"
       />
     </AppShell>

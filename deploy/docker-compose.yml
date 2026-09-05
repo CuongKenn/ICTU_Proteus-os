@@ -33,6 +33,9 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
+      # Middleware allow iframe embedding for apps
+      - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.X-Frame-Options="
+      - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.Content-Security-Policy=frame-ancestors 'self' http://${DOMAIN:-proteus.local} https://${DOMAIN:-proteus.local}"
 
   # ────────────────────────────────────────────────────────────
   # POSTGRESQL — Primary Database
@@ -154,6 +157,7 @@ services:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_SECURE_COOKIE: "false"
       N8N_BASIC_AUTH_ACTIVE: "false"   # Auth qua Keycloak OIDC
+      N8N_DISABLE_UI_SECURITY: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -166,6 +170,7 @@ services:
       - "traefik.http.routers.n8n.rule=Host(`workflow.${DOMAIN}`)"
       - "traefik.http.routers.n8n.entrypoints=web"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      - "traefik.http.routers.n8n.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # MATTERMOST — Chat & Collaboration
@@ -197,6 +202,7 @@ services:
       - "traefik.http.routers.mattermost.rule=Host(`chat.${DOMAIN}`)"
       - "traefik.http.routers.mattermost.entrypoints=web"
       - "traefik.http.services.mattermost.loadbalancer.server.port=8065"
+      - "traefik.http.routers.mattermost.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # METABASE — Business Intelligence / Dashboard
@@ -245,6 +251,7 @@ services:
       - "traefik.http.routers.appsmith.rule=Host(`apps.${DOMAIN}`) || PathPrefix(`/proxy/appsmith`)"
       - "traefik.http.routers.appsmith.entrypoints=web"
       - "traefik.http.services.appsmith.loadbalancer.server.port=80"
+      - "traefik.http.routers.appsmith.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # OUTLINE — Wiki / Knowledge Base
@@ -283,6 +290,7 @@ services:
       - "traefik.http.routers.outline.rule=Host(`wiki.${DOMAIN}`)"
       - "traefik.http.routers.outline.entrypoints=web"
       - "traefik.http.services.outline.loadbalancer.server.port=3000"
+      - "traefik.http.routers.outline.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # OBSERVABILITY — Grafana, Loki, Promtail

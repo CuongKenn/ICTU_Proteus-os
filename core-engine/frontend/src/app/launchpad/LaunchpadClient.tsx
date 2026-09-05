@@ -8,9 +8,9 @@ import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { useSession } from "next-auth/react";
 
-const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://localhost:8065";
-const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://localhost:3000";
-const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://localhost:5678";
+const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://chat.proteus.local";
+const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://wiki.proteus.local";
+const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://workflow.proteus.local";
 import { useNotificationStore } from "@/store/notificationStore";
 import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -62,7 +62,7 @@ export function LaunchpadClient() {
   };
 
   const handleOpenPlugin = (code_name: string) => {
-    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://localhost:8080"}/app/${code_name}`;
+    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
     openIframe(code_name, appsmithUrl);
   };
 
