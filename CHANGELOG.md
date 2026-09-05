@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
 ### Added
+- **[deploy/setup.ps1]** Tự động cấu hình Appsmith API Key sử dụng PowerShell WebSessions.
 - **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
 - **[plugins/crm-module/dashboards]** Implement `sales_pipeline` (pipeline overview, top leads, conversion rate, revenue forecast) và `customer_health` (avg satisfaction, churn risk, ticket volume) cho Metabase.
 - **[plugins/crm-module/ui]** Implement `appsmith_app.json` với 4 trang: Dashboard, Leads, Opportunities, Support Tickets.
@@ -28,6 +29,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/hr-module/workflows]** Implement 2 workflow còn stub: `attendance_checkin` (check-in/check-out với tính giờ làm) và `payroll_calculation` (tính lương ngày 25 — gross/net/thuế/BHXH).
 
 ### Fixed
+- **[deploy/setup.ps1]** Sửa lỗi bỏ qua bước tạo N8N API Key khi tài khoản Owner đã tồn tại trước đó.
 - **[tất cả 65 plugin JSON files]** Thêm `_license` header (`Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later`) vào tất cả JSON files. JSON không hỗ trợ comment nên license được đặt trong field `_license` ở đầu object.
 - **[tất cả plugin JSON files]** Không còn file stub trống (0 nodes) — 65/65 files được implement đầy đủ với nodes, connections, và business logic thực tế.
 

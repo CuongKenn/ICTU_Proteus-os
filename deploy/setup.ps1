@@ -205,27 +205,30 @@ if ($envContent -match "N8N_API_KEY=CHANGE_ME") {
     $n8nRes = Invoke-RestWithRetry -Uri "http://workflow.$domain/rest/owner/setup" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"firstName`":`"Admin`",`"lastName`":`"Proteus`",`"password`":`"$mmAdminPass`"}"
     if ($n8nRes) {
         Write-Host "[OK] n8n Owner account initialized." -ForegroundColor Green
-
-        # Generate random API key
-        $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-        $bytes = New-Object byte[] 24
-        $rng.GetBytes($bytes)
-        $newApiKey = [Convert]::ToBase64String($bytes) -replace "[^a-zA-Z0-9]", ""
-
-        # Inject via DB (PowerShell-native temp file — no bash/base64 needed)
-        $sql = 'UPDATE n8n."user" SET "apiKey"=''' + $newApiKey + ''' WHERE email=''admin@proteus.local'';'
-        $tmpSql = Join-Path $env:TEMP "n8n_key.sql"
-        [System.IO.File]::WriteAllText($tmpSql, $sql, [System.Text.Encoding]::UTF8)
-        Get-Content $tmpSql | docker compose exec -T postgres psql -U proteus -d proteus | Out-Null
-        Remove-Item $tmpSql -ErrorAction SilentlyContinue
-
-        $envContent = Get-Content .env -Raw
-        $envContent = $envContent -replace "N8N_API_KEY=CHANGE_ME.*", "N8N_API_KEY=$newApiKey"
-        Set-Content .env -Value $envContent -Encoding UTF8
-        docker compose restart backend
-        Write-Host "[OK] N8N_API_KEY injected via database." -ForegroundColor Green
+    } else {
+        Write-Host "[INFO] n8n Owner account may already exist, proceeding to inject API key..." -ForegroundColor Yellow
     }
+
+    # Generate random API key
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $bytes = New-Object byte[] 24
+    $rng.GetBytes($bytes)
+    $newApiKey = [Convert]::ToBase64String($bytes) -replace "[^a-zA-Z0-9]", ""
+
+    # Inject via DB (PowerShell-native temp file — no bash/base64 needed)
+    $sql = 'UPDATE n8n."user" SET "apiKey"=''' + $newApiKey + ''' WHERE email=''admin@proteus.local'';'
+    $tmpSql = Join-Path $env:TEMP "n8n_key.sql"
+    [System.IO.File]::WriteAllText($tmpSql, $sql, [System.Text.Encoding]::UTF8)
+    Get-Content $tmpSql | docker compose exec -T postgres psql -U proteus -d proteus | Out-Null
+    Remove-Item $tmpSql -ErrorAction SilentlyContinue
+
+    $envContent = Get-Content .env -Raw
+    $envContent = $envContent -replace "N8N_API_KEY=CHANGE_ME.*", "N8N_API_KEY=$newApiKey"
+    Set-Content .env -Value $envContent -Encoding UTF8
+    docker compose restart backend
+    Write-Host "[OK] N8N_API_KEY injected via database." -ForegroundColor Green
 }
+
 
 # 8.5 Sync Keycloak OIDC Secrets from DB
 Write-Host "[INFO] Syncing Keycloak OIDC Secrets..." -ForegroundColor Cyan
@@ -254,9 +257,59 @@ if ($envContent -match "CHANGE_ME_GET_FROM_KEYCLOAK_UI") {
     Write-Host "[OK] Keycloak Secrets synced successfully." -ForegroundColor Green
 }
 
-# 9. Appsmith (login-based API key — skipped if no endpoint available)
+# 9. Appsmith (login-based API key)
 Write-Host "[INFO] Configuring Appsmith (Admin + API Key)..." -ForegroundColor Cyan
-# Appsmith API key generation is handled via UI; skipping automatic provisioning.
+$appsmithUrl = "http://localhost:8080"
+$envContent = Get-Content .env -Raw
+$appAdminPass = ($envContent -split "`n" | Where-Object { $_ -match "^APPSMITH_ADMIN_PASSWORD=" }) -replace "APPSMITH_ADMIN_PASSWORD=", ""
+$appAdminPass = $appAdminPass.Trim(" `r")
+
+# Wait for Appsmith
+$appTimeout = 180
+$appElapsed = 0
+while ($appElapsed -lt $appTimeout) {
+    try {
+        Invoke-RestMethod -Uri "$appsmithUrl/api/v1/users" -UseBasicParsing -ErrorAction Stop | Out-Null
+        break
+    } catch {
+        Start-Sleep -Seconds 5
+        $appElapsed += 5
+    }
+}
+
+if ($appElapsed -lt $appTimeout -and $envContent -match "APPSMITH_API_KEY=CHANGE_ME_GET_FROM_APPSMITH") {
+    # 9.1 Create Super Admin (Ignore if already created)
+    $superAdminBody = '{"email":"admin@proteus.local","password":"' + $appAdminPass + '","name":"Proteus Admin","allowCollectingAnonymousData":false,"signupForNewsletter":false}'
+    try {
+        Invoke-RestMethod -Uri "$appsmithUrl/api/v1/users/super" -Method Post -Body $superAdminBody -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+
+    # 9.2 Login to get Session Token
+    $loginBody = '{"username":"admin@proteus.local","password":"' + $appAdminPass + '"}'
+    $session = $null
+    try {
+        Invoke-WebRequest -Uri "$appsmithUrl/api/v1/users/login" -Method Post -Body $loginBody -ContentType "application/json" -SessionVariable session -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+
+    if ($session) {
+        # 9.3 Create API Key
+        try {
+            $apiRes = Invoke-RestMethod -Uri "$appsmithUrl/api/v1/users/api-key" -Method Post -Body '{"label":"proteus-os-bot"}' -ContentType "application/json" -WebSession $session -UseBasicParsing -ErrorAction SilentlyContinue
+            if ($apiRes -and $apiRes.data -and $apiRes.data.apiKey) {
+                $envContent = $envContent -replace "APPSMITH_API_KEY=CHANGE_ME_GET_FROM_APPSMITH", "APPSMITH_API_KEY=$($apiRes.data.apiKey)"
+                Set-Content .env -Value $envContent -Encoding UTF8
+                Write-Host "[OK] APPSMITH_API_KEY generated and saved." -ForegroundColor Green
+                docker compose restart backend
+            } else {
+                Write-Host "[WARN] Could not parse APPSMITH_API_KEY from response." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "[WARN] Failed to generate Appsmith API key." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "[WARN] Could not login to Appsmith to retrieve cookie session." -ForegroundColor Yellow
+    }
+}
 
 # 10. Print summary
 Write-Host ""
