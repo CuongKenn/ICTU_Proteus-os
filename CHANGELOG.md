@@ -9,6 +9,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Bổ sung trường `notify_channel_id` vào `TenantModel` và luồng cài đặt Plugin để hỗ trợ Data Isolation, cho phép cấu hình kênh thông báo riêng biệt cho từng Tenant thay vì dùng chung System Channel (Issue #560).
 ### Security
 - **[core-engine/backend]** Vá lỗ hổng SQL Injection tiềm ẩn trong TenantRepository.update() (Issue #520).
+- **[.gitignore]** Ngăn chặn việc track các file `.env` chứa thông tin nhạy cảm. Đã loại bỏ `deploy/.env` khỏi git cache.
 ### Changed
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
