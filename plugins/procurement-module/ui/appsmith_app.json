@@ -1,1 +1,58 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement Management App",
+  "description": "Appsmith application for Procurement module",
+  "appUrl": "/apps/procurement",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "MainDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/procurement-overview?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 550
+        }
+      ]
+    },
+    {
+      "name": "Purchase Requests",
+      "icon": "shopping-cart",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "PurchaseRequestsTable",
+          "tableData": "{{GetPurchaseRequests.data}}",
+          "columns": [{"id": "title", "label": "title", "columnType": "text"},
+            {"id": "requester_id", "label": "requester_id", "columnType": "text"},
+            {"id": "estimated_amount", "label": "estimated_amount", "columnType": "text"},
+            {"id": "currency", "label": "currency", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "created_at", "label": "created_at", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetPurchaseRequests", "type": "API", "path": "/api/plugins/procurement-module/purchase-requests", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Vendors",
+      "icon": "building",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "VendorsTable",
+          "tableData": "{{GetVendors.data}}",
+          "columns": [{"id": "name", "label": "name", "columnType": "text"},
+            {"id": "contact_email", "label": "contact_email", "columnType": "text"},
+            {"id": "phone", "label": "phone", "columnType": "text"},
+            {"id": "rating", "label": "rating", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetVendors", "type": "API", "path": "/api/plugins/procurement-module/vendors", "method": "GET"}
+      ]
+    }
+  ]
+}

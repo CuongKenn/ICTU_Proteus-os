@@ -1,1 +1,42 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Document - Processing Time Dashboard",
+  "description": "Phân tích thời gian xử lý văn bản từ khi nhận đến khi đóng",
+  "cards": [
+    {
+      "name": "Thời gian xử lý trung bình (ngày)",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT ROUND(AVG(EXTRACT(EPOCH FROM (closed_at - created_at))/86400), 1) as avg_days FROM doc_documents WHERE tenant_id = {{tenant_id}} AND status = 'CLOSED' AND closed_at IS NOT NULL AND created_at >= NOW() - INTERVAL '90 days'",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Thời gian xử lý theo loại văn bản",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT doc_type, ROUND(AVG(EXTRACT(EPOCH FROM (closed_at - created_at))/86400), 1) as avg_days FROM doc_documents WHERE tenant_id = {{tenant_id}} AND status = 'CLOSED' AND closed_at IS NOT NULL GROUP BY doc_type ORDER BY avg_days DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "SLA quá hạn theo tháng",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT date_trunc('month', created_at) as month, COUNT(*) as overdue FROM doc_documents WHERE tenant_id = {{tenant_id}} AND expiry_date < NOW() AND status NOT IN ('CLOSED','ARCHIVED') GROUP BY month ORDER BY month",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "Document",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
+}

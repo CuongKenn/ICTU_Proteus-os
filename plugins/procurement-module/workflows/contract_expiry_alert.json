@@ -1,1 +1,66 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement - Contract Expiry Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 * * 1"}
+      },
+      "name": "Schedule - Weekly Monday",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.contract_number, c.title, c.end_date, c.vendor_id, v.name as vendor_name, c.tenant_id, cfg.channel_id FROM pro_contracts c JOIN pro_vendors v ON v.id = c.vendor_id JOIN pro_config cfg ON cfg.tenant_id = c.tenant_id WHERE c.status = 'ACTIVE' AND c.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' AND c.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Find Expiring Contracts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Any Expiring?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Contracts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=⚠️ **Hợp đồng sắp hết hạn**\nSố HĐ: {{$json.contract_number}}\nTiêu đề: {{$json.title}}\nNhà cung cấp: {{$json.vendor_name}}\nHết hạn: {{$json.end_date}}\n\nVui lòng liên hệ nhà cung cấp để gia hạn hoặc thanh lý hợp đồng."
+      },
+      "name": "Alert Procurement Channel",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Weekly Monday": {"main": [[{"node": "Find Expiring Contracts", "type": "main", "index": 0}]]},
+    "Find Expiring Contracts": {"main": [[{"node": "Any Expiring?", "type": "main", "index": 0}]]},
+    "Any Expiring?": {"main": [[{"node": "Split Contracts", "type": "main", "index": 0}]]},
+    "Split Contracts": {"main": [[{"node": "Alert Procurement Channel", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "procurement"}, {"name": "contract"}]
+}

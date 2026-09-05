@@ -1,1 +1,53 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Document - Document Stats Dashboard",
+  "description": "Thống kê tài liệu: số lượng, trạng thái, thời gian xử lý",
+  "cards": [
+    {
+      "name": "Văn bản theo trạng thái",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT status, COUNT(*) as count FROM doc_documents WHERE tenant_id = {{tenant_id}} AND deleted_at IS NULL GROUP BY status ORDER BY count DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Văn bản theo loại",
+      "display": "pie",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT doc_type, COUNT(*) as count FROM doc_documents WHERE tenant_id = {{tenant_id}} AND deleted_at IS NULL GROUP BY doc_type",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Văn bản nhận tuần này",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) as count FROM doc_documents WHERE tenant_id = {{tenant_id}} AND created_at >= date_trunc('week', NOW()) AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Văn bản đang xử lý (Top người phụ trách)",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT assigned_to, COUNT(*) as count FROM doc_documents WHERE tenant_id = {{tenant_id}} AND status IN ('RECEIVED','PENDING_APPROVAL','IN_PROGRESS') AND deleted_at IS NULL GROUP BY assigned_to ORDER BY count DESC LIMIT 10",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "Document",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
+}

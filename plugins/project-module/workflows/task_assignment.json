@@ -1,6 +1,73 @@
 {
-  "name": "Task Assignment",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Project - Task Assignment",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "project/task/assign",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Task Assigned",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "project-task-assign-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO prj_tasks (tenant_id, project_id, title, description, assignee_id, priority, status, due_date, created_at) VALUES ($1,$2,$3,$4,$5,$6,'TODO',$7,NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.project_id}},={{$json.body.title}},={{$json.body.description}},={{$json.body.assignee_id}},={{$json.body.priority}},={{$json.body.due_date}}"
+        }
+      },
+      "name": "Create Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.mattermost_user_id, p.name as project_name FROM users u JOIN prj_projects p ON p.id = $2 WHERE u.id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Task Assigned').item.json.body.assignee_id}},={{$('Webhook - Task Assigned').item.json.body.project_id}}"
+        }
+      },
+      "name": "Get Assignee Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📌 **Task mới được giao**\nDự án: {{$json.project_name}}\nTask: {{$('Webhook - Task Assigned').item.json.body.title}}\nMức độ: {{$('Webhook - Task Assigned').item.json.body.priority}}\nHạn: {{$('Webhook - Task Assigned').item.json.body.due_date}}\nTask ID: {{$('Create Task').item.json.id}}\n\nMô tả: {{$('Webhook - Task Assigned').item.json.body.description}}"
+      },
+      "name": "Notify Assignee",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"task_id\": \"{{$('Create Task').item.json.id}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Task Assigned": {"main": [[{"node": "Create Task", "type": "main", "index": 0}]]},
+    "Create Task": {"main": [[{"node": "Get Assignee Info", "type": "main", "index": 0}]]},
+    "Get Assignee Info": {"main": [[{"node": "Notify Assignee", "type": "main", "index": 0}]]},
+    "Notify Assignee": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "project"}, {"name": "task"}]
 }

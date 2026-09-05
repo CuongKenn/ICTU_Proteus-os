@@ -7,6 +7,8 @@ author: "ICTU Team"
 license: "AGPL-3.0"
 is_official: true
 homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+category: "Operations"
+credentials_schema: []
 
 compatibility:
   proteus_os_min_version: "1.0.0"

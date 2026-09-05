@@ -1,6 +1,87 @@
 {
-  "name": "Ticket Create",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Helpdesk - Create Ticket",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "helpdesk/ticket/create",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - New Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "helpdesk-create-ticket-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO hd_tickets (tenant_id, title, description, category, priority, requester_id, status, sla_deadline, created_at) VALUES ($1,$2,$3,$4,$5,$6,'OPEN', NOW() + CASE $5 WHEN 'CRITICAL' THEN INTERVAL '4 hours' WHEN 'HIGH' THEN INTERVAL '8 hours' WHEN 'MEDIUM' THEN INTERVAL '24 hours' ELSE INTERVAL '72 hours' END, NOW()) RETURNING id, sla_deadline;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.title}},={{$json.body.description}},={{$json.body.category}},={{$json.body.priority}},={{$json.body.requester_id}}"
+        }
+      },
+      "name": "Create Ticket with SLA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.username, u.mattermost_user_id FROM hd_agents u WHERE u.tenant_id = $1 AND u.is_available = true AND u.category_expertise @> ARRAY[$2]::text[] ORDER BY (SELECT COUNT(*) FROM hd_tickets WHERE assigned_to = u.username AND status = 'OPEN') ASC LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - New Ticket').item.json.body.tenant_id}},={{$('Webhook - New Ticket').item.json.body.category}}"
+        }
+      },
+      "name": "Auto-Assign Agent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hd_tickets SET assigned_to = $1 WHERE id = $2;",
+        "additionalFields": {
+          "queryParams": "={{$json.username}},={{$('Create Ticket with SLA').item.json.id}}"
+        }
+      },
+      "name": "Assign Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$('Auto-Assign Agent').item.json.mattermost_user_id}}",
+        "message": "=🎫 **Ticket IT mới được giao**\nID: #{{$('Create Ticket with SLA').item.json.id}}\nTiêu đề: {{$('Webhook - New Ticket').item.json.body.title}}\nDanh mục: {{$('Webhook - New Ticket').item.json.body.category}}\nMức độ: {{$('Webhook - New Ticket').item.json.body.priority}}\nSLA: {{$('Create Ticket with SLA').item.json.sla_deadline}}"
+      },
+      "name": "Notify Agent",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"ticket_id\": \"{{$('Create Ticket with SLA').item.json.id}}\", \"sla_deadline\": \"{{$('Create Ticket with SLA').item.json.sla_deadline}}\"}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - New Ticket": {"main": [[{"node": "Create Ticket with SLA", "type": "main", "index": 0}]]},
+    "Create Ticket with SLA": {"main": [[{"node": "Auto-Assign Agent", "type": "main", "index": 0}]]},
+    "Auto-Assign Agent": {"main": [[{"node": "Assign Ticket", "type": "main", "index": 0}]]},
+    "Assign Ticket": {"main": [[{"node": "Notify Agent", "type": "main", "index": 0}]]},
+    "Notify Agent": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "helpdesk"}, {"name": "ticket"}]
 }

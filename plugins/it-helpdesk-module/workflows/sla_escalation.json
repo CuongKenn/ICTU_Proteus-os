@@ -1,6 +1,80 @@
 {
-  "name": "SLA Escalation",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Helpdesk - SLA Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "minutes", "minutesInterval": 30}]}
+      },
+      "name": "Schedule - Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.title, t.priority, t.assigned_to, t.sla_deadline, t.tenant_id, m.mattermost_user_id as manager_mm_id, a.mattermost_user_id as agent_mm_id FROM hd_tickets t JOIN hd_managers m ON m.tenant_id = t.tenant_id JOIN hd_agents a ON a.username = t.assigned_to WHERE t.status = 'OPEN' AND t.sla_deadline < NOW() AND t.escalated_at IS NULL AND t.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Find SLA Breached Tickets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Any Breach?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Process Each Ticket",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hd_tickets SET escalated_at = NOW(), status = 'ESCALATED' WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$json.id}}"
+        }
+      },
+      "name": "Mark Escalated",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.manager_mm_id}}",
+        "message": "=🚨 **SLA VI PHẠM — Escalation**\nTicket #{{$json.id}}: {{$json.title}}\nMức độ: {{$json.priority}}\nSLA hết hạn: {{$json.sla_deadline}}\nAgent phụ trách: {{$json.assigned_to}}\n\nVui lòng can thiệp ngay!"
+      },
+      "name": "Alert Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Every 30 Minutes": {"main": [[{"node": "Find SLA Breached Tickets", "type": "main", "index": 0}]]},
+    "Find SLA Breached Tickets": {"main": [[{"node": "Any Breach?", "type": "main", "index": 0}]]},
+    "Any Breach?": {"main": [[{"node": "Process Each Ticket", "type": "main", "index": 0}]]},
+    "Process Each Ticket": {"main": [[{"node": "Mark Escalated", "type": "main", "index": 0}]]},
+    "Mark Escalated": {"main": [[{"node": "Alert Manager", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "helpdesk"}, {"name": "sla"}]
 }

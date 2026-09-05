@@ -1,6 +1,75 @@
 {
-  "name": "Asset Inventory Check",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Asset - Inventory Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 1 * *"}
+      },
+      "name": "Schedule - Monthly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.asset_code, a.name, a.asset_type, a.status, a.assigned_to, a.location, a.tenant_id FROM ast_assets a WHERE a.deleted_at IS NULL ORDER BY a.tenant_id, a.asset_type;",
+        "additionalFields": {}
+      },
+      "name": "Get All Assets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ast_inventory_checks (tenant_id, total_assets, check_date) SELECT tenant_id, COUNT(*), NOW() FROM ast_assets WHERE deleted_at IS NULL GROUP BY tenant_id ON CONFLICT (tenant_id, check_date::date) DO UPDATE SET total_assets = EXCLUDED.total_assets;",
+        "additionalFields": {}
+      },
+      "name": "Save Inventory Snapshot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.channel_id, COUNT(a.id) as total FROM ast_it_managers c JOIN ast_assets a ON a.tenant_id = c.tenant_id AND a.deleted_at IS NULL GROUP BY c.channel_id;",
+        "additionalFields": {}
+      },
+      "name": "Get Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=📦 **Kiểm kê tài sản tháng {{new Date().toLocaleDateString('vi-VN', {month:'long', year:'numeric'})}}**\nTổng số tài sản: {{$json.total}} thiết bị\nBáo cáo chi tiết đã được lưu vào hệ thống.\n\n👉 Vui lòng xem chi tiết trên ứng dụng Asset Management."
+      },
+      "name": "Notify Inventory Done",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - Monthly": {
+      "main": [[{"node": "Get All Assets", "type": "main", "index": 0}]]
+    },
+    "Get All Assets": {
+      "main": [[{"node": "Save Inventory Snapshot", "type": "main", "index": 0}]]
+    },
+    "Save Inventory Snapshot": {
+      "main": [[{"node": "Get Summary", "type": "main", "index": 0}]]
+    },
+    "Get Summary": {
+      "main": [[{"node": "Notify Inventory Done", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "asset"}, {"name": "inventory"}]
 }

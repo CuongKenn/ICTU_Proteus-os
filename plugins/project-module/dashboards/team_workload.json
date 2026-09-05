@@ -1,5 +1,31 @@
-{
-  "name": "Team Workload Dashboard",
-  "description": "Phân bổ công việc nhóm",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Team Workload",
+  "description": "Metabase dashboard for Team Workload",
+  "cards": [
+    {
+      "name": "Task Theo Người Thực Hiện",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT assignee_id, COUNT(*) as open_tasks FROM prj_tasks WHERE status IN ('TODO','IN_PROGRESS') AND deleted_at IS NULL GROUP BY assignee_id ORDER BY open_tasks DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Tiến Độ Milestone",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT ms.name, p.name as project, ms.due_date, ms.status FROM prj_milestones ms JOIN prj_projects p ON p.id = ms.project_id WHERE ms.status != 'DONE' AND ms.deleted_at IS NULL ORDER BY ms.due_date",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "project-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

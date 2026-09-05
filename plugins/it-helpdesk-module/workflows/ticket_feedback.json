@@ -1,6 +1,90 @@
 {
-  "name": "Ticket Feedback",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Helpdesk - Ticket Feedback",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "helpdesk/ticket/feedback",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Feedback Submitted",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "helpdesk-feedback-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hd_tickets SET feedback_score = $1, feedback_comment = $2, feedback_at = NOW(), status = 'CLOSED' WHERE id = $3 AND tenant_id = $4 RETURNING assigned_to;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.score}},={{$json.body.comment}},={{$json.body.ticket_id}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Save Feedback & Close",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$('Webhook - Feedback Submitted').item.json.body.score}}", "operation": "smaller", "value2": 3}]
+        }
+      },
+      "name": "Low Score?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM hd_managers WHERE tenant_id = $1 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Feedback Submitted').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Manager",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=⭐ **Phản hồi tiêu cực từ người dùng**\nTicket #{{$('Webhook - Feedback Submitted').item.json.body.ticket_id}}\nĐiểm: {{$('Webhook - Feedback Submitted').item.json.body.score}}/5\nNhận xét: {{$('Webhook - Feedback Submitted').item.json.body.comment}}\nAgent: {{$('Save Feedback & Close').item.json.assigned_to}}\n\nVui lòng xem xét và cải thiện chất lượng dịch vụ."
+      },
+      "name": "Alert Manager Low Score",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Feedback Submitted": {"main": [[{"node": "Save Feedback & Close", "type": "main", "index": 0}]]},
+    "Save Feedback & Close": {"main": [[{"node": "Low Score?", "type": "main", "index": 0}]]},
+    "Low Score?": {
+      "main": [
+        [{"node": "Get Manager", "type": "main", "index": 0}],
+        [{"node": "Respond OK", "type": "main", "index": 0}]
+      ]
+    },
+    "Get Manager": {"main": [[{"node": "Alert Manager Low Score", "type": "main", "index": 0}]]},
+    "Alert Manager Low Score": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "helpdesk"}, {"name": "feedback"}]
 }

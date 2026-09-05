@@ -1,6 +1,111 @@
 {
-  "name": "Expense Approval",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance - Expense Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "finance/expense-approval",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Expense Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "finance-expense-approval-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fin_expense_requests (tenant_id, requester_id, amount, currency, category, description, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,'PENDING',NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.requester_id}},={{$json.body.amount}},={{$json.body.currency}},={{$json.body.category}},={{$json.body.description}}"
+        }
+      },
+      "name": "Create Expense Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$('Webhook - Expense Request').item.json.body.amount}}", "operation": "largerEqual", "value2": 5000000}]
+        }
+      },
+      "name": "High Value? (>=5M VND)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM fin_approvers WHERE tenant_id = $1 AND level = 'DIRECTOR' LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Expense Request').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Director Approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM fin_approvers WHERE tenant_id = $1 AND level = 'MANAGER' LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Expense Request').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Manager Approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=💰 **Yêu cầu chi phí cần phê duyệt (Giám đốc)**\nID: {{$('Create Expense Request').item.json.id}}\nNgười đề nghị: {{$('Webhook - Expense Request').item.json.body.requester_id}}\nSố tiền: {{$('Webhook - Expense Request').item.json.body.amount}} {{$('Webhook - Expense Request').item.json.body.currency}}\nDanh mục: {{$('Webhook - Expense Request').item.json.body.category}}\nMô tả: {{$('Webhook - Expense Request').item.json.body.description}}\n\n[Phê duyệt](/api/finance/expense/approve?id={{$('Create Expense Request').item.json.id}}) | [Từ chối](/api/finance/expense/reject?id={{$('Create Expense Request').item.json.id}})"
+      },
+      "name": "Notify Director",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=💰 **Yêu cầu chi phí cần phê duyệt**\nID: {{$('Create Expense Request').item.json.id}}\nNgười đề nghị: {{$('Webhook - Expense Request').item.json.body.requester_id}}\nSố tiền: {{$('Webhook - Expense Request').item.json.body.amount}} {{$('Webhook - Expense Request').item.json.body.currency}}\nDanh mục: {{$('Webhook - Expense Request').item.json.body.category}}\nMô tả: {{$('Webhook - Expense Request').item.json.body.description}}\n\n[Phê duyệt](/api/finance/expense/approve?id={{$('Create Expense Request').item.json.id}}) | [Từ chối](/api/finance/expense/reject?id={{$('Create Expense Request').item.json.id}})"
+      },
+      "name": "Notify Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Expense Request": {
+      "main": [[{"node": "Create Expense Request", "type": "main", "index": 0}]]
+    },
+    "Create Expense Request": {
+      "main": [[{"node": "High Value? (>=5M VND)", "type": "main", "index": 0}]]
+    },
+    "High Value? (>=5M VND)": {
+      "main": [
+        [{"node": "Get Director Approver", "type": "main", "index": 0}],
+        [{"node": "Get Manager Approver", "type": "main", "index": 0}]
+      ]
+    },
+    "Get Director Approver": {
+      "main": [[{"node": "Notify Director", "type": "main", "index": 0}]]
+    },
+    "Get Manager Approver": {
+      "main": [[{"node": "Notify Manager", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "finance"}, {"name": "expense"}]
 }

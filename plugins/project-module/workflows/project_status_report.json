@@ -1,6 +1,54 @@
 {
-  "name": "Project Status Report",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Project - Weekly Status Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 17 5 * *"}
+      },
+      "name": "Schedule - Friday 5PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.name, p.channel_id, COUNT(t.id) as total_tasks, COUNT(CASE WHEN t.status='DONE' THEN 1 END) as done_tasks, COUNT(CASE WHEN t.status='IN_PROGRESS' THEN 1 END) as in_progress_tasks, COUNT(CASE WHEN t.due_date < NOW() AND t.status NOT IN ('DONE','CANCELLED') THEN 1 END) as overdue_tasks FROM prj_projects p LEFT JOIN prj_tasks t ON t.project_id = p.id AND t.deleted_at IS NULL WHERE p.status = 'ACTIVE' AND p.deleted_at IS NULL GROUP BY p.id, p.name, p.channel_id;",
+        "additionalFields": {}
+      },
+      "name": "Get Project Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Projects",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=📊 **Báo cáo tuần — {{$json.name}}**\n\n✅ Hoàn thành: {{$json.done_tasks}}/{{$json.total_tasks}} task\n🔄 Đang làm: {{$json.in_progress_tasks}} task\n⏰ Quá hạn: {{$json.overdue_tasks}} task\n\nTiến độ: {{Math.round($json.done_tasks/$json.total_tasks*100) || 0}}%"
+      },
+      "name": "Send Status Report",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - Friday 5PM": {"main": [[{"node": "Get Project Stats", "type": "main", "index": 0}]]},
+    "Get Project Stats": {"main": [[{"node": "Split Projects", "type": "main", "index": 0}]]},
+    "Split Projects": {"main": [[{"node": "Send Status Report", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "project"}, {"name": "report"}]
 }

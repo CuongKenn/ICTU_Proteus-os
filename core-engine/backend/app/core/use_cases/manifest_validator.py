@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.domain.exceptions import DSLInvalidParametersError
+from app.core.domain.plugin_manifest import VALID_PLUGIN_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,20 @@ class DependencySpec(BaseModel):
     min_version: str | None = None
 
 
+class CredentialFieldEntry(BaseModel):
+    """Mô tả một trường credential trong manifest.credentials_schema."""
+
+    key: str
+    label: str
+    type: Literal["string", "password", "number", "boolean", "select"] = "string"
+    required: bool = True
+    placeholder: str | None = None
+    description: str | None = None
+    default: str | int | bool | None = None
+    options: list[str] | None = None
+    credential_type_name: str | None = None
+
+
 class ManifestEntity(BaseModel):
     """
     Domain Entity cho Plugin Manifest (đã validate).
@@ -145,6 +160,15 @@ class ManifestEntity(BaseModel):
     icon_url: str | None = None
     is_official: bool = False
     homepage_url: str | None = None
+    category: str = "Utilities"
+    """Danh mục plugin: phải thuộc VALID_PLUGIN_CATEGORIES."""
+    tags: list[str] = Field(default_factory=list)
+    screenshots: list[str] = Field(default_factory=list)
+    long_description: str | None = None
+
+    # Credentials Schema (§3.0)
+    credentials_schema: list[CredentialFieldEntry] = Field(default_factory=list)
+    """Danh sách các trường credentials cần thiết khi cài plugin."""
 
     # Database (§3.2)
     tables: list[str] = Field(default_factory=list)
@@ -349,6 +373,39 @@ class ManifestValidator:
                     f"(phải là webhook, cron hoặc manual)"
                 )
 
+        # ─── 7. Validate credentials_schema ───
+        creds_raw = raw.get("credentials_schema", []) or []
+        if not isinstance(creds_raw, list):
+            errors.append("credentials_schema phải là một danh sách (list)")
+        else:
+            valid_types = {"string", "password", "number", "boolean", "select"}
+            for idx, cred in enumerate(creds_raw):
+                if not isinstance(cred, dict):
+                    errors.append(f"credentials_schema[{idx}]: phải là object")
+                    continue
+                if not cred.get("key"):
+                    errors.append(f"credentials_schema[{idx}]: thiếu trường 'key'")
+                if not cred.get("label"):
+                    errors.append(f"credentials_schema[{idx}]: thiếu trường 'label'")
+                cred_type = cred.get("type", "string")
+                if cred_type not in valid_types:
+                    errors.append(
+                        f"credentials_schema[{idx}]: type '{cred_type}' không hợp lệ "
+                        f"(phải là {', '.join(valid_types)})"
+                    )
+                if cred_type == "select" and not cred.get("options"):
+                    errors.append(
+                        f"credentials_schema[{idx}]: type='select' nhưng thiếu 'options'"
+                    )
+
+        # ─── 8. Validate category ───
+        category = raw.get("category", "Utilities")
+        if category not in VALID_PLUGIN_CATEGORIES:
+            errors.append(
+                f"category '{category}' không hợp lệ. "
+                f"Phải là một trong: {', '.join(sorted(VALID_PLUGIN_CATEGORIES))}"
+            )
+
         # ─── Raise tất cả lỗi nếu có ───
         if errors:
             raise DSLInvalidParametersError(
@@ -369,6 +426,14 @@ class ManifestValidator:
                 icon_url=raw.get("icon_url"),
                 is_official=raw.get("is_official", False),
                 homepage_url=raw.get("homepage_url"),
+                category=raw.get("category", "Utilities"),
+                tags=raw.get("tags", []) or [],
+                screenshots=raw.get("screenshots", []) or [],
+                long_description=raw.get("long_description"),
+                # Credentials Schema
+                credentials_schema=[
+                    CredentialFieldEntry(**c) for c in (creds_raw or [])
+                ],
                 # Database
                 tables=tables,
                 seed_file=database_section.get("seed_file"),

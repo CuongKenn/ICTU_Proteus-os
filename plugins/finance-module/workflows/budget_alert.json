@@ -1,6 +1,74 @@
 {
-  "name": "Budget Alert",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance - Budget Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "hours", "hoursInterval": 24}]}
+      },
+      "name": "Schedule - Daily Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT b.id, b.name, b.amount as budget, b.tenant_id, COALESCE(SUM(e.amount),0) as spent, b.alert_channel_id FROM fin_budgets b LEFT JOIN fin_expense_requests e ON b.id = e.budget_id AND e.status = 'APPROVED' AND e.tenant_id = b.tenant_id WHERE b.deleted_at IS NULL GROUP BY b.id, b.name, b.amount, b.tenant_id, b.alert_channel_id HAVING COALESCE(SUM(e.amount),0) >= b.amount * 0.8;",
+        "additionalFields": {}
+      },
+      "name": "Find Near-Limit Budgets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Any Budget?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split By Budget",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.alert_channel_id}}",
+        "message": "=⚠️ **Cảnh báo ngân sách!**\nNgân sách: **{{$json.name}}**\nTổng ngân sách: {{$json.budget}} VND\nĐã chi: {{$json.spent}} VND ({{Math.round($json.spent/$json.budget*100)}}%)\n\nNgân sách đã sử dụng trên 80%. Vui lòng kiểm tra và điều chỉnh."
+      },
+      "name": "Alert Finance Team",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Daily Check": {
+      "main": [[{"node": "Find Near-Limit Budgets", "type": "main", "index": 0}]]
+    },
+    "Find Near-Limit Budgets": {
+      "main": [[{"node": "Any Budget?", "type": "main", "index": 0}]]
+    },
+    "Any Budget?": {
+      "main": [[{"node": "Split By Budget", "type": "main", "index": 0}]]
+    },
+    "Split By Budget": {
+      "main": [[{"node": "Alert Finance Team", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "finance"}, {"name": "budget"}]
 }

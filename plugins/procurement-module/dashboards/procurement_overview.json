@@ -1,1 +1,42 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement Overview",
+  "description": "Metabase dashboard for Procurement Overview",
+  "cards": [
+    {
+      "name": "PR Chờ Duyệt",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) FROM pro_purchase_requests WHERE status = 'PENDING' AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Chi Tiêu Theo Tháng",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT date_trunc('month', payment_date) as month, SUM(total_amount) as spend FROM pro_purchase_orders WHERE status = 'DELIVERED' AND payment_status = 'PAID' GROUP BY month ORDER BY month",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Top Nhà Cung Cấp",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT v.name, SUM(po.total_amount) as total_spend FROM pro_purchase_orders po JOIN pro_vendors v ON v.id = po.vendor_id WHERE po.status = 'DELIVERED' AND po.deleted_at IS NULL GROUP BY v.name ORDER BY total_spend DESC LIMIT 10",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "procurement-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
+}

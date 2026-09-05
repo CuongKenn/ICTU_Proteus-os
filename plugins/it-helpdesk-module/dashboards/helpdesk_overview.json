@@ -1,5 +1,53 @@
-{
-  "name": "Helpdesk Overview Dashboard",
-  "description": "Tổng quan Ticket và SLA",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Helpdesk Overview",
+  "description": "Metabase dashboard for IT Helpdesk Overview",
+  "cards": [
+    {
+      "name": "Tickets Hôm Nay",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) FROM hd_tickets WHERE tenant_id = {{tenant_id}} AND created_at::date = CURRENT_DATE AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Vi phạm SLA",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) FROM hd_tickets WHERE tenant_id = {{tenant_id}} AND status = 'OPEN' AND sla_deadline < NOW() AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Tickets Theo Ưu Tiên",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT priority, COUNT(*) as count FROM hd_tickets WHERE tenant_id = {{tenant_id}} AND status = 'OPEN' AND deleted_at IS NULL GROUP BY priority",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Tickets Theo Ngày",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT created_at::date as day, COUNT(*) as count FROM hd_tickets WHERE tenant_id = {{tenant_id}} AND created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "it-helpdesk-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

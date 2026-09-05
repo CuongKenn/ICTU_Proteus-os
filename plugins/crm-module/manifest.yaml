@@ -13,6 +13,8 @@ license: "AGPL-3.0"
 icon_url: "/plugins/crm-module/icon.png"
 is_official: true
 homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+category: "CRM"
+credentials_schema: []
 
 compatibility:
   proteus_os_min_version: "1.0.0"

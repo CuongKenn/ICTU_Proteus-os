@@ -1,6 +1,73 @@
 {
-  "name": "Document Approval Workflow",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Document - Approval Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "document/approval",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Submit for Approval",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "document-approval-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE doc_documents SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND status = 'DRAFT' RETURNING title, category, doc_type, author_id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.document_id}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Submit Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.mattermost_user_id FROM doc_approvers da JOIN users u ON u.id = da.user_id WHERE da.tenant_id = $1 AND da.doc_type = $2 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Submit for Approval').item.json.body.tenant_id}},={{$json.doc_type}}"
+        }
+      },
+      "name": "Find Approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📋 **Tài liệu cần phê duyệt**\nTiêu đề: {{$('Submit Document').item.json.title}}\nLoại: {{$('Submit Document').item.json.doc_type}}\nDanh mục: {{$('Submit Document').item.json.category}}\nID: {{$('Webhook - Submit for Approval').item.json.body.document_id}}\n\n[✅ Phê duyệt](/api/document/approve?id={{$('Webhook - Submit for Approval').item.json.body.document_id}}) | [❌ Từ chối](/api/document/reject?id={{$('Webhook - Submit for Approval').item.json.body.document_id}})"
+      },
+      "name": "Notify Approver",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Submit for Approval": {"main": [[{"node": "Submit Document", "type": "main", "index": 0}]]},
+    "Submit Document": {"main": [[{"node": "Find Approver", "type": "main", "index": 0}]]},
+    "Find Approver": {"main": [[{"node": "Notify Approver", "type": "main", "index": 0}]]},
+    "Notify Approver": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "document"}, {"name": "approval"}]
 }

@@ -1,6 +1,104 @@
 {
-  "name": "Meeting Reminder",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Meeting - Reminder 15 Minutes Before",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "minutes", "minutesInterval": 15}]}
+      },
+      "name": "Schedule - Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT b.id, b.title, b.start_time, b.end_time, b.organizer_id, b.attendees, r.name as room_name, r.location FROM mtg_bookings b JOIN mtg_rooms r ON r.id = b.room_id WHERE b.status = 'CONFIRMED' AND b.start_time BETWEEN NOW() + INTERVAL '14 minutes' AND NOW() + INTERVAL '16 minutes' AND b.reminder_sent = false AND b.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Find Upcoming Meetings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Any Meeting?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Meetings",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT STRING_AGG(u.mattermost_user_id, ',') as user_ids FROM users u WHERE u.id = ANY($1::uuid[]);",
+        "additionalFields": {
+          "queryParams": "={{$json.attendees}}"
+        }
+      },
+      "name": "Get Attendee IDs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const userIds = $json.user_ids ? $json.user_ids.split(',') : [];\nconst meeting = $('Split Meetings').item.json;\nreturn userIds.map(uid => ({json: {user_id: uid.trim(), meeting}}));"
+      },
+      "name": "Expand To Each Attendee",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.user_id}}",
+        "message": "=🔔 **Nhắc nhở họp trong 15 phút**\n📅 {{$json.meeting.title}}\n🕐 {{$json.meeting.start_time}} – {{$json.meeting.end_time}}\n📍 Phòng: {{$json.meeting.room_name}} ({{$json.meeting.location}})"
+      },
+      "name": "Notify Each Attendee",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE mtg_bookings SET reminder_sent = true WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Split Meetings').item.json.id}}"
+        }
+      },
+      "name": "Mark Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1650, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Every 15 Minutes": {"main": [[{"node": "Find Upcoming Meetings", "type": "main", "index": 0}]]},
+    "Find Upcoming Meetings": {"main": [[{"node": "Any Meeting?", "type": "main", "index": 0}]]},
+    "Any Meeting?": {"main": [[{"node": "Split Meetings", "type": "main", "index": 0}]]},
+    "Split Meetings": {"main": [[{"node": "Get Attendee IDs", "type": "main", "index": 0}]]},
+    "Get Attendee IDs": {"main": [[{"node": "Expand To Each Attendee", "type": "main", "index": 0}]]},
+    "Expand To Each Attendee": {"main": [[{"node": "Notify Each Attendee", "type": "main", "index": 0}]]},
+    "Notify Each Attendee": {"main": [[{"node": "Mark Reminder Sent", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "meeting"}, {"name": "reminder"}]
 }

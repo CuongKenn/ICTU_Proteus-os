@@ -1,5 +1,31 @@
-{
-  "name": "Action Item Tracker Dashboard",
-  "description": "Theo dõi Action Items",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Action Item Tracker",
+  "description": "Metabase dashboard for Action Item Tracker",
+  "cards": [
+    {
+      "name": "Action Items Quá Hạn",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT title, assignee_id, due_date, meeting_id FROM mtg_action_items WHERE status = 'OPEN' AND due_date < CURRENT_DATE AND deleted_at IS NULL ORDER BY due_date",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Completion Rate By Person",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT assignee_id, COUNT(CASE WHEN status='DONE' THEN 1 END)*100/COUNT(*) as completion_pct FROM mtg_action_items WHERE deleted_at IS NULL GROUP BY assignee_id ORDER BY completion_pct DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "meeting-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

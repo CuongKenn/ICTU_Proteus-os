@@ -1,5 +1,31 @@
 {
-  "name": "Budget vs Actual Dashboard",
-  "description": "Ngân sách vs Thực tế",
-  "cards": []
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance - Budget vs Actual Dashboard",
+  "description": "So sánh ngân sách kế hoạch vs thực tế chi tiêu",
+  "cards": [
+    {
+      "name": "Budget Utilization",
+      "display": "progress",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT b.name, b.amount as budget, COALESCE(SUM(e.amount),0) as spent, ROUND(COALESCE(SUM(e.amount),0)/b.amount*100,1) as pct FROM fin_budgets b LEFT JOIN fin_expense_requests e ON b.id = e.budget_id AND e.status = 'APPROVED' WHERE b.tenant_id = {{tenant_id}} AND b.deleted_at IS NULL GROUP BY b.id, b.name, b.amount ORDER BY pct DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Monthly Budget vs Actual",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT b.name, b.amount as budget, COALESCE(SUM(e.amount),0) as actual FROM fin_budgets b LEFT JOIN fin_expense_requests e ON b.id = e.budget_id AND e.status = 'APPROVED' AND date_trunc('month', e.created_at) = date_trunc('month', NOW()) WHERE b.tenant_id = {{tenant_id}} AND b.deleted_at IS NULL GROUP BY b.id, b.name, b.amount",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "Finance",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

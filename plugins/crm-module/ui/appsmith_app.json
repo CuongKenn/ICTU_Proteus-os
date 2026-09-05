@@ -1,6 +1,102 @@
 {
-  "application": {
-    "name": "CRM App",
-    "pages": []
-  }
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "CRM Management App",
+  "description": "Appsmith application configuration for CRM module — Quản lý khách hàng, cơ hội bán hàng và tickets",
+  "appUrl": "/apps/crm",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "MetabaseDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/crm-pipeline?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 600
+        }
+      ]
+    },
+    {
+      "name": "Leads",
+      "icon": "person",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "LeadsTable",
+          "tableData": "{{GetLeads.data}}",
+          "columns": [
+            {"id": "full_name", "label": "Họ tên", "columnType": "text"},
+            {"id": "company", "label": "Công ty", "columnType": "text"},
+            {"id": "email", "label": "Email", "columnType": "text"},
+            {"id": "source", "label": "Nguồn", "columnType": "text"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"},
+            {"id": "assigned_to", "label": "Phụ trách", "columnType": "text"},
+            {"id": "created_at", "label": "Ngày tạo", "columnType": "date"}
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "GetLeads",
+          "type": "API",
+          "path": "/api/plugins/crm-module/leads",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "name": "Opportunities",
+      "icon": "trophy",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "OpportunitiesTable",
+          "tableData": "{{GetOpportunities.data}}",
+          "columns": [
+            {"id": "title", "label": "Tiêu đề", "columnType": "text"},
+            {"id": "contact_name", "label": "Khách hàng", "columnType": "text"},
+            {"id": "value", "label": "Giá trị", "columnType": "currency"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"},
+            {"id": "probability", "label": "Xác suất %", "columnType": "number"},
+            {"id": "assigned_to", "label": "Phụ trách", "columnType": "text"}
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "GetOpportunities",
+          "type": "API",
+          "path": "/api/plugins/crm-module/opportunities",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "name": "Support Tickets",
+      "icon": "ticket",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "TicketsTable",
+          "tableData": "{{GetTickets.data}}",
+          "columns": [
+            {"id": "id", "label": "Ticket ID", "columnType": "text"},
+            {"id": "title", "label": "Tiêu đề", "columnType": "text"},
+            {"id": "priority", "label": "Ưu tiên", "columnType": "text"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"},
+            {"id": "assigned_to", "label": "Agent", "columnType": "text"},
+            {"id": "created_at", "label": "Ngày tạo", "columnType": "date"}
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "GetTickets",
+          "type": "API",
+          "path": "/api/plugins/crm-module/tickets",
+          "method": "GET"
+        }
+      ]
+    }
+  ]
 }

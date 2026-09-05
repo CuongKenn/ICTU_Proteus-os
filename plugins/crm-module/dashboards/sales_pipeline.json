@@ -1,5 +1,67 @@
 {
-  "name": "Sales Pipeline Dashboard",
-  "description": "Phễu bán hàng",
-  "cards": []
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "CRM - Sales Pipeline Dashboard",
+  "description": "Metabase dashboard configuration for CRM sales pipeline visualization",
+  "cards": [
+    {
+      "name": "Pipeline Overview",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT status, COUNT(*) as count, SUM(value) as total_value FROM crm_opportunities WHERE tenant_id = {{tenant_id}} AND deleted_at IS NULL GROUP BY status ORDER BY total_value DESC",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      },
+      "visualization_settings": {
+        "graph.x_axis.title_text": "Trạng thái",
+        "graph.y_axis.title_text": "Tổng giá trị (VND)"
+      }
+    },
+    {
+      "name": "Top Leads This Month",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT full_name, company, email, source, created_at FROM crm_leads WHERE tenant_id = {{tenant_id}} AND created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 20",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      }
+    },
+    {
+      "name": "Conversion Rate by Source",
+      "display": "pie",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT source, COUNT(CASE WHEN status='WON' THEN 1 END)*100.0/COUNT(*) as conversion_rate FROM crm_leads l LEFT JOIN crm_opportunities o ON l.id = o.lead_id WHERE l.tenant_id = {{tenant_id}} GROUP BY source",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      }
+    },
+    {
+      "name": "Monthly Revenue Forecast",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT date_trunc('month', expected_close_date) as month, SUM(value * probability/100) as forecast FROM crm_opportunities WHERE tenant_id = {{tenant_id}} AND status NOT IN ('WON','LOST') AND expected_close_date IS NOT NULL GROUP BY month ORDER BY month",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      }
+    }
+  ],
+  "collection": "CRM",
+  "parameters": [
+    {"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}
+  ]
 }

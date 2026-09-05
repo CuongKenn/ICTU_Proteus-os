@@ -1,6 +1,75 @@
 {
-  "name": "Depreciation Calculation",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Asset - Depreciation Calculation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 1 1 1 *"}
+      },
+      "name": "Schedule - Annually",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, asset_code, purchase_price, purchase_date, depreciation_years, tenant_id, EXTRACT(YEAR FROM NOW()) - EXTRACT(YEAR FROM purchase_date) as age_years FROM ast_assets WHERE status != 'DISPOSED' AND deleted_at IS NULL AND depreciation_years > 0;",
+        "additionalFields": {}
+      },
+      "name": "Get Depreciable Assets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Assets",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const annual = $json.purchase_price / $json.depreciation_years;\nconst currentValue = Math.max(0, $json.purchase_price - (annual * $json.age_years));\nreturn [{json: {...$json, annual_depreciation: annual, current_value: currentValue}}];"
+      },
+      "name": "Calculate Depreciation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ast_assets SET current_value = $1, last_depreciation_at = NOW() WHERE id = $2;",
+        "additionalFields": {
+          "queryParams": "={{$json.current_value}},={{$json.id}}"
+        }
+      },
+      "name": "Update Asset Value",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - Annually": {
+      "main": [[{"node": "Get Depreciable Assets", "type": "main", "index": 0}]]
+    },
+    "Get Depreciable Assets": {
+      "main": [[{"node": "Split Assets", "type": "main", "index": 0}]]
+    },
+    "Split Assets": {
+      "main": [[{"node": "Calculate Depreciation", "type": "main", "index": 0}]]
+    },
+    "Calculate Depreciation": {
+      "main": [[{"node": "Update Asset Value", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "asset"}, {"name": "depreciation"}]
 }

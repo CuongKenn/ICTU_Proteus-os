@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -27,6 +27,46 @@ class PluginStatus(StrEnum):
     DISABLED = "DISABLED"
     UNINSTALLING = "UNINSTALLING"
     DELETED = "DELETED"
+    PENDING_CREDENTIALS = "PENDING_CREDENTIALS"
+    """Plugin đã cài xong nhưng chưa được cấu hình credentials bắt buộc."""
+
+
+# ─────────────────────────────────────────────────────────────
+# CREDENTIAL TYPES
+# ─────────────────────────────────────────────────────────────
+
+
+class CredentialFieldType(StrEnum):
+    STRING = "string"
+    PASSWORD = "password"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    SELECT = "select"
+
+
+class CredentialFieldSchema(BaseModel):
+    """Schema mô tả một trường credential (mirrors ManifestCredentialField)."""
+
+    key: str
+    label: str
+    type: CredentialFieldType = CredentialFieldType.STRING
+    required: bool = True
+    placeholder: str | None = None
+    description: str | None = None
+    default: str | int | bool | None = None
+    options: list[str] | None = None
+    credential_type_name: str | None = None
+
+
+class CredentialInput(BaseModel):
+    """Một credential value do người dùng nhập khi cài plugin."""
+
+    key: str
+    """Khớp với CredentialFieldSchema.key."""
+    value: str
+    """Giá trị nhập vào (luôn là string, backend sẽ cast theo type)."""
+    credential_type_name: str | None = None
+    """n8n credential type — override từ schema nếu cần."""
 
 
 class AICommandStatus(StrEnum):
@@ -70,15 +110,39 @@ class TenantContext(BaseModel):
 
 
 class PluginEntity(BaseModel):
+    # ─── Identity ──────────────────────────────────────────────
     id: uuid.UUID
     code_name: str
     display_name: str
     version: str
+
+    # ─── Metadata (previously missing) ───────────────────────
+    description: str | None = None
+    author: str | None = None
+    license: str | None = None
+    icon_url: str | None = None
+    homepage_url: str | None = None
+    category: str = "Utilities"
+    tags: list[str] = Field(default_factory=list)
+    screenshots: list[str] = Field(default_factory=list)
+    long_description: str | None = None
     is_official: bool = False
+    download_count: int = 0
+    published_at: datetime | None = None
+
+    # ─── Install info ─────────────────────────────────────────
     status: PluginStatus | None = None  # None nếu chưa cài cho Tenant này
     tables_count: int = 0
     workflows_count: int = 0
     roles: list[str] = Field(default_factory=list)
+
+    # ─── Credentials schema (từ manifest) ────────────────────
+    credentials_schema: list[CredentialFieldSchema] = Field(default_factory=list)
+    """Schema form credentials để frontend render động."""
+
+    def requires_credentials(self) -> bool:
+        """Kiểm tra xem plugin có yêu cầu credentials bắt buộc không."""
+        return any(f.required for f in self.credentials_schema)
 
 
 class TenantEntity(BaseModel):
@@ -135,6 +199,8 @@ class InstallRequest(BaseModel):
 
     plugin_id: uuid.UUID
     tenant_context: TenantContext
+    credentials: list[CredentialInput] = Field(default_factory=list)
+    """Credentials người dùng nhập (theo credentials_schema của plugin)."""
 
 
 class AICommandInput(BaseModel):

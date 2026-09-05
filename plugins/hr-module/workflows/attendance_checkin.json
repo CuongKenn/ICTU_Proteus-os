@@ -1,6 +1,89 @@
 {
-  "name": "Attendance Check-in",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "HR - Attendance Check-in/Check-out",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hr/attendance",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Attendance Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "hr-attendance-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.body.event_type}}", "operation": "equals", "value2": "CHECK_IN"}]
+        }
+      },
+      "name": "Check-in or Check-out?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO hr_attendance_logs (tenant_id, employee_id, check_in_time, location, device_id, created_at) VALUES ($1,$2,NOW(),$3,$4,NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Attendance Event').item.json.body.tenant_id}},={{$('Webhook - Attendance Event').item.json.body.employee_id}},={{$('Webhook - Attendance Event').item.json.body.location}},={{$('Webhook - Attendance Event').item.json.body.device_id}}"
+        }
+      },
+      "name": "Record Check-in",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hr_attendance_logs SET check_out_time = NOW(), worked_hours = EXTRACT(EPOCH FROM (NOW() - check_in_time))/3600 WHERE employee_id = $1 AND tenant_id = $2 AND check_in_time::date = CURRENT_DATE AND check_out_time IS NULL RETURNING id, worked_hours;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Attendance Event').item.json.body.employee_id}},={{$('Webhook - Attendance Event').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Record Check-out",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"type\": \"CHECK_IN\", \"log_id\": \"{{$json.id}}\"}"
+      },
+      "name": "Respond Check-in",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"type\": \"CHECK_OUT\", \"worked_hours\": {{$json.worked_hours}}}"
+      },
+      "name": "Respond Check-out",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Attendance Event": {"main": [[{"node": "Check-in or Check-out?", "type": "main", "index": 0}]]},
+    "Check-in or Check-out?": {
+      "main": [
+        [{"node": "Record Check-in", "type": "main", "index": 0}],
+        [{"node": "Record Check-out", "type": "main", "index": 0}]
+      ]
+    },
+    "Record Check-in": {"main": [[{"node": "Respond Check-in", "type": "main", "index": 0}]]},
+    "Record Check-out": {"main": [[{"node": "Respond Check-out", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "hr"}, {"name": "attendance"}]
 }

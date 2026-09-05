@@ -1,6 +1,103 @@
 {
-  "name": "Meeting Booking",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Meeting - Book Meeting Room",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "meeting/book",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Book Meeting",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "meeting-book-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM mtg_rooms WHERE tenant_id = $1 AND id = $2 AND NOT EXISTS (SELECT 1 FROM mtg_bookings b WHERE b.room_id = $2 AND b.tenant_id = $1 AND b.status != 'CANCELLED' AND tsrange(b.start_time, b.end_time) && tsrange($3::timestamp, $4::timestamp));",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.room_id}},={{$json.body.start_time}},={{$json.body.end_time}}"
+        }
+      },
+      "name": "Check Room Available",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.id}}", "operation": "isNotEmpty"}]
+        }
+      },
+      "name": "Room Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO mtg_bookings (tenant_id, room_id, organizer_id, title, start_time, end_time, attendees, agenda, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'CONFIRMED',NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Book Meeting').item.json.body.tenant_id}},={{$('Webhook - Book Meeting').item.json.body.room_id}},={{$('Webhook - Book Meeting').item.json.body.organizer_id}},={{$('Webhook - Book Meeting').item.json.body.title}},={{$('Webhook - Book Meeting').item.json.body.start_time}},={{$('Webhook - Book Meeting').item.json.body.end_time}},={{JSON.stringify($('Webhook - Book Meeting').item.json.body.attendees)}},={{$('Webhook - Book Meeting').item.json.body.agenda}}"
+        }
+      },
+      "name": "Create Booking",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, capacity FROM mtg_rooms WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Book Meeting').item.json.body.room_id}}"
+        }
+      },
+      "name": "Get Room Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$('Webhook - Book Meeting').item.json.body.organizer_channel}}",
+        "message": "=✅ **Đặt phòng họp thành công!**\nPhòng: {{$json.name}} (Sức chứa: {{$json.capacity}})\nTiêu đề: {{$('Webhook - Book Meeting').item.json.body.title}}\nBắt đầu: {{$('Webhook - Book Meeting').item.json.body.start_time}}\nKết thúc: {{$('Webhook - Book Meeting').item.json.body.end_time}}\nBooking ID: {{$('Create Booking').item.json.id}}"
+      },
+      "name": "Confirm to Organizer",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Phòng họp không khả dụng trong khung giờ này.\"}"
+      },
+      "name": "Room Busy Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Book Meeting": {"main": [[{"node": "Check Room Available", "type": "main", "index": 0}]]},
+    "Check Room Available": {"main": [[{"node": "Room Available?", "type": "main", "index": 0}]]},
+    "Room Available?": {
+      "main": [
+        [{"node": "Create Booking", "type": "main", "index": 0}],
+        [{"node": "Room Busy Response", "type": "main", "index": 0}]
+      ]
+    },
+    "Create Booking": {"main": [[{"node": "Get Room Info", "type": "main", "index": 0}]]},
+    "Get Room Info": {"main": [[{"node": "Confirm to Organizer", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "meeting"}, {"name": "booking"}]
 }

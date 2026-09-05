@@ -50,9 +50,11 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   onUninstall,
 }) => {
   const isDisabled = status === "disabled";
-  const rating = plugin.rating || (4 + Math.random()).toFixed(1); // Mock rating if none
+  // Dùng rating thực tế nếu có; không dùng Math.random() để tránh flicker
+  const rating = plugin.rating ?? null;
   const category = plugin.category || "Utilities";
-  const developer = plugin.developer || "Proteus Core";
+  // author field thực tế từ backend thay vì hardcode
+  const developer = plugin.author || plugin.developer || "Proteus Core";
 
   return (
     <div 
@@ -68,11 +70,15 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
       {/* Header Section */}
       <div className="relative flex items-start gap-4">
-        {/* App Icon */}
+        {/* App Icon — dùng icon_url nếu có */}
         <div className="w-16 h-16 rounded-2xl shrink-0 bg-gradient-to-br from-bg-surface-elevated to-bg-surface border border-border/50 flex items-center justify-center shadow-inner relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
-          <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-text-primary to-text-secondary drop-shadow-sm">
-            {plugin.name.charAt(0)}
-          </span>
+          {plugin.iconUrl ? (
+            <img src={plugin.iconUrl} alt={plugin.name} className="w-10 h-10 object-contain" />
+          ) : (
+            <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-text-primary to-text-secondary drop-shadow-sm">
+              {plugin.name.charAt(0)}
+            </span>
+          )}
           {/* Subtle shine effect */}
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-1000" />
         </div>

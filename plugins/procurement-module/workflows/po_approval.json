@@ -1,1 +1,76 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement - Purchase Order Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "procurement/po-approval",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - PO Approval",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "procurement-po-approval-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT po.id, po.po_number, po.total_amount, po.currency, po.vendor_id, v.name as vendor_name, po.pr_id FROM pro_purchase_orders po JOIN pro_vendors v ON v.id = po.vendor_id WHERE po.id = $1 AND po.tenant_id = $2 AND po.status = 'DRAFT';",
+        "additionalFields": {
+          "queryParams": "={{$json.body.po_id}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Get PO Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE pro_purchase_orders SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$json.id}}"
+        }
+      },
+      "name": "Submit PO",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM pro_approvers WHERE tenant_id = $1 ORDER BY level DESC LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - PO Approval').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📄 **Đơn mua hàng cần phê duyệt**\nSố PO: {{$('Get PO Details').item.json.po_number}}\nNhà cung cấp: {{$('Get PO Details').item.json.vendor_name}}\nTổng giá trị: {{$('Get PO Details').item.json.total_amount}} {{$('Get PO Details').item.json.currency}}\nDựa trên PR: #{{$('Get PO Details').item.json.pr_id}}\n\n[✅ Phê duyệt PO](/api/procurement/po/approve?id={{$('Get PO Details').item.json.id}}) | [❌ Từ chối](/api/procurement/po/reject?id={{$('Get PO Details').item.json.id}})"
+      },
+      "name": "Notify Approver",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - PO Approval": {"main": [[{"node": "Get PO Details", "type": "main", "index": 0}]]},
+    "Get PO Details": {"main": [[{"node": "Submit PO", "type": "main", "index": 0}]]},
+    "Submit PO": {"main": [[{"node": "Get Approver", "type": "main", "index": 0}]]},
+    "Get Approver": {"main": [[{"node": "Notify Approver", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "procurement"}, {"name": "purchase-order"}]
+}

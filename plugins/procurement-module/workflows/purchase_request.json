@@ -1,1 +1,115 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement - Purchase Request Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "procurement/purchase-request",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Purchase Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "procurement-pr-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pro_purchase_requests (tenant_id, requester_id, title, description, estimated_amount, currency, vendor_suggestion, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,'PENDING',NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.requester_id}},={{$json.body.title}},={{$json.body.description}},={{$json.body.estimated_amount}},={{$json.body.currency}},={{$json.body.vendor_suggestion}}"
+        }
+      },
+      "name": "Create Purchase Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$('Webhook - Purchase Request').item.json.body.estimated_amount}}", "operation": "largerEqual", "value2": 20000000}]
+        }
+      },
+      "name": "High Value? (>=20M VND)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM pro_approvers WHERE tenant_id = $1 AND level = 'BOARD' LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Purchase Request').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Board Approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM pro_approvers WHERE tenant_id = $1 AND level = 'MANAGER' LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Purchase Request').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Manager Approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=🛒 **Yêu cầu mua sắm (Ban Giám đốc phê duyệt)**\nID: {{$('Create Purchase Request').item.json.id}}\nTiêu đề: {{$('Webhook - Purchase Request').item.json.body.title}}\nGiá trị ước tính: {{$('Webhook - Purchase Request').item.json.body.estimated_amount}} {{$('Webhook - Purchase Request').item.json.body.currency}}\nNhà cung cấp đề xuất: {{$('Webhook - Purchase Request').item.json.body.vendor_suggestion}}\n\n[✅ Phê duyệt](/api/procurement/approve?id={{$('Create Purchase Request').item.json.id}}) | [❌ Từ chối](/api/procurement/reject?id={{$('Create Purchase Request').item.json.id}})"
+      },
+      "name": "Notify Board",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=🛒 **Yêu cầu mua sắm cần phê duyệt**\nID: {{$('Create Purchase Request').item.json.id}}\nTiêu đề: {{$('Webhook - Purchase Request').item.json.body.title}}\nGiá trị ước tính: {{$('Webhook - Purchase Request').item.json.body.estimated_amount}} {{$('Webhook - Purchase Request').item.json.body.currency}}\n\n[✅ Phê duyệt](/api/procurement/approve?id={{$('Create Purchase Request').item.json.id}}) | [❌ Từ chối](/api/procurement/reject?id={{$('Create Purchase Request').item.json.id}})"
+      },
+      "name": "Notify Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"pr_id\": \"{{$('Create Purchase Request').item.json.id}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Purchase Request": {"main": [[{"node": "Create Purchase Request", "type": "main", "index": 0}]]},
+    "Create Purchase Request": {"main": [[{"node": "High Value? (>=20M VND)", "type": "main", "index": 0}]]},
+    "High Value? (>=20M VND)": {
+      "main": [
+        [{"node": "Get Board Approver", "type": "main", "index": 0}],
+        [{"node": "Get Manager Approver", "type": "main", "index": 0}]
+      ]
+    },
+    "Get Board Approver": {"main": [[{"node": "Notify Board", "type": "main", "index": 0}]]},
+    "Get Manager Approver": {"main": [[{"node": "Notify Manager", "type": "main", "index": 0}]]},
+    "Notify Board": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]},
+    "Notify Manager": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "procurement"}, {"name": "purchase-request"}]
+}

@@ -1,5 +1,31 @@
-{
-  "name": "IT Team Performance Dashboard",
-  "description": "Hiệu suất nhân viên IT",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Team Performance",
+  "description": "Metabase dashboard for IT Team Performance",
+  "cards": [
+    {
+      "name": "Agent Workload",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT assigned_to, COUNT(*) as open_tickets FROM hd_tickets WHERE tenant_id = {{tenant_id}} AND status = 'OPEN' AND deleted_at IS NULL GROUP BY assigned_to ORDER BY open_tickets DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Avg Resolution Time (Hours)",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT assigned_to, ROUND(AVG(EXTRACT(EPOCH FROM (closed_at - created_at))/3600), 1) as avg_hours, COUNT(*) as total FROM hd_tickets WHERE tenant_id = {{tenant_id}} AND status = 'CLOSED' AND closed_at IS NOT NULL GROUP BY assigned_to ORDER BY avg_hours",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "it-helpdesk-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

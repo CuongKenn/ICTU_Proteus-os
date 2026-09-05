@@ -1,6 +1,111 @@
 {
-  "name": "Ticket Assignment",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "CRM - Support Ticket Assignment",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/ticket-assignment",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - New Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "crm-ticket-assignment-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.username, u.mattermost_user_id FROM crm_support_agents u WHERE u.tenant_id = $1 AND u.is_available = true ORDER BY (SELECT COUNT(*) FROM crm_tickets WHERE assigned_to = u.username AND status != 'CLOSED') ASC LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Find Available Agent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.username}}", "operation": "isNotEmpty"}]
+        }
+      },
+      "name": "Agent Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO crm_tickets (tenant_id, title, description, priority, customer_id, assigned_to, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,'OPEN',NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - New Ticket').item.json.body.tenant_id}},={{$('Webhook - New Ticket').item.json.body.title}},={{$('Webhook - New Ticket').item.json.body.description}},={{$('Webhook - New Ticket').item.json.body.priority}},={{$('Webhook - New Ticket').item.json.body.customer_id}},={{$('Find Available Agent').item.json.username}}"
+        }
+      },
+      "name": "Create Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$('Find Available Agent').item.json.mattermost_user_id}}",
+        "message": "=🎫 **Ticket mới được giao cho bạn**\nTicket ID: {{$('Create Ticket').item.json.id}}\nTiêu đề: {{$('Webhook - New Ticket').item.json.body.title}}\nƯu tiên: {{$('Webhook - New Ticket').item.json.body.priority}}\nKhách hàng: {{$('Webhook - New Ticket').item.json.body.customer_id}}"
+      },
+      "name": "Notify Agent",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT channel_id FROM crm_team_config WHERE tenant_id = $1 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - New Ticket').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Default Channel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=⚠️ Không có agent khả dụng để nhận ticket: **{{$('Webhook - New Ticket').item.json.body.title}}**\nVui lòng phân công thủ công."
+      },
+      "name": "Alert No Agent",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - New Ticket": {
+      "main": [[{"node": "Find Available Agent", "type": "main", "index": 0}]]
+    },
+    "Find Available Agent": {
+      "main": [[{"node": "Agent Found?", "type": "main", "index": 0}]]
+    },
+    "Agent Found?": {
+      "main": [
+        [{"node": "Create Ticket", "type": "main", "index": 0}],
+        [{"node": "Get Default Channel", "type": "main", "index": 0}]
+      ]
+    },
+    "Create Ticket": {
+      "main": [[{"node": "Notify Agent", "type": "main", "index": 0}]]
+    },
+    "Get Default Channel": {
+      "main": [[{"node": "Alert No Agent", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "crm"}, {"name": "ticket"}]
 }

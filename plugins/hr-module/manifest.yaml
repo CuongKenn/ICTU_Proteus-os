@@ -17,6 +17,26 @@ license: "AGPL-3.0"
 icon_url: "/plugins/hr-module/icon.png"
 is_official: true
 homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
+category: "HR"
+tags:
+  - "nhân sự"
+  - "chấm công"
+  - "nghỉ phép"
+  - "tựyển dụng"
+  - "lương"
+screenshots: []
+long_description: |
+  ## HR Core Plugin
+  Cung cấp bộ công cụ quản lý nhân sự toàn diện cho doanh nghiệp.
+
+  ### Tính năng chính
+  - **Quản lý hồ sơ nhân viên**: Lưu trữ đầy đủ thông tin cá nhân, hợp đồng, bằng cấp.
+  - **Chấm công**: Theo dõi giờ làm việc hàng ngày, xuất báo cáo tựđộng.
+  - **Quản lý nghỉ phép**: Luồng đưa đơn và phê duyệt tự động qua workflow.
+  - **Onboarding**: Tự động tạo tài khoản hệ thống khi nhân viên mới vào.
+
+# Không cần credentials bên ngoài — plugin hoạt động hoàn toàn trong nội bộ hệ thống
+credentials_schema: []
 
 # ════════════════════════════════════════════════
 # PHẦN 2: COMPATIBILITY
@@ -158,3 +178,18 @@ dependencies:
     - plugin: "finance-module"
       reason: "Finance Module có thể subscribe event hr.employee.created để tạo tài khoản lương tự động"
       min_version: "1.0.0"
+
+# ════════════════════════════════════════════════
+# CHANGELOG
+# ════════════════════════════════════════════════
+changelog:
+  - version: "1.1.0"
+    date: "2026-09-05"
+    changes:
+      - "Thêm credentials_schema, category, tags vào manifest"
+      - "Hỗ trợ long_description hiển thị trên Plugin Detail page"
+  - version: "1.0.0"
+    date: "2026-07-01"
+    changes:
+      - "Phát hành chính thức HR Core Plugin"
+      - "Chức năng: quản lý nhân viên, chấm công, nghỉ phép, onboarding"

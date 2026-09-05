@@ -9,7 +9,7 @@ import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import { usePlugins } from "@/hooks/usePlugins";
-import type { PluginInfo, InstallTaskStatus } from "@/types";
+import type { PluginInfo, InstallTaskStatus, CredentialInput } from "@/types";
 import type { PluginStatus } from "@/components/ui/PluginCard";
 
 interface UseMarketplaceReturn {
@@ -21,7 +21,7 @@ interface UseMarketplaceReturn {
   installingId: string | null;
   installProgress: number;
   installStatus: PluginStatus | null;
-  installPlugin: (pluginId: string) => Promise<void>;
+  installPlugin: (pluginId: string, credentials?: CredentialInput[]) => Promise<void>;
   uninstallPlugin: (pluginId: string) => Promise<void>;
 }
 
@@ -107,13 +107,17 @@ export function useMarketplace(): UseMarketplaceReturn {
     try {
       const response = await api.get<InstallTaskStatus>(`/plugins/install/${taskId}/status`);
       const statusData = response.data;
-      
+
       if (statusData) {
+        // Tính progress từ steps thực tế
         let progress = 0;
         if (statusData.steps && statusData.steps.length > 0) {
-          const completedSteps = statusData.steps.filter(s => s.status === "DONE").length;
-          progress = (completedSteps / statusData.steps.length) * 100;
+          const completedSteps = statusData.steps.filter(
+            (s) => s.status === "DONE"
+          ).length;
+          progress = Math.round((completedSteps / statusData.steps.length) * 100);
         } else {
+          // Fallback khi steps rỗng
           setInstallProgress((prev) => Math.min(prev + 10, 90));
         }
 
@@ -121,7 +125,9 @@ export function useMarketplace(): UseMarketplaceReturn {
           setInstallProgress(progress);
         }
 
-        if (statusData.overall_status === "COMPLETED") {
+        // Check terminal status — dùng overall_status từ API mới
+        const overallStatus = statusData.overall_status;
+        if (overallStatus === "ACTIVE" || overallStatus === "COMPLETED") {
           setInstallProgress(100);
           setInstallStatus("active");
           useNotificationStore.getState().addToast("success", "Cài đặt Plugin thành công!");
@@ -131,7 +137,11 @@ export function useMarketplace(): UseMarketplaceReturn {
             setInstallStatus(null);
             setInstallProgress(0);
           }, 2000);
-        } else if (statusData.overall_status === "FAILED" || statusData.overall_status === "ROLLING_BACK") {
+        } else if (
+          overallStatus === "FAILED_DIRTY" ||
+          overallStatus === "FAILED" ||
+          overallStatus === "ROLLING_BACK"
+        ) {
           setInstallStatus("failed");
           useNotificationStore.getState().addToast("error", "Cài đặt Plugin thất bại.");
           if (pollingRef.current) clearInterval(pollingRef.current);
@@ -148,7 +158,7 @@ export function useMarketplace(): UseMarketplaceReturn {
     }
   }, []);
 
-  const installPlugin = useCallback(async (pluginId: string) => {
+  const installPlugin = useCallback(async (pluginId: string, credentials?: CredentialInput[]) => {
     // Clear interval cũ nếu có
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -160,7 +170,7 @@ export function useMarketplace(): UseMarketplaceReturn {
     setInstallStatus("installing");
 
     try {
-      const data = await install(pluginId);
+      const data = await install(pluginId, credentials);
       if (data?.task_id) {
         pollingRef.current = setInterval(() => {
           pollStatus(data.task_id, pluginId);

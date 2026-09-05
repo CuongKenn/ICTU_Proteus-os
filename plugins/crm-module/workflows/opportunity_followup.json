@@ -1,6 +1,74 @@
 {
-  "name": "Opportunity Follow-up",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "CRM - Opportunity Follow-up",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "hours", "hoursInterval": 24}]}
+      },
+      "name": "Schedule - Daily 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.title, o.contact_name, o.contact_email, o.assigned_to, o.last_activity_at, c.channel_id FROM crm_opportunities o JOIN crm_team_config c ON o.tenant_id = c.tenant_id WHERE o.status IN ('OPEN','NEGOTIATING') AND o.last_activity_at < NOW() - INTERVAL '3 days' AND o.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Find Stale Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Has Stale?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split By Opportunity",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=⚠️ **Cơ hội cần theo dõi**\nTiêu đề: {{$json.title}}\nKhách hàng: {{$json.contact_name}}\nAssign: {{$json.assigned_to}}\nHoạt động cuối: {{$json.last_activity_at}}\n\n👉 Hãy liên hệ ngay!"
+      },
+      "name": "Notify Sales Rep",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Daily 8AM": {
+      "main": [[{"node": "Find Stale Opportunities", "type": "main", "index": 0}]]
+    },
+    "Find Stale Opportunities": {
+      "main": [[{"node": "Has Stale?", "type": "main", "index": 0}]]
+    },
+    "Has Stale?": {
+      "main": [[{"node": "Split By Opportunity", "type": "main", "index": 0}]]
+    },
+    "Split By Opportunity": {
+      "main": [[{"node": "Notify Sales Rep", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "crm"}, {"name": "follow-up"}]
 }
