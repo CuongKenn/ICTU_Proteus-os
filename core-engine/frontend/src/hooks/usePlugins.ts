@@ -61,8 +61,8 @@ export function usePlugins(): UsePluginsReturn {
 
   const install = useCallback(async (pluginId: string) => {
     try {
-      const response = await api.post<{ data: { task_id: string } }>(`/plugins/${pluginId}/install`, {});
-      return response.data.data;
+      const response = await api.post<{ task_id: string }>(`/plugins/${pluginId}/install`, {});
+      return response.data;
     } catch (err) {
       throw err;
     }

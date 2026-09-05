@@ -105,8 +105,8 @@ export function useMarketplace(): UseMarketplaceReturn {
 
   const pollStatus = useCallback(async (taskId: string, pluginId: string) => {
     try {
-      const response = await api.get<{ data: InstallTaskStatus }>(`/plugins/install/${taskId}/status`);
-      const statusData = response.data.data;
+      const response = await api.get<InstallTaskStatus>(`/plugins/install/${taskId}/status`);
+      const statusData = response.data;
       
       if (statusData) {
         let progress = 0;
