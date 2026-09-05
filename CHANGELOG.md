@@ -6,6 +6,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-09-05)
 ### Fixed
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Khắc phục lỗi sai tên cột (`updated_at` thành `last_updated_at`) khi tương tác với bảng `tenant_plugins` trong Database, gây ra `UndefinedColumnError` làm Crash tiến trình Background Plugin Installation.
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi Dependency Injection trong endpoint `GET /plugins/install/{task_id}/status`: Thay vì truy cập `request.app.state.plugin_repo` (gây lỗi 500 `AttributeError`), đã chuyển sang sử dụng `Depends(get_plugin_repo)`.
 - **[core-engine/frontend/src/app/marketplace]** Khắc phục lỗi 403 Forbidden khi cài đặt Plugin (issue `installPlugin`) do truyền nhầm tham số `code_name` thay vì `plugin_id` (UUID).
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Bổ sung cơ chế bypass quyền truy cập (permissions check) cho tài khoản Super Admin (`admin@proteus.local`) để sửa lỗi thiếu vai trò `tenant_admin` trong JWT token từ Keycloak.

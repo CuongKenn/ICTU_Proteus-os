@@ -135,7 +135,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "status = EXCLUDED.status, "
                 "installed_version = COALESCE(EXCLUDED.installed_version, tenant_plugins.installed_version), "
                 "install_error_log = EXCLUDED.install_error_log, "
-                "updated_at = NOW()"
+                "last_updated_at = NOW()"
             ),
             {
                 "tenant_id": tenant_id,
@@ -164,7 +164,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET status = :status, install_error_log = :error_log, updated_at = NOW() "
+                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -184,7 +184,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET config_override = :config, updated_at = NOW() "
+                "SET config_override = :config, last_updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {

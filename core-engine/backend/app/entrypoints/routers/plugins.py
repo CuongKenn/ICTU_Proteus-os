@@ -94,19 +94,23 @@ async def _run_install_plugin_background(
     from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
     from app.infrastructure.database import AsyncSessionLocal
 
-    async with AsyncSessionLocal() as session:
-        repo = SQLAlchemyPluginRepository(session=session)
-        use_case = PluginInstallUseCase(
-            plugin_repo=repo,
-            manifest_parser=LocalManifestParser(),
-            n8n_adapter=N8nAdapter(client=app_state.http_client),
-            metabase_adapter=MetabaseAdapter(client=app_state.http_client),
-            appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
-            keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
-            mattermost_adapter=MattermostAdapter(client=app_state.http_client),
-            session=session,
-        )
-        await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = SQLAlchemyPluginRepository(session=session)
+            use_case = PluginInstallUseCase(
+                plugin_repo=repo,
+                manifest_parser=LocalManifestParser(),
+                n8n_adapter=N8nAdapter(client=app_state.http_client),
+                metabase_adapter=MetabaseAdapter(client=app_state.http_client),
+                appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
+                keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
+                mattermost_adapter=MattermostAdapter(client=app_state.http_client),
+                session=session,
+            )
+            await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
+    except Exception as e:
+        logger.error(f"Background task plugin install failed: {e}", exc_info=True)
+
 
 
 @router.post(
