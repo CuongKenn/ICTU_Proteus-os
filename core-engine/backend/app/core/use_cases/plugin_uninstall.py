@@ -17,6 +17,7 @@ from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
     AbstractAnalyticsPort,
     AbstractChatOpsPort,
+    AbstractEventBusPort,
     AbstractIdentityProviderPort,
     AbstractUIBuilderPort,
     AbstractWorkflowEnginePort,
@@ -47,6 +48,7 @@ class PluginUninstallUseCase:
         keycloak_adapter: AbstractIdentityProviderPort,
         mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
+        event_bus: AbstractEventBusPort | None = None,
         tenant_repo=None,  # Added for backwards compatibility during refactor
     ) -> None:
         self.plugin_repo = plugin_repo
@@ -57,6 +59,7 @@ class PluginUninstallUseCase:
         self.keycloak_adapter = keycloak_adapter
         self.mattermost_adapter = mattermost_adapter
         self.session = session
+        self.event_bus = event_bus
         self.tenant_repo = tenant_repo
 
     async def uninstall_plugin(
@@ -66,6 +69,10 @@ class PluginUninstallUseCase:
         plugin = await self.plugin_repo.get_by_id(plugin_id)
         if not plugin:
             raise PluginUninstallError("Plugin không tồn tại trong hệ thống.")
+
+        tenant = None
+        if getattr(self, "tenant_repo", None):
+            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
 
         if plugin.status is None:
             raise PluginUninstallError(
@@ -150,11 +157,24 @@ class PluginUninstallUseCase:
             # Notify Mattermost
             try:
                 msg = f"🗑 Đã GỠ CÀI ĐẶT thành công Plugin **{manifest.display_name}**."
-                await self.mattermost_adapter.send_message(
-                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                channel_id = (
+                    tenant.notify_channel_id or settings.MATTERMOST_SYSTEM_CHANNEL_ID
+                    if tenant
+                    else settings.MATTERMOST_SYSTEM_CHANNEL_ID
                 )
+                await self.mattermost_adapter.send_message(channel_id, msg)
             except Exception:
                 pass
+
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        tenant_id=str(context.tenant_id),
+                        plugin_id=str(plugin.id),
+                        event_type="plugin.uninstalled",
+                    )
+                except Exception as ex:
+                    logger.warning("Failed to publish plugin.uninstalled event: %s", ex)
 
         except Exception as e:
             logger.error(
@@ -175,11 +195,24 @@ class PluginUninstallUseCase:
 
             try:
                 msg = f"❌ Lỗi khi gỡ cài đặt Plugin **{manifest.display_name}**: {e}"
-                await self.mattermost_adapter.send_message(
-                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                channel_id = (
+                    tenant.notify_channel_id or settings.MATTERMOST_SYSTEM_CHANNEL_ID
+                    if tenant
+                    else settings.MATTERMOST_SYSTEM_CHANNEL_ID
                 )
+                await self.mattermost_adapter.send_message(channel_id, msg)
             except Exception:
                 pass
+
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        tenant_id=str(context.tenant_id),
+                        plugin_id=str(plugin.id),
+                        event_type="plugin.failed",
+                    )
+                except Exception as ex:
+                    logger.warning("Failed to publish plugin.failed event: %s", ex)
 
             raise PluginUninstallError(f"Gỡ cài đặt plugin thất bại: {e}") from e
 
@@ -207,10 +240,15 @@ class PluginUninstallUseCase:
     ) -> None:
         """Xóa roles khỏi Keycloak."""
         keycloak_realm = "proteus"
+        tenant = None
         if self.tenant_repo:
-            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
-            if tenant:
-                keycloak_realm = tenant.keycloak_realm
+            try:
+                if not tenant:
+                    tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+                if tenant:
+                    keycloak_realm = tenant.keycloak_realm
+            except Exception:
+                pass
 
         for role in manifest.roles:
             # Lấy admin token

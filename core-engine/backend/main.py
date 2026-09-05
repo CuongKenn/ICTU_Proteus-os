@@ -18,6 +18,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app import __version__
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -27,10 +28,12 @@ from app.adapters.external.n8n_adapter import N8nAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
+from app.adapters.repositories.hr_leave_repo import SQLAlchemyHRLeaveRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain import exceptions as domain_exc
 from app.core.use_cases.ai_timeout_worker import AITimeoutWorker
 from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
+from app.core.use_cases.proactive_monitor import ProactiveMonitorAgent
 from app.entrypoints.routers import (
     ai,
     auth,
@@ -56,7 +59,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info(
         "Proteus OS Backend starting",
-        extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
+        extra={"environment": settings.ENVIRONMENT, "version": __version__},
     )
     # Khởi tạo các global clients
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
@@ -75,12 +78,13 @@ async def lifespan(app: FastAPI):
                 agent = PluginCleanupAgent(
                     plugin_repo=plugin_repo,
                     manifest_parser=LocalManifestParser(),
-                    n8n_adapter=N8nAdapter(),
-                    metabase_adapter=MetabaseAdapter(),
-                    appsmith_adapter=AppsmithAdapter(),
-                    keycloak_adapter=KeycloakAdapter(),
+                    n8n_adapter=N8nAdapter(client=app.state.http_client),
+                    metabase_adapter=MetabaseAdapter(client=app.state.http_client),
+                    appsmith_adapter=AppsmithAdapter(client=app.state.http_client),
+                    keycloak_adapter=KeycloakAdapter(client=app.state.http_client),
                     mattermost_adapter=MattermostAdapter(client=app.state.http_client),
                     session=session,
+                    event_bus=app.state.redis_event_bus,
                 )
                 await agent.run()
                 logger.info("Plugin cleanup job completed successfully.")
@@ -129,12 +133,11 @@ async def lifespan(app: FastAPI):
     async def sync_marketplace_plugins() -> None:
         """Scan local plugins directory and upsert into plugins table."""
         try:
-            from app.adapters.external.local_manifest_parser import LocalManifestParser
             from sqlalchemy import text
             parser = LocalManifestParser()
             plugins_dir = parser.plugins_dir
             if not plugins_dir.exists():
-                logger.warning(f"Plugins directory {plugins_dir} not found.")
+                logger.warning("Plugins directory %s not found.", plugins_dir)
                 return
 
             async with AsyncSessionLocal() as session:
@@ -171,22 +174,84 @@ async def lifespan(app: FastAPI):
                             }
                         )
                     except Exception as e:
-                        logger.warning(f"Failed to sync plugin {plugin_path.name}: {e}")
-                
+                        logger.warning("Failed to sync plugin %s: %s", plugin_path.name, e)
+
                 await session.commit()
                 logger.info("Marketplace plugins synced successfully.")
         except Exception as e:
-            logger.error("Failed to sync marketplace plugins", exc_info=True)
+            logger.error("Failed to sync marketplace plugins: %s", e, exc_info=True)
 
     # Sync Marketplace Plugins on Startup
     await sync_marketplace_plugins()
+
+    async def run_proactive_monitor_scan() -> None:
+        """Proactive Monitor: Quét và cảnh báo 30 phút/lần."""
+        try:
+            async with AsyncSessionLocal() as session:
+                plugin_repo = SQLAlchemyPluginRepository(session=session)
+                ai_command_repo = SQLAlchemyAICommandRepository(session=session)
+                hr_leave_repo = SQLAlchemyHRLeaveRepository(session=session)
+                mattermost_adapter = MattermostAdapter(client=app.state.http_client)
+                agent = ProactiveMonitorAgent(
+                    plugin_repo=plugin_repo,
+                    ai_command_repo=ai_command_repo,
+                    hr_leave_repo=hr_leave_repo,
+                    mattermost_adapter=mattermost_adapter,
+                )
+                await agent.scan_and_alert_every_30m()
+        except Exception as e:
+            logger.error(
+                "Proactive Monitor (Scan) FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
+
+    async def run_proactive_monitor_morning() -> None:
+        """Proactive Monitor: Báo cáo sáng 7:00 AM."""
+        try:
+            async with AsyncSessionLocal() as session:
+                plugin_repo = SQLAlchemyPluginRepository(session=session)
+                ai_command_repo = SQLAlchemyAICommandRepository(session=session)
+                hr_leave_repo = SQLAlchemyHRLeaveRepository(session=session)
+                mattermost_adapter = MattermostAdapter(client=app.state.http_client)
+                agent = ProactiveMonitorAgent(
+                    plugin_repo=plugin_repo,
+                    ai_command_repo=ai_command_repo,
+                    hr_leave_repo=hr_leave_repo,
+                    mattermost_adapter=mattermost_adapter,
+                )
+                await agent.morning_report()
+        except Exception as e:
+            logger.error(
+                "Proactive Monitor (Morning) FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
+
+    # Chạy cleanup mỗi 10 phút
+    scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
 
     # Chạy timeout worker mỗi 5 phút
     scheduler.add_job(
         run_ai_timeout_worker, "interval", minutes=5, id="ai_timeout_worker"
     )
+    # Chạy proactive monitor scan mỗi 30 phút
+    scheduler.add_job(
+        run_proactive_monitor_scan, "interval", minutes=30, id="proactive_monitor_scan"
+    )
+    # Chạy proactive monitor morning report lúc 7:00 AM
+    scheduler.add_job(
+        run_proactive_monitor_morning,
+        "cron",
+        hour=7,
+        minute=0,
+        id="proactive_monitor_morning",
+    )
     scheduler.start()
-    logger.info("Đã khởi động APScheduler, Plugin Cleanup Agent và AI Timeout Worker.")
+    logger.info(
+        "Đã khởi động APScheduler, Plugin Cleanup Agent, AI Timeout Worker "
+        "và Proactive Monitor Agent."
+    )
 
     # Load Python extensions for plugins
     from app.core.dynamic_loader import DynamicPluginLoader
@@ -212,7 +277,7 @@ app = FastAPI(
         "API trung tâm của nền tảng Proteus OS. "
         "Tham chiếu đầy đủ: docs/api-swagger.yaml"
     ),
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
     docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
     redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
@@ -260,17 +325,15 @@ async def proteus_exception_handler(
 
     status_code = status.HTTP_400_BAD_REQUEST
 
-    if isinstance(
-        exc, (domain_exc.TenantNotFoundError, domain_exc.PluginNotFoundError)
-    ):
+    if isinstance(exc, domain_exc.TenantNotFoundError | domain_exc.PluginNotFoundError):
         status_code = status.HTTP_404_NOT_FOUND
     elif isinstance(
         exc,
-        (domain_exc.InsufficientPermissionsError, domain_exc.DSLPermissionDeniedError),
+        domain_exc.InsufficientPermissionsError | domain_exc.DSLPermissionDeniedError,
     ):
         status_code = status.HTTP_403_FORBIDDEN
     elif isinstance(
-        exc, (domain_exc.PluginAlreadyInstalledError, domain_exc.PathConflictError)
+        exc, domain_exc.PluginAlreadyInstalledError | domain_exc.PathConflictError
     ):
         status_code = status.HTTP_409_CONFLICT
 

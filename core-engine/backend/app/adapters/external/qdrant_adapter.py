@@ -28,7 +28,7 @@ class QdrantAdapter(AbstractVectorDBPort):
         # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung
         self.client = qdrant_client or AsyncQdrantClient(url=settings.QDRANT_URL)
         # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
-        # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small cho đa ngôn ngữ.
+        # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small.
         self.dense_model = "intfloat/multilingual-e5-small"
         self.sparse_model = "Qdrant/bm25"
         self.collection_name = "knowledge_base"
@@ -37,6 +37,10 @@ class QdrantAdapter(AbstractVectorDBPort):
         # Cấu hình embedding models
         self.client.set_model(self.dense_model)
         self.client.set_sparse_model(self.sparse_model)
+
+    async def aclose(self) -> None:
+        """Đóng kết nối Qdrant client."""
+        await self.client.close()
 
     async def _ensure_collection_exists(self):
         """Khởi tạo collection nếu chưa tồn tại"""
@@ -67,7 +71,7 @@ class QdrantAdapter(AbstractVectorDBPort):
                 meta["tenant_id"] = tenant_id
 
             # fastembed client tự động sinh text embeddings và sparse vectors
-            # uuid generation cho id nếu cần, nhưng .add() có thể tự sinh id hoặc ta truyền metadata.
+            # uuid generation cho id nếu cần, nhưng .add() có thể tự sinh id.
             await self.client.add(
                 collection_name=self.collection_name,
                 documents=chunks,
@@ -75,7 +79,7 @@ class QdrantAdapter(AbstractVectorDBPort):
             )
         except Exception as e:
             logger.error("Error upserting vectors to Qdrant: %s", e)
-            raise QdrantAdapterError(f"Upsert failed: {str(e)}")
+            raise QdrantAdapterError(f"Upsert failed: {str(e)}") from e
 
     async def search(
         self,
@@ -103,7 +107,7 @@ class QdrantAdapter(AbstractVectorDBPort):
 
             tenant_filter = Filter(must=must_conditions)
 
-            # query method của fastembed client hỗ trợ query_text và tự động tính hybrid RRF
+            # query method của fastembed client hỗ trợ query_text và hybrid RRF
             results = await self.client.query(
                 collection_name=self.collection_name,
                 query_text=query,
@@ -126,7 +130,7 @@ class QdrantAdapter(AbstractVectorDBPort):
             return formatted_results
         except Exception as e:
             logger.error("Error executing hybrid search in Qdrant: %s", e)
-            raise QdrantAdapterError(f"Search failed: {str(e)}")
+            raise QdrantAdapterError(f"Search failed: {str(e)}") from e
 
     async def delete_by_tenant(self, tenant_id: str) -> bool:
         """
@@ -147,4 +151,4 @@ class QdrantAdapter(AbstractVectorDBPort):
             return True
         except Exception as e:
             logger.error("Error deleting tenant data from Qdrant: %s", e)
-            raise QdrantAdapterError(f"Delete failed: {str(e)}")
+            raise QdrantAdapterError(f"Delete failed: {str(e)}") from e

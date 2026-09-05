@@ -5,8 +5,17 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -56,7 +65,7 @@ class TenantModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "tenants"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    domain: Mapped[str] = mapped_column(
+    slug: Mapped[str] = mapped_column(
         String(255), nullable=False, unique=True, index=True
     )
     keycloak_realm: Mapped[str] = mapped_column(
@@ -64,6 +73,7 @@ class TenantModel(BaseModel, SoftDeleteMixin):
     )
     plan: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notify_channel_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Relationships
     users: Mapped[list["UserModel"]] = relationship(
@@ -207,6 +217,9 @@ class PluginModel(BaseModel, SoftDeleteMixin):
 
 class TenantPluginModel(BaseModel, SoftDeleteMixin):
     __tablename__ = "tenant_plugins"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin"),
+    )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

@@ -56,16 +56,18 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         )
 
     async def create_command(self, command_data: dict) -> uuid.UUID:
+        data = dict(command_data)
+        data.pop("session_id", None)
         now = datetime.now(UTC)
-        if "created_at" not in command_data:
-            command_data["created_at"] = now
+        if "created_at" not in data:
+            data["created_at"] = now
 
-        columns = ", ".join(command_data.keys())
-        placeholders = ", ".join(f":{k}" for k in command_data.keys())
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join(f":{k}" for k in data.keys())
         sql = text(
             f"INSERT INTO ai_commands ({columns}) VALUES ({placeholders}) RETURNING id"
         )
-        result = await self._session.execute(sql, command_data)
+        result = await self._session.execute(sql, data)
         return result.scalar()
 
     async def get_command_by_id(
@@ -94,10 +96,10 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
             updates.append("status = :status")
             params["status"] = status
         if approved_by is not None:
-            updates.append("approved_by = :approved_by")
+            updates.append("approved_by_user_id = :approved_by")
             params["approved_by"] = approved_by
         if second_approver is not None:
-            updates.append("second_approver = :second_approver")
+            updates.append("second_approver_id = :second_approver")
             params["second_approver"] = second_approver
 
         sql_update = text(

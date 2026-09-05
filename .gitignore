@@ -1,3 +1,4 @@
 node_modules/
 .next/
 deploy/scratch/
+*.tsbuildinfo

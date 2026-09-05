@@ -109,16 +109,17 @@ async def test_get_user_permissions(role_repo, mock_session):
     mock_result = MagicMock()
     mock_session.execute.return_value = mock_result
 
-    # Giả lập trả về các list permissions từ database
+    # Giả lập trả về các format permissions từ database (list, dict boolean, dict allowed, None)
     mock_result.all.return_value = [
         (["users:read", "plugins:read"],),
-        (["users:write"],),
+        ({"users:write": True, "users:delete": False},),
+        ({"allowed": ["audit:read"]},),
         (None,),  # Trường hợp không có permissions
         ([],),
     ]
 
     result = await role_repo.get_user_permissions(user_id)
 
-    assert set(result) == {"users:read", "users:write", "plugins:read"}
+    assert set(result) == {"users:read", "users:write", "plugins:read", "audit:read"}
     mock_session.execute.assert_called_once()
     mock_result.all.assert_called_once()

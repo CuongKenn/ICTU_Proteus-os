@@ -68,3 +68,50 @@ async def test_retrieve_context(mock_qdrant, mock_redis):
     assert kwargs["tenant_id"] == "tenant-1"
     assert kwargs["query"] == "1234-5678"
     assert kwargs["filters"] == {"pointer_uuid": "1234-5678"}
+
+
+import uuid
+from unittest.mock import patch
+
+from httpx import AsyncClient
+
+from app.core.domain.entities import TenantContext
+from app.entrypoints.dependencies import get_current_tenant_context
+from main import app
+
+
+@pytest.mark.asyncio
+async def test_transmit_ipc_endpoint_reuses_singleton_redis(mock_qdrant, mock_redis):
+    app.state.qdrant_client = AsyncMock()
+    app.state.redis_event_bus = mock_redis
+
+    tenant_id = uuid.uuid4()
+
+    async def mock_ctx():
+        return TenantContext(
+            tenant_id=tenant_id,
+            user_id=uuid.uuid4(),
+            roles=["tenant_admin"],
+        )
+
+    app.dependency_overrides[get_current_tenant_context] = mock_ctx
+
+    with patch(
+        "app.adapters.external.qdrant_adapter.QdrantAdapter", return_value=mock_qdrant
+    ):
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/ai/ipc/transmit",
+                json={
+                    "source_agent": "hr",
+                    "target_agent": "finance",
+                    "context_data": "shared context data",
+                },
+                headers={"Authorization": "Bearer fake"},
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "pointer_uuid" in data
+    mock_redis.publish.assert_called_once()
+    app.dependency_overrides.clear()

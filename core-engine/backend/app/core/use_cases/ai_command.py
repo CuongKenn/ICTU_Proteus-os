@@ -20,6 +20,7 @@ from app.adapters.repositories.base import (
 from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.domain.ports import AbstractChatOpsPort, AbstractWorkflowEnginePort
+from app.core.use_cases.dsl_dry_run import DSLDryRunEngine
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.infrastructure.config import settings
 
@@ -58,6 +59,7 @@ class AICommandUseCase:
         self.role_repo = role_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
+        self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
 
     async def execute(
         self, body: AICommandDTO, ctx: TenantContext
@@ -92,7 +94,6 @@ class AICommandUseCase:
                         "id": body.command_id,
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
-                        "session_id": body.session_id,
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
@@ -121,7 +122,6 @@ class AICommandUseCase:
                         "id": body.command_id,
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
-                        "session_id": body.session_id,
                         "dsl_version": body.dsl_version,
                         "action": body.action,
                         "effect": body.effect,
@@ -143,11 +143,9 @@ class AICommandUseCase:
 
         # Dry run preview
         try:
-            target_table = (
-                body.action.split(".")[1] if "." in body.action else "unknown"
-            )
-            dry_run_res = await self.dsl_dry_run_repo.execute_dry_run(
-                tenant_id=str(ctx.tenant_id), target_table=target_table
+            dry_run_res = await self.dry_run_engine.execute_dry_run(
+                tenant_id=str(ctx.tenant_id),
+                dsl_payload={"action": body.action, "effect": body.effect},
             )
         except Exception:
             dry_run_res = {"preview": "Không thể thực hiện dry run"}
@@ -158,7 +156,6 @@ class AICommandUseCase:
                 "id": body.command_id,
                 "tenant_id": ctx.tenant_id,
                 "issued_by_user_id": ctx.user_id,
-                "session_id": body.session_id,
                 "dsl_version": body.dsl_version,
                 "action": body.action,
                 "effect": body.effect,
@@ -206,6 +203,16 @@ class AICommandUseCase:
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
             return False
 
+        if (
+            cmd.get("approval_deadline")
+            and datetime.now(UTC) > cmd["approval_deadline"]
+        ):
+            await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id, status="TIMEOUT"
+            )
+            await self.ai_command_repo.commit()
+            return False
+
         is_approved = False
         if action_taken == "reject":
             await self.ai_command_repo.update_command_approval(
@@ -215,13 +222,13 @@ class AICommandUseCase:
             return True
 
         if cmd["effect"] == "critical":
-            if not cmd["approved_by"]:
+            if not cmd.get("approved_by_user_id"):
                 await self.ai_command_repo.update_command_approval(
                     cmd_id=cmd_id, approved_by=approver_id
                 )
                 await self.ai_command_repo.commit()
                 return True
-            elif str(cmd["approved_by"]) != str(approver_id):
+            elif str(cmd.get("approved_by_user_id")) != str(approver_id):
                 await self.ai_command_repo.update_command_approval(
                     cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
                 )
@@ -244,7 +251,9 @@ class AICommandUseCase:
                 )
             except Exception as e:
                 logger.error(
-                    f"Failed to trigger n8n after approval for command {cmd_id}: {e}"
+                    "Failed to trigger n8n after approval for command %s: %s",
+                    cmd_id,
+                    e,
                 )
 
         return True

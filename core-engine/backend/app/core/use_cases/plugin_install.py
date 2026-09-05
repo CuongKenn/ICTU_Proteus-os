@@ -80,8 +80,12 @@ class PluginInstallUseCase:
         self._steps_log = []
         self._credential_ids = []
 
-        # 1. Fetch plugin metadata
+        # 1. Fetch plugin metadata and tenant
         plugin = await self.plugin_repo.get_by_code_name(plugin_code_name)
+        tenant = None
+        if getattr(self, "tenant_repo", None):
+            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+
         if not plugin:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' không tồn tại trên Marketplace."
@@ -203,10 +207,12 @@ class PluginInstallUseCase:
                     f"✅ Đã cài đặt thành công Plugin "
                     f"**{manifest.display_name}** ({manifest.version})."
                 )
-                # TODO: get tenant's notify channel from config
-                await self.mattermost_adapter.send_message(
-                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                channel_id = (
+                    tenant.notify_channel_id or settings.MATTERMOST_SYSTEM_CHANNEL_ID
+                    if tenant
+                    else settings.MATTERMOST_SYSTEM_CHANNEL_ID
                 )
+                await self.mattermost_adapter.send_message(channel_id, msg)
             except Exception as e:
                 logger.warning("Đang bỏ qua thông báo Mattermost: %s", e)
 
@@ -250,9 +256,12 @@ class PluginInstallUseCase:
             # Notify Mattermost (Best effort)
             try:
                 msg = f"❌ Lỗi cài đặt Plugin **{manifest.display_name}**: {e}"
-                await self.mattermost_adapter.send_message(
-                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                channel_id = (
+                    tenant.notify_channel_id or settings.MATTERMOST_SYSTEM_CHANNEL_ID
+                    if tenant
+                    else settings.MATTERMOST_SYSTEM_CHANNEL_ID
                 )
+                await self.mattermost_adapter.send_message(channel_id, msg)
             except Exception:
                 pass
 
@@ -515,10 +524,16 @@ class PluginInstallUseCase:
                     pass
                 elif step == "keycloak":
                     if hasattr(self.keycloak_adapter, "delete_role"):
+                        keycloak_realm = "proteus"
+                        if self.tenant_repo:
+                            tenant = await self.tenant_repo.get_by_id(context.tenant_id)
+                            if tenant:
+                                keycloak_realm = tenant.keycloak_realm
+
                         roles = created_assets.get("keycloak", [])
                         for role_name in reversed(roles):
                             await self.keycloak_adapter.delete_role(
-                                realm="proteus",
+                                realm=keycloak_realm,
                                 role_name=role_name,
                             )
                 elif step == "appsmith":

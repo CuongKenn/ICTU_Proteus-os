@@ -84,11 +84,44 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/setup.ps1, deploy/setup.sh]** Tự động đồng bộ toàn bộ Keycloak OIDC client secrets (`outline`, `n8n`, `appsmith`, `proteus-bff`) từ PostgreSQL vào `.env` — loại bỏ bước thủ công "Copy từ Keycloak UI".
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+### Added
+- **[core-engine/backend]** Bổ sung trường `notify_channel_id` vào `TenantModel` và luồng cài đặt Plugin để hỗ trợ Data Isolation, cho phép cấu hình kênh thông báo riêng biệt cho từng Tenant thay vì dùng chung System Channel (Issue #560).
+### Security
+- **[core-engine/backend]** Vá lỗ hổng SQL Injection tiềm ẩn trong TenantRepository.update() (Issue #520).
+### Changed
+- **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
+<<<<<<< HEAD
 - **[deploy/setup.ps1]** Fix lỗi Crash Loop trong luồng Zero-Touch Provisioning (ZTP) khi API khởi tạo Mattermost Bot/Webhook trả về mã lỗi 400 (Bad Request). Wrap các HTTP call bằng cấu trúc try-catch, bỏ qua các lỗi không nghiêm trọng để luồng script có thể chạy Idempotent. Cập nhật timeout và fix lỗi n8n API.
 - **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Metabase (tạo db `metabase`) để khắc phục lỗi khởi tạo `databasechangelog` do trùng lặp schema với Core Data khiến Metabase v0.50 văng lỗi 502 Bad Gateway.
 - **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Outline (tạo db `outline`), xóa bỏ biến môi trường `DATABASE_SCHEMA` để khắc phục lỗi xung đột khi Sequelize tạo bảng nhầm vào `public` thay vì `outline`, gây lỗi 404 Crash-loop.
 - **[deploy/docker-compose.yml, deploy/.env.example]** Cập nhật `PGSSLMODE=disable` cho Outline để fix lỗi kết nối HTTPS với Postgres nội bộ. Generate các biến môi trường cấu hình `SECRET_KEY` bằng định dạng 32-byte HEX để tránh lỗi invalid config từ Outline container.
+=======
+- **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).
+- **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Sửa lỗi format của JWT khi tạo Metabase Signed Embed URL (Issue #549).
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật logic `_rollback()` lấy `keycloak_realm` từ CSDL thay vì hardcode chuỗi `"proteus"` để ngăn chặn xóa nhầm Keycloak role khi cài đặt plugin thất bại (Issue #534).
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Bổ sung kiểm tra `approval_deadline` trong `process_approval()` để ngăn chặn việc phê duyệt trễ hạn (Issue #539).
+- **[core-engine/backend/app/infrastructure/rate_limiter.py]** Sửa lỗi Rate Limiter chặn nhầm toàn bộ requests khi deploy sau Traefik reverse proxy bằng cách sử dụng `X-Forwarded-For` header để xác định đúng IP của client (Issue #537).
+- **[core-engine/backend]** Sửa lỗi SQL Error do truyền cột không tồn tại `session_id` khi insert vào bảng `ai_commands` trong `AICommandUseCase.execute()` và loại bỏ `session_id` phòng thủ trong `SQLAlchemyAICommandRepository.create_command()` (Issue #512).
+- **[core-engine/backend/app/infrastructure/models.py]** Bổ sung `UniqueConstraint("tenant_id", "plugin_id", name="uq_tenant_plugin")` vào `TenantPluginModel` kèm migration Alembic `f5b23cdff26f_add_uq_tenant_plugin.py`, cho phép câu lệnh `ON CONFLICT (tenant_id, plugin_id)` trong `upsert_installation()` thực thi chính xác (Issue #519).
+- **[core-engine/backend/app/core/use_cases]** Sửa lỗi `DSLDryRunEngine` hardcode `target_table` luôn là `hr_leave_requests`. Bổ sung đọc mapping bảng từ plugin manifest (sử dụng `LocalManifestParser`) dựa trên plugin_code, giúp dry run preview trả kết quả chính xác cho mọi plugin (Issue #541).
+- **[core-engine/backend]** Gom tập trung (centralize) khai báo version string thành `__version__` trong `app/__init__.py` và sử dụng trong toàn bộ project thay vì hardcode "0.1.0" rải rác ở `main.py` và `health.py` (Issue #536).
+- **[core-engine/backend/app/core/use_cases]** Bổ sung truyền `event_bus` (RedisEventBusPublisher) vào `PluginUninstallUseCase` và gọi `publish_plugin_lifecycle` để publish các sự kiện `plugin.uninstalled` / `plugin.failed`, đảm bảo các subscriber nhận được notification khi PluginCleanupAgent gỡ cài đặt (Issue #532).
+- **[core-engine/backend]** Tái sử dụng `httpx.AsyncClient` từ `app.state.http_client` khi khởi tạo các External Adapter (`N8nAdapter`, `MetabaseAdapter`, `AppsmithAdapter`, `KeycloakAdapter`) trong background tasks để tránh rò rỉ kết nối (Issue #521).
+- **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).
+- **[core-engine/backend/app/entrypoints/routers/ai.py]** Sửa lỗi Redis Connection Leak trong endpoint `POST /api/v1/ai/ipc/transmit` bằng cách tái sử dụng singleton `request.app.state.redis_event_bus` thay vì khởi tạo instance mới mỗi request (Issue #513).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Bổ sung khởi tạo `SQLAlchemyTenantRepository` và inject vào `PluginInstallUseCase` trong `_run_install_plugin_background()`, đảm bảo Keycloak roles của plugin được tạo đúng realm của tenant thay vì fallback về realm mặc định (Issue #518).
+- **[core-engine/backend/app/adapters/repositories/role_repo.py]** Chuẩn hóa việc xử lý cột `permissions` kiểu JSONB trong `RoleRepository.get_user_permissions()`. Hỗ trợ đầy đủ dữ liệu permissions dưới dạng list, dict boolean (`{perm: bool}`) hoặc dict wrapper (`{"allowed": [...]}`), tránh việc trích xuất sai tên key hoặc bỏ sót permission strings (Issue #516).
+- **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Sửa lỗi `DSLValidator.validate()` kiểm tra trường `dsl_version` từ `AICommandDTO` (kèm fallback sang `version`), tránh việc mọi AI Command bị từ chối với lỗi "Unsupported DSL version: None" (Issue #517).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
+
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi dữ liệu Tenant không persist vào CSDL bằng cách đổi `get_tenant_onboarding_use_case` sang inject transactional database session (`get_db_transactional`) thay vì `get_db_readonly` (Issue #514).
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi `AttributeError: 'State' object has no attribute 'plugin_repo'` trong endpoint `GET /plugins/install/{task_id}/status` bằng cách inject `AbstractPluginRepository` qua `Depends(get_plugin_repo)` (Issue #510).
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
+
+
+>>>>>>> origin/main
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
@@ -124,6 +157,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Sửa lỗi hardcode Keycloak realm ("proteus") trong bước xóa role, thay bằng ID của tenant (Issue #298).
 - **[core-engine/frontend/src/components/AppShell.tsx]** Fix lỗi `Sidebar` không tự đóng khi click ngoài vùng chọn trên thiết bị di động (Issue #291).
 ### Changed
+- **[.github/workflows/backend-ci.yml]** Nâng ngưỡng bao phủ mã (coverage threshold) cho Backend unit tests từ 10% lên 70% để đảm bảo chất lượng code.
 - **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
 - **[deploy/setup.ps1]** Bổ sung các bước Zero-Touch Provisioning (ZTP) cho môi trường Windows: tự động hóa cấu hình Mattermost (Bot/Webhook), n8n (Owner/API Key), Appsmith (Admin/API Key) và đồng bộ Keycloak/Outline Secrets thông qua PowerShell REST API.

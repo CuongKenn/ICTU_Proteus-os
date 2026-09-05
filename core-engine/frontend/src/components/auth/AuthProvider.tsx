@@ -22,8 +22,8 @@ function AuthSync() {
         email: session.user.email ?? "",
         name: session.user.name ?? "",
         image: session.user.image ?? undefined,
-        tenantId: (session.user as any).tenant_id ?? "",
-        roles: (session.user as any).roles ?? [],
+        tenantId: session.user.tenant_id ?? "",
+        roles: session.user.roles ?? [],
       });
     } else {
       clearAuth();

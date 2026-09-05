@@ -31,6 +31,9 @@ class OutlineAdapter(AbstractDocumentSourcePort):
             "Accept": "application/json",
         }
 
+    async def aclose(self) -> None:
+        pass
+
     async def list_documents(
         self, collection_id: str | None = None, offset: int = 0, limit: int = 100
     ) -> list[dict[str, Any]]:

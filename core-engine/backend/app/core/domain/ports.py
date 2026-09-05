@@ -23,6 +23,10 @@ class AbstractDocumentSourcePort(ABC):
         """Lấy danh sách documents từ nguồn."""
         pass
 
+    @abstractmethod
+    async def aclose(self) -> None:
+        pass
+
 
 # ─────────────────────────────────────────────────────────────
 # VECTOR DB PORT
@@ -51,6 +55,10 @@ class AbstractVectorDBPort(ABC):
         filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Tìm kiếm hybrid (vector + text)."""
+        pass
+
+    @abstractmethod
+    async def aclose(self) -> None:
         pass
 
 
