@@ -10,6 +10,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Security
 - **[core-engine/backend]** Vá lỗ hổng SQL Injection tiềm ẩn trong TenantRepository.update() (Issue #520).
 ### Changed
+- **[core-engine/backend]** Chuyển đổi Event Bus từ Redis Pub/Sub (fire-and-forget) sang Redis Streams (`publish_critical`) cho các sự kiện quan trọng nhằm đảm bảo tính bền bỉ (persistence). Bổ sung cơ chế Retry Exponential Backoff và Dead Letter Queue (DLQ) ghi log khi mất kết nối Redis (Issue #492).
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
 - **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).

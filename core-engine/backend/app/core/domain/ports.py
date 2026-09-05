@@ -84,5 +84,37 @@ class AbstractChatOpsPort(ABC):
 
 class AbstractEventBusPort(ABC):
     @abstractmethod
+    async def publish(
+        self,
+        event_type: str,
+        tenant_id: str,
+        plugin_source: str,
+        payload: dict[str, Any],
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def publish_critical(
+        self,
+        event_type: str,
+        tenant_id: str,
+        plugin_source: str,
+        payload: dict[str, Any],
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def publish_plugin_lifecycle(
+        self,
+        action: str,
+        tenant_id: str,
+        plugin_name: str,
+        plugin_version: str,
+        *,
+        extra_data: dict[str, Any] | None = None,
+    ) -> None:
+        pass
+
+    @abstractmethod
     async def aclose(self) -> None:
         pass
