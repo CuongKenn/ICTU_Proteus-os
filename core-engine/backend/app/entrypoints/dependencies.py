@@ -261,10 +261,17 @@ async def get_current_tenant_context(
         tenant_id = uuid.UUID(str(tenant_id_raw))
         user_id = uuid.UUID(str(user_id_raw))
     except ValueError as exc:
-        logger.error(f"UUID Parse Error. tenant_id_raw='{tenant_id_raw}', user_id_raw='{user_id_raw}'")
+        logger.error(
+            "UUID Parse Error. tenant_id_raw='%s', user_id_raw='%s'",
+            tenant_id_raw,
+            user_id_raw,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token chứa tenant_id hoặc user_id không hợp lệ: tenant_id='{tenant_id_raw}', user_id='{user_id_raw}'",
+            detail=(
+                f"Token chứa tenant_id hoặc user_id không hợp lệ: "
+                f"tenant_id='{tenant_id_raw}', user_id='{user_id_raw}'"
+            ),
         ) from exc
 
     realm_access = payload.get("realm_access", {})
@@ -372,7 +379,10 @@ def require_permission(permission: str):
         context: TenantContext = Depends(get_current_tenant_context),
         role_repo: RoleRepository = Depends(get_role_repo),
     ) -> TenantContext:
-        if any(r in context.roles for r in ["superadmin", "tenant_admin"]) or context.email == "admin@proteus.local":
+        if (
+            any(r in context.roles for r in ["superadmin", "tenant_admin"])
+            or context.email == "admin@proteus.local"
+        ):
             return context
 
         user_permissions = await role_repo.get_user_permissions(context.user_id)

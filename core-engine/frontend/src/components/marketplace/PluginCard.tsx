@@ -4,6 +4,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import clsx from "clsx";
 import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -73,7 +74,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
         {/* App Icon — dùng icon_url nếu có */}
         <div className="w-16 h-16 rounded-2xl shrink-0 bg-gradient-to-br from-bg-surface-elevated to-bg-surface border border-border/50 flex items-center justify-center shadow-inner relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
           {plugin.iconUrl ? (
-            <img src={plugin.iconUrl} alt={plugin.name} className="w-10 h-10 object-contain" />
+            <Image src={plugin.iconUrl} alt={plugin.name} width={40} height={40} className="object-contain" />
           ) : (
             <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-text-primary to-text-secondary drop-shadow-sm">
               {plugin.name.charAt(0)}

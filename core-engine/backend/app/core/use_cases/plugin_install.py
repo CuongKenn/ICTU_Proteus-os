@@ -469,7 +469,9 @@ class PluginInstallUseCase:
                     safe_name,
                     e,
                 )
-                raise PluginInstallError(f"Tạo credential '{cred_input.key}' thất bại: {e}") from e
+                raise PluginInstallError(
+                    f"Tạo credential '{cred_input.key}' thất bại: {e}"
+                ) from e
 
         return created
 
@@ -515,12 +517,14 @@ class PluginInstallUseCase:
                 entry["at"] = now_iso
                 return
         # Thêm mới
-        self._steps_log.append({
-            "step": step_name,
-            "status": status,
-            "at": now_iso,
-            "message": message,
-        })
+        self._steps_log.append(
+            {
+                "step": step_name,
+                "status": status,
+                "at": now_iso,
+                "message": message,
+            }
+        )
 
     async def _persist_steps(
         self,

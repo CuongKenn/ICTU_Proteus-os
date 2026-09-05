@@ -201,7 +201,9 @@ class PluginModel(BaseModel, SoftDeleteMixin):
     tags: Mapped[list[str]] = mapped_column(
         ARRAY(String()), nullable=True, default=list
     )
-    screenshots: Mapped[list[Any] | None] = mapped_column(JSONB, nullable=True, default=list)
+    screenshots: Mapped[list[Any] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
     """JSON array of screenshot URLs/paths."""
     long_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     credentials_schema: Mapped[list[Any] | None] = mapped_column(

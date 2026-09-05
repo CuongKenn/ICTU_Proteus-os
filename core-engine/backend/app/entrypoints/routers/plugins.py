@@ -194,10 +194,10 @@ async def _run_install_plugin_background(
     from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
     from app.infrastructure.database import AsyncSessionLocal
 
-<<<<<<< HEAD
     try:
         async with AsyncSessionLocal() as session:
             repo = SQLAlchemyPluginRepository(session=session)
+            tenant_repo = SQLAlchemyTenantRepository(session=session)
             use_case = PluginInstallUseCase(
                 plugin_repo=repo,
                 manifest_parser=LocalManifestParser(),
@@ -207,6 +207,7 @@ async def _run_install_plugin_background(
                 keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
                 mattermost_adapter=MattermostAdapter(client=app_state.http_client),
                 session=session,
+                tenant_repo=tenant_repo,
             )
             await use_case.execute(
                 context=ctx,
@@ -215,23 +216,6 @@ async def _run_install_plugin_background(
             )
     except Exception as e:
         logger.error(f"Background task plugin install failed: {e}", exc_info=True)
-=======
-    async with AsyncSessionLocal() as session:
-        repo = SQLAlchemyPluginRepository(session=session)
-        tenant_repo = SQLAlchemyTenantRepository(session=session)
-        use_case = PluginInstallUseCase(
-            plugin_repo=repo,
-            manifest_parser=LocalManifestParser(),
-            n8n_adapter=N8nAdapter(client=app_state.http_client),
-            metabase_adapter=MetabaseAdapter(client=app_state.http_client),
-            appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
-            keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
-            mattermost_adapter=MattermostAdapter(client=app_state.http_client),
-            session=session,
-            tenant_repo=tenant_repo,
-        )
-        await use_case.execute(context=ctx, plugin_code_name=plugin_code_name)
->>>>>>> origin/main
 
 
 @router.post(
@@ -307,16 +291,11 @@ async def get_install_status(
     task_id: str,
     ctx: TenantContext = Depends(get_current_tenant_context),
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
-<<<<<<< HEAD
 ) -> InstallStatusResponse:
     """
     Trả về trạng thái cài đặt thực tế từ DB (install_steps_log).
     Frontend dùng endpoint này để polling tiến trình cài đặt.
     """
-=======
-) -> dict[str, Any]:
-
->>>>>>> origin/main
     try:
         plugin_uuid = uuid.UUID(task_id)
     except ValueError as e:
