@@ -121,10 +121,16 @@ class MattermostAdapter(AbstractChatOpsPort):
                 f"{self.base_url}/api/v4/posts", headers=self.headers, json=payload
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            logger.info("Mattermost interactive message sent", extra={"post_id": result.get("id")})
+            return result.get("id", "")
         except httpx.HTTPStatusError as e:
             logger.error("Lỗi khi gửi interactive message: %s", e.response.text)
             raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}") from e
         except Exception as e:
             logger.error("Lỗi kết nối Mattermost: %s", e)
             raise MattermostAdapterError(str(e)) from e
+
+    async def update_message(self, post_id: str, message: str, props: dict[str, Any] | None = None) -> None:
+        """Chưa implement."""
+        raise NotImplementedError("update_message chưa được implement")

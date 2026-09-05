@@ -378,3 +378,7 @@ class N8nAdapter(AbstractWorkflowEnginePort):
             extra={"credential_id": result.get("id")},
         )
         return result
+
+    async def delete_credential(self, credential_id: str) -> None:
+        """Chưa implement."""
+        raise NotImplementedError("delete_credential chưa được implement")
