@@ -18,6 +18,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app import __version__
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -58,7 +59,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info(
         "Proteus OS Backend starting",
-        extra={"environment": settings.ENVIRONMENT, "version": "0.1.0"},
+        extra={"environment": settings.ENVIRONMENT, "version": __version__},
     )
     # Khởi tạo các global clients
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
@@ -221,7 +222,7 @@ app = FastAPI(
         "API trung tâm của nền tảng Proteus OS. "
         "Tham chiếu đầy đủ: docs/api-swagger.yaml"
     ),
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
     docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
     redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,

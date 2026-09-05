@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from app import __version__
 from app.infrastructure.database import engine
 
 logger = logging.getLogger(__name__)
@@ -41,4 +42,4 @@ async def health_check() -> HealthResponse:
         logger.warning("Database health check failed")
         db_status = "error"
 
-    return HealthResponse(status="ok", version="0.1.0", database=db_status)
+    return HealthResponse(status="ok", version=__version__, database=db_status)
