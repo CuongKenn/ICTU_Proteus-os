@@ -20,6 +20,7 @@ from app.adapters.repositories.base import (
 from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.domain.ports import AbstractChatOpsPort, AbstractWorkflowEnginePort
+from app.core.use_cases.dsl_dry_run import DSLDryRunEngine
 from app.core.use_cases.dsl_validator import DSLValidator
 from app.infrastructure.config import settings
 
@@ -58,6 +59,7 @@ class AICommandUseCase:
         self.role_repo = role_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
+        self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
 
     async def execute(
         self, body: AICommandDTO, ctx: TenantContext
@@ -141,11 +143,9 @@ class AICommandUseCase:
 
         # Dry run preview
         try:
-            target_table = (
-                body.action.split(".")[1] if "." in body.action else "unknown"
-            )
-            dry_run_res = await self.dsl_dry_run_repo.execute_dry_run(
-                tenant_id=str(ctx.tenant_id), target_table=target_table
+            dry_run_res = await self.dry_run_engine.execute_dry_run(
+                tenant_id=str(ctx.tenant_id),
+                dsl_payload={"action": body.action, "effect": body.effect},
             )
         except Exception:
             dry_run_res = {"preview": "Không thể thực hiện dry run"}
