@@ -120,26 +120,58 @@ export const IntegrationsTab: React.FC = () => {
           <h3 className="text-lg font-medium text-text-primary">Thêm Kết Nối Mới</h3>
           
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-text-primary">Tên Provider (VD: github, slack, aws)</label>
-            <input
-              type="text"
+            <label className="text-sm font-medium text-text-primary">Dịch vụ (Provider)</label>
+            <select
               value={newProvider}
-              onChange={(e) => setNewProvider(e.target.value)}
-              placeholder="github"
+              onChange={(e) => {
+                setNewProvider(e.target.value);
+                if (e.target.value === "appsmith") {
+                  setNewConfig(JSON.stringify({ api_key: "" }, null, 2));
+                } else if (e.target.value === "n8n") {
+                  setNewConfig(JSON.stringify({ api_key: "" }, null, 2));
+                } else if (e.target.value === "metabase") {
+                  setNewConfig(JSON.stringify({ secret_key: "" }, null, 2));
+                } else {
+                  setNewConfig("");
+                }
+              }}
               className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors"
-            />
+            >
+              <option value="" disabled>-- Chọn dịch vụ --</option>
+              <option value="appsmith">Appsmith (Low-code UI)</option>
+              <option value="n8n">n8n (Workflow Engine)</option>
+              <option value="metabase">Metabase (Analytics)</option>
+              <option value="other">Khác (Tùy chỉnh)</option>
+            </select>
           </div>
 
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-text-primary">Cấu hình (JSON)</label>
-            <textarea
-              value={newConfig}
-              onChange={(e) => setNewConfig(e.target.value)}
-              placeholder='{"apiKey": "xxx", "webhook": "yyy"}'
-              rows={4}
-              className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors font-mono text-sm"
-            />
-          </div>
+          {newProvider === "other" && (
+            <div className="grid gap-2 animate-fade-in">
+              <label className="text-sm font-medium text-text-primary">Tên Provider Tùy Chỉnh</label>
+              <input
+                type="text"
+                onChange={(e) => setNewProvider(e.target.value)}
+                placeholder="VD: slack, aws, github"
+                className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+          )}
+
+          {newProvider && (
+            <div className="grid gap-2 animate-fade-in">
+              <label className="text-sm font-medium text-text-primary">
+                Cấu hình (JSON) 
+                {newProvider === "appsmith" && <span className="text-text-secondary font-normal ml-2">- Yêu cầu trường "api_key"</span>}
+              </label>
+              <textarea
+                value={newConfig}
+                onChange={(e) => setNewConfig(e.target.value)}
+                placeholder='{"api_key": "xxx", "webhook": "yyy"}'
+                rows={4}
+                className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors font-mono text-sm"
+              />
+            </div>
+          )}
 
           <div className="flex justify-end pt-2">
             <Button onClick={handleAddIntegration} disabled={!newProvider || !newConfig}>

@@ -127,6 +127,31 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
             for row in rows
         ]
 
+    async def get_integration_by_provider(
+        self, tenant_id: uuid.UUID, provider: str
+    ) -> TenantIntegrationEntity | None:
+        result = await self._session.execute(
+            text(
+                "SELECT * FROM tenant_integrations "
+                "WHERE tenant_id = :tenant_id AND provider = :provider AND deleted_at IS NULL"
+            ),
+            {"tenant_id": tenant_id, "provider": provider},
+        )
+        row = result.mappings().first()
+        if not row:
+            return None
+        return TenantIntegrationEntity(
+            id=row["id"],
+            tenant_id=row["tenant_id"],
+            provider=row["provider"],
+            config=(
+                row["config"]
+                if isinstance(row["config"], dict)
+                else json.loads(row["config"])
+            ),
+            is_active=row["is_active"],
+        )
+
     async def add_integration(
         self, integration: TenantIntegrationEntity
     ) -> TenantIntegrationEntity:

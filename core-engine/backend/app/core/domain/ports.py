@@ -127,12 +127,17 @@ class AbstractUIBuilderPort(ABC):
         app_json: dict[str, Any],
         tenant_id: str,
         app_name: str,
+        integration_config: dict[str, Any] | None = None,
     ) -> str:
         """Import một Appsmith application. Trả về application ID."""
         pass
 
     @abstractmethod
-    async def delete_application(self, app_id: str) -> None:
+    async def delete_application(
+        self, 
+        app_id: str,
+        integration_config: dict[str, Any] | None = None,
+    ) -> None:
         """Xóa một Appsmith application theo ID."""
         pass
 

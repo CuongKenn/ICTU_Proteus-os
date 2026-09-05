@@ -4,6 +4,19 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Appsmith API Key UI Migration (2026-09-06)
+
+### Added
+- **[core-engine/backend/app/adapters/repositories/base.py]** Thêm phương thức `get_integration_by_provider` vào `AbstractTenantRepository` interface.
+- **[core-engine/backend/app/adapters/repositories/tenant_repo.py]** Thêm implementation `get_integration_by_provider` vào `SQLAlchemyTenantRepository` để lấy cấu hình kết nối cụ thể (vd: appsmith).
+
+### Changed
+- **[core-engine/backend/app/core/domain/ports.py]** Cập nhật `AbstractUIBuilderPort` để nhận `integration_config` động.
+- **[core-engine/backend/app/adapters/external/appsmith_adapter.py]** Refactor `AppsmithAdapter` lấy `api_key` động từ `integration_config` thay vì fix cứng trong `settings.APPSMITH_API_KEY`, tự động fallback về biến môi trường nếu DB không có cấu hình.
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật quá trình install để fetch và truyền cấu hình Appsmith cho adapter.
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Cập nhật quá trình uninstall để fetch và truyền cấu hình Appsmith cho adapter.
+- **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thiết kế lại trang "Kết nối & Tích hợp" với Dropdown chọn Provider có sẵn (Appsmith, n8n, Metabase) thay vì phải tự gõ JSON.
+
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
 ### Added
