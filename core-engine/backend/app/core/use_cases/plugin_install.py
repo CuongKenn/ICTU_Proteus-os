@@ -7,6 +7,7 @@
 import json
 import logging
 import re
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -529,7 +530,7 @@ class PluginInstallUseCase:
     async def _persist_steps(
         self,
         context: TenantContext,
-        plugin_id: "uuid.UUID",
+        plugin_id: uuid.UUID,
     ) -> None:
         """Lưu _steps_log hiện tại vào DB (best-effort, không raise)."""
         try:
