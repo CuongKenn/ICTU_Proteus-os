@@ -168,6 +168,7 @@ async def get_install_status(
     task_id: str,
     request: Request,
     ctx: TenantContext = Depends(get_current_tenant_context),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
 ) -> dict[str, Any]:
 
     try:
@@ -177,7 +178,6 @@ async def get_install_status(
             status_code=400, detail="Invalid task_id (must be UUID of plugin)"
         ) from e
 
-    repo = request.app.state.plugin_repo
     status_val = await repo.get_installation_status(ctx.tenant_id, plugin_uuid)
 
     if status_val is None:
