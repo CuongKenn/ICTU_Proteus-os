@@ -431,9 +431,7 @@ class PluginInstallUseCase:
         Trả về list của {"id": "n8n-id", "name": "safe_name"} để rollback.
         """
         # Build lookup map từ credentials_schema
-        schema_map = {
-            f.key: f for f in manifest.credentials_schema
-        }
+        schema_map = {f.key: f for f in manifest.credentials_schema}
         created: list[dict[str, str]] = []
 
         for cred_input in credentials:

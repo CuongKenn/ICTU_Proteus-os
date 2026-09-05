@@ -11,7 +11,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 # ─────────────────────────────────────────────────────────────
 # CREDENTIAL SCHEMA (§3.0 — mới)
 # ─────────────────────────────────────────────────────────────
@@ -132,18 +131,20 @@ class ManifestChangelogEntry(BaseModel):
 # ─────────────────────────────────────────────────────────────
 
 # Danh mục plugin hợp lệ
-VALID_PLUGIN_CATEGORIES = frozenset({
-    "HR",
-    "CRM",
-    "Finance",
-    "Analytics",
-    "Communication",
-    "Utilities",
-    "IT",
-    "Operations",
-    "Legal",
-    "Other",
-})
+VALID_PLUGIN_CATEGORIES = frozenset(
+    {
+        "HR",
+        "CRM",
+        "Finance",
+        "Analytics",
+        "Communication",
+        "Utilities",
+        "IT",
+        "Operations",
+        "Legal",
+        "Other",
+    }
+)
 
 
 class PluginManifest(BaseModel):

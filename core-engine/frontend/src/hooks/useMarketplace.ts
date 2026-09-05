@@ -74,6 +74,9 @@ export function useMarketplace(): UseMarketplaceReturn {
                 author: "ICTU Team",
                 is_official: true,
                 download_count: 120,
+                category: "HR",
+                tags: ["hr", "payroll"],
+                credentials_schema: [],
               },
               {
                 id: "crm-module",
@@ -84,6 +87,9 @@ export function useMarketplace(): UseMarketplaceReturn {
                 author: "ICTU Team",
                 is_official: true,
                 download_count: 85,
+                category: "CRM",
+                tags: ["crm", "sales"],
+                credentials_schema: [],
               },
             ];
             setPlugins(mockPlugins);

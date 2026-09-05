@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 
 from app.core.domain.entities import PluginStatus
 
-
 # ─────────────────────────────────────────────────────────────
 # CREDENTIAL SCHEMAS
 # ─────────────────────────────────────────────────────────────

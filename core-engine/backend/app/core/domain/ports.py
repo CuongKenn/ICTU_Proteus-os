@@ -4,7 +4,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-
 # ─────────────────────────────────────────────────────────────
 # DOCUMENT SOURCE PORT
 # ─────────────────────────────────────────────────────────────
@@ -278,4 +277,3 @@ class AbstractEventBusPort(ABC):
     @abstractmethod
     async def aclose(self) -> None:
         pass
-

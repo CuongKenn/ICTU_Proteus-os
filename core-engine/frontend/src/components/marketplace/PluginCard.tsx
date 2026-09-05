@@ -23,6 +23,8 @@ export interface PluginData {
   requiredRoles?: string[];
   isOfficial?: boolean;
   developer?: string;
+  author?: string | null;
+  iconUrl?: string | null;
   rating?: number;
   category?: string;
 }
