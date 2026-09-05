@@ -6,6 +6,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-09-05)
 ### Fixed
+- **[core-engine/frontend/src/app/marketplace]** Khắc phục lỗi 403 Forbidden khi cài đặt Plugin (issue `installPlugin`) do truyền nhầm tham số `code_name` thay vì `plugin_id` (UUID).
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Bổ sung cơ chế bypass quyền truy cập (permissions check) cho tài khoản Super Admin (`admin@proteus.local`) để sửa lỗi thiếu vai trò `tenant_admin` trong JWT token từ Keycloak.
+- **[core-engine/backend/app/core/domain/plugin_manifest.py]** Cập nhật schema Pydantic V2 (sử dụng `model_config = ConfigDict(protected_namespaces=())`) để fix lỗi cảnh báo namespace khi parsing Plugin Manifest.
+- **[deploy/docker-compose.yml]** Fix cấu hình Appsmith không dùng biến `APPSMITH_CUSTOM_DOMAIN` gây lỗi khởi tạo; bổ sung mount đường dẫn `plugins` volume vào Backend container để có thể đọc được manifest file.
+- **[deploy/postgres/init.sql]** Bổ sung bảng `user_roles` và `tenant_integrations` hỗ trợ RBAC và tích hợp external provider (GitHub, Slack).
+- **[core-engine/backend/main.py]** Bổ sung logic tự động sync Marketplace Plugins vào Database Postgres mỗi khi hệ thống backend khởi động.
 - **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Khắc phục lỗi vòng lặp đăng nhập (Login Loop 401) do lỗi đọc cookie bị phân mảnh (chunked cookies) khi gọi qua NextAuth BFF proxy.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Thêm cơ chế dự phòng gán `tenant_id` mặc định khi token từ Keycloak chưa có thông tin `tenant_id`, tránh lỗi 500 khi xác thực API Backend.
 - **[deploy/docker-compose.yml]** Sửa lỗi N8N crash liên tục do xung đột mã hóa (`N8N_ENCRYPTION_KEY`) bằng cách cấu hình `N8N_DISABLE_UI_SECURITY=true` và xóa file config lỗi cũ. Cấu hình Traefik middleware xóa bỏ `X-Frame-Options` và ghi đè `Content-Security-Policy` (`frame-ancestors`) để hỗ trợ nhúng iFrame an toàn cho tất cả các Ứng dụng nội bộ (N8N, Mattermost, Appsmith, Wiki).

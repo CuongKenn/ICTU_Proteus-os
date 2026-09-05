@@ -15,6 +15,7 @@ class PluginResponse(BaseModel):
     id: uuid.UUID
     code_name: str
     display_name: str
+    description: str | None = None
     version: str
     is_official: bool
     status: PluginStatus | None = (

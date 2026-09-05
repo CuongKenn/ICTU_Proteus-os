@@ -43,7 +43,7 @@ class ManifestUIApp(BaseModel):
 
 class ManifestRole(BaseModel):
     name: str
-    display_name: str
+    display_name: str | None = None
     description: str | None = None
     permissions: list[str] = Field(default_factory=list)
 

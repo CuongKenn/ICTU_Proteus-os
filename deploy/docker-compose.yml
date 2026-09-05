@@ -241,7 +241,6 @@ services:
     restart: unless-stopped
     environment:
       APPSMITH_DISABLE_TELEMETRY: "true"
-      APPSMITH_CUSTOM_DOMAIN: apps.${DOMAIN}
     volumes:
       - appsmith-data:/appsmith-stacks
     networks:
@@ -363,6 +362,9 @@ services:
       ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: http://localhost:3001
+      PLUGINS_DIR: /plugins
+    volumes:
+      - ../plugins:/plugins:ro
     depends_on:
       postgres:
         condition: service_healthy

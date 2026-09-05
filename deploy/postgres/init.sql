@@ -149,6 +149,25 @@ COMMENT ON TABLE roles IS 'Plugin-level roles với fine-grained permissions. Ke
 CREATE INDEX IF NOT EXISTS idx_roles_tenant_id ON roles(tenant_id);
 
 -- ─────────────────────────────────────────────────────────────
+-- BẢNG: USER_ROLES
+-- Quan hệ nhiều-nhiều giữa User và Role
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id             UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    granted_by_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+    granted_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at          TIMESTAMPTZ,
+    PRIMARY KEY (user_id, role_id)
+);
+
+COMMENT ON TABLE user_roles IS 'Phân quyền cụ thể của người dùng trong Tenant.';
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id);
+
+-- ─────────────────────────────────────────────────────────────
 -- BẢNG: AUDIT_LOG
 -- Nhật ký tất cả hành động trong hệ thống
 -- ─────────────────────────────────────────────────────────────
@@ -281,3 +300,25 @@ CREATE POLICY tenant_isolation_policy_ai_commands ON ai_commands
     FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
     WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+-- ─────────────────────────────────────────────────────────────
+-- BẢNG: TENANT_INTEGRATIONS
+-- Cấu hình tích hợp các dịch vụ bên ngoài (VD: GitHub, Slack, vv)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tenant_integrations (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    provider        VARCHAR(50) NOT NULL,
+    config          JSONB NOT NULL,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenant_integrations_tenant_id ON tenant_integrations(tenant_id);
+
+ALTER TABLE tenant_integrations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_policy_tenant_integrations ON tenant_integrations
+    FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);

@@ -21,7 +21,7 @@ interface UseMarketplaceReturn {
   installingId: string | null;
   installProgress: number;
   installStatus: PluginStatus | null;
-  installPlugin: (codeName: string) => Promise<void>;
+  installPlugin: (pluginId: string) => Promise<void>;
   uninstallPlugin: (pluginId: string) => Promise<void>;
 }
 
@@ -148,22 +148,22 @@ export function useMarketplace(): UseMarketplaceReturn {
     }
   }, []);
 
-  const installPlugin = useCallback(async (codeName: string) => {
+  const installPlugin = useCallback(async (pluginId: string) => {
     // Clear interval cũ nếu có
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
 
-    setInstallingId(codeName);
+    setInstallingId(pluginId);
     setInstallProgress(0);
     setInstallStatus("installing");
 
     try {
-      const data = await install(codeName);
+      const data = await install(pluginId);
       if (data?.task_id) {
         pollingRef.current = setInterval(() => {
-          pollStatus(data.task_id, codeName);
+          pollStatus(data.task_id, pluginId);
         }, 3000);
       } else {
         throw new Error("No task_id returned");
@@ -171,7 +171,7 @@ export function useMarketplace(): UseMarketplaceReturn {
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
         pollingRef.current = setInterval(() => {
-          pollStatus("fake-task-id", codeName);
+          pollStatus("fake-task-id", pluginId);
         }, 1000);
       } else {
         setInstallStatus("failed");

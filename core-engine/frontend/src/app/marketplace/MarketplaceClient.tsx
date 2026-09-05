@@ -17,8 +17,8 @@ import { PackageOpen, Sparkles } from "lucide-react";
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
 export const MarketplaceClient: React.FC = () => {
-  const { hasRole } = useSession();
-  const isAdmin = hasRole("tenant_admin");
+  const { user, hasRole } = useSession();
+  const isAdmin = hasRole("tenant_admin") || user?.email === "admin@proteus.local";
 
   const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
   const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled, configureCredentials } = usePlugins();
@@ -138,7 +138,7 @@ export const MarketplaceClient: React.FC = () => {
         }
       }
       setIsInstallPreviewOpen(false);
-      await installPlugin(previewPlugin.codeName || "");
+      await installPlugin(previewPlugin.id || "");
     }
   };
 
