@@ -5,6 +5,8 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+### Added
+- **[core-engine/backend]** Bổ sung trường `notify_channel_id` vào `TenantModel` và luồng cài đặt Plugin để hỗ trợ Data Isolation, cho phép cấu hình kênh thông báo riêng biệt cho từng Tenant thay vì dùng chung System Channel (Issue #560).
 ### Security
 - **[core-engine/backend]** Vá lỗ hổng SQL Injection tiềm ẩn trong TenantRepository.update() (Issue #520).
 ### Changed
