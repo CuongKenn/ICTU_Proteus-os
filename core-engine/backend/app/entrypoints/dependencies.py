@@ -138,6 +138,7 @@ async def get_plugin_credentials_use_case(
 
 
 async def get_plugin_install_use_case(
+    request: Request,
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
     n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
     metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
@@ -159,6 +160,7 @@ async def get_plugin_install_use_case(
         keycloak_adapter=keycloak_adapter,
         mattermost_adapter=mattermost_adapter,
         session=db,
+        event_bus=request.app.state.redis_event_bus,
         tenant_repo=tenant_repo,
     )
 

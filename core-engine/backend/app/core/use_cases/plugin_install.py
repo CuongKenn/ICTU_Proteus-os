@@ -20,6 +20,7 @@ from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
     AbstractAnalyticsPort,
     AbstractChatOpsPort,
+    AbstractEventBusPort,
     AbstractIdentityProviderPort,
     AbstractUIBuilderPort,
     AbstractWorkflowEnginePort,
@@ -49,6 +50,7 @@ class PluginInstallUseCase:
         keycloak_adapter: AbstractIdentityProviderPort,
         mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
+        event_bus: AbstractEventBusPort | None = None,
         tenant_repo=None,
     ) -> None:
         self.plugin_repo = plugin_repo
@@ -59,6 +61,7 @@ class PluginInstallUseCase:
         self.keycloak_adapter = keycloak_adapter
         self.mattermost_adapter = mattermost_adapter
         self.session = session
+        self.event_bus = event_bus
         self.tenant_repo = tenant_repo
         # ─ Install steps log (mược lướu theo từng execute() call)
         self._steps_log: list[dict[str, Any]] = []
@@ -216,6 +219,18 @@ class PluginInstallUseCase:
             except Exception as e:
                 logger.warning("Đang bỏ qua thông báo Mattermost: %s", e)
 
+            # Publish lifecycle event
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        action="installed",
+                        tenant_id=str(context.tenant_id),
+                        plugin_name=plugin_code_name,
+                        plugin_version=manifest.version,
+                    )
+                except Exception as e:
+                    logger.warning("Không thể publish event plugin.installed: %s", e)
+
             logger.info("Cài đặt plugin %s thành công.", plugin_code_name)
 
         except Exception as e:
@@ -264,6 +279,21 @@ class PluginInstallUseCase:
                 await self.mattermost_adapter.send_message(channel_id, msg)
             except Exception:
                 pass
+
+            # Publish failed lifecycle event
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        action="failed",
+                        tenant_id=str(context.tenant_id),
+                        plugin_name=plugin_code_name,
+                        plugin_version=(
+                            manifest.version if "manifest" in locals() else "unknown"
+                        ),
+                        extra_data={"error": str(e)},
+                    )
+                except Exception as ev_err:
+                    logger.warning("Không thể publish event plugin.failed: %s", ev_err)
 
             raise PluginInstallError(f"Cài đặt plugin thất bại: {e}") from e
 

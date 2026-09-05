@@ -2,3 +2,9 @@ node_modules/
 .next/
 deploy/scratch/
 *.tsbuildinfo
+
+# Ignore environment variables
+.env
+.env.*
+!.env.example
+!.env.local.example
