@@ -1,6 +1,66 @@
 {
-  "name": "Action Item Follow-up",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Meeting - Action Item Follow-up",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 9 * * *"}
+      },
+      "name": "Schedule - Daily 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.title, a.due_date, a.assignee_id, a.meeting_id, u.mattermost_user_id FROM mtg_action_items a JOIN users u ON u.id = a.assignee_id WHERE a.status = 'OPEN' AND a.due_date::date = CURRENT_DATE AND a.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Get Due Today Actions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Has Actions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Actions",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📋 **Action Item đến hạn hôm nay**\nCông việc: {{$json.title}}\nTừ cuộc họp ID: {{$json.meeting_id}}\nHạn: {{$json.due_date}}\n\nVui lòng cập nhật tiến độ hoặc hoàn thành công việc."
+      },
+      "name": "Remind Assignee",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Daily 9AM": {"main": [[{"node": "Get Due Today Actions", "type": "main", "index": 0}]]},
+    "Get Due Today Actions": {"main": [[{"node": "Has Actions?", "type": "main", "index": 0}]]},
+    "Has Actions?": {"main": [[{"node": "Split Actions", "type": "main", "index": 0}]]},
+    "Split Actions": {"main": [[{"node": "Remind Assignee", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "meeting"}, {"name": "action-items"}]
 }

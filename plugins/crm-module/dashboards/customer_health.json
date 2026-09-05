@@ -1,5 +1,50 @@
 {
-  "name": "Customer Health Dashboard",
-  "description": "Sức khỏe Khách hàng & SLA",
-  "cards": []
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "CRM - Customer Health Dashboard",
+  "description": "Theo dõi sức khỏe khách hàng: satisfaction score, churn risk, retention rate",
+  "cards": [
+    {
+      "name": "Average Satisfaction Score",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT ROUND(AVG(score), 2) as avg_score FROM crm_satisfaction_surveys WHERE tenant_id = {{tenant_id}} AND submitted_at >= NOW() - INTERVAL '30 days'",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      }
+    },
+    {
+      "name": "Churn Risk Customers",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT c.name, c.email, MAX(s.submitted_at) as last_survey, AVG(s.score) as avg_score FROM crm_customers c JOIN crm_satisfaction_surveys s ON c.id = s.customer_id WHERE c.tenant_id = {{tenant_id}} GROUP BY c.id, c.name, c.email HAVING AVG(s.score) < 3 ORDER BY avg_score ASC LIMIT 15",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      }
+    },
+    {
+      "name": "Support Ticket Volume",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT date_trunc('week', created_at) as week, status, COUNT(*) as count FROM crm_tickets WHERE tenant_id = {{tenant_id}} AND created_at >= NOW() - INTERVAL '90 days' GROUP BY week, status ORDER BY week",
+          "template-tags": {
+            "tenant_id": {"type": "text", "display_name": "Tenant ID", "required": true}
+          }
+        }
+      }
+    }
+  ],
+  "collection": "CRM",
+  "parameters": [
+    {"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}
+  ]
 }

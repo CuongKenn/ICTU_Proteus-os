@@ -1,6 +1,60 @@
-{
-  "application": {
-    "name": "Helpdesk App",
-    "pages": []
-  }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Helpdesk Management App",
+  "description": "Appsmith application for IT Helpdesk module",
+  "appUrl": "/apps/it-helpdesk",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "MainDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/helpdesk-overview?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 550
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "icon": "ticket",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "TicketsTable",
+          "tableData": "{{GetTickets.data}}",
+          "columns": [{"id": "id", "label": "id", "columnType": "text"},
+            {"id": "title", "label": "title", "columnType": "text"},
+            {"id": "category", "label": "category", "columnType": "text"},
+            {"id": "priority", "label": "priority", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "assigned_to", "label": "assigned_to", "columnType": "text"},
+            {"id": "sla_deadline", "label": "sla_deadline", "columnType": "text"},
+            {"id": "created_at", "label": "created_at", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetTickets", "type": "API", "path": "/api/plugins/it-helpdesk-module/tickets", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Agents",
+      "icon": "person",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "AgentsTable",
+          "tableData": "{{GetAgents.data}}",
+          "columns": [{"id": "username", "label": "username", "columnType": "text"},
+            {"id": "name", "label": "name", "columnType": "text"},
+            {"id": "is_available", "label": "is_available", "columnType": "text"},
+            {"id": "open_tickets", "label": "open_tickets", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetAgents", "type": "API", "path": "/api/plugins/it-helpdesk-module/agents", "method": "GET"}
+      ]
+    }
+  ]
 }

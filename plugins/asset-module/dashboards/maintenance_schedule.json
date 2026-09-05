@@ -1,5 +1,31 @@
-{
-  "name": "Maintenance Schedule Dashboard",
-  "description": "Lịch bảo trì và chi phí",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Maintenance Schedule",
+  "description": "Metabase dashboard for Maintenance Schedule",
+  "cards": [
+    {
+      "name": "Bảo Trì Tuần Này",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT a.asset_code, a.name, ms.maintenance_type, ms.scheduled_date, ms.status FROM ast_maintenance_schedules ms JOIN ast_assets a ON a.id = ms.asset_id WHERE ms.scheduled_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' ORDER BY ms.scheduled_date",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Chi Phí Bảo Trì Theo Tháng",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT date_trunc('month', completed_at) as month, SUM(cost) as total_cost FROM ast_maintenance_schedules WHERE status = 'DONE' AND completed_at IS NOT NULL GROUP BY month ORDER BY month",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "asset-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

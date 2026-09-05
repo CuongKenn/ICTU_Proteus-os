@@ -1,5 +1,64 @@
 {
-  "name": "Finance Overview Dashboard",
-  "description": "Tổng quan tài chính",
-  "cards": []
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance - Finance Overview Dashboard",
+  "description": "Metabase dashboard tổng quan tài chính: doanh thu, chi phí, lợi nhuận",
+  "cards": [
+    {
+      "name": "Tổng thu tháng này",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT SUM(amount) as total FROM fin_transactions WHERE tenant_id = {{tenant_id}} AND type = 'INCOME' AND created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Tổng chi tháng này",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT SUM(amount) as total FROM fin_transactions WHERE tenant_id = {{tenant_id}} AND type = 'EXPENSE' AND created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Dòng tiền 12 tháng",
+      "display": "line",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT date_trunc('month', created_at) as month, type, SUM(amount) as amount FROM fin_transactions WHERE tenant_id = {{tenant_id}} AND created_at >= NOW() - INTERVAL '12 months' AND deleted_at IS NULL GROUP BY month, type ORDER BY month",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Chi phí theo danh mục",
+      "display": "pie",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT category, SUM(amount) as total FROM fin_expense_requests WHERE tenant_id = {{tenant_id}} AND status = 'APPROVED' AND created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL GROUP BY category ORDER BY total DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Yêu cầu chi phí đang chờ duyệt",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT id, requester_id, amount, currency, category, description, created_at FROM fin_expense_requests WHERE tenant_id = {{tenant_id}} AND status = 'PENDING' AND deleted_at IS NULL ORDER BY created_at DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "Finance",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

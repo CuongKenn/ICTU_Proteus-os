@@ -1,6 +1,59 @@
-{
-  "application": {
-    "name": "Meeting App",
-    "pages": []
-  }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Meeting Management App",
+  "description": "Appsmith application for Meeting module",
+  "appUrl": "/apps/meeting",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "MainDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/meeting-stats?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 550
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "icon": "calendar",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "BookingsTable",
+          "tableData": "{{GetBookings.data}}",
+          "columns": [{"id": "title", "label": "title", "columnType": "text"},
+            {"id": "room_name", "label": "room_name", "columnType": "text"},
+            {"id": "organizer_id", "label": "organizer_id", "columnType": "text"},
+            {"id": "start_time", "label": "start_time", "columnType": "text"},
+            {"id": "end_time", "label": "end_time", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetBookings", "type": "API", "path": "/api/plugins/meeting-module/bookings", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Action Items",
+      "icon": "check",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "ActionItemsTable",
+          "tableData": "{{GetActionItems.data}}",
+          "columns": [{"id": "title", "label": "title", "columnType": "text"},
+            {"id": "assignee_id", "label": "assignee_id", "columnType": "text"},
+            {"id": "due_date", "label": "due_date", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "meeting_id", "label": "meeting_id", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetActionItems", "type": "API", "path": "/api/plugins/meeting-module/action-items", "method": "GET"}
+      ]
+    }
+  ]
 }

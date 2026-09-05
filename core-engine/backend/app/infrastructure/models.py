@@ -14,7 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -186,11 +186,29 @@ class PluginModel(BaseModel, SoftDeleteMixin):
     manifest_url: Mapped[str] = mapped_column(String(1024), nullable=False)
     author: Mapped[str] = mapped_column(String(255), nullable=False)
     license: Mapped[str] = mapped_column(String(50), nullable=False)
+    homepage_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     published_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    # ─── Enrichment fields (migration f1a2b3c4d5e6) ────────────────────
+    category: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="Utilities", index=True
+    )
+    tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String()), nullable=True, default=list
+    )
+    screenshots: Mapped[list[Any] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
+    """JSON array of screenshot URLs/paths."""
+    long_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    credentials_schema: Mapped[list[Any] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
+    """JSON array of CredentialFieldSchema dicts."""
 
     # Relationships
     tenant_plugins: Mapped[list["TenantPluginModel"]] = relationship(
@@ -226,6 +244,23 @@ class TenantPluginModel(BaseModel, SoftDeleteMixin):
     installed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    # ─── Install tracking (migration f1a2b3c4d5e6) ───────────────────────
+    install_steps_log: Mapped[list[Any] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
+    """
+    JSON array of install step logs.
+    Format: [{"step": "database", "status": "DONE", "at": "ISO8601", "message": null}]
+    """
+    credential_ids: Mapped[list[Any] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
+    """
+    JSON array of n8n credential IDs created during install.
+    Used for rollback on uninstall.
+    Format: [{"id": "n8n-cred-id", "name": "tenant_{id}_{key}"}]
+    """
 
     # Relationships
     tenant: Mapped["TenantModel"] = relationship(

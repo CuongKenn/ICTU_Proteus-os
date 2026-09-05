@@ -1,1 +1,73 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement - Sync Payment Status",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "procurement/sync-payment",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Payment Update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "procurement-sync-payment-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE pro_purchase_orders SET payment_status = $1, payment_date = $2, payment_reference = $3 WHERE id = $4 AND tenant_id = $5 RETURNING po_number, vendor_id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.payment_status}},={{$json.body.payment_date}},={{$json.body.payment_reference}},={{$json.body.po_id}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Update Payment Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cfg.channel_id FROM pro_config cfg WHERE cfg.tenant_id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Payment Update').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Channel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=💳 **Cập nhật thanh toán**\nSố PO: {{$('Update Payment Status').item.json.po_number}}\nTrạng thái: {{$('Webhook - Payment Update').item.json.body.payment_status}}\nNgày thanh toán: {{$('Webhook - Payment Update').item.json.body.payment_date}}\nSố tham chiếu: {{$('Webhook - Payment Update').item.json.body.payment_reference}}"
+      },
+      "name": "Notify Channel",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Payment Update": {"main": [[{"node": "Update Payment Status", "type": "main", "index": 0}]]},
+    "Update Payment Status": {"main": [[{"node": "Get Channel", "type": "main", "index": 0}]]},
+    "Get Channel": {"main": [[{"node": "Notify Channel", "type": "main", "index": 0}]]},
+    "Notify Channel": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "procurement"}, {"name": "payment"}]
+}

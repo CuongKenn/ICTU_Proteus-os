@@ -1,6 +1,92 @@
 {
-  "name": "Monthly Report Generation",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance - Monthly Report Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 7 1 * *"}
+      },
+      "name": "Schedule - 1st of Month",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT tenant_id, SUM(CASE WHEN type='INCOME' THEN amount ELSE 0 END) as total_income, SUM(CASE WHEN type='EXPENSE' THEN amount ELSE 0 END) as total_expense, COUNT(DISTINCT id) as transaction_count, date_trunc('month', NOW() - INTERVAL '1 month') as report_month FROM fin_transactions WHERE created_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND created_at < date_trunc('month', NOW()) AND deleted_at IS NULL GROUP BY tenant_id;",
+        "additionalFields": {}
+      },
+      "name": "Aggregate Last Month",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split By Tenant",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fin_monthly_reports (tenant_id, report_month, total_income, total_expense, net_profit, transaction_count, generated_at) VALUES ($1,$2,$3,$4,$3-$4,$5,NOW());",
+        "additionalFields": {
+          "queryParams": "={{$json.tenant_id}},={{$json.report_month}},={{$json.total_income}},={{$json.total_expense}},={{$json.transaction_count}}"
+        }
+      },
+      "name": "Save Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT channel_id FROM fin_report_config WHERE tenant_id = $1 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Aggregate Last Month').item.json.tenant_id}}"
+        }
+      },
+      "name": "Get Report Channel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=📊 **Báo cáo tài chính tháng {{$('Aggregate Last Month').item.json.report_month}}**\n\n💚 Thu: {{$('Aggregate Last Month').item.json.total_income}} VND\n❤️ Chi: {{$('Aggregate Last Month').item.json.total_expense}} VND\n💰 Lợi nhuận: {{$('Aggregate Last Month').item.json.total_income - $('Aggregate Last Month').item.json.total_expense}} VND\n📋 Số giao dịch: {{$('Aggregate Last Month').item.json.transaction_count}}\n\nBáo cáo đã được lưu vào hệ thống."
+      },
+      "name": "Send Report Summary",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - 1st of Month": {
+      "main": [[{"node": "Aggregate Last Month", "type": "main", "index": 0}]]
+    },
+    "Aggregate Last Month": {
+      "main": [[{"node": "Split By Tenant", "type": "main", "index": 0}]]
+    },
+    "Split By Tenant": {
+      "main": [[{"node": "Save Report", "type": "main", "index": 0}]]
+    },
+    "Save Report": {
+      "main": [[{"node": "Get Report Channel", "type": "main", "index": 0}]]
+    },
+    "Get Report Channel": {
+      "main": [[{"node": "Send Report Summary", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "finance"}, {"name": "report"}]
 }

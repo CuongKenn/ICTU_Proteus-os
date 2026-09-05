@@ -135,7 +135,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "status = EXCLUDED.status, "
                 "installed_version = COALESCE(EXCLUDED.installed_version, tenant_plugins.installed_version), "
                 "install_error_log = EXCLUDED.install_error_log, "
-                "updated_at = NOW()"
+                "last_updated_at = NOW()"
             ),
             {
                 "tenant_id": tenant_id,
@@ -164,7 +164,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET status = :status, install_error_log = :error_log, updated_at = NOW() "
+                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -184,7 +184,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET config_override = :config, updated_at = NOW() "
+                "SET config_override = :config, last_updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -265,13 +265,135 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         )
         return [(row[0], row[1], row[2]) for row in result.all()]
 
+    async def update_install_steps_log(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        steps_log: list[dict],
+    ) -> None:
+        """Cập nhật install_steps_log cho một plugin installation."""
+        await self._session.execute(
+            text(
+                "UPDATE tenant_plugins "
+                "SET install_steps_log = :log, updated_at = NOW() "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "log": json.dumps(steps_log),
+            },
+        )
+
+    async def update_credential_ids(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        credential_ids: list[dict],
+    ) -> None:
+        """Lưu danh sách n8n credential IDs vào credential_ids column."""
+        await self._session.execute(
+            text(
+                "UPDATE tenant_plugins "
+                "SET credential_ids = :cred_ids, updated_at = NOW() "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "cred_ids": json.dumps(credential_ids),
+            },
+        )
+
+    async def get_credential_ids(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+    ) -> list[dict]:
+        """Lấy danh sách n8n credential IDs của một plugin installation."""
+        result = await self._session.execute(
+            text(
+                "SELECT credential_ids FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            data = row[0] if isinstance(row[0], list) else json.loads(row[0])
+            return data or []
+        return []
+
+    async def get_install_steps_log(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+    ) -> list[dict]:
+        """Lấy install_steps_log của một plugin installation."""
+        result = await self._session.execute(
+            text(
+                "SELECT install_steps_log FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            data = row[0] if isinstance(row[0], list) else json.loads(row[0])
+            return data or []
+        return []
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
+        from app.core.domain.entities import CredentialFieldSchema
+
+        # Parse credentials_schema from JSONB
+        raw_creds = row.get("credentials_schema") or []
+        if isinstance(raw_creds, str):
+            try:
+                raw_creds = json.loads(raw_creds)
+            except Exception:
+                raw_creds = []
+        credentials_schema = []
+        for c in raw_creds:
+            try:
+                credentials_schema.append(CredentialFieldSchema(**c))
+            except Exception:
+                pass
+
+        # Parse tags (ARRAY or JSON)
+        tags = row.get("tags") or []
+        if isinstance(tags, str):
+            try:
+                tags = json.loads(tags)
+            except Exception:
+                tags = []
+
+        # Parse screenshots
+        screenshots = row.get("screenshots") or []
+        if isinstance(screenshots, str):
+            try:
+                screenshots = json.loads(screenshots)
+            except Exception:
+                screenshots = []
+
         return PluginEntity(
             id=row["id"],
             code_name=row["code_name"],
             display_name=row["display_name"],
             version=row["version"],
+            description=row.get("description"),
+            author=row.get("author"),
+            license=row.get("license"),
+            icon_url=row.get("icon_url"),
+            homepage_url=row.get("homepage_url"),
+            category=row.get("category") or "Utilities",
+            tags=tags,
+            screenshots=screenshots,
+            long_description=row.get("long_description"),
             is_official=row.get("is_official", False),
+            download_count=row.get("download_count", 0),
+            published_at=row.get("published_at"),
             status=PluginStatus(row["status"]) if row.get("status") else None,
+            credentials_schema=credentials_schema,
         )

@@ -1,6 +1,59 @@
-{
-  "application": {
-    "name": "Project App",
-    "pages": []
-  }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Project Management App",
+  "description": "Appsmith application for Project module",
+  "appUrl": "/apps/project",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "MainDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/project-overview?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 550
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "icon": "folder",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "ProjectsTable",
+          "tableData": "{{GetProjects.data}}",
+          "columns": [{"id": "name", "label": "name", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "manager_id", "label": "manager_id", "columnType": "text"},
+            {"id": "start_date", "label": "start_date", "columnType": "text"},
+            {"id": "end_date", "label": "end_date", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetProjects", "type": "API", "path": "/api/plugins/project-module/projects", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Tasks",
+      "icon": "check",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "TasksTable",
+          "tableData": "{{GetTasks.data}}",
+          "columns": [{"id": "title", "label": "title", "columnType": "text"},
+            {"id": "project_name", "label": "project_name", "columnType": "text"},
+            {"id": "assignee_id", "label": "assignee_id", "columnType": "text"},
+            {"id": "priority", "label": "priority", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "due_date", "label": "due_date", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetTasks", "type": "API", "path": "/api/plugins/project-module/tasks", "method": "GET"}
+      ]
+    }
+  ]
 }

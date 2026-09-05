@@ -1,6 +1,32 @@
 {
-  "name": "Room Release",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Meeting - Room Release After Meeting",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "minutes", "minutesInterval": 15}]}
+      },
+      "name": "Schedule - Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE mtg_bookings SET status = 'COMPLETED' WHERE status = 'CONFIRMED' AND end_time < NOW() AND end_time > NOW() - INTERVAL '20 minutes' AND deleted_at IS NULL RETURNING id, room_id, title;",
+        "additionalFields": {}
+      },
+      "name": "Release Finished Rooms",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - Every 15 Minutes": {"main": [[{"node": "Release Finished Rooms", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "meeting"}, {"name": "room-release"}]
 }

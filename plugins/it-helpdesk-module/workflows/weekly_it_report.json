@@ -1,6 +1,54 @@
 {
-  "name": "Weekly IT Report",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "IT Helpdesk - Weekly Performance Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 * * 1"}
+      },
+      "name": "Schedule - Monday 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.tenant_id, COUNT(*) as total_tickets, COUNT(CASE WHEN t.status = 'CLOSED' THEN 1 END) as closed, COUNT(CASE WHEN t.sla_deadline < NOW() AND t.status != 'CLOSED' THEN 1 END) as sla_breached, ROUND(AVG(t.feedback_score),1) as avg_satisfaction, c.channel_id FROM hd_tickets t JOIN hd_managers m ON m.tenant_id = t.tenant_id JOIN hd_report_config c ON c.tenant_id = t.tenant_id WHERE t.created_at >= NOW() - INTERVAL '7 days' AND t.deleted_at IS NULL GROUP BY t.tenant_id, c.channel_id;",
+        "additionalFields": {}
+      },
+      "name": "Weekly Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split By Tenant",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=📊 **Báo cáo IT Helpdesk tuần qua**\n\n🎫 Tổng ticket: {{$json.total_tickets}}\n✅ Đã đóng: {{$json.closed}}\n🚨 Vi phạm SLA: {{$json.sla_breached}}\n⭐ Điểm hài lòng TB: {{$json.avg_satisfaction || 'N/A'}}/5\n\nTỷ lệ giải quyết: {{Math.round($json.closed/$json.total_tickets*100)}}%"
+      },
+      "name": "Send Weekly Report",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - Monday 8AM": {"main": [[{"node": "Weekly Stats", "type": "main", "index": 0}]]},
+    "Weekly Stats": {"main": [[{"node": "Split By Tenant", "type": "main", "index": 0}]]},
+    "Split By Tenant": {"main": [[{"node": "Send Weekly Report", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "helpdesk"}, {"name": "report"}]
 }

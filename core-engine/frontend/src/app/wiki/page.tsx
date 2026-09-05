@@ -6,7 +6,7 @@ import { IframeEmbed } from "@/components/ui/IframeEmbed";
 import { BookOpen } from "lucide-react";
 
 export default function WikiPage() {
-  const wikiUrl = process.env.NEXT_PUBLIC_OUTLINE_URL;
+  const wikiUrl = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://wiki.proteus.local";
 
   return (
     <AppShell>

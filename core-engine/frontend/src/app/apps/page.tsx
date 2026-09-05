@@ -6,7 +6,7 @@ import { IframeEmbed } from "@/components/ui/IframeEmbed";
 import { AppWindow } from "lucide-react";
 
 export default function AppsPage() {
-  const appsUrl = process.env.NEXT_PUBLIC_APPSMITH_URL;
+  const appsUrl = process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local";
 
   return (
     <AppShell>

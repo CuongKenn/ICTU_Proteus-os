@@ -1,18 +1,83 @@
 {
-  "name": "Incoming Document Workflow",
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Document - Incoming Document Handler",
   "nodes": [
     {
       "parameters": {
-        "path": "incoming-document",
+        "path": "document/incoming",
         "responseMode": "lastNode",
         "options": {}
       },
-      "name": "Webhook",
+      "name": "Webhook - Incoming Doc",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [250, 300],
+      "webhookId": "document-incoming-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nconst docType = body.doc_type || 'GENERAL';\nconst docDate = new Date().toISOString().split('T')[0].replace(/-/g,'');\nconst seq = Math.floor(Math.random() * 9000) + 1000;\nconst docCode = `${docType.substring(0,3).toUpperCase()}-${docDate}-${seq}`;\nreturn [{json: {...body, doc_code: docCode, received_at: new Date().toISOString()}}];"
+      },
+      "name": "Generate Doc Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO doc_documents (tenant_id, doc_code, title, doc_type, category, source, sender_name, received_at, status, assigned_to, file_url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'RECEIVED',$9,$10,NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$json.tenant_id}},={{$json.doc_code}},={{$json.title}},={{$json.doc_type}},={{$json.category}},={{$json.source}},={{$json.sender_name}},={{$json.received_at}},={{$json.assigned_to}},={{$json.file_url}}"
+        }
+      },
+      "name": "Save Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM users WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Generate Doc Code').item.json.assigned_to}}"
+        }
+      },
+      "name": "Get Assignee",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📥 **Văn bản đến mới**\nMã số: {{$('Generate Doc Code').item.json.doc_code}}\nTiêu đề: {{$('Generate Doc Code').item.json.title}}\nLoại: {{$('Generate Doc Code').item.json.doc_type}}\nNguồn: {{$('Generate Doc Code').item.json.source}} — {{$('Generate Doc Code').item.json.sender_name}}\nNgày nhận: {{$('Generate Doc Code').item.json.received_at}}\n\nVui lòng xử lý văn bản này."
+      },
+      "name": "Notify Assignee",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"doc_id\": \"{{$('Save Document').item.json.id}}\", \"doc_code\": \"{{$('Generate Doc Code').item.json.doc_code}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
     }
   ],
-  "connections": {},
-  "settings": {}
+  "connections": {
+    "Webhook - Incoming Doc": {"main": [[{"node": "Generate Doc Code", "type": "main", "index": 0}]]},
+    "Generate Doc Code": {"main": [[{"node": "Save Document", "type": "main", "index": 0}]]},
+    "Save Document": {"main": [[{"node": "Get Assignee", "type": "main", "index": 0}]]},
+    "Get Assignee": {"main": [[{"node": "Notify Assignee", "type": "main", "index": 0}]]},
+    "Notify Assignee": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "document"}, {"name": "incoming"}]
 }

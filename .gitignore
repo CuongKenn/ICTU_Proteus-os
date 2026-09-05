@@ -1,5 +1,6 @@
 node_modules/
 .next/
+deploy/scratch/
 *.tsbuildinfo
 
 # Ignore environment variables

@@ -1,6 +1,61 @@
-{
-  "application": {
-    "name": "Asset App",
-    "pages": []
-  }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Asset Management App",
+  "description": "Appsmith application for Asset module",
+  "appUrl": "/apps/asset",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "MainDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/asset-overview?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 550
+        }
+      ]
+    },
+    {
+      "name": "Assets",
+      "icon": "server",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "AssetsTable",
+          "tableData": "{{GetAssets.data}}",
+          "columns": [{"id": "asset_code", "label": "asset_code", "columnType": "text"},
+            {"id": "name", "label": "name", "columnType": "text"},
+            {"id": "asset_type", "label": "asset_type", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "assigned_to", "label": "assigned_to", "columnType": "text"},
+            {"id": "location", "label": "location", "columnType": "text"},
+            {"id": "current_value", "label": "current_value", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetAssets", "type": "API", "path": "/api/plugins/asset-module/assets", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Requests",
+      "icon": "clipboard",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "RequestsTable",
+          "tableData": "{{GetRequests.data}}",
+          "columns": [{"id": "id", "label": "id", "columnType": "text"},
+            {"id": "asset_type", "label": "asset_type", "columnType": "text"},
+            {"id": "requester_id", "label": "requester_id", "columnType": "text"},
+            {"id": "priority", "label": "priority", "columnType": "text"},
+            {"id": "status", "label": "status", "columnType": "text"},
+            {"id": "created_at", "label": "created_at", "columnType": "text"}]
+        }
+      ],
+      "actions": [
+        {"name": "GetRequests", "type": "API", "path": "/api/plugins/asset-module/requests", "method": "GET"}
+      ]
+    }
+  ]
 }

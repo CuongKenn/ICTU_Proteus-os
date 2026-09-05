@@ -9,18 +9,18 @@ import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
-import type { Plugin, PluginListResponse } from "@/types";
+import type { Plugin, PluginListResponse, CredentialInput } from "@/types";
 
 interface UsePluginsReturn {
   plugins: Plugin[];
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  install: (pluginId: string) => Promise<{ task_id: string }>;
+  install: (pluginId: string, credentials?: CredentialInput[]) => Promise<{ task_id: string }>;
   uninstall: (pluginId: string) => Promise<void>;
   disable: (pluginId: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
-  configureCredentials: (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => Promise<any>;
+  configureCredentials: (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => Promise<unknown>;
 }
 
 export function usePlugins(): UsePluginsReturn {
@@ -59,10 +59,12 @@ export function usePlugins(): UsePluginsReturn {
     return () => { cancelled = true; };
   }, [trigger]);
 
-  const install = useCallback(async (pluginId: string) => {
+  const install = useCallback(async (pluginId: string, credentials?: CredentialInput[]) => {
     try {
-      const response = await api.post<{ data: { task_id: string } }>(`/plugins/${pluginId}/install`, {});
-      return response.data.data;
+      const response = await api.post<{ task_id: string }>(`/plugins/${pluginId}/install`, {
+        credentials: credentials ?? [],
+      });
+      return response.data;
     } catch (err) {
       throw err;
     }

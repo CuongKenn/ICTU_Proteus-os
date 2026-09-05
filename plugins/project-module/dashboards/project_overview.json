@@ -1,5 +1,42 @@
-{
-  "name": "Project Overview Dashboard",
-  "description": "Tổng quan dự án",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Project Overview",
+  "description": "Metabase dashboard for Project Overview",
+  "cards": [
+    {
+      "name": "Dự Án Đang Hoạt Động",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) FROM prj_projects WHERE status = 'ACTIVE' AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Task Theo Trạng Thái",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT status, COUNT(*) as count FROM prj_tasks WHERE deleted_at IS NULL GROUP BY status",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Task Quá Hạn Theo Dự Án",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT p.name, COUNT(*) as overdue FROM prj_tasks t JOIN prj_projects p ON p.id = t.project_id WHERE t.due_date < NOW() AND t.status NOT IN ('DONE','CANCELLED') AND t.deleted_at IS NULL GROUP BY p.name ORDER BY overdue DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "project-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

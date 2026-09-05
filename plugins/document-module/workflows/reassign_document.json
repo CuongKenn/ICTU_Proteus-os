@@ -1,1 +1,73 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Document - Reassign Document",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "document/reassign",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Reassign",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "document-reassign-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE doc_documents SET assigned_to = $1, reassigned_at = NOW(), reassign_reason = $2 WHERE id = $3 AND tenant_id = $4 RETURNING doc_code, title;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.new_assignee_id}},={{$json.body.reason}},={{$json.body.document_id}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Reassign Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM users WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Reassign').item.json.body.new_assignee_id}}"
+        }
+      },
+      "name": "Get New Assignee",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📎 **Văn bản được chuyển giao cho bạn**\nMã: {{$('Reassign Document').item.json.doc_code}}\nTiêu đề: {{$('Reassign Document').item.json.title}}\nLý do chuyển: {{$('Webhook - Reassign').item.json.body.reason}}\nID: {{$('Webhook - Reassign').item.json.body.document_id}}\n\nVui lòng tiếp tục xử lý văn bản này."
+      },
+      "name": "Notify New Assignee",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Reassign": {"main": [[{"node": "Reassign Document", "type": "main", "index": 0}]]},
+    "Reassign Document": {"main": [[{"node": "Get New Assignee", "type": "main", "index": 0}]]},
+    "Get New Assignee": {"main": [[{"node": "Notify New Assignee", "type": "main", "index": 0}]]},
+    "Notify New Assignee": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "document"}, {"name": "reassign"}]
+}

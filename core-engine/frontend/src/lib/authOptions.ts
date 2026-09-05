@@ -8,7 +8,6 @@
 
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import KeycloakProvider from "next-auth/providers/keycloak";
 
 // ─── Silent Token Refresh ─────────────────────────────────────
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
@@ -49,19 +48,47 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
+  debug: true, // DEBUG ENABLED
   providers: [
-    KeycloakProvider({
+    // Manual OAuth provider — Keycloak luôn trả id_token nên phải dùng idToken:true
+    // Dùng wellKnown để NextAuth lấy jwks_uri (cho ID token verification)
+    // Tất cả endpoints được hardcode để tránh dependency vào discovery cho routing
+    {
+      id: "keycloak",
+      name: "Keycloak SSO",
+      type: "oauth",
+      // wellKnown cần để lấy JWKS cho ID token verification
+      // Nhưng discovery chỉ xảy ra 1 lần và được cache
+      wellKnown: `${process.env.KEYCLOAK_ISSUER}/.well-known/openid-configuration`,
+      // Hardcode authorization endpoint — không phụ thuộc vào discovery cho redirect
+      authorization: {
+        url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
+        params: { scope: "openid email profile", response_type: "code" },
+      },
+      // Hardcode token và userinfo endpoints
+      token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+      userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
+      // idToken: true — Keycloak luôn trả id_token, phải dùng client.callback()
+      idToken: true,
+      checks: ["pkce", "state"],
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
-      issuer: process.env.KEYCLOAK_ISSUER!,
-    }),
+      profile(profile: any) {
+        return {
+          id: profile.sub,
+          name: profile.name ?? profile.preferred_username,
+          email: profile.email,
+          image: profile.picture ?? null,
+        };
+      },
+    },
+
+
   ],
 
   callbacks: {
-    async signIn({ user }) {
-      if (user?.email && !user.email.endsWith('@ictu.edu.vn')) {
-        return "/login?error=InvalidEmailDomain";
-      }
+    async signIn() {
+      // Allow any user authenticated by Keycloak — role-based access is handled by RBAC middleware
       return true;
     },
 
@@ -77,8 +104,6 @@ export const authOptions: NextAuthOptions = {
         return {
           ...token,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          idToken: account.id_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ

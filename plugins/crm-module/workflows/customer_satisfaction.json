@@ -1,6 +1,98 @@
 {
-  "name": "Customer Satisfaction",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "CRM - Customer Satisfaction Survey",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/satisfaction-survey",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Survey Response",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "crm-satisfaction-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO crm_satisfaction_surveys (tenant_id, customer_id, opportunity_id, score, comment, submitted_at) VALUES ($1,$2,$3,$4,$5,NOW());",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.customer_id}},={{$json.body.opportunity_id}},={{$json.body.score}},={{$json.body.comment}}"
+        }
+      },
+      "name": "Save Survey",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$('Webhook - Survey Response').item.json.body.score}}", "operation": "smaller", "value2": 3}]
+        }
+      },
+      "name": "Low Score?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.channel_id FROM crm_team_config c WHERE c.tenant_id = $1 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Survey Response').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Manager Channel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=🔴 **Cảnh báo khách hàng không hài lòng!**\nKhách hàng ID: {{$('Webhook - Survey Response').item.json.body.customer_id}}\nĐiểm: {{$('Webhook - Survey Response').item.json.body.score}}/5\nNhận xét: {{$('Webhook - Survey Response').item.json.body.comment}}\n\nCần liên hệ ngay để xử lý!"
+      },
+      "name": "Alert Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Survey Response": {
+      "main": [[{"node": "Save Survey", "type": "main", "index": 0}]]
+    },
+    "Save Survey": {
+      "main": [[{"node": "Low Score?", "type": "main", "index": 0}]]
+    },
+    "Low Score?": {
+      "main": [
+        [{"node": "Get Manager Channel", "type": "main", "index": 0}],
+        [{"node": "Respond OK", "type": "main", "index": 0}]
+      ]
+    },
+    "Get Manager Channel": {
+      "main": [[{"node": "Alert Manager", "type": "main", "index": 0}]]
+    },
+    "Alert Manager": {
+      "main": [[{"node": "Respond OK", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "crm"}, {"name": "satisfaction"}]
 }

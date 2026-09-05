@@ -1,1 +1,80 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Procurement - Vendor Evaluation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 1 */3 *"}
+      },
+      "name": "Schedule - Quarterly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT v.id, v.name, v.tenant_id, COUNT(po.id) as total_orders, AVG(EXTRACT(EPOCH FROM (po.delivery_date - po.expected_delivery_date))/86400) as avg_delay_days, SUM(po.total_amount) as total_spend, cfg.channel_id FROM pro_vendors v JOIN pro_purchase_orders po ON po.vendor_id = v.id AND po.status = 'DELIVERED' AND po.created_at >= NOW() - INTERVAL '3 months' JOIN pro_config cfg ON cfg.tenant_id = v.tenant_id WHERE v.deleted_at IS NULL GROUP BY v.id, v.name, v.tenant_id, cfg.channel_id HAVING COUNT(po.id) > 0;",
+        "additionalFields": {}
+      },
+      "name": "Evaluate Vendors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Vendors",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pro_vendor_evaluations (tenant_id, vendor_id, period, total_orders, avg_delay_days, total_spend, evaluated_at) VALUES ($1,$2,date_trunc('quarter',NOW()),$3,$4,$5,NOW()) ON CONFLICT (tenant_id, vendor_id, period) DO UPDATE SET total_orders=$3, avg_delay_days=$4, total_spend=$5;",
+        "additionalFields": {
+          "queryParams": "={{$json.tenant_id}},={{$json.id}},={{$json.total_orders}},={{$json.avg_delay_days}},={{$json.total_spend}}"
+        }
+      },
+      "name": "Save Evaluation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$json.avg_delay_days}}", "operation": "larger", "value2": 3}]
+        }
+      },
+      "name": "Poor Performance?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$('Split Vendors').item.json.channel_id}}",
+        "message": "=⚠️ **Nhà cung cấp giao hàng trễ liên tục**\nNhà cung cấp: {{$('Split Vendors').item.json.name}}\nSố đơn Q3: {{$('Split Vendors').item.json.total_orders}}\nTrễ trung bình: {{Math.round($('Split Vendors').item.json.avg_delay_days)}} ngày\nTổng giá trị: {{$('Split Vendors').item.json.total_spend}} VND\n\nĐề xuất đánh giá lại quan hệ với nhà cung cấp này."
+      },
+      "name": "Alert Poor Vendor",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Quarterly": {"main": [[{"node": "Evaluate Vendors", "type": "main", "index": 0}]]},
+    "Evaluate Vendors": {"main": [[{"node": "Split Vendors", "type": "main", "index": 0}]]},
+    "Split Vendors": {"main": [[{"node": "Save Evaluation", "type": "main", "index": 0}]]},
+    "Save Evaluation": {"main": [[{"node": "Poor Performance?", "type": "main", "index": 0}]]},
+    "Poor Performance?": {"main": [[{"node": "Alert Poor Vendor", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "procurement"}, {"name": "vendor"}]
+}

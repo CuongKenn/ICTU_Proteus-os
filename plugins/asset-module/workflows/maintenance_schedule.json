@@ -1,6 +1,73 @@
 {
-  "name": "Maintenance Schedule",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Asset - Maintenance Schedule",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 * * 1"}
+      },
+      "name": "Schedule - Weekly Monday",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.asset_code, a.name, a.location, a.assigned_to, m.scheduled_date, m.maintenance_type, c.channel_id FROM ast_maintenance_schedules m JOIN ast_assets a ON a.id = m.asset_id JOIN ast_it_managers c ON c.tenant_id = a.tenant_id WHERE m.scheduled_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND m.status = 'SCHEDULED' AND a.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Get This Week Maintenance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Has Schedule?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $items();\nconst grouped = {};\nfor (const item of items) {\n  const ch = item.json.channel_id;\n  if (!grouped[ch]) grouped[ch] = {channel_id: ch, tasks: []};\n  grouped[ch].tasks.push(`• ${item.json.asset_code} — ${item.json.name} (${item.json.maintenance_type}) vào ${item.json.scheduled_date}`);\n}\nreturn Object.values(grouped).map(g => ({json: g}));"
+      },
+      "name": "Group By Channel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "message": "=🔧 **Lịch bảo trì tuần này**\n\n{{$json.tasks.join('\\n')}}\n\nVui lòng chuẩn bị nhân lực và vật tư theo kế hoạch."
+      },
+      "name": "Send Maintenance Reminder",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {
+    "Schedule - Weekly Monday": {
+      "main": [[{"node": "Get This Week Maintenance", "type": "main", "index": 0}]]
+    },
+    "Get This Week Maintenance": {
+      "main": [[{"node": "Has Schedule?", "type": "main", "index": 0}]]
+    },
+    "Has Schedule?": {
+      "main": [[{"node": "Group By Channel", "type": "main", "index": 0}]]
+    },
+    "Group By Channel": {
+      "main": [[{"node": "Send Maintenance Reminder", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "asset"}, {"name": "maintenance"}]
 }

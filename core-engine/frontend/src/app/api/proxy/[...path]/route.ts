@@ -6,10 +6,8 @@
 // Token được inject tự động. Browser KHÔNG bao giờ gọi Backend trực tiếp.
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/authOptions";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -18,10 +16,14 @@ async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  const token = await getToken({ req: request });
-  const session = await getServerSession(authOptions);
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+  if (request.nextUrl.pathname.endsWith('/debug-token')) {
+    return NextResponse.json({ token, hasToken: !!token });
+  }
 
   if (!token?.accessToken) {
+    logger.error("[BFF] Proxy 401: token missing or accessToken null", { hasToken: !!token });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -50,11 +52,25 @@ async function proxyHandler(
     }
   }
 
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      body,
+    });
+  } catch (err: any) {
+    logger.error(`[BFF] Fetch to backend failed: ${err.message}`);
+    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
+  }
+
+  logger.info(`[BFF] Proxy to ${targetUrl} returned ${response.status}`);
+
+  if (response.status === 401) {
+    const txt = await response.text();
+    logger.error(`[BFF] Backend returned 401 for ${targetUrl}: ${txt}`);
+    return NextResponse.json({ error: "Unauthorized from backend", detail: txt }, { status: 401 });
+  }
 
   // Proxy status code và response body nguyên vẹn
   const contentType = response.headers.get("content-type") ?? "";

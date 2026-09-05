@@ -125,6 +125,35 @@ class AbstractPluginRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    async def update_install_steps_log(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        steps_log: list[dict],
+    ) -> None:
+        """
+        Cập nhật danh sách bước cài đặt vào install_steps_log.
+        Mỗi bước có dạng:
+        {"step": "database", "status": "DONE" | "RUNNING" | "FAILED" | "PENDING",
+         "at": "ISO8601", "message": str | None}
+        """
+        ...
+
+    @abstractmethod
+    async def update_credential_ids(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        credential_ids: list[dict],
+    ) -> None:
+        """
+        Lưu danh sách n8n credential ID đã tạo trong quá trình cài plugin.
+        Dùng để rollback khi uninstall.
+        Format: [{"id": str, "name": str}]
+        """
+        ...
+
 
 class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""

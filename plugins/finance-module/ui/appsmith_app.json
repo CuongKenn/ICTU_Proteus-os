@@ -1,6 +1,63 @@
 {
-  "application": {
-    "name": "Finance App",
-    "pages": []
-  }
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance Management App",
+  "description": "Appsmith application for Finance module — Quản lý chi phí, hóa đơn, ngân sách",
+  "appUrl": "/apps/finance",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "FinanceDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/finance-overview?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 600
+        }
+      ]
+    },
+    {
+      "name": "Expense Requests",
+      "icon": "receipt",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "ExpensesTable",
+          "tableData": "{{GetExpenses.data}}",
+          "columns": [
+            {"id": "id", "label": "ID", "columnType": "text"},
+            {"id": "requester_id", "label": "Người đề nghị", "columnType": "text"},
+            {"id": "amount", "label": "Số tiền", "columnType": "currency"},
+            {"id": "category", "label": "Danh mục", "columnType": "text"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"},
+            {"id": "created_at", "label": "Ngày tạo", "columnType": "date"}
+          ]
+        }
+      ],
+      "actions": [
+        {"name": "GetExpenses", "type": "API", "path": "/api/plugins/finance-module/expenses", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Invoices",
+      "icon": "document",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "InvoicesTable",
+          "tableData": "{{GetInvoices.data}}",
+          "columns": [
+            {"id": "invoice_number", "label": "Số HĐ", "columnType": "text"},
+            {"id": "vendor_name", "label": "Nhà cung cấp", "columnType": "text"},
+            {"id": "amount", "label": "Số tiền", "columnType": "currency"},
+            {"id": "due_date", "label": "Hạn TT", "columnType": "date"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"}
+          ]
+        }
+      ],
+      "actions": [
+        {"name": "GetInvoices", "type": "API", "path": "/api/plugins/finance-module/invoices", "method": "GET"}
+      ]
+    }
+  ]
 }

@@ -130,6 +130,60 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
 
+    async def sync_marketplace_plugins() -> None:
+        """Scan local plugins directory and upsert into plugins table."""
+        try:
+            from sqlalchemy import text
+            parser = LocalManifestParser()
+            plugins_dir = parser.plugins_dir
+            if not plugins_dir.exists():
+                logger.warning("Plugins directory %s not found.", plugins_dir)
+                return
+
+            async with AsyncSessionLocal() as session:
+                for plugin_path in plugins_dir.iterdir():
+                    if not plugin_path.is_dir():
+                        continue
+                    try:
+                        manifest = parser.parse(plugin_path.name)
+                        await session.execute(
+                            text(
+                                "INSERT INTO plugins (code_name, display_name, description, version, author, license, icon_url, manifest_url, is_official, updated_at) "
+                                "VALUES (:code_name, :display_name, :description, :version, :author, :license, :icon_url, :manifest_url, :is_official, NOW()) "
+                                "ON CONFLICT (code_name) DO UPDATE SET "
+                                "display_name = EXCLUDED.display_name, "
+                                "description = EXCLUDED.description, "
+                                "version = EXCLUDED.version, "
+                                "author = EXCLUDED.author, "
+                                "license = EXCLUDED.license, "
+                                "icon_url = EXCLUDED.icon_url, "
+                                "manifest_url = EXCLUDED.manifest_url, "
+                                "is_official = EXCLUDED.is_official, "
+                                "updated_at = NOW()"
+                            ),
+                            {
+                                "code_name": plugin_path.name,
+                                "display_name": manifest.display_name,
+                                "description": manifest.description,
+                                "version": manifest.version,
+                                "author": manifest.author,
+                                "license": manifest.license,
+                                "icon_url": manifest.icon_url,
+                                "manifest_url": f"file:///{plugin_path.name}/manifest.yaml",
+                                "is_official": manifest.is_official,
+                            }
+                        )
+                    except Exception as e:
+                        logger.warning("Failed to sync plugin %s: %s", plugin_path.name, e)
+
+                await session.commit()
+                logger.info("Marketplace plugins synced successfully.")
+        except Exception as e:
+            logger.error("Failed to sync marketplace plugins: %s", e, exc_info=True)
+
+    # Sync Marketplace Plugins on Startup
+    await sync_marketplace_plugins()
+
     async def run_proactive_monitor_scan() -> None:
         """Proactive Monitor: Quét và cảnh báo 30 phút/lần."""
         try:
@@ -176,6 +230,7 @@ async def lifespan(app: FastAPI):
 
     # Chạy cleanup mỗi 10 phút
     scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
+
     # Chạy timeout worker mỗi 5 phút
     scheduler.add_job(
         run_ai_timeout_worker, "interval", minutes=5, id="ai_timeout_worker"

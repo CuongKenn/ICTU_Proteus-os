@@ -1,5 +1,42 @@
-{
-  "name": "Meeting Stats Dashboard",
-  "description": "Thống kê cuộc họp theo phòng ban",
-  "cards": []
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Meeting Statistics",
+  "description": "Metabase dashboard for Meeting Statistics",
+  "cards": [
+    {
+      "name": "Cuộc Họp Tuần Này",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) FROM mtg_bookings WHERE tenant_id IN (SELECT DISTINCT tenant_id FROM mtg_rooms) AND start_time >= date_trunc('week', NOW()) AND status = 'CONFIRMED' AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Phòng Được Dùng Nhiều Nhất",
+      "display": "bar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT r.name, COUNT(b.id) as booking_count FROM mtg_bookings b JOIN mtg_rooms r ON r.id = b.room_id WHERE b.created_at >= NOW() - INTERVAL '30 days' AND b.deleted_at IS NULL GROUP BY r.name ORDER BY booking_count DESC",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Action Items Theo Trạng Thái",
+      "display": "pie",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT status, COUNT(*) as count FROM mtg_action_items WHERE deleted_at IS NULL GROUP BY status",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "meeting-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
 }

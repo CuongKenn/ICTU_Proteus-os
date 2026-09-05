@@ -1,6 +1,97 @@
 {
-  "name": "Invoice Processing",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Finance - Invoice Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "finance/invoice-processing",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - New Invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "finance-invoice-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fin_invoices (tenant_id, invoice_number, vendor_id, amount, currency, due_date, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,'PENDING',NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.invoice_number}},={{$json.body.vendor_id}},={{$json.body.amount}},={{$json.body.currency}},={{$json.body.due_date}}"
+        }
+      },
+      "name": "Create Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name FROM fin_vendors WHERE id = $1 AND tenant_id = $2;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - New Invoice').item.json.body.vendor_id}},={{$('Webhook - New Invoice').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Vendor Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM fin_approvers WHERE tenant_id = $1 AND level = 'ACCOUNTANT' LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - New Invoice').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get Accountant",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=📄 **Hóa đơn mới cần xử lý**\nSố HĐ: {{$('Webhook - New Invoice').item.json.body.invoice_number}}\nNhà cung cấp: {{$('Get Vendor Info').item.json.name}}\nSố tiền: {{$('Webhook - New Invoice').item.json.body.amount}} {{$('Webhook - New Invoice').item.json.body.currency}}\nHạn thanh toán: {{$('Webhook - New Invoice').item.json.body.due_date}}\nID Hóa đơn: {{$('Create Invoice').item.json.id}}"
+      },
+      "name": "Notify Accountant",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"invoice_id\": \"{{$('Create Invoice').item.json.id}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - New Invoice": {
+      "main": [[{"node": "Create Invoice", "type": "main", "index": 0}]]
+    },
+    "Create Invoice": {
+      "main": [[{"node": "Get Vendor Info", "type": "main", "index": 0}]]
+    },
+    "Get Vendor Info": {
+      "main": [[{"node": "Get Accountant", "type": "main", "index": 0}]]
+    },
+    "Get Accountant": {
+      "main": [[{"node": "Notify Accountant", "type": "main", "index": 0}]]
+    },
+    "Notify Accountant": {
+      "main": [[{"node": "Respond OK", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "finance"}, {"name": "invoice"}]
 }

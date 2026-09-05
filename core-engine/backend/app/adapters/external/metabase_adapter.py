@@ -290,3 +290,9 @@ class MetabaseAdapter(AbstractAnalyticsPort):
             },
         )
         return embed_url
+
+    async def import_dashboard(
+        self, dashboard_json: dict[str, Any], tenant_id: str, dashboard_name: str
+    ) -> str:
+        """Alias cho create_dashboard để tuân thủ interface AbstractAnalyticsPort."""
+        return await self.create_dashboard(dashboard_json)

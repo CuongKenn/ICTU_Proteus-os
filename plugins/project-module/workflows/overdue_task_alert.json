@@ -1,6 +1,81 @@
 {
-  "name": "Overdue Task Alert",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Project - Overdue Task Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 * * *"}
+      },
+      "name": "Schedule - Daily 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.title, t.due_date, t.project_id, t.assignee_id, p.name as project_name, p.manager_id, u.mattermost_user_id as assignee_mm, m.mattermost_user_id as manager_mm FROM prj_tasks t JOIN prj_projects p ON p.id = t.project_id JOIN users u ON u.id = t.assignee_id JOIN users m ON m.id = p.manager_id WHERE t.status NOT IN ('DONE','CANCELLED') AND t.due_date < CURRENT_DATE AND t.deleted_at IS NULL;",
+        "additionalFields": {}
+      },
+      "name": "Find Overdue Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+        }
+      },
+      "name": "Any Overdue?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Tasks",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.assignee_mm}}",
+        "message": "=⏰ **Task quá hạn!**\nDự án: {{$json.project_name}}\nTask: {{$json.title}}\nHạn: {{$json.due_date}}\n\nVui lòng cập nhật tiến độ ngay."
+      },
+      "name": "Remind Assignee",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 150]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.manager_mm}}",
+        "message": "=🔴 **Task quá hạn trong dự án của bạn**\nDự án: {{$json.project_name}}\nTask: {{$json.title}}\nNgười thực hiện: {{$json.assignee_id}}\nHạn: {{$json.due_date}}"
+      },
+      "name": "Alert Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - Daily 8AM": {"main": [[{"node": "Find Overdue Tasks", "type": "main", "index": 0}]]},
+    "Find Overdue Tasks": {"main": [[{"node": "Any Overdue?", "type": "main", "index": 0}]]},
+    "Any Overdue?": {"main": [[{"node": "Split Tasks", "type": "main", "index": 0}]]},
+    "Split Tasks": {
+      "main": [[
+        {"node": "Remind Assignee", "type": "main", "index": 0},
+        {"node": "Alert Manager", "type": "main", "index": 0}
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "project"}, {"name": "overdue"}]
 }

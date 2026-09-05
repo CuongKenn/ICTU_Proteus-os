@@ -1,6 +1,106 @@
 {
-  "name": "Payroll Calculation",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "HR - Payroll Calculation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"cronExpression": "0 8 25 * *"}
+      },
+      "name": "Schedule - 25th of Month",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.id as employee_id, e.full_name, e.base_salary, e.tenant_id, COUNT(a.id) as worked_days, SUM(a.worked_hours) as total_hours, COUNT(CASE WHEN lr.status='APPROVED' THEN 1 END) as leave_days FROM hr_employees e LEFT JOIN hr_attendance_logs a ON a.employee_id = e.id AND date_trunc('month', a.check_in_time) = date_trunc('month', NOW()) LEFT JOIN hr_leave_requests lr ON lr.employee_id = e.id AND date_trunc('month', lr.start_date) = date_trunc('month', NOW()) AND lr.status = 'APPROVED' WHERE e.status = 'ACTIVE' AND e.deleted_at IS NULL GROUP BY e.id, e.full_name, e.base_salary, e.tenant_id;",
+        "additionalFields": {}
+      },
+      "name": "Aggregate Attendance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Employees",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $json;\nconst workingDays = 22; // Số ngày công chuẩn\nconst dailyRate = e.base_salary / workingDays;\nconst overtimeRate = dailyRate / 8 * 1.5;\nconst overtimeHours = Math.max(0, e.total_hours - (workingDays * 8));\nconst grossSalary = Math.round(\n  (e.worked_days * dailyRate) + (overtimeHours * overtimeRate)\n);\nconst taxRate = grossSalary > 20000000 ? 0.15 : 0.10;\nconst socialInsurance = Math.round(e.base_salary * 0.105);\nconst netSalary = Math.round(grossSalary * (1 - taxRate) - socialInsurance);\nreturn [{json: {\n  ...e,\n  gross_salary: grossSalary,\n  net_salary: netSalary,\n  tax_amount: Math.round(grossSalary * taxRate),\n  social_insurance: socialInsurance,\n  overtime_hours: overtimeHours,\n  period: new Date().toISOString().substring(0, 7)\n}}];"
+      },
+      "name": "Calculate Payroll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO hr_payroll_records (tenant_id, employee_id, period, worked_days, overtime_hours, gross_salary, tax_amount, social_insurance, net_salary, status, generated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'DRAFT',NOW()) ON CONFLICT (tenant_id, employee_id, period) DO UPDATE SET gross_salary=$6, net_salary=$9, status='DRAFT';",
+        "additionalFields": {
+          "queryParams": "={{$json.tenant_id}},={{$json.employee_id}},={{$json.period}},={{$json.worked_days}},={{$json.overtime_hours}},={{$json.gross_salary}},={{$json.tax_amount}},={{$json.social_insurance}},={{$json.net_salary}}"
+        }
+      },
+      "name": "Save Payroll Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT m.mattermost_user_id FROM hr_payroll_config m WHERE m.tenant_id = $1 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Calculate Payroll').item.json.tenant_id}}"
+        }
+      },
+      "name": "Get HR Admin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total_employees, SUM(net_salary) as total_payroll FROM hr_payroll_records WHERE period = $1 AND status = 'DRAFT';",
+        "additionalFields": {
+          "queryParams": "={{new Date().toISOString().substring(0,7)}}"
+        }
+      },
+      "name": "Get Payroll Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "userId": "={{$('Get HR Admin').item.json.mattermost_user_id}}",
+        "message": "=💰 **Bảng lương tháng {{new Date().toLocaleDateString('vi-VN', {month:'long', year:'numeric'})}} đã tính xong**\n\nSố nhân viên: {{$json.total_employees}}\nTổng quỹ lương: {{$json.total_payroll}} VND\n\n👉 Vui lòng kiểm tra và phê duyệt bảng lương trước ngày 28."
+      },
+      "name": "Notify HR Admin",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Schedule - 25th of Month": {"main": [[{"node": "Aggregate Attendance", "type": "main", "index": 0}]]},
+    "Aggregate Attendance": {"main": [[{"node": "Split Employees", "type": "main", "index": 0}]]},
+    "Split Employees": {"main": [[{"node": "Calculate Payroll", "type": "main", "index": 0}]]},
+    "Calculate Payroll": {"main": [[{"node": "Save Payroll Record", "type": "main", "index": 0}]]},
+    "Save Payroll Record": {"main": [[{"node": "Get HR Admin", "type": "main", "index": 0}]]},
+    "Get HR Admin": {"main": [[{"node": "Get Payroll Summary", "type": "main", "index": 0}]]},
+    "Get Payroll Summary": {"main": [[{"node": "Notify HR Admin", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "hr"}, {"name": "payroll"}]
 }

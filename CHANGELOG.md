@@ -4,6 +4,85 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
+
+### Added
+- **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
+- **[plugins/crm-module/dashboards]** Implement `sales_pipeline` (pipeline overview, top leads, conversion rate, revenue forecast) và `customer_health` (avg satisfaction, churn risk, ticket volume) cho Metabase.
+- **[plugins/crm-module/ui]** Implement `appsmith_app.json` với 4 trang: Dashboard, Leads, Opportunities, Support Tickets.
+- **[plugins/finance-module/workflows]** Implement đầy đủ 4 workflows: `expense_approval` (routing theo ngưỡng 5M VND), `invoice_processing`, `budget_alert` (cảnh báo khi chi ≥ 80%), `monthly_report_gen` (báo cáo tháng tự động).
+- **[plugins/finance-module/dashboards]** Implement `finance_overview` (thu/chi, dòng tiền 12 tháng, chi phí theo danh mục) và `budget_vs_actual`.
+- **[plugins/finance-module/ui]** Implement `appsmith_app.json` với 3 trang: Dashboard, Expense Requests, Invoices.
+- **[plugins/asset-module/workflows]** Implement đầy đủ 4 workflows: `asset_request` (auto-assign hoặc alert IT manager), `asset_inventory_check` (kiểm kê tháng), `depreciation_calc` (khấu hao đường thẳng hàng năm), `maintenance_schedule` (nhắc bảo trì tuần).
+- **[plugins/asset-module/dashboards & ui]** Implement `asset_overview`, `maintenance_schedule` dashboards và Appsmith app 3 trang.
+- **[plugins/it-helpdesk-module/workflows]** Implement đầy đủ 4 workflows: `ticket_create` (với SLA deadline tự động theo priority), `sla_escalation` (kiểm tra mỗi 30 phút), `ticket_feedback` (đóng ticket + cảnh báo điểm thấp), `weekly_it_report`.
+- **[plugins/it-helpdesk-module/dashboards & ui]** Implement `helpdesk_overview`, `it_team_performance` dashboards và Appsmith app 3 trang.
+- **[plugins/meeting-module/workflows]** Implement đầy đủ 4 workflows: `meeting_booking` (check overlap bằng `tsrange`), `meeting_reminder` (nhắc từng người tham dự 15 phút trước), `action_item_followup`, `room_release`.
+- **[plugins/meeting-module/dashboards & ui]** Implement `meeting_stats`, `action_item_tracker` dashboards và Appsmith app 3 trang.
+- **[plugins/project-module/workflows]** Implement đầy đủ 4 workflows: `task_assignment`, `overdue_task_alert` (thông báo đồng thời assignee + manager), `milestone_reminder`, `project_status_report` (báo cáo thứ 6).
+- **[plugins/project-module/dashboards & ui]** Implement `project_overview`, `team_workload` dashboards và Appsmith app 3 trang.
+- **[plugins/procurement-module/workflows]** Implement đầy đủ 5 workflows: `purchase_request` (routing theo ngưỡng 20M VND), `po_approval`, `contract_expiry_alert`, `sync_payment_status`, `vendor_evaluation` (đánh giá hàng quý).
+- **[plugins/procurement-module/dashboards & ui]** Implement `procurement_overview`, `contract_tracker` dashboards và Appsmith app 4 trang.
+- **[plugins/document-module/workflows]** Implement đầy đủ 5 workflows: `document_approval`, `incoming_document` (tự sinh mã văn bản), `archive_old_docs`, `document_expiry_check`, `reassign_document`.
+- **[plugins/document-module/dashboards & ui]** Implement `document_stats`, `processing_time` dashboards và Appsmith app 3 trang.
+- **[plugins/hr-module/workflows]** Implement 2 workflow còn stub: `attendance_checkin` (check-in/check-out với tính giờ làm) và `payroll_calculation` (tính lương ngày 25 — gross/net/thuế/BHXH).
+
+### Fixed
+- **[tất cả 65 plugin JSON files]** Thêm `_license` header (`Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later`) vào tất cả JSON files. JSON không hỗ trợ comment nên license được đặt trong field `_license` ở đầu object.
+- **[tất cả plugin JSON files]** Không còn file stub trống (0 nodes) — 65/65 files được implement đầy đủ với nodes, connections, và business logic thực tế.
+
+## [Unreleased] — Plugin Architecture Overhaul (2026-09-05)
+
+
+### Added
+- **[core-engine/backend/app/core/domain/plugin_manifest.py]** Thêm `ManifestCredentialField` model: khai báo từng trường credential (key, label, type, required, placeholder, description, default, options, credential_type_name). Plugin manifest nay có `credentials_schema: []` — frontend render form động.
+- **[core-engine/backend/app/core/domain/plugin_manifest.py]** Thêm `category`, `tags`, `screenshots`, `long_description`, `changelog` vào `PluginManifest`. Thêm `VALID_PLUGIN_CATEGORIES` constant (HR|CRM|Finance|Analytics|Communication|Utilities|IT|Operations|Legal|Other).
+- **[core-engine/backend/app/core/domain/entities.py]** Enrich `PluginEntity` với 10 fields mới: `description`, `author`, `license`, `icon_url`, `homepage_url`, `category`, `tags`, `screenshots`, `long_description`, `download_count`, `published_at`, `credentials_schema`. Thêm `PluginStatus.PENDING_CREDENTIALS`.
+- **[core-engine/backend/app/core/domain/entities.py]** Thêm `CredentialFieldSchema`, `CredentialFieldType`, `CredentialInput` domain types. Thêm `credentials: list[CredentialInput]` vào `InstallRequest`.
+- **[core-engine/backend/app/core/domain/ports.py]** Define concrete abstract methods cho 5 Ports: `AbstractWorkflowEnginePort` (import/delete/activate/deactivate workflow + create/delete credential), `AbstractUIBuilderPort`, `AbstractAnalyticsPort`, `AbstractIdentityProviderPort`, `AbstractChatOpsPort`, `AbstractEventBusPort`. Tuân thủ Dependency Inversion Principle.
+- **[migrations/versions/f1a2b3c4d5e6_add_plugin_enrichment_fields.py]** Migration mới: thêm `category`, `tags` (ARRAY), `screenshots` (JSONB), `long_description`, `credentials_schema` (JSONB), `homepage_url` vào bảng `plugins`. Thêm `install_steps_log` (JSONB), `credential_ids` (JSONB) vào bảng `tenant_plugins`.
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Thêm `update_install_steps_log()`, `update_credential_ids()`, `get_credential_ids()`, `get_install_steps_log()` methods. Fix `_to_entity()` map đủ 17 fields từ DB.
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Thêm Step-by-step progress logging (`_log_step`, `_persist_steps`). Thêm bước 7 `_step_7_credentials()` trong Saga — tạo n8n credentials từ `CredentialInput[]`, lưu IDs để rollback. Thêm `_check_version_compatibility()` kiểm tra `proteus_os_min_version`. Credentials KHÔNG bao giờ lưu vào DB Proteus.
+- **[core-engine/backend/app/entrypoints/schemas/plugin.py]** Thêm `CredentialFieldSchemaOut`, `CredentialInputSchema`, `InstallPluginRequest` (với `credentials: list`), `InstallStatusResponse` (với `steps` thật), `InstallStepLog`, `PluginDetailResponse`.
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm `GET /plugins/{id}` endpoint detail. `POST /install` nhận body `InstallPluginRequest` với `credentials`. Fix `GET /install/{task_id}/status` trả về `steps` thật từ `install_steps_log`. Thêm `?category=` filter cho marketplace endpoint.
+- **[core-engine/backend/app/core/use_cases/manifest_validator.py]** Thêm validation cho `credentials_schema` (type whitelist, select cần options) và `category` (phải thuộc VALID_PLUGIN_CATEGORIES). Thêm `CredentialFieldEntry` model.
+- **[core-engine/frontend/src/types/index.ts]** Enrich `Plugin` type với 9 fields mới. Thêm `CredentialFieldSchema`, `CredentialInput`, `PluginDetail`, `PENDING_CREDENTIALS` status, update `InstallTaskStep` format.
+- **[core-engine/frontend/src/app/marketplace/InstallPreviewDialog.tsx]** Hoàn toàn viết lại: Dynamic credential form render từ `credentials_schema`. Mỗi field (string/password/number/boolean/select) được render đúng input type. Validate required fields trước khi submit. Nếu `credentials_schema` rỗng → ẩn section credentials.
+- **[core-engine/frontend/src/hooks/usePlugins.ts]** `install()` nhận optional `CredentialInput[]`, pass vào request body.
+- **[core-engine/frontend/src/hooks/useMarketplace.ts]** `installPlugin()` nhận optional `CredentialInput[]`. Fix `pollStatus` map `ACTIVE`/`FAILED_DIRTY` status đúng từ API mới.
+- **[plugins/*/manifest.yaml]** Thêm `category`, `credentials_schema: []` vào tất cả 9 plugin manifests (hr, crm, finance, asset, document, it-helpdesk, meeting, procurement, project). HR thêm `tags`, `long_description`, `changelog`.
+
+### Changed
+- **[core-engine/frontend/src/app/marketplace/MarketplaceClient.tsx]** Bỏ hardcode category detection (`code_name.includes("hr")`) → dùng `p.category` từ backend. Truyền `credentialsSchema` từ plugin data vào `InstallPreviewDialog`. `handleConfirmInstall` nhận `CredentialInput[]` và pass trực tiếp vào `installPlugin()` — loại bỏ luồng 2 request riêng lẻ (credentials trước, install sau).
+- **[core-engine/frontend/src/components/marketplace/PluginCard.tsx]** Fix `Math.random()` rating → `plugin.rating ?? null` (không flicker). Hiển thị `plugin.author` thật thay vì hardcode "Proteus Core". Hỗ trợ `icon_url` (`<img>` thay vì chữ cái đầu).
+
+### Fixed
+- **[core-engine/backend/app/infrastructure/models.py]** Thêm import `ARRAY` từ SQLAlchemy dialects. Thêm `category`, `tags`, `screenshots`, `long_description`, `credentials_schema`, `homepage_url` vào `PluginModel`. Thêm `install_steps_log`, `credential_ids` vào `TenantPluginModel`.
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix thứ tự credentials ↔ install: credentials được tạo TRONG saga (bước 7), không phải trước install. Nếu credentials fail → saga rollback toàn bộ.
+
+## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-09-05)
+
+### Fixed
+- **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Khắc phục lỗi sai tên cột (`updated_at` thành `last_updated_at`) khi tương tác với bảng `tenant_plugins` trong Database, gây ra `UndefinedColumnError` làm Crash tiến trình Background Plugin Installation.
+- **[core-engine/backend/app/entrypoints/routers/plugins.py]** Sửa lỗi Dependency Injection trong endpoint `GET /plugins/install/{task_id}/status`: Thay vì truy cập `request.app.state.plugin_repo` (gây lỗi 500 `AttributeError`), đã chuyển sang sử dụng `Depends(get_plugin_repo)`.
+- **[core-engine/frontend/src/app/marketplace]** Khắc phục lỗi 403 Forbidden khi cài đặt Plugin (issue `installPlugin`) do truyền nhầm tham số `code_name` thay vì `plugin_id` (UUID).
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Bổ sung cơ chế bypass quyền truy cập (permissions check) cho tài khoản Super Admin (`admin@proteus.local`) để sửa lỗi thiếu vai trò `tenant_admin` trong JWT token từ Keycloak.
+- **[core-engine/backend/app/core/domain/plugin_manifest.py]** Cập nhật schema Pydantic V2 (sử dụng `model_config = ConfigDict(protected_namespaces=())`) để fix lỗi cảnh báo namespace khi parsing Plugin Manifest.
+- **[deploy/docker-compose.yml]** Fix cấu hình Appsmith không dùng biến `APPSMITH_CUSTOM_DOMAIN` gây lỗi khởi tạo; bổ sung mount đường dẫn `plugins` volume vào Backend container để có thể đọc được manifest file.
+- **[deploy/postgres/init.sql]** Bổ sung bảng `user_roles` và `tenant_integrations` hỗ trợ RBAC và tích hợp external provider (GitHub, Slack).
+- **[core-engine/backend/main.py]** Bổ sung logic tự động sync Marketplace Plugins vào Database Postgres mỗi khi hệ thống backend khởi động.
+- **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Khắc phục lỗi vòng lặp đăng nhập (Login Loop 401) do lỗi đọc cookie bị phân mảnh (chunked cookies) khi gọi qua NextAuth BFF proxy.
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Thêm cơ chế dự phòng gán `tenant_id` mặc định khi token từ Keycloak chưa có thông tin `tenant_id`, tránh lỗi 500 khi xác thực API Backend.
+- **[deploy/docker-compose.yml]** Sửa lỗi N8N crash liên tục do xung đột mã hóa (`N8N_ENCRYPTION_KEY`) bằng cách cấu hình `N8N_DISABLE_UI_SECURITY=true` và xóa file config lỗi cũ. Cấu hình Traefik middleware xóa bỏ `X-Frame-Options` và ghi đè `Content-Security-Policy` (`frame-ancestors`) để hỗ trợ nhúng iFrame an toàn cho tất cả các Ứng dụng nội bộ (N8N, Mattermost, Appsmith, Wiki).
+- **[core-engine/frontend/src/app]** Thay thế địa chỉ fallback mặc định (từ `localhost` thành `.proteus.local`) cho tất cả các Ứng dụng con, chấm dứt hoàn toàn cảnh báo lỗi Next.js React Hydration mismatch.
+- **[deploy/setup.ps1]** Rewrite toàn bộ script sang pure ASCII để loại bỏ lỗi encoding UTF-8 gây ParseException trong PowerShell. Thay thế cơ chế pipe bash (`echo|base64 -d`) bằng PowerShell-native temp file approach.
+- **[deploy/setup.ps1]** Fix lỗi `NullArray` khi Mattermost login trả về null — thêm null guard trước khi truy cập `.Headers["Token"]`.
+- **[deploy/setup.ps1, deploy/setup.sh]** Fix lỗi n8n API Key automation: endpoint `/rest/api-keys` bị n8n 1.52+ loại bỏ. Thay thế bằng cơ chế inject API Key trực tiếp vào PostgreSQL (`n8n."user"` table) — hoạt động ngay lập tức, không cần restart.
+
+### Changed
+- **[deploy/setup.ps1, deploy/setup.sh]** Nâng cấp Zero-Touch Provisioning (ZTP): tự động sinh `OUTLINE_SECRET_KEY` và `OUTLINE_UTILS_SECRET` (32-byte HEX) ngay khi khởi tạo `.env`, không cần can thiệp thủ công.
+- **[deploy/setup.ps1, deploy/setup.sh]** Tự động đồng bộ toàn bộ Keycloak OIDC client secrets (`outline`, `n8n`, `appsmith`, `proteus-bff`) từ PostgreSQL vào `.env` — loại bỏ bước thủ công "Copy từ Keycloak UI".
+
 ## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
 ### Added
 - **[core-engine/backend]** Bổ sung trường `notify_channel_id` vào `TenantModel` và luồng cài đặt Plugin để hỗ trợ Data Isolation, cho phép cấu hình kênh thông báo riêng biệt cho từng Tenant thay vì dùng chung System Channel (Issue #560).
@@ -14,6 +93,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Chuyển đổi Event Bus từ Redis Pub/Sub (fire-and-forget) sang Redis Streams (`publish_critical`) cho các sự kiện quan trọng nhằm đảm bảo tính bền bỉ (persistence). Bổ sung cơ chế Retry Exponential Backoff và Dead Letter Queue (DLQ) ghi log khi mất kết nối Redis (Issue #492).
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
+<<<<<<< HEAD
+- **[deploy/setup.ps1]** Fix lỗi Crash Loop trong luồng Zero-Touch Provisioning (ZTP) khi API khởi tạo Mattermost Bot/Webhook trả về mã lỗi 400 (Bad Request). Wrap các HTTP call bằng cấu trúc try-catch, bỏ qua các lỗi không nghiêm trọng để luồng script có thể chạy Idempotent. Cập nhật timeout và fix lỗi n8n API.
+- **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Metabase (tạo db `metabase`) để khắc phục lỗi khởi tạo `databasechangelog` do trùng lặp schema với Core Data khiến Metabase v0.50 văng lỗi 502 Bad Gateway.
+- **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Outline (tạo db `outline`), xóa bỏ biến môi trường `DATABASE_SCHEMA` để khắc phục lỗi xung đột khi Sequelize tạo bảng nhầm vào `public` thay vì `outline`, gây lỗi 404 Crash-loop.
+- **[deploy/docker-compose.yml, deploy/.env.example]** Cập nhật `PGSSLMODE=disable` cho Outline để fix lỗi kết nối HTTPS với Postgres nội bộ. Generate các biến môi trường cấu hình `SECRET_KEY` bằng định dạng 32-byte HEX để tránh lỗi invalid config từ Outline container.
+=======
 - **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).
 - **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Sửa lỗi format của JWT khi tạo Metabase Signed Embed URL (Issue #549).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật logic `_rollback()` lấy `keycloak_realm` từ CSDL thay vì hardcode chuỗi `"proteus"` để ngăn chặn xóa nhầm Keycloak role khi cài đặt plugin thất bại (Issue #534).
@@ -38,6 +123,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
 
 
+>>>>>>> origin/main
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
@@ -76,6 +162,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[.github/workflows/backend-ci.yml]** Nâng ngưỡng bao phủ mã (coverage threshold) cho Backend unit tests từ 10% lên 70% để đảm bảo chất lượng code.
 - **[core-engine/frontend/src/components/AppShell.tsx]** Refactor `AppShell` component thành các thành phần nhỏ hơn (`Sidebar`, `Topbar`) để tuân thủ nguyên tắc SRP và cải thiện khả năng bảo trì (Issue #291).
 ### Added
+- **[deploy/setup.ps1]** Bổ sung các bước Zero-Touch Provisioning (ZTP) cho môi trường Windows: tự động hóa cấu hình Mattermost (Bot/Webhook), n8n (Owner/API Key), Appsmith (Admin/API Key) và đồng bộ Keycloak/Outline Secrets thông qua PowerShell REST API.
 - **[deploy/setup.ps1]** Bổ sung script cài đặt `setup.ps1` bằng PowerShell dành riêng cho môi trường Windows, hỗ trợ tự động hóa việc cấu hình `.env`, sinh credential keys và khởi chạy Docker Compose tương tự như `setup.sh` (Issue #293).
 - **[core-engine/backend/app/entrypoints/routers/plugins.py]** Thêm endpoint `POST /api/v1/plugins/{plugin_id}/credentials` và tính năng cấu hình n8n Credentials trực tiếp từ UI (Issue #246).
 - **[docs/IEEE_PAPER_DRAFT.md]** Đột phá 4 (IEEE Paper): Đóng gói bản thảo báo cáo khoa học (IEEE Format) về AI Autonomous Plugin Synthesizer & Z3 Formal Verification. Xây dựng bộ Benchmark 500 Test Cases mô phỏng tấn công RLS Boundary & suy luận ảo giác từ LLM (Issue #238).

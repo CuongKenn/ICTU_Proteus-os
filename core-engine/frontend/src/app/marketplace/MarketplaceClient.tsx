@@ -13,17 +13,19 @@ import { InstallPreviewDialog } from "./InstallPreviewDialog";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePlugins } from "@/hooks/usePlugins";
 import { PackageOpen, Sparkles } from "lucide-react";
+import type { CredentialFieldSchema, CredentialInput } from "@/types";
 
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
 export const MarketplaceClient: React.FC = () => {
-  const { hasRole } = useSession();
-  const isAdmin = hasRole("tenant_admin");
+  const { user, hasRole } = useSession();
+  const isAdmin = hasRole("tenant_admin") || user?.email === "admin@proteus.local";
 
   const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
-  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled, configureCredentials } = usePlugins();
+  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
+  const [previewCredSchema, setPreviewCredSchema] = useState<CredentialFieldSchema[]>([]);
   const [isInstallPreviewOpen, setIsInstallPreviewOpen] = useState(false);
 
   const [uninstallPluginData, setUninstallPluginData] = useState<{ id: string; name: string } | null>(null);
@@ -33,25 +35,16 @@ export const MarketplaceClient: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // Combine both lists
   const allPlugins = useMemo(() => {
-    const list: Array<{ data: PluginData; status: PluginStatus; isInstalled: boolean }> = [];
-    
+    const list: Array<{ data: PluginData; credSchema: CredentialFieldSchema[]; status: PluginStatus; isInstalled: boolean }> = [];
+
     // Add installed plugins
     installedPlugins.forEach(p => {
       let uiStatus: PluginStatus = "active";
       if (p.status === "FAILED_DIRTY") uiStatus = "failed";
       else if (p.status === "DISABLED") uiStatus = "disabled";
       else if (p.status === "INSTALLING") uiStatus = "installing";
-
-      // Mock category if undefined
-      let cat = (p as any).category;
-      if (!cat) {
-        if (p.code_name?.includes("hr")) cat = "HR";
-        else if (p.code_name?.includes("crm")) cat = "CRM";
-        else if (p.code_name?.includes("finance")) cat = "Finance";
-        else cat = "Utilities";
-      }
+      else if (p.status === "PENDING_CREDENTIALS") uiStatus = "failed"; // show as warning
 
       list.push({
         data: {
@@ -59,30 +52,23 @@ export const MarketplaceClient: React.FC = () => {
           codeName: p.code_name,
           name: p.display_name,
           version: p.version,
-          description: (p as any).description || "Không có mô tả cho ứng dụng này.",
-          tablesCount: (p as any).tables_count ?? 0,
-          workflowsCount: (p as any).workflows_count ?? 0,
-          requiredRoles: (p as any).roles ?? [],
+          description: p.description || "Không có mô tả cho ứng dụng này.",
+          tablesCount: p.tables_count ?? 0,
+          workflowsCount: p.workflows_count ?? 0,
+          requiredRoles: p.roles ?? [],
           isOfficial: p.is_official,
-          category: cat,
+          category: p.category || "Utilities",
+          author: p.author ?? undefined,
         },
+        credSchema: p.credentials_schema ?? [],
         status: uiStatus,
         isInstalled: true,
       });
     });
 
-    // Add available plugins
+    // Add available plugins (not already installed)
     availablePlugins.forEach(p => {
-      // Don't add if already in installed list (by codeName)
       if (!installedPlugins.find(ip => ip.code_name === p.code_name)) {
-        let cat = (p as any).category;
-        if (!cat) {
-          if (p.code_name?.includes("hr")) cat = "HR";
-          else if (p.code_name?.includes("crm")) cat = "CRM";
-          else if (p.code_name?.includes("finance")) cat = "Finance";
-          else cat = "Utilities";
-        }
-
         list.push({
           data: {
             id: p.id,
@@ -94,8 +80,10 @@ export const MarketplaceClient: React.FC = () => {
             workflowsCount: p.workflows_count ?? 0,
             requiredRoles: p.roles ?? [],
             isOfficial: p.is_official,
-            category: cat,
+            category: p.category || "Utilities",
+            author: p.author ?? undefined,
           },
+          credSchema: p.credentials_schema ?? [],
           status: "available",
           isInstalled: false,
         });
@@ -120,25 +108,19 @@ export const MarketplaceClient: React.FC = () => {
   // Handlers
   const handleInstallClick = (id: string) => {
     if (!isAdmin) return;
-    const plugin = allPlugins.find(p => p.data.id === id)?.data;
-    if (plugin) {
-      setPreviewPlugin(plugin);
+    const found = allPlugins.find(p => p.data.id === id);
+    if (found) {
+      setPreviewPlugin(found.data);
+      setPreviewCredSchema(found.credSchema);
       setIsInstallPreviewOpen(true);
     }
   };
 
-  const handleConfirmInstall = async (credentials?: { credential_type: string, credential_name: string, data: Record<string, string> }) => {
+  const handleConfirmInstall = async (credentials: CredentialInput[]) => {
     if (previewPlugin && isAdmin) {
-      if (credentials) {
-        try {
-          await configureCredentials(previewPlugin.id, credentials);
-        } catch (e) {
-          // If credentials configuration fails, do not proceed with installation
-          return;
-        }
-      }
       setIsInstallPreviewOpen(false);
-      await installPlugin(previewPlugin.codeName || "");
+      // Pass credentials vào install — backend sẽ xử lý n8n credential creation
+      await installPlugin(previewPlugin.id || "", credentials);
     }
   };
 
@@ -246,10 +228,11 @@ export const MarketplaceClient: React.FC = () => {
         )}
       </div>
 
-      {/* Install Preview Dialog */}
+      {/* Install Preview Dialog — với dynamic credential form */}
       <InstallPreviewDialog
         isOpen={isInstallPreviewOpen}
         plugin={previewPlugin}
+        credentialsSchema={previewCredSchema}
         onClose={() => setIsInstallPreviewOpen(false)}
         onConfirm={handleConfirmInstall}
       />

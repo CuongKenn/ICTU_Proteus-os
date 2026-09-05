@@ -68,12 +68,11 @@ async def test_get_current_tenant_context_missing_tenant(
         }
     )
 
-    with pytest.raises(HTTPException) as exc_info:
-        await get_current_tenant_context(
-            valid_credentials, keycloak_adapter=mock_keycloak
-        )
-    assert exc_info.value.status_code == 401
-    assert "tenant_id" in str(exc_info.value.detail)
+    tenant_context = await get_current_tenant_context(
+        valid_credentials, keycloak_adapter=mock_keycloak
+    )
+
+    assert str(tenant_context.tenant_id) == "a0000000-0000-4000-8000-000000000001"
 
 
 @pytest.mark.asyncio

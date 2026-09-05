@@ -26,11 +26,16 @@ services:
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik-certs:/letsencrypt
     networks:
-      - proteus-net
+      proteus-net:
+        aliases:
+          - auth.proteus.local  # Internal containers reach Keycloak via Traefik -> proper X-Forwarded headers -> correct port in OIDC discovery
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
+      # Middleware allow iframe embedding for apps
+      - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.X-Frame-Options="
+      - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.Content-Security-Policy=frame-ancestors 'self' http://${DOMAIN:-proteus.local} https://${DOMAIN:-proteus.local}"
 
   # ────────────────────────────────────────────────────────────
   # POSTGRESQL — Primary Database
@@ -81,8 +86,7 @@ services:
     restart: unless-stopped
     command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
     environment:
-      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/cert.pem
-      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/key.pem
+
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-proteus}
       KC_DB_USERNAME: ${POSTGRES_USER:-proteus}
@@ -91,9 +95,15 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HOSTNAME: auth.${DOMAIN}
+      KC_HOSTNAME_STRICT: "false"        # Allow HTTP in dev; don't enforce HTTPS-only hostnames
+      KC_HOSTNAME_STRICT_HTTPS: "false"  # Don't redirect HTTP -> HTTPS
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
+      # Fix "Cookie not found" on HTTP: Chrome rejects SameSite=None without Secure.
+      # Setting SameSite=Lax allows AUTH_SESSION_ID cookie to work over plain HTTP.
+      JAVA_OPTS_APPEND: >-
+        -Dkeycloak.cookies.auth-session-id.same-site=Lax
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,7 +155,9 @@ services:
       N8N_PROTOCOL: http
       WEBHOOK_URL: http://workflow.${DOMAIN}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_SECURE_COOKIE: "false"
       N8N_BASIC_AUTH_ACTIVE: "false"   # Auth qua Keycloak OIDC
+      N8N_DISABLE_UI_SECURITY: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -158,6 +170,7 @@ services:
       - "traefik.http.routers.n8n.rule=Host(`workflow.${DOMAIN}`)"
       - "traefik.http.routers.n8n.entrypoints=web"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      - "traefik.http.routers.n8n.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # MATTERMOST — Chat & Collaboration
@@ -189,6 +202,7 @@ services:
       - "traefik.http.routers.mattermost.rule=Host(`chat.${DOMAIN}`)"
       - "traefik.http.routers.mattermost.entrypoints=web"
       - "traefik.http.services.mattermost.loadbalancer.server.port=8065"
+      - "traefik.http.routers.mattermost.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # METABASE — Business Intelligence / Dashboard
@@ -199,12 +213,11 @@ services:
     restart: unless-stopped
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_DBNAME: ${POSTGRES_DB:-proteus}
+      MB_DB_DBNAME: metabase
       MB_DB_PORT: 5432
       MB_DB_USER: ${POSTGRES_USER:-proteus}
       MB_DB_PASS: ${POSTGRES_PASSWORD}
       MB_DB_HOST: postgres
-      MB_DB_SCHEMA: metabase
       MB_SITE_URL: http://analytics.${DOMAIN}
     depends_on:
       postgres:
@@ -228,7 +241,6 @@ services:
     restart: unless-stopped
     environment:
       APPSMITH_DISABLE_TELEMETRY: "true"
-      APPSMITH_CUSTOM_DOMAIN: apps.${DOMAIN}
     volumes:
       - appsmith-data:/appsmith-stacks
     networks:
@@ -238,6 +250,7 @@ services:
       - "traefik.http.routers.appsmith.rule=Host(`apps.${DOMAIN}`) || PathPrefix(`/proxy/appsmith`)"
       - "traefik.http.routers.appsmith.entrypoints=web"
       - "traefik.http.services.appsmith.loadbalancer.server.port=80"
+      - "traefik.http.routers.appsmith.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # OUTLINE — Wiki / Knowledge Base
@@ -247,8 +260,8 @@ services:
     container_name: proteus-outline
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
-      DATABASE_SCHEMA: outline
+      DATABASE_URL: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/outline
+      PGSSLMODE: disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       URL: http://wiki.${DOMAIN}
       SECRET_KEY: ${OUTLINE_SECRET_KEY}
@@ -276,6 +289,7 @@ services:
       - "traefik.http.routers.outline.rule=Host(`wiki.${DOMAIN}`)"
       - "traefik.http.routers.outline.entrypoints=web"
       - "traefik.http.services.outline.loadbalancer.server.port=3000"
+      - "traefik.http.routers.outline.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # OBSERVABILITY — Grafana, Loki, Promtail
@@ -348,6 +362,9 @@ services:
       ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: http://localhost:3001
+      PLUGINS_DIR: /plugins
+    volumes:
+      - ../plugins:/plugins:ro
     depends_on:
       postgres:
         condition: service_healthy

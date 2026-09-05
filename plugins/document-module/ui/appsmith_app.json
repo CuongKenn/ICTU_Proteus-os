@@ -1,1 +1,64 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Document Management App",
+  "description": "Appsmith application for Document module — Quản lý văn bản đến/đi, phê duyệt, lưu trữ",
+  "appUrl": "/apps/document",
+  "pages": [
+    {
+      "name": "Dashboard",
+      "icon": "graph-line",
+      "widgets": [
+        {
+          "type": "IFRAME_WIDGET",
+          "widgetName": "DocDashboard",
+          "src": "{{appsmith.store.metabaseUrl}}/embed/dashboard/document-stats?tenant_id={{appsmith.store.tenantId}}&bordered=false&titled=false",
+          "height": 500
+        }
+      ]
+    },
+    {
+      "name": "Văn bản đến",
+      "icon": "download",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "IncomingDocsTable",
+          "tableData": "{{GetIncomingDocs.data}}",
+          "columns": [
+            {"id": "doc_code", "label": "Mã văn bản", "columnType": "text"},
+            {"id": "title", "label": "Tiêu đề", "columnType": "text"},
+            {"id": "sender_name", "label": "Người gửi", "columnType": "text"},
+            {"id": "doc_type", "label": "Loại", "columnType": "text"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"},
+            {"id": "assigned_to", "label": "Phụ trách", "columnType": "text"},
+            {"id": "received_at", "label": "Ngày nhận", "columnType": "date"}
+          ]
+        }
+      ],
+      "actions": [
+        {"name": "GetIncomingDocs", "type": "API", "path": "/api/plugins/document-module/documents?direction=INCOMING", "method": "GET"}
+      ]
+    },
+    {
+      "name": "Văn bản đi",
+      "icon": "upload",
+      "widgets": [
+        {
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "OutgoingDocsTable",
+          "tableData": "{{GetOutgoingDocs.data}}",
+          "columns": [
+            {"id": "doc_code", "label": "Mã văn bản", "columnType": "text"},
+            {"id": "title", "label": "Tiêu đề", "columnType": "text"},
+            {"id": "doc_type", "label": "Loại", "columnType": "text"},
+            {"id": "status", "label": "Trạng thái", "columnType": "text"},
+            {"id": "created_at", "label": "Ngày tạo", "columnType": "date"}
+          ]
+        }
+      ],
+      "actions": [
+        {"name": "GetOutgoingDocs", "type": "API", "path": "/api/plugins/document-module/documents?direction=OUTGOING", "method": "GET"}
+      ]
+    }
+  ]
+}

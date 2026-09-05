@@ -1,6 +1,114 @@
 {
-  "name": "Asset Request",
-  "nodes": [],
-  "connections": {},
-  "settings": {}
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Asset - Asset Request Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "asset/request",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Asset Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "asset-request-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ast_requests (tenant_id, requester_id, asset_type, description, priority, status, created_at) VALUES ($1,$2,$3,$4,$5,'PENDING',NOW()) RETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{$json.body.tenant_id}},={{$json.body.requester_id}},={{$json.body.asset_type}},={{$json.body.description}},={{$json.body.priority}}"
+        }
+      },
+      "name": "Create Asset Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.asset_code, a.model FROM ast_assets a WHERE a.tenant_id = $1 AND a.asset_type = $2 AND a.status = 'AVAILABLE' AND a.deleted_at IS NULL LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Asset Request').item.json.body.tenant_id}},={{$('Webhook - Asset Request').item.json.body.asset_type}}"
+        }
+      },
+      "name": "Check Available Asset",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.id}}", "operation": "isNotEmpty"}]
+        }
+      },
+      "name": "Asset Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ast_assets SET status = 'IN_USE', assigned_to = $1 WHERE id = $2; UPDATE ast_requests SET status = 'APPROVED', assigned_asset_id = $2 WHERE id = $3;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Asset Request').item.json.body.requester_id}},={{$('Check Available Asset').item.json.id}},={{$('Create Asset Request').item.json.id}}"
+        }
+      },
+      "name": "Assign Asset",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mattermost_user_id FROM ast_it_managers WHERE tenant_id = $1 LIMIT 1;",
+        "additionalFields": {
+          "queryParams": "={{$('Webhook - Asset Request').item.json.body.tenant_id}}"
+        }
+      },
+      "name": "Get IT Manager",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "userId": "={{$json.mattermost_user_id}}",
+        "message": "=⚠️ **Yêu cầu cấp phát tài sản — Cần xử lý thủ công**\nID yêu cầu: {{$('Create Asset Request').item.json.id}}\nNgười yêu cầu: {{$('Webhook - Asset Request').item.json.body.requester_id}}\nLoại tài sản: {{$('Webhook - Asset Request').item.json.body.asset_type}}\nMức độ ưu tiên: {{$('Webhook - Asset Request').item.json.body.priority}}\n\nKhông có tài sản khả dụng trong kho. Cần mua mới hoặc điều phối từ bộ phận khác."
+      },
+      "name": "Alert IT Manager",
+      "type": "n8n-nodes-base.mattermost",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Asset Request": {
+      "main": [[{"node": "Create Asset Request", "type": "main", "index": 0}]]
+    },
+    "Create Asset Request": {
+      "main": [[{"node": "Check Available Asset", "type": "main", "index": 0}]]
+    },
+    "Check Available Asset": {
+      "main": [[{"node": "Asset Available?", "type": "main", "index": 0}]]
+    },
+    "Asset Available?": {
+      "main": [
+        [{"node": "Assign Asset", "type": "main", "index": 0}],
+        [{"node": "Get IT Manager", "type": "main", "index": 0}]
+      ]
+    },
+    "Get IT Manager": {
+      "main": [[{"node": "Alert IT Manager", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "asset"}, {"name": "request"}]
 }

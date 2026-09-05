@@ -1,1 +1,31 @@
-{ "nodes": [], "connections": {}, "settings": {} }
+﻿{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Contract Tracker",
+  "description": "Metabase dashboard for Contract Tracker",
+  "cards": [
+    {
+      "name": "Hợp Đồng Đang Hiệu Lực",
+      "display": "scalar",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT COUNT(*) FROM pro_contracts WHERE status = 'ACTIVE' AND deleted_at IS NULL",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    },
+    {
+      "name": "Hợp Đồng Hết Hạn Trong 30 Ngày",
+      "display": "table",
+      "dataset_query": {
+        "type": "native",
+        "native": {
+          "query": "SELECT contract_number, title, end_date, total_value FROM pro_contracts WHERE status = 'ACTIVE' AND end_date BETWEEN NOW() AND NOW() + INTERVAL '30 days' AND deleted_at IS NULL ORDER BY end_date",
+          "template-tags": {"tenant_id": {"type": "text", "required": true}}
+        }
+      }
+    }
+  ],
+  "collection": "procurement-module",
+  "parameters": [{"name": "tenant_id", "slug": "tenant_id", "type": "string", "required": true}]
+}
