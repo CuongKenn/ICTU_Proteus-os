@@ -17,6 +17,7 @@ from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
     AbstractAnalyticsPort,
     AbstractChatOpsPort,
+    AbstractEventBusPort,
     AbstractIdentityProviderPort,
     AbstractUIBuilderPort,
     AbstractWorkflowEnginePort,
@@ -47,6 +48,7 @@ class PluginUninstallUseCase:
         keycloak_adapter: AbstractIdentityProviderPort,
         mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
+        event_bus: AbstractEventBusPort | None = None,
         tenant_repo=None,  # Added for backwards compatibility during refactor
     ) -> None:
         self.plugin_repo = plugin_repo
@@ -57,6 +59,7 @@ class PluginUninstallUseCase:
         self.keycloak_adapter = keycloak_adapter
         self.mattermost_adapter = mattermost_adapter
         self.session = session
+        self.event_bus = event_bus
         self.tenant_repo = tenant_repo
 
     async def uninstall_plugin(
@@ -156,6 +159,16 @@ class PluginUninstallUseCase:
             except Exception:
                 pass
 
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        tenant_id=str(context.tenant_id),
+                        plugin_id=str(plugin.id),
+                        event_type="plugin.uninstalled",
+                    )
+                except Exception as ex:
+                    logger.warning("Failed to publish plugin.uninstalled event: %s", ex)
+
         except Exception as e:
             logger.error(
                 "Plugin uninstallation failed after steps %s: %s",
@@ -180,6 +193,16 @@ class PluginUninstallUseCase:
                 )
             except Exception:
                 pass
+
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        tenant_id=str(context.tenant_id),
+                        plugin_id=str(plugin.id),
+                        event_type="plugin.failed",
+                    )
+                except Exception as ex:
+                    logger.warning("Failed to publish plugin.failed event: %s", ex)
 
             raise PluginUninstallError(f"Gỡ cài đặt plugin thất bại: {e}") from e
 

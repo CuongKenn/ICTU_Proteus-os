@@ -10,6 +10,7 @@ from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.ports import (
     AbstractAnalyticsPort,
     AbstractChatOpsPort,
+    AbstractEventBusPort,
     AbstractIdentityProviderPort,
     AbstractUIBuilderPort,
     AbstractWorkflowEnginePort,
@@ -36,6 +37,7 @@ class PluginCleanupAgent:
         keycloak_adapter: AbstractIdentityProviderPort,
         mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
+        event_bus: AbstractEventBusPort | None = None,
     ) -> None:
         self.plugin_repo = plugin_repo
         self.mattermost_adapter = mattermost_adapter
@@ -48,6 +50,7 @@ class PluginCleanupAgent:
             keycloak_adapter=keycloak_adapter,
             mattermost_adapter=mattermost_adapter,
             session=session,
+            event_bus=event_bus,
         )
 
     async def run(self) -> None:
@@ -62,7 +65,10 @@ class PluginCleanupAgent:
             try:
                 await self.mattermost_adapter.send_interactive_message(
                     channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
-                    text=f"Plugin {plugin_code_name} (Tenant {tenant_id}) bị kẹt FAILED_DIRTY > 1 giờ. Cần thủ công gỡ cài đặt.",
+                    text=(
+                        f"Plugin {plugin_code_name} (Tenant {tenant_id}) "
+                        "bị kẹt FAILED_DIRTY > 1 giờ. Cần thủ công gỡ cài đặt."
+                    ),
                     action_id=str(plugin_id),
                     extra_context={
                         "tenant_id": str(tenant_id),
@@ -79,6 +85,10 @@ class PluginCleanupAgent:
                     "Cleanup warning thất bại cho plugin %s: %s", plugin_code_name, e
                 )
                 await self.mattermost_adapter.send_message(
-                    text=f"CRITICAL ALERT: Plugin Cleanup Agent thất bại khi dọn dẹp plugin {plugin_code_name} cho Tenant {tenant_id}. Lỗi: {str(e)}",
+                    text=(
+                        "CRITICAL ALERT: Plugin Cleanup Agent thất bại "
+                        f"khi dọn dẹp plugin {plugin_code_name} "
+                        f"cho Tenant {tenant_id}. Lỗi: {str(e)}"
+                    ),
                     channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 )
