@@ -10,6 +10,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Changed
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
+- **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).
 - **[core-engine/backend]** Tích hợp ProactiveMonitorAgent vào APScheduler để chạy các job background (Issue #535).
 - **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Sửa lỗi format của JWT khi tạo Metabase Signed Embed URL (Issue #549).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật logic `_rollback()` lấy `keycloak_realm` từ CSDL thay vì hardcode chuỗi `"proteus"` để ngăn chặn xóa nhầm Keycloak role khi cài đặt plugin thất bại (Issue #534).
