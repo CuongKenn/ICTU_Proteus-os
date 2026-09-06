@@ -154,7 +154,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         )
 
     async def import_app(
-        self, 
+        self,
         json_data: dict[str, Any],
         integration_config: dict[str, Any] | None = None
     ) -> str:
@@ -212,7 +212,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         return app_id
 
     async def delete_app(
-        self, 
+        self,
         app_id: str,
         integration_config: dict[str, Any] | None = None
     ) -> None:
@@ -343,9 +343,9 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         return False
 
     async def import_application(
-        self, 
-        app_json: dict[str, Any], 
-        tenant_id: str, 
+        self,
+        app_json: dict[str, Any],
+        tenant_id: str,
         app_name: str,
         integration_config: dict[str, Any] | None = None,
     ) -> str:
@@ -353,7 +353,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         return await self.import_app(app_json, integration_config)
 
     async def delete_application(
-        self, 
+        self,
         app_id: str,
         integration_config: dict[str, Any] | None = None,
     ) -> None:

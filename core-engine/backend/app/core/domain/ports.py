@@ -134,7 +134,7 @@ class AbstractUIBuilderPort(ABC):
 
     @abstractmethod
     async def delete_application(
-        self, 
+        self,
         app_id: str,
         integration_config: dict[str, Any] | None = None,
     ) -> None:

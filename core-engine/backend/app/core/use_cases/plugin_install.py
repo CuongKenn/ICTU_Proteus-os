@@ -432,7 +432,7 @@ class PluginInstallUseCase:
             if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
                 with open(app_path, encoding="utf-8") as f:
                     app_json = json.load(f)
-                
+
                 # Cần hỗ trợ truyền integration_config xuống adapter
                 if (
                     "integration_config"
@@ -443,7 +443,7 @@ class PluginInstallUseCase:
                     )
                 else:
                     aid = await self.appsmith_adapter.import_app(app_json)
-                
+
                 app_ids.append(aid)
         return app_ids
 
