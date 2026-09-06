@@ -333,7 +333,9 @@ class PluginInstallUseCase:
                     await self.session.execute(
                         text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                     )
-                    await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
+                    await self.session.execute(
+                        text(f'SET search_path TO "{schema_name}"')
+                    )
                     has_schema = True
 
                     # Setup RLS context cho tenant
@@ -355,7 +357,9 @@ class PluginInstallUseCase:
                     await self.session.execute(
                         text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                     )
-                    await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
+                    await self.session.execute(
+                        text(f'SET search_path TO "{schema_name}"')
+                    )
 
                 for table in manifest.database.tables:
                     if not re.match(r"^[a-zA-Z0-9_]+$", table):
@@ -365,7 +369,9 @@ class PluginInstallUseCase:
                         text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
                     )
                     await self.session.execute(
-                        text(f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"')
+                        text(
+                            f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
+                        )
                     )
                     policy_sql = f"""
                         CREATE POLICY tenant_isolation_policy ON "{table}"
