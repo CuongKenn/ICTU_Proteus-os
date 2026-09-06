@@ -698,6 +698,18 @@ class PluginInstallUseCase:
                             await self.session.execute(
                                 text(f'DROP TABLE IF EXISTS "{table}" CASCADE')
                             )
+                elif step == "credentials":
+                    if hasattr(self.n8n_adapter, "delete_credential"):
+                        for cred in getattr(self, "_credential_ids", []):
+                            try:
+                                await self.n8n_adapter.delete_credential(cred["id"])
+                                logger.info(
+                                    "Rollback: Deleted n8n credential %s", cred["name"]
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    "Rollback credential %s failed: %s", cred["id"], e
+                                )
             except Exception as e:
                 logger.error(
                     "Rollback step %s thất bại cho plugin %s: %s",
