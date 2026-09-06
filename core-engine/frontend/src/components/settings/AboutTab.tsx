@@ -25,7 +25,7 @@ export const AboutTab = () => {
     );
 
     // Check Backend
-    fetch("/api/v1/health")
+    fetch("/api/proxy/health")
       .then((res) => {
         setServices((prev) =>
           prev.map((s) =>

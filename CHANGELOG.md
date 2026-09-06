@@ -11,6 +11,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
 ### Fixed
+- **[Frontend]** Cập nhật endpoint kiểm tra trạng thái Backend trong trang About từ gọi trực tiếp `/api/v1/health` sang đi qua BFF Proxy `/api/proxy/health` để khắc phục lỗi Bypass BFF Pattern (Issue #601).
 - **[Frontend]** Cập nhật phương thức gọi API gỡ cài đặt Plugin thành `DELETE` và truyền payload `confirm_name` từ component `MarketplaceClient` nhằm khắc phục lỗi 405 Method Not Allowed (Issue #599).
 
 
