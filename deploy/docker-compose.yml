@@ -502,6 +502,7 @@ services:
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_BFF_CLIENT_SECRET}
       KEYCLOAK_ISSUER: http://auth.${DOMAIN}/realms/${KEYCLOAK_REALM:-proteus}
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
       BACKEND_URL: http://backend:8000
     depends_on:
       - backend
