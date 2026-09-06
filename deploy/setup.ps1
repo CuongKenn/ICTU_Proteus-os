@@ -50,7 +50,7 @@ if (-Not (Test-Path $envFile)) {
         $outlineSecretKey  = Get-RandomHex(32)
         $outlineUtilsSecret = Get-RandomHex(32)
 
-        $envContent = Get-Content -Path $envFile -Raw
+        $envContent = Get-Content -Path $envFile -Raw -Encoding UTF8
         $envContent = $envContent -replace "NEXTAUTH_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL",    "NEXTAUTH_SECRET=$nextAuthSecret"
         $envContent = $envContent -replace "N8N_ENCRYPTION_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL", "N8N_ENCRYPTION_KEY=$n8nEncryptionKey"
         $envContent = $envContent -replace "OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL.*",   "OUTLINE_SECRET_KEY=$outlineSecretKey"
@@ -132,6 +132,17 @@ if ($elapsed -ge $timeout) {
     Write-Host "[WARN] Backend startup timed out (120s). Check: docker compose logs backend" -ForegroundColor Yellow
 }
 
+# 6.1 Ensure databases exist (Outline, Metabase)
+Write-Host "[INFO] Ensuring databases exist (outline, metabase)..." -ForegroundColor Cyan
+$sqlCreateDbs = "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec`nSELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec"
+$tmpCreateSql = Join-Path $env:TEMP "create_dbs.sql"
+[System.IO.File]::WriteAllText($tmpCreateSql, $sqlCreateDbs, [System.Text.Encoding]::UTF8)
+try {
+    Get-Content $tmpCreateSql | docker compose exec -T postgres psql -v ON_ERROR_STOP=0 -U proteus -d postgres 2>$null
+    docker compose restart outline metabase
+} catch {}
+Remove-Item $tmpCreateSql -ErrorAction SilentlyContinue
+
 # 6.5 Helper: REST with retry
 function Invoke-RestWithRetry {
     param($Uri, $Method="GET", $Body=$null, $Headers=$null, $ContentType="application/json")
@@ -153,7 +164,7 @@ function Invoke-RestWithRetry {
 
 # 7. Configure Mattermost (Bot + Webhook Secret)
 Write-Host "[INFO] Configuring Mattermost (Bot, Webhook Secret)..." -ForegroundColor Cyan
-$envContent = Get-Content .env -Raw
+$envContent = Get-Content .env -Raw -Encoding UTF8
 if ($envContent -match "MATTERMOST_WEBHOOK_SECRET=CHANGE_ME") {
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
     $bytes = New-Object byte[] 32
@@ -168,95 +179,153 @@ $mmAdminPass = $mmAdminPass.Trim(" `r")
 
 if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
     $mmUrl = "http://chat.$domain/api/v4"
-    try {
-        Invoke-RestMethod -Uri "$mmUrl/users" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"username`":`"sysadmin`",`"password`":`"$mmAdminPass`",`"allow_marketing`":false}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+    
+    # Wait for Mattermost to be ready
+    Write-Host "[INFO] Waiting for Mattermost to be ready..." -ForegroundColor Yellow
+    $mmTimeout = 120
+    $mmElapsed = 0
+    while ($mmElapsed -lt $mmTimeout) {
+        try {
+            $pingRes = Invoke-RestMethod -Uri "$mmUrl/system/ping" -UseBasicParsing -ErrorAction Stop
+            if ($pingRes.status -eq "OK") {
+                break
+            }
+        } catch {}
+        Start-Sleep -Seconds 5
+        $mmElapsed += 5
+    }
 
-    $loginRes = $null
-    try { $loginRes = Invoke-WebRequest -Uri "$mmUrl/users/login" -Method Post -Body "{`"login_id`":`"sysadmin`",`"password`":`"$mmAdminPass`"}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-    if ($loginRes -and $loginRes.Headers["Token"]) {
-        $mmToken = $loginRes.Headers["Token"]
-        $headers = @{ "Authorization" = "Bearer $mmToken" }
-        try { Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body '{"ServiceSettings":{"EnableUserAccessTokens":true}}' -Headers $headers -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null } catch {}
+    if ($mmElapsed -lt $mmTimeout) {
+        try {
+            Invoke-RestMethod -Uri "$mmUrl/users" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"username`":`"sysadmin`",`"password`":`"$mmAdminPass`",`"allow_marketing`":false}" -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
 
-        try { $botRes = Invoke-RestMethod -Uri "$mmUrl/bots" -Method Post -Body '{"username":"proteus-bot","display_name":"Proteus AI Bot","description":"AI Orchestrator Bot"}' -Headers $headers -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-        $botId = $botRes.user_id
-        if (-not $botId) {
-            try { $botRes = Invoke-RestMethod -Uri "$mmUrl/users/username/proteus-bot" -Method Get -Headers $headers -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-            $botId = $botRes.id
+        $loginRes = $null
+        try { 
+            $loginRes = Invoke-WebRequest -Uri "$mmUrl/users/login" -Method Post -Body "{`"login_id`":`"sysadmin`",`"password`":`"$mmAdminPass`"}" -ContentType "application/json" -UseBasicParsing -ErrorAction Stop 
+        } catch {
+            Write-Host "[WARN] Mattermost login failed ($($_.Exception.Message)). Did you change the admin password?" -ForegroundColor Yellow
         }
+        
+        if ($loginRes -and $loginRes.Headers["Token"]) {
+            $mmToken = $loginRes.Headers["Token"]
+            $authHeaders = @{ "Authorization" = "Bearer $mmToken" }
+            try { 
+                $mmConfig = Invoke-RestMethod -Uri "$mmUrl/config" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
+                $mmConfig.ServiceSettings.EnableBotAccountCreation = $true
+                $mmConfig.ServiceSettings.EnableUserAccessTokens = $true
+                Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body ($mmConfig | ConvertTo-Json -Depth 10) -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction Stop | Out-Null 
+            } catch {
+                Write-Host "[WARN] Failed to update Mattermost config: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
 
-        if ($botId) {
-            try { $tokenRes = Invoke-RestMethod -Uri "$mmUrl/users/$botId/tokens" -Method Post -Body '{"description":"Proteus OS Bot Token"}' -Headers $headers -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
-            if ($tokenRes.token) {
-                $envContent = Get-Content .env -Raw
-                $envContent = $envContent -replace "MATTERMOST_BOT_TOKEN=CHANGE_ME_GET_FROM_MATTERMOST", "MATTERMOST_BOT_TOKEN=$($tokenRes.token)"
-                Set-Content .env -Value $envContent -Encoding UTF8
-                docker compose restart backend
+            try { $botRes = Invoke-RestMethod -Uri "$mmUrl/bots" -Method Post -Body '{"username":"proteus-bot","display_name":"Proteus AI Bot","description":"AI Orchestrator Bot"}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
+            $botId = $botRes.user_id
+            if (-not $botId) {
+                try { $botRes = Invoke-RestMethod -Uri "$mmUrl/users/username/proteus-bot" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
+                $botId = $botRes.id
+            }
+
+            if ($botId) {
+                try { $tokenRes = Invoke-RestMethod -Uri "$mmUrl/users/$botId/tokens" -Method Post -Body '{"description":"Proteus OS Bot Token"}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
+                if ($tokenRes.token) {
+                    $envContent = Get-Content .env -Raw -Encoding UTF8
+                    $envContent = $envContent -replace "MATTERMOST_BOT_TOKEN=CHANGE_ME_GET_FROM_MATTERMOST", "MATTERMOST_BOT_TOKEN=$($tokenRes.token)"
+                    Set-Content .env -Value $envContent -Encoding UTF8
+                    Write-Host "[OK] MATTERMOST_BOT_TOKEN generated and saved." -ForegroundColor Green
+                    docker compose restart backend
+                } else {
+                    Write-Host "[WARN] Failed to generate Mattermost Bot Token." -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "[WARN] Failed to find or create Mattermost Bot user." -ForegroundColor Yellow
             }
         }
+    } else {
+        Write-Host "[WARN] Mattermost did not become ready in time." -ForegroundColor Yellow
     }
 }
 
 # 8. Configure n8n (Create Owner + inject API Key via DB)
 Write-Host "[INFO] Configuring n8n (Owner Account + API Key via DB)..." -ForegroundColor Cyan
-$envContent = Get-Content .env -Raw
+$envContent = Get-Content .env -Raw -Encoding UTF8
 if ($envContent -match "N8N_API_KEY=CHANGE_ME") {
     $n8nRes = Invoke-RestWithRetry -Uri "http://workflow.$domain/rest/owner/setup" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"firstName`":`"Admin`",`"lastName`":`"Proteus`",`"password`":`"$mmAdminPass`"}"
     if ($n8nRes) {
         Write-Host "[OK] n8n Owner account initialized." -ForegroundColor Green
-
-        # Generate random API key
-        $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-        $bytes = New-Object byte[] 24
-        $rng.GetBytes($bytes)
-        $newApiKey = [Convert]::ToBase64String($bytes) -replace "[^a-zA-Z0-9]", ""
-
-        # Inject via DB (PowerShell-native temp file — no bash/base64 needed)
-        $sql = 'UPDATE n8n."user" SET "apiKey"=''' + $newApiKey + ''' WHERE email=''admin@proteus.local'';'
-        $tmpSql = Join-Path $env:TEMP "n8n_key.sql"
-        [System.IO.File]::WriteAllText($tmpSql, $sql, [System.Text.Encoding]::UTF8)
-        Get-Content $tmpSql | docker compose exec -T postgres psql -U proteus -d proteus | Out-Null
-        Remove-Item $tmpSql -ErrorAction SilentlyContinue
-
-        $envContent = Get-Content .env -Raw
-        $envContent = $envContent -replace "N8N_API_KEY=CHANGE_ME.*", "N8N_API_KEY=$newApiKey"
-        Set-Content .env -Value $envContent -Encoding UTF8
-        docker compose restart backend
-        Write-Host "[OK] N8N_API_KEY injected via database." -ForegroundColor Green
+    } else {
+        Write-Host "[INFO] n8n Owner account may already exist, proceeding to inject API key..." -ForegroundColor Yellow
     }
+
+    # Generate random API key
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $bytes = New-Object byte[] 24
+    $rng.GetBytes($bytes)
+    $newApiKey = [Convert]::ToBase64String($bytes) -replace "[^a-zA-Z0-9]", ""
+
+    # Inject via DB (PowerShell-native temp file â€” no bash/base64 needed)
+    $sql = 'UPDATE n8n."user" SET "apiKey"=''' + $newApiKey + ''' WHERE email=''admin@proteus.local'';'
+    $tmpSql = Join-Path $env:TEMP "n8n_key.sql"
+    [System.IO.File]::WriteAllText($tmpSql, $sql, [System.Text.Encoding]::UTF8)
+    Get-Content $tmpSql | docker compose exec -T postgres psql -U proteus -d proteus | Out-Null
+    Remove-Item $tmpSql -ErrorAction SilentlyContinue
+
+    $envContent = Get-Content .env -Raw -Encoding UTF8
+    $envContent = $envContent -replace "N8N_API_KEY=CHANGE_ME.*", "N8N_API_KEY=$newApiKey"
+    Set-Content .env -Value $envContent -Encoding UTF8
+    docker compose restart backend
+    Write-Host "[OK] N8N_API_KEY injected via database." -ForegroundColor Green
 }
+
 
 # 8.5 Sync Keycloak OIDC Secrets from DB
 Write-Host "[INFO] Syncing Keycloak OIDC Secrets..." -ForegroundColor Cyan
-$envContent = Get-Content .env -Raw
+$envContent = Get-Content .env -Raw -Encoding UTF8
 if ($envContent -match "CHANGE_ME_GET_FROM_KEYCLOAK_UI") {
     $kSql = "SELECT client_id, secret FROM keycloak.client WHERE client_id IN ('outline', 'n8n', 'appsmith', 'proteus-bff');"
     $kTmpSql = Join-Path $env:TEMP "kc_secrets.sql"
     [System.IO.File]::WriteAllText($kTmpSql, $kSql, [System.Text.Encoding]::UTF8)
-    $secretsRaw = Get-Content $kTmpSql | docker compose exec -T postgres psql -U proteus -d proteus -t -A -F ','
+    
+    $secretsRaw = @()
+    $kcRetries = 24
+    while ($kcRetries -gt 0) {
+        try {
+            $secretsRaw = Get-Content $kTmpSql | docker compose exec -T postgres psql -U proteus -d proteus -t -A -F ',' 2>$null
+            $secretsStr = $secretsRaw -join "`n"
+            if ($secretsStr -match "outline" -and $secretsStr -match "proteus-bff") {
+                break
+            }
+        } catch {}
+        Start-Sleep -Seconds 5
+        $kcRetries--
+    }
     Remove-Item $kTmpSql -ErrorAction SilentlyContinue
 
-    $envContent = Get-Content .env -Raw
-    foreach ($line in $secretsRaw) {
-        $parts = $line -split ","
-        if ($parts.Length -eq 2) {
-            $clientId = $parts[0].Trim()
-            $secret   = $parts[1].Trim()
-            if ($clientId -eq "outline")     { $envContent = $envContent -replace "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",      "OUTLINE_OIDC_SECRET=$secret" }
-            if ($clientId -eq "n8n")         { $envContent = $envContent -replace "N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",          "N8N_OIDC_SECRET=$secret" }
-            if ($clientId -eq "appsmith")    { $envContent = $envContent -replace "APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",     "APPSMITH_OIDC_SECRET=$secret" }
-            if ($clientId -eq "proteus-bff") { $envContent = $envContent -replace "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "KEYCLOAK_BFF_CLIENT_SECRET=$secret" }
+    if ($secretsStr -match "outline" -and $secretsStr -match "proteus-bff") {
+        $envContent = Get-Content .env -Raw -Encoding UTF8
+        foreach ($line in $secretsRaw) {
+            $parts = $line -split ","
+            if ($parts.Length -eq 2) {
+                $clientId = $parts[0].Trim()
+                $secret   = $parts[1].Trim()
+                if ($clientId -eq "outline")     { $envContent = $envContent -replace "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",      "OUTLINE_OIDC_SECRET=$secret" }
+                if ($clientId -eq "n8n")         { $envContent = $envContent -replace "N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",          "N8N_OIDC_SECRET=$secret" }
+                if ($clientId -eq "appsmith")    { $envContent = $envContent -replace "APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",     "APPSMITH_OIDC_SECRET=$secret" }
+                if ($clientId -eq "proteus-bff") { $envContent = $envContent -replace "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "KEYCLOAK_BFF_CLIENT_SECRET=$secret" }
+            }
         }
+        Set-Content .env -Value $envContent -Encoding UTF8
+        docker compose restart backend outline
+        Write-Host "[OK] Keycloak Secrets synced successfully." -ForegroundColor Green
+    } else {
+        Write-Host "[WARN] Failed to sync Keycloak Secrets. Is Keycloak fully running?" -ForegroundColor Yellow
     }
-    Set-Content .env -Value $envContent -Encoding UTF8
-    docker compose restart backend outline
-    Write-Host "[OK] Keycloak Secrets synced successfully." -ForegroundColor Green
 }
 
-# 9. Appsmith (login-based API key — skipped if no endpoint available)
-Write-Host "[INFO] Configuring Appsmith (Admin + API Key)..." -ForegroundColor Cyan
-# Appsmith API key generation is handled via UI; skipping automatic provisioning.
+# 9. Appsmith (Manual configuration required)
+Write-Host "[INFO] Appsmith is starting..." -ForegroundColor Cyan
+Write-Host "[!] Note: APPSMITH_API_KEY must be generated manually in Appsmith UI (Developer Settings)." -ForegroundColor Yellow
+
 
 # 10. Print summary
 Write-Host ""

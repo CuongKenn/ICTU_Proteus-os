@@ -66,11 +66,21 @@ class AppsmithAdapter(AbstractUIBuilderPort):
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._base_url: str = settings.APPSMITH_URL.rstrip("/")
-        self._headers: dict[str, str] = {
+        self._default_headers: dict[str, str] = {
             "Authorization": f"Bearer {settings.APPSMITH_API_KEY}",
             "Content-Type": "application/json",
         }
-        self._client = client or httpx.AsyncClient(headers=self._headers)
+        self._client = client or httpx.AsyncClient()
+
+    def _get_headers(
+        self, integration_config: dict[str, Any] | None = None
+    ) -> dict[str, str]:
+        if integration_config and "api_key" in integration_config:
+            return {
+                "Authorization": f"Bearer {integration_config['api_key']}",
+                "Content-Type": "application/json",
+            }
+        return self._default_headers
 
     async def aclose(self) -> None:
         """Đóng httpx client. Nên được gọi khi application shutdown."""
@@ -86,6 +96,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         url: str,
         *,
         json_data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
         timeout: float = _DEFAULT_TIMEOUT,
     ) -> httpx.Response:
         """
@@ -101,7 +112,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
                 response = await self._client.request(
                     method,
                     url,
-                    headers=self._headers,
+                    headers=headers or self._default_headers,
                     json=json_data,
                     timeout=timeout,
                     follow_redirects=False,
@@ -142,7 +153,11 @@ class AppsmithAdapter(AbstractUIBuilderPort):
             "Appsmith request failed after all retries"
         )
 
-    async def import_app(self, json_data: dict[str, Any]) -> str:
+    async def import_app(
+        self,
+        json_data: dict[str, Any],
+        integration_config: dict[str, Any] | None = None,
+    ) -> str:
         """
         Import một UI App JSON vào Appsmith.
 
@@ -164,7 +179,10 @@ class AppsmithAdapter(AbstractUIBuilderPort):
             extra={"app_name": json_data.get("name", "unknown")},
         )
 
-        response = await self._request_with_retry("POST", url, json_data=json_data)
+        headers = self._get_headers(integration_config)
+        response = await self._request_with_retry(
+            "POST", url, json_data=json_data, headers=headers
+        )
 
         if response.status_code not in (200, 201):
             logger.error(
@@ -193,7 +211,9 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         )
         return app_id
 
-    async def delete_app(self, app_id: str) -> None:
+    async def delete_app(
+        self, app_id: str, integration_config: dict[str, Any] | None = None
+    ) -> None:
         """
         Xóa vĩnh viễn một UI App khỏi Appsmith.
 
@@ -209,7 +229,8 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         url = self._build_url(f"applications/{app_id}")
         logger.info("Deleting Appsmith app", extra={"app_id": app_id})
 
-        response = await self._request_with_retry("DELETE", url)
+        headers = self._get_headers(integration_config)
+        response = await self._request_with_retry("DELETE", url, headers=headers)
 
         if response.status_code == 404:
             # Idempotent: đã không tồn tại → log warning, không raise
@@ -231,6 +252,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         self,
         path: str,
         tenant_id: str,
+        integration_config: dict[str, Any] | None = None,
     ) -> bool:
         """
         Kiểm tra xem path của UI App đã bị chiếm bởi Plugin khác chưa.
@@ -279,7 +301,8 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         )
 
         try:
-            response = await self._request_with_retry("GET", url)
+            headers = self._get_headers(integration_config)
+            response = await self._request_with_retry("GET", url, headers=headers)
 
             if response.status_code != 200:
                 logger.warning(
@@ -318,11 +341,19 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         return False
 
     async def import_application(
-        self, app_json: dict[str, Any], tenant_id: str, app_name: str
+        self,
+        app_json: dict[str, Any],
+        tenant_id: str,
+        app_name: str,
+        integration_config: dict[str, Any] | None = None,
     ) -> str:
         """Alias cho import_app để tuân thủ interface AbstractUIBuilderPort."""
-        return await self.import_app(app_json)
+        return await self.import_app(app_json, integration_config)
 
-    async def delete_application(self, app_id: str) -> None:
+    async def delete_application(
+        self,
+        app_id: str,
+        integration_config: dict[str, Any] | None = None,
+    ) -> None:
         """Alias cho delete_app để tuân thủ interface AbstractUIBuilderPort."""
-        return await self.delete_app(app_id)
+        return await self.delete_app(app_id, integration_config)

@@ -437,12 +437,33 @@ class PluginInstallUseCase:
     ) -> list[str]:
         """Import UI apps vào Appsmith."""
         app_ids = []
+        integration_config = None
+        if self.tenant_repo and hasattr(
+            self.tenant_repo, "get_integration_by_provider"
+        ):
+            integration = await self.tenant_repo.get_integration_by_provider(
+                context.tenant_id, "appsmith"
+            )
+            if integration:
+                integration_config = integration.config
+
         for app in manifest.ui_apps:
             app_path = self.manifest_parser.plugins_dir / plugin_code_name / app.file
             if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
                 with open(app_path, encoding="utf-8") as f:
                     app_json = json.load(f)
-                aid = await self.appsmith_adapter.import_app(app_json)
+
+                # Cần hỗ trợ truyền integration_config xuống adapter
+                if (
+                    "integration_config"
+                    in self.appsmith_adapter.import_app.__code__.co_varnames
+                ):
+                    aid = await self.appsmith_adapter.import_app(
+                        app_json, integration_config=integration_config
+                    )
+                else:
+                    aid = await self.appsmith_adapter.import_app(app_json)
+
                 app_ids.append(aid)
         return app_ids
 
@@ -630,9 +651,29 @@ class PluginInstallUseCase:
                             )
                 elif step == "appsmith":
                     if hasattr(self.appsmith_adapter, "delete_app"):
+                        integration_config = None
+                        if self.tenant_repo and hasattr(
+                            self.tenant_repo, "get_integration_by_provider"
+                        ):
+                            integration = (
+                                await self.tenant_repo.get_integration_by_provider(
+                                    context.tenant_id, "appsmith"
+                                )
+                            )
+                            if integration:
+                                integration_config = integration.config
+
                         app_ids = created_assets.get("appsmith", [])
                         for aid in reversed(app_ids):
-                            await self.appsmith_adapter.delete_app(aid)
+                            if (
+                                "integration_config"
+                                in self.appsmith_adapter.delete_app.__code__.co_varnames
+                            ):
+                                await self.appsmith_adapter.delete_app(
+                                    aid, integration_config=integration_config
+                                )
+                            else:
+                                await self.appsmith_adapter.delete_app(aid)
                 elif step == "metabase":
                     if hasattr(self.metabase_adapter, "delete_dashboard"):
                         db_ids = created_assets.get("metabase", [])

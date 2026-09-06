@@ -4,6 +4,18 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Appsmith API Key UI Migration (2026-09-06)
+
+### Added
+- **[core-engine/backend/app/adapters/repositories/base.py]** Thêm phương thức `get_integration_by_provider` vào `AbstractTenantRepository` interface.
+- **[core-engine/backend/app/adapters/repositories/tenant_repo.py]** Thêm implementation `get_integration_by_provider` vào `SQLAlchemyTenantRepository` để lấy cấu hình kết nối cụ thể (vd: appsmith).
+
+### Changed
+- **[core-engine/backend/app/core/domain/ports.py]** Cập nhật `AbstractUIBuilderPort` để nhận `integration_config` động.
+- **[core-engine/backend/app/adapters/external/appsmith_adapter.py]** Refactor `AppsmithAdapter` lấy `api_key` động từ `integration_config` thay vì fix cứng trong `settings.APPSMITH_API_KEY`, tự động fallback về biến môi trường nếu DB không có cấu hình.
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật quá trình install để fetch và truyền cấu hình Appsmith cho adapter.
+- **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Cập nhật quá trình uninstall để fetch và truyền cấu hình Appsmith cho adapter.
+- **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thiết kế lại trang "Kết nối & Tích hợp" với Dropdown chọn Provider có sẵn (Appsmith, n8n, Metabase) thay vì phải tự gõ JSON.
 ## [Unreleased] — DevOps Centralized Logging (2026-09-06)
 
 ### Added
@@ -19,6 +31,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Backend]** Fix schema mismatch by adding `domain` and `slug` columns properly to `TenantModel` and database migrations.
 
 ### Added
+- **[deploy/setup.ps1]** Tự động cấu hình Appsmith API Key sử dụng PowerShell WebSessions.
 - **[Backend]** Implement Plugin Migration Runner cho Plugin Upgrade Saga (`PluginUpgradeUseCase`). Hỗ trợ chạy các file sql theo thứ tự phiên bản, rollback khi có lỗi và ghi log từng bước. Bổ sung Regex validate tên file và ngăn chặn `DELETE FROM` thiếu an toàn.
 - **[Backend]** Auto-create PostgreSQL Row Level Security (RLS) policies trong Plugin Install Saga (`PluginInstallUseCase`). Tự động bật RLS cho các bảng plugin và áp dụng policy `tenant_isolation_policy`.
 - **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
@@ -42,6 +55,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/hr-module/workflows]** Implement 2 workflow còn stub: `attendance_checkin` (check-in/check-out với tính giờ làm) và `payroll_calculation` (tính lương ngày 25 — gross/net/thuế/BHXH).
 
 ### Fixed
+- **[deploy/setup.ps1]** Sửa lỗi không tự động cấu hình được Mattermost Bot Token do thiếu logic chờ dịch vụ khởi động hoàn tất.
+- **[deploy/setup.ps1]** Sửa lỗi bỏ qua bước tạo N8N API Key khi tài khoản Owner đã tồn tại trước đó.
 - **[tất cả 65 plugin JSON files]** Thêm `_license` header (`Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later`) vào tất cả JSON files. JSON không hỗ trợ comment nên license được đặt trong field `_license` ở đầu object.
 - **[tất cả plugin JSON files]** Không còn file stub trống (0 nodes) — 65/65 files được implement đầy đủ với nodes, connections, và business logic thực tế.
 
@@ -108,12 +123,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Chuyển đổi Event Bus từ Redis Pub/Sub (fire-and-forget) sang Redis Streams (`publish_critical`) cho các sự kiện quan trọng nhằm đảm bảo tính bền bỉ (persistence). Bổ sung cơ chế Retry Exponential Backoff và Dead Letter Queue (DLQ) ghi log khi mất kết nối Redis (Issue #492).
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
-<<<<<<< HEAD
 - **[deploy/setup.ps1]** Fix lỗi Crash Loop trong luồng Zero-Touch Provisioning (ZTP) khi API khởi tạo Mattermost Bot/Webhook trả về mã lỗi 400 (Bad Request). Wrap các HTTP call bằng cấu trúc try-catch, bỏ qua các lỗi không nghiêm trọng để luồng script có thể chạy Idempotent. Cập nhật timeout và fix lỗi n8n API.
 - **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Metabase (tạo db `metabase`) để khắc phục lỗi khởi tạo `databasechangelog` do trùng lặp schema với Core Data khiến Metabase v0.50 văng lỗi 502 Bad Gateway.
 - **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Outline (tạo db `outline`), xóa bỏ biến môi trường `DATABASE_SCHEMA` để khắc phục lỗi xung đột khi Sequelize tạo bảng nhầm vào `public` thay vì `outline`, gây lỗi 404 Crash-loop.
 - **[deploy/docker-compose.yml, deploy/.env.example]** Cập nhật `PGSSLMODE=disable` cho Outline để fix lỗi kết nối HTTPS với Postgres nội bộ. Generate các biến môi trường cấu hình `SECRET_KEY` bằng định dạng 32-byte HEX để tránh lỗi invalid config từ Outline container.
-=======
 - **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).
 - **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Sửa lỗi format của JWT khi tạo Metabase Signed Embed URL (Issue #549).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật logic `_rollback()` lấy `keycloak_realm` từ CSDL thay vì hardcode chuỗi `"proteus"` để ngăn chặn xóa nhầm Keycloak role khi cài đặt plugin thất bại (Issue #534).
@@ -138,7 +151,6 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
 
 
->>>>>>> origin/main
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
