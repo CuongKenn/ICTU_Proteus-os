@@ -18,10 +18,6 @@ async function proxyHandler(
 ): Promise<NextResponse> {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
-  if (request.nextUrl.pathname.endsWith('/debug-token')) {
-    return NextResponse.json({ token, hasToken: !!token });
-  }
-
   if (!token?.accessToken) {
     logger.error("[BFF] Proxy 401: token missing or accessToken null", { hasToken: !!token });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
