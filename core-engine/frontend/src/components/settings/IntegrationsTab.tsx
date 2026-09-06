@@ -161,7 +161,7 @@ export const IntegrationsTab: React.FC = () => {
             <div className="grid gap-2 animate-fade-in">
               <label className="text-sm font-medium text-text-primary">
                 Cấu hình (JSON) 
-                {newProvider === "appsmith" && <span className="text-text-secondary font-normal ml-2">- Yêu cầu trường "api_key"</span>}
+                {newProvider === "appsmith" && <span className="text-text-secondary font-normal ml-2">- Yêu cầu trường &quot;api_key&quot;</span>}
               </label>
               <textarea
                 value={newConfig}

@@ -72,7 +72,9 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         }
         self._client = client or httpx.AsyncClient()
 
-    def _get_headers(self, integration_config: dict[str, Any] | None = None) -> dict[str, str]:
+    def _get_headers(
+        self, integration_config: dict[str, Any] | None = None
+    ) -> dict[str, str]:
         if integration_config and "api_key" in integration_config:
             return {
                 "Authorization": f"Bearer {integration_config['api_key']}",
@@ -178,7 +180,9 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         )
 
         headers = self._get_headers(integration_config)
-        response = await self._request_with_retry("POST", url, json_data=json_data, headers=headers)
+        response = await self._request_with_retry(
+            "POST", url, json_data=json_data, headers=headers
+        )
 
         if response.status_code not in (200, 201):
             logger.error(

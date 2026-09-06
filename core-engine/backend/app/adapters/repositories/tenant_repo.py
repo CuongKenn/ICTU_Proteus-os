@@ -133,7 +133,8 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
         result = await self._session.execute(
             text(
                 "SELECT * FROM tenant_integrations "
-                "WHERE tenant_id = :tenant_id AND provider = :provider AND deleted_at IS NULL"
+                "WHERE tenant_id = :tenant_id AND provider = :provider "
+                "AND deleted_at IS NULL"
             ),
             {"tenant_id": tenant_id, "provider": provider},
         )
