@@ -238,6 +238,22 @@ const AIChatWidgetInner: React.FC = () => {
     }
   };
 
+  // Global Keyboard listener for Ctrl+K
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        if (isExpanded) {
+          minimizeWidget();
+        } else {
+          openWidget();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [isExpanded, openWidget, minimizeWidget]);
+
   const isInputDisabled = widgetState === "thinking" || widgetState === "awaiting_approval";
   const canSend = inputValue.trim().length > 0 && !isInputDisabled;
 
@@ -390,6 +406,7 @@ const AIChatWidgetInner: React.FC = () => {
         id="ai-widget-fab"
         aria-label={isExpanded ? "Thu nhỏ Proteus AI" : "Mở Proteus AI"}
         aria-expanded={isExpanded}
+        title={isExpanded ? "Thu nhỏ" : "Mở Proteus AI (Ctrl+K)"}
         onClick={isExpanded ? resetAndClose : openWidget}
         className={clsx(
           "w-16 h-16 rounded-2xl flex items-center justify-center",

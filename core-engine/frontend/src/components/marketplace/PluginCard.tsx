@@ -27,6 +27,7 @@ export interface PluginData {
   iconUrl?: string | null;
   rating?: number;
   category?: string;
+  tags?: string[];
 }
 
 export interface PluginCardProps {
