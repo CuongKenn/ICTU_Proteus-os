@@ -5,12 +5,12 @@
 # Xử lý 6 bước cài đặt Plugin theo mô hình Saga (Compensating Transaction).
 
 import json
-import logging
 import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,7 +28,7 @@ from app.core.domain.ports import (
 )
 from app.infrastructure.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class PluginInstallError(Exception):
@@ -75,9 +75,9 @@ class PluginInstallUseCase:
         credentials: list[CredentialInput] | None = None,
     ) -> None:
         logger.info(
-            "Bắt đầu cài đặt plugin %s cho tenant %s",
-            plugin_code_name,
-            context.tenant_id,
+            "Bắt đầu cài đặt plugin",
+            plugin_code_name=plugin_code_name,
+            tenant_id=context.tenant_id,
         )
 
         # Reset state
@@ -127,9 +127,23 @@ class PluginInstallUseCase:
         created_assets: dict[str, list[str]] = {}
         try:
             # BƯỚC 1: Database Setup
+            logger.info(
+                "Chạy bước cài đặt",
+                step="database",
+                status="RUNNING",
+                plugin_code_name=plugin_code_name,
+                tenant_id=context.tenant_id,
+            )
             self._log_step("database", "RUNNING")
             await self._step_1_database(context, plugin_code_name, manifest)
             self._log_step("database", "DONE")
+            logger.info(
+                "Hoàn thành cài đặt",
+                step="database",
+                status="DONE",
+                plugin_code_name=plugin_code_name,
+                tenant_id=context.tenant_id,
+            )
             completed_steps.append("database")
             await self._persist_steps(context, plugin.id)
 
@@ -232,13 +246,19 @@ class PluginInstallUseCase:
                 except Exception as e:
                     logger.warning("Không thể publish event plugin.installed: %s", e)
 
-            logger.info("Cài đặt plugin %s thành công.", plugin_code_name)
+            logger.info(
+                "Cài đặt plugin thành công.",
+                plugin_code_name=plugin_code_name,
+                tenant_id=context.tenant_id,
+            )
 
         except Exception as e:
             logger.error(
-                "Plugin installation failed at step %s: %s",
-                len(completed_steps) + 1,
-                e,
+                "Plugin installation failed",
+                step=len(completed_steps) + 1,
+                error=str(e),
+                plugin_code_name=plugin_code_name,
+                tenant_id=context.tenant_id,
                 exc_info=True,
             )
 

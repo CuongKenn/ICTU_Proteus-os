@@ -3,10 +3,6 @@
     "list": []
   },
   "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "links": [],
-  "liveNow": false,
   "panels": [
     {
       "datasource": {
@@ -36,11 +32,11 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "expr": "{job=~\"plugin-manager|ai-orchestrator|auth-middleware|rls-guard|cleanup-agent\"}",
+          "expr": "{container=\"proteus-backend\"} | json | ai_command=\"true\"",
           "refId": "A"
         }
       ],
-      "title": "Proteus Core Engine Logs",
+      "title": "AI Command Activity",
       "type": "logs"
     }
   ],
@@ -55,9 +51,8 @@
     "from": "now-1h",
     "to": "now"
   },
-  "timepicker": {},
   "timezone": "",
-  "title": "Proteus OS Logs",
-  "uid": "proteus-logs-01",
+  "title": "AI Command Activity",
+  "uid": "ai-activity-01",
   "version": 1
 }

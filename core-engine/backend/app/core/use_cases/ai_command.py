@@ -6,11 +6,12 @@
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
 import json
-import logging
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+import structlog
 
 from app.adapters.repositories.base import (
     AbstractAICommandRepository,
@@ -35,7 +36,7 @@ class AICommandDTO:
     parameters: dict[str, Any]
 
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class AICommandUseCase:
@@ -109,13 +110,27 @@ class AICommandUseCase:
                     }
                 )
                 await self.ai_command_repo.commit()
+                logger.info(
+                    "Read command executed successfully",
+                    ai_command="true",
+                    action=body.action,
+                    effect=body.effect,
+                    tenant_id=ctx.tenant_id,
+                )
                 return (
                     AICommandStatus.COMPLETED,
                     "Lệnh đọc dữ liệu đã thực thi thành công.",
                     response,
                 )
             except Exception as e:
-                logger.error("Read command execution failed: %s", e)
+                logger.error(
+                    "Read command execution failed",
+                    error=str(e),
+                    ai_command="true",
+                    action=body.action,
+                    effect=body.effect,
+                    tenant_id=ctx.tenant_id,
+                )
                 # Ghi log thất bại
                 await self.ai_command_repo.create_command(
                     {
@@ -169,6 +184,13 @@ class AICommandUseCase:
             }
         )
         await self.ai_command_repo.commit()
+        logger.info(
+            "AI command pending approval",
+            ai_command="true",
+            action=body.action,
+            effect=body.effect,
+            tenant_id=ctx.tenant_id,
+        )
 
         # Gửi thông báo phê duyệt qua Mattermost
         msg_text = (
@@ -184,7 +206,14 @@ class AICommandUseCase:
                 channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
             )
         except Exception as e:
-            logger.warning("Could not send Mattermost approval request: %s", e)
+            logger.warning(
+                "Could not send Mattermost approval request",
+                error=str(e),
+                ai_command="true",
+                action=body.action,
+                effect=body.effect,
+                tenant_id=ctx.tenant_id,
+            )
 
         msg = (
             f"Command đã được nhận và đang chờ phê duyệt. Hết hạn sau "

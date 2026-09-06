@@ -175,7 +175,14 @@ graph LR
 
 ### 5.3. Truy cập Grafana
 
-Sau khi hệ thống khởi động, truy cập Grafana tại `https://proteus.local/monitoring/` với thông tin đăng nhập mặc định trong file `.env`.
+Sau khi hệ thống khởi động, bạn có thể truy cập hệ thống giám sát tập trung tại:
+- **URL:** `https://proteus.local/monitoring/`
+- **Tài khoản mặc định:** `admin` / `admin` (hoặc giá trị cấu hình trong biến `GRAFANA_PASSWORD` ở file `.env`).
+
+Tại đây, bạn sẽ thấy 3 Dashboards có sẵn:
+- **Plugin Install Monitoring:** Theo dõi số lần install thành công/thất bại theo thời gian.
+- **AI Command Activity:** Lịch sử thực thi các lệnh DX-DSL từ AI.
+- **System Errors:** Gom nhóm các lỗi hệ thống (ERROR/CRITICAL) để debug nhanh chóng.
 
 ---
 
