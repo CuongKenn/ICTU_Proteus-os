@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { 
   X, 
   Package, 
@@ -153,21 +153,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
 
         {/* User Profile Section */}
         <div className="border-t border-border p-3">
-          <div className={clsx("flex items-center gap-3 rounded-lg hover:bg-bg-hover p-2 transition-colors cursor-pointer", isCollapsed && "justify-center")}>
-            <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center shrink-0">
-              <User className="w-4 h-4 text-accent" />
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-text-primary truncate">
-                  {session?.user?.name || "Người dùng"}
-                </div>
-                <div className="text-xs text-text-disabled truncate">
-                  {userRoles.includes("tenant_admin") ? "Admin" : "Thành viên"}
-                </div>
+          <div className={clsx("flex items-center justify-between gap-2 rounded-lg hover:bg-bg-hover p-2 transition-colors cursor-pointer", isCollapsed && "justify-center")}>
+            <div className="flex items-center gap-3 min-w-0" title={isCollapsed ? (session?.user?.name || "Người dùng") : undefined}>
+              <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-accent" />
               </div>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-text-primary truncate">
+                    {session?.user?.name || "Người dùng"}
+                  </div>
+                  <div className="text-xs text-text-disabled truncate">
+                    {userRoles.includes("tenant_admin") ? "Admin" : "Thành viên"}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {!isCollapsed && (
+              <button 
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="p-1.5 text-text-disabled hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
+                title="Đăng xuất"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             )}
           </div>
+          
+          {/* Show a separate logout button below if collapsed */}
+          {isCollapsed && (
+            <div className="mt-2 flex justify-center">
+              <button 
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="p-2 text-text-disabled hover:text-error hover:bg-error/10 rounded-lg transition-colors"
+                title="Đăng xuất"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
