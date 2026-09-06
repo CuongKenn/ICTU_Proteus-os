@@ -251,10 +251,16 @@ LLM_API_KEY=dummy                  # Bắt buộc nếu vLLM yêu cầu auth
 ```
 
 > [!TIP]
-> **Khởi chạy Local LLM bằng Ollama (Môi trường Dev):**
-> 1. Bỏ comment service `ollama` trong file `docker-compose.yml`.
-> 2. Khởi chạy container: `docker compose up -d ollama`.
-> 3. Tải model mong muốn vào container: `docker exec -it proteus-ollama ollama run llama3`.
+> **Khởi chạy Local LLM bằng Docker Compose Profiles:**
+> 
+> Hệ thống hỗ trợ khởi chạy tự động Local LLM thông qua Docker Compose Profiles. Bạn có thể sử dụng `vllm` (dành cho máy chủ có GPU) hoặc `ollama` (dành cho CPU/Dev).
+> 
+> Cách cấu hình:
+> 1. Mở file `deploy/.env` và cấu hình biến:
+>    - `COMPOSE_PROFILES=ollama` (nếu dùng Ollama)
+>    - `COMPOSE_PROFILES=vllm` (nếu dùng vLLM, yêu cầu Docker host đã cài NVIDIA Container Toolkit)
+> 2. Chạy lệnh bình thường: `docker compose up -d`
+> 3. Lưu ý: Nếu dùng Ollama, hệ thống sẽ sinh ra container `ollama-init` để tự động pull model `llama3` về trong lần chạy đầu tiên mà không cần can thiệp thủ công.
 
 > [!WARNING]
 > **Tài nguyên (Hardware):** Chạy LLM local đòi hỏi dung lượng RAM/VRAM lớn. Khuyến nghị sử dụng máy chủ có GPU rời (NVIDIA) và triển khai vLLM để đạt hiệu suất tối ưu trên Production.

@@ -174,17 +174,64 @@ services:
   # ────────────────────────────────────────────────────────────
   # OLLAMA — Local LLM Provider (Optional)
   # ────────────────────────────────────────────────────────────
-  # Bỏ comment block dưới đây để chạy Ollama local.
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: proteus-ollama
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ollama-data:/root/.ollama
-  #   networks:
-  #     - proteus-net
-  #   labels:
-  #     - "proteus.log=true"
+  ollama:
+    image: ollama/ollama:latest
+    container_name: proteus-ollama
+    restart: unless-stopped
+    profiles: ["ollama"]
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - proteus-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "proteus.log=true"
+
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: proteus-ollama-init
+    profiles: ["ollama"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - proteus-net
+    command: >
+      sh -c "echo 'Fetching llama3...' && curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"llama3\"}' && echo 'Done!'"
+    labels:
+      - "proteus.log=true"
+
+  # ────────────────────────────────────────────────────────────
+  # vLLM — High-Performance Local LLM (Optional)
+  # ────────────────────────────────────────────────────────────
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: proteus-vllm
+    restart: unless-stopped
+    profiles: ["vllm"]
+    command: --model meta-llama/Llama-2-7b-chat-hf
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - vllm-data:/root/.cache/huggingface
+    networks:
+      - proteus-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/models"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "proteus.log=true"
 
   # ────────────────────────────────────────────────────────────
   # N8N — Workflow Automation Engine
@@ -492,3 +539,4 @@ volumes:
   mattermost-client-plugins:
   mattermost-bleve-indexes:
   ollama-data:
+  vllm-data:
