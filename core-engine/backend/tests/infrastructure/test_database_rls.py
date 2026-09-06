@@ -34,7 +34,7 @@ async def test_plugin_table_rls_isolation(db_session):
 
     # Setup database with tenant_admin privileges (to bypass RLS for setup)
     await db_session.execute(text("RESET ROLE"))
-    
+
     # 1. Create table and RLS policy
     await db_session.execute(text(f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
@@ -43,9 +43,13 @@ async def test_plugin_table_rls_isolation(db_session):
             data text
         )
     """))
-    await db_session.execute(text(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY"))
+    await db_session.execute(
+        text(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY")
+    )
     await db_session.execute(text(f"ALTER TABLE {table_name} FORCE ROW LEVEL SECURITY"))
-    await db_session.execute(text(f"DROP POLICY IF EXISTS tenant_isolation_policy ON {table_name}"))
+    await db_session.execute(
+        text(f"DROP POLICY IF EXISTS tenant_isolation_policy ON {table_name}")
+    )
     await db_session.execute(text(f"""
         CREATE POLICY tenant_isolation_policy ON {table_name}
         FOR ALL TO public
@@ -54,16 +58,27 @@ async def test_plugin_table_rls_isolation(db_session):
     """))
 
     # 2. Insert data for tenant A
-    await db_session.execute(text(f"INSERT INTO {table_name} (tenant_id, data) VALUES (:t, 'secret A')"), {"t": tenant_a})
+    await db_session.execute(
+        text(f"INSERT INTO {table_name} (tenant_id, data) VALUES (:t, 'secret A')"),
+        {"t": tenant_a},
+    )
 
     # 3. Query as tenant A (must use a non-superuser role to test RLS)
-    await db_session.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'test_app_user') THEN CREATE ROLE test_app_user; END IF; END $$"))
+    await db_session.execute(
+        text(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles "
+            "WHERE rolname = 'test_app_user') THEN CREATE ROLE test_app_user; "
+            "END IF; END $$"
+        )
+    )
     await db_session.execute(text("GRANT USAGE ON SCHEMA public TO test_app_user"))
     await db_session.execute(text(f"GRANT ALL ON TABLE {table_name} TO test_app_user"))
     await db_session.execute(text("SET LOCAL ROLE test_app_user"))
 
     current_tenant_id.set(tenant_a)
-    await db_session.execute(text("SELECT set_config('app.current_tenant_id', :t, true)"), {"t": tenant_a})
+    await db_session.execute(
+        text("SELECT set_config('app.current_tenant_id', :t, true)"), {"t": tenant_a}
+    )
     result_a = await db_session.execute(text(f"SELECT data FROM {table_name}"))
     rows_a = result_a.fetchall()
     assert len(rows_a) == 1
@@ -71,7 +86,9 @@ async def test_plugin_table_rls_isolation(db_session):
 
     # 4. Query as tenant B
     current_tenant_id.set(tenant_b)
-    await db_session.execute(text("SELECT set_config('app.current_tenant_id', :t, true)"), {"t": tenant_b})
+    await db_session.execute(
+        text("SELECT set_config('app.current_tenant_id', :t, true)"), {"t": tenant_b}
+    )
     result_b = await db_session.execute(text(f"SELECT data FROM {table_name}"))
     rows_b = result_b.fetchall()
     assert len(rows_b) == 0, "Dữ liệu của Tenant A bị lộ sang Tenant B!"

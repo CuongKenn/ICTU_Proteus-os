@@ -73,7 +73,11 @@ def test_chunking_long_paragraph():
     use_case.max_chars_per_chunk = 50  # Small size for testing
 
     # Create a long text with multiple newlines
-    text = "Line 1 is short.\nLine 2 is also short but together they are long.\nLine 3 is here."
+    text = (
+        "Line 1 is short.\n"
+        "Line 2 is also short but together they are long.\n"
+        "Line 3 is here."
+    )
     chunks = use_case._chunk_text(text)
 
     assert len(chunks) == 3

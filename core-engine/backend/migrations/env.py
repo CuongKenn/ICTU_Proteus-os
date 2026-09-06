@@ -9,6 +9,10 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from app import infrastructure  # noqa: F401
+from app.infrastructure.config import settings
+from app.infrastructure.database import Base
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -20,9 +24,6 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app import infrastructure  # noqa: F401
-from app.infrastructure.config import settings
-from app.infrastructure.database import Base
 
 target_metadata = Base.metadata
 

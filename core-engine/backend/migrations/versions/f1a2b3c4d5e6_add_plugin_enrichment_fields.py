@@ -26,7 +26,9 @@ def upgrade() -> None:
     # ─── plugins table ────────────────────────────────────────────────
     op.add_column(
         "plugins",
-        sa.Column("category", sa.String(length=100), nullable=True, server_default="Utilities"),
+        sa.Column(
+            "category", sa.String(length=100), nullable=True, server_default="Utilities"
+        ),
     )
     op.add_column(
         "plugins",

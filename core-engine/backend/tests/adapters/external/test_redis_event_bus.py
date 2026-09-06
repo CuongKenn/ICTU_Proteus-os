@@ -6,7 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+from app.adapters.external.redis_event_bus import (
+    EventBusPublishError,
+    RedisEventBusPublisher,
+)
 
 
 @pytest.fixture
@@ -47,9 +50,6 @@ async def test_redis_publisher_publish_success(publisher):
         assert "created_at" in event_data
 
 
-from app.adapters.external.redis_event_bus import EventBusPublishError
-
-
 @pytest.mark.asyncio
 async def test_redis_publisher_aclose(publisher):
     with patch(
@@ -77,7 +77,10 @@ async def test_redis_publisher_publish_failure(publisher):
         mock_redis.publish = AsyncMock(side_effect=Exception("Redis down"))
         mock_from_url.return_value = mock_redis
 
-        with patch("app.adapters.external.redis_event_bus.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "app.adapters.external.redis_event_bus.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as mock_sleep:
             with pytest.raises(EventBusPublishError, match="Redis down"):
                 await publisher.publish("test", "t1", "p1", {})
             assert mock_sleep.call_count == 2
