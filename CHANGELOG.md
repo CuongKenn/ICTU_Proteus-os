@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
+### Changed
+- **[Backend]** Fix schema mismatch by adding `domain` and `slug` columns properly to `TenantModel` and database migrations.
+
 ### Added
 - **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
 - **[plugins/crm-module/dashboards]** Implement `sales_pipeline` (pipeline overview, top leads, conversion rate, revenue forecast) và `customer_health` (avg satisfaction, churn risk, ticket volume) cho Metabase.
