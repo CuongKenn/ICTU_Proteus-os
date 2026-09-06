@@ -141,9 +141,9 @@ export function useAICommand(): UseAICommandReturn {
 
       let data: AICommandBFFResponse;
 
-      if (!response.ok && process.env.NODE_ENV === "development") {
+      if (!response.ok && process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         // Dev fallback: mock response khi API chưa có
-        const { MOCK_RESPONSES, detectEffectFromInput } = await import("./__mocks__/useAICommand.mock");
+        const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
         const detectedEffect = detectEffectFromInput(trimmed);
         data = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
       } else if (!response.ok) {
@@ -169,9 +169,9 @@ export function useAICommand(): UseAICommandReturn {
         setWidgetState("expanded");
       }
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         // Dev fallback
-        const { MOCK_RESPONSES, detectEffectFromInput } = await import("./__mocks__/useAICommand.mock");
+        const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
         const detectedEffect = detectEffectFromInput(trimmed);
         const mockData = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
         if (mockData.status === "pending_approval" && mockData.dsl_preview) {

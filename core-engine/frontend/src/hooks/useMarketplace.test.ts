@@ -58,9 +58,9 @@ describe("useMarketplace", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("falls back to mock data in development on error", async () => {
-    const originalEnv = process.env.NODE_ENV;
-    (process.env as any).NODE_ENV = "development";
+  it("falls back to mock data when NEXT_PUBLIC_ENABLE_MOCKS is true on error", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_ENABLE_MOCKS;
+    (process.env as any).NEXT_PUBLIC_ENABLE_MOCKS = "true";
     (api.get as any) = vi.fn().mockRejectedValue(new Error("network error"));
 
     const { result } = renderHook(() => useMarketplace());
@@ -73,7 +73,7 @@ describe("useMarketplace", () => {
     expect(result.current.plugins.length).toBeGreaterThan(0);
     expect(result.current.error).toBeNull();
 
-    (process.env as any).NODE_ENV = originalEnv;
+    (process.env as any).NEXT_PUBLIC_ENABLE_MOCKS = originalEnv;
   });
 
   it("starts with correct install state machine values", () => {

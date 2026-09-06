@@ -76,7 +76,7 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin (Mock).");
         refetch();
       } else {
@@ -92,7 +92,7 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin (Mock).");
         refetch();
       } else {
@@ -108,7 +108,7 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin (Mock).");
         refetch();
       } else {
