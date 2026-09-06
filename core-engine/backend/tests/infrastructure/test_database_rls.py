@@ -33,7 +33,7 @@ async def test_plugin_table_rls_isolation(db_session):
     table_name = "test_plugin_data"
 
     # Setup database with tenant_admin privileges (to bypass RLS for setup)
-    await db_session.execute(text("SELECT set_config('role', 'postgres', true)"))
+    await db_session.execute(text("RESET ROLE"))
     
     # 1. Create table and RLS policy
     await db_session.execute(text(f"""
@@ -70,5 +70,5 @@ async def test_plugin_table_rls_isolation(db_session):
     assert len(rows_b) == 0, "Dữ liệu của Tenant A bị lộ sang Tenant B!"
 
     # Cleanup
-    await db_session.execute(text("SELECT set_config('role', 'postgres', true)"))
+    await db_session.execute(text("RESET ROLE"))
     await db_session.execute(text(f"DROP TABLE {table_name} CASCADE"))
