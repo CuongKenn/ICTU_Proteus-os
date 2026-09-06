@@ -268,10 +268,28 @@ class PluginUninstallUseCase:
         asset_ids: list[str],
     ) -> None:
         """Xóa UI apps khỏi Appsmith."""
+        integration_config = None
+        if self.tenant_repo and hasattr(
+            self.tenant_repo, "get_integration_by_provider"
+        ):
+            integration = await self.tenant_repo.get_integration_by_provider(
+                context.tenant_id, "appsmith"
+            )
+            if integration:
+                integration_config = integration.config
+
         for app_id in asset_ids:
             if hasattr(self.appsmith_adapter, "delete_app"):
                 try:
-                    await self.appsmith_adapter.delete_app(app_id)
+                    if (
+                        "integration_config"
+                        in self.appsmith_adapter.delete_app.__code__.co_varnames
+                    ):
+                        await self.appsmith_adapter.delete_app(
+                            app_id, integration_config=integration_config
+                        )
+                    else:
+                        await self.appsmith_adapter.delete_app(app_id)
                 except Exception as e:
                     logger.warning("Không thể xóa Appsmith app %s: %s", app_id, e)
 

@@ -191,6 +191,13 @@ class AbstractTenantRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_integration_by_provider(
+        self, tenant_id: uuid.UUID, provider: str
+    ) -> TenantIntegrationEntity | None:
+        """Lấy integration theo provider."""
+        ...
+
+    @abstractmethod
     async def add_integration(
         self, integration: TenantIntegrationEntity
     ) -> TenantIntegrationEntity:
