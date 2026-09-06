@@ -44,6 +44,7 @@ async def test_plugin_table_rls_isolation(db_session):
         )
     """))
     await db_session.execute(text(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY"))
+    await db_session.execute(text(f"ALTER TABLE {table_name} FORCE ROW LEVEL SECURITY"))
     await db_session.execute(text(f"DROP POLICY IF EXISTS tenant_isolation_policy ON {table_name}"))
     await db_session.execute(text(f"""
         CREATE POLICY tenant_isolation_policy ON {table_name}
@@ -56,7 +57,6 @@ async def test_plugin_table_rls_isolation(db_session):
     await db_session.execute(text(f"INSERT INTO {table_name} (tenant_id, data) VALUES (:t, 'secret A')"), {"t": tenant_a})
 
     # 3. Query as tenant A
-    await db_session.execute(text("SELECT set_config('role', 'app_user', true)"))
     current_tenant_id.set(tenant_a)
     result_a = await db_session.execute(text(f"SELECT data FROM {table_name}"))
     rows_a = result_a.fetchall()
