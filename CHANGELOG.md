@@ -10,6 +10,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Vô hiệu hóa tính năng `debug: true` của NextAuth trên môi trường Production để ngăn chặn rò rỉ JWT token và refresh token vào server console (Issue #597).
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
+### Fixed
+- **[Frontend]** Cập nhật phương thức gọi API gỡ cài đặt Plugin thành `DELETE` và truyền payload `confirm_name` từ component `MarketplaceClient` nhằm khắc phục lỗi 405 Method Not Allowed (Issue #599).
+
 
 ### Added
 - **[Backend]** Triển khai custom `LocalLLMProvider` giao tiếp trực tiếp qua `httpx` thay thế hoàn toàn Langchain OpenAI package, đảm bảo độc lập với các thư viện đóng (Issue #585).

@@ -120,7 +120,7 @@ describe("MarketplaceClient", () => {
 
     fireEvent.click(confirmBtn);
     await waitFor(() => {
-      expect(mockUninstallPlugin).toHaveBeenCalledWith("1");
+      expect(mockUninstallPlugin).toHaveBeenCalledWith("1", "HR Pro");
     });
   });
 

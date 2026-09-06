@@ -136,7 +136,7 @@ export const MarketplaceClient: React.FC = () => {
   const handleConfirmUninstall = async () => {
     if (uninstallPluginData && isAdmin) {
       setIsUninstalling(true);
-      await uninstallPlugin(uninstallPluginData.id);
+      await uninstallPlugin(uninstallPluginData.id, uninstallPluginData.name);
       setIsUninstalling(false);
       setIsUninstallConfirmOpen(false);
       setUninstallPluginData(null);

@@ -22,7 +22,7 @@ interface UseMarketplaceReturn {
   installProgress: number;
   installStatus: PluginStatus | null;
   installPlugin: (pluginId: string, credentials?: CredentialInput[]) => Promise<void>;
-  uninstallPlugin: (pluginId: string) => Promise<void>;
+  uninstallPlugin: (pluginId: string, confirmName?: string) => Promise<void>;
 }
 
 export function useMarketplace(): UseMarketplaceReturn {
