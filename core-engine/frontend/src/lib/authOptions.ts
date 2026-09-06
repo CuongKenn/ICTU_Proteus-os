@@ -9,12 +9,18 @@
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 
+const publicIssuer = process.env.KEYCLOAK_ISSUER!;
+const realm = publicIssuer.split("/realms/")[1] || "proteus";
+const internalBase = process.env.KEYCLOAK_INTERNAL_URL
+  ? `${process.env.KEYCLOAK_INTERNAL_URL}/realms/${realm}`
+  : publicIssuer;
+
 // ─── Silent Token Refresh ─────────────────────────────────────
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
 // Được gọi tự động khi access_token hết hạn trong JWT callback.
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
-    const tokenUrl = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
+    const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
     const response = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -48,7 +54,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
-  debug: process.env.NODE_ENV === 'development',
+  debug: process.env.NODE_ENV === "development",
   providers: [
     // Manual OAuth provider — Keycloak luôn trả id_token nên phải dùng idToken:true
     // Dùng wellKnown để NextAuth lấy jwks_uri (cho ID token verification)
@@ -59,15 +65,17 @@ export const authOptions: NextAuthOptions = {
       type: "oauth",
       // wellKnown cần để lấy JWKS cho ID token verification
       // Nhưng discovery chỉ xảy ra 1 lần và được cache
-      wellKnown: `${process.env.KEYCLOAK_ISSUER}/.well-known/openid-configuration`,
+      wellKnown: `${internalBase}/.well-known/openid-configuration`,
       // Hardcode authorization endpoint — không phụ thuộc vào discovery cho redirect
       authorization: {
-        url: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
+        url: `${publicIssuer}/protocol/openid-connect/auth`,
         params: { scope: "openid email profile", response_type: "code" },
       },
       // Hardcode token và userinfo endpoints
-      token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
-      userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,
+      token: `${internalBase}/protocol/openid-connect/token`,
+      userinfo: `${internalBase}/protocol/openid-connect/userinfo`,
+      // Thêm issuer để tránh lỗi issuer mismatch
+      issuer: publicIssuer,
       // idToken: true — Keycloak luôn trả id_token, phải dùng client.callback()
       idToken: true,
       checks: ["pkce", "state"],
@@ -82,8 +90,6 @@ export const authOptions: NextAuthOptions = {
         };
       },
     },
-
-
   ],
 
   callbacks: {
