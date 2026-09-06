@@ -14,6 +14,11 @@ class TenantCreateRequest(BaseModel):
         description="Slug duy nhất cho tổ chức (dùng cho sub-domain hoặc URL)",
         pattern=r"^[a-z0-9-]+$",
     )
+    domain: str | None = Field(
+        None,
+        description="Full subdomain hoặc custom domain (VD: truong-a.proteus.vn)",
+        pattern=r"^[a-z0-9.-]+$",
+    )
     plan: str = Field(
         default="starter", description="Gói dịch vụ (starter, pro, enterprise)"
     )
@@ -29,6 +34,7 @@ class TenantResponse(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    domain: str | None
     keycloak_realm: str
     plan: str
     is_active: bool
