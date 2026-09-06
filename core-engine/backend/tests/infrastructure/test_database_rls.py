@@ -58,6 +58,7 @@ async def test_plugin_table_rls_isolation(db_session):
 
     # 3. Query as tenant A
     current_tenant_id.set(tenant_a)
+    await db_session.execute(text("SELECT set_config('app.current_tenant_id', :t, true)"), {"t": tenant_a})
     result_a = await db_session.execute(text(f"SELECT data FROM {table_name}"))
     rows_a = result_a.fetchall()
     assert len(rows_a) == 1
@@ -65,6 +66,7 @@ async def test_plugin_table_rls_isolation(db_session):
 
     # 4. Query as tenant B
     current_tenant_id.set(tenant_b)
+    await db_session.execute(text("SELECT set_config('app.current_tenant_id', :t, true)"), {"t": tenant_b})
     result_b = await db_session.execute(text(f"SELECT data FROM {table_name}"))
     rows_b = result_b.fetchall()
     assert len(rows_b) == 0, "Dữ liệu của Tenant A bị lộ sang Tenant B!"
