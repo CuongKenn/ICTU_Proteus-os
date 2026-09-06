@@ -63,7 +63,7 @@ export function useMarketplace(): UseMarketplaceReturn {
       } catch (err: unknown) {
         logger.error("[useMarketplace] fetch error:", err);
         if (!cancelled) {
-          if (process.env.NODE_ENV === "development") {
+          if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
             const mockPlugins: PluginInfo[] = [
               {
                 id: "hr-module",
@@ -185,7 +185,7 @@ export function useMarketplace(): UseMarketplaceReturn {
         throw new Error("No task_id returned");
       }
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         pollingRef.current = setInterval(() => {
           pollStatus("fake-task-id", pluginId);
         }, 1000);
