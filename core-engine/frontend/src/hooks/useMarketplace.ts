@@ -186,9 +186,22 @@ export function useMarketplace(): UseMarketplaceReturn {
       }
     } catch (error) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+        // Simulate install progress locally
+        let mockProgress = 0;
         pollingRef.current = setInterval(() => {
-          pollStatus("fake-task-id", pluginId);
-        }, 1000);
+          mockProgress += 20;
+          setInstallProgress(mockProgress);
+          if (mockProgress >= 100) {
+            clearInterval(pollingRef.current!);
+            setInstallStatus("active");
+            useNotificationStore.getState().addToast("success", "Cài đặt Plugin thành công (Mock).");
+            setTimeout(() => {
+              setInstallingId(null);
+              setInstallStatus(null);
+              setInstallProgress(0);
+            }, 2000);
+          }
+        }, 500);
       } else {
         setInstallStatus("failed");
         useNotificationStore.getState().addToast("error", "Không thể bắt đầu cài đặt Plugin.");

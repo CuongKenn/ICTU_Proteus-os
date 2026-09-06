@@ -13,6 +13,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
 ### Fixed
+- **[Frontend]** Khắc phục lỗi polling API vô tận (fake polling loop) trong `useMarketplace` khi mock mode được bật, ngăn chặn spam request 404 (Issue #626).
 - **[Frontend]** Xóa bỏ lệnh gọi `getServerSession` dư thừa trong AI BFF Route (`/api/ai/command`) giúp giảm độ trễ và tối ưu hiệu suất (Issue #625).
 - **[Frontend]** Loại bỏ các fallback rò rỉ dữ liệu mock trên môi trường production/staging (Plugins giả, task ID giả, toast message giả). Các mock data giờ đây chỉ được bật một cách chủ động thông qua biến môi trường `NEXT_PUBLIC_ENABLE_MOCKS=true` (Issue #600).
 - **[Frontend]** Cập nhật endpoint kiểm tra trạng thái Backend trong trang About từ gọi trực tiếp `/api/v1/health` sang đi qua BFF Proxy `/api/proxy/health` để khắc phục lỗi Bypass BFF Pattern (Issue #601).
