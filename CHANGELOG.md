@@ -13,6 +13,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
 ### Changed
+- **[Docs]** Đồng bộ tài liệu hệ thống (`erd.md`, `api-swagger.yaml`, `architecture.md`) và Domain Entities với thực tế triển khai mã nguồn, cập nhật các schema bị thiếu sót (Issue #627).
 - **[Backend]** Cải thiện kiến trúc Plugin Install: Sử dụng chuẩn Dependency Injection cho `ManifestParser`, thay thế ID ảo bằng UUID `task_id` thực cho polling tiến trình cài đặt, loại bỏ sử dụng introspection rủi ro (Issue #637).
 
 ### Refactored

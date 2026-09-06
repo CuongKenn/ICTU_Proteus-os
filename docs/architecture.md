@@ -151,11 +151,11 @@ AI trong Proteus OS hoạt động theo **3 chế độ độc lập**:
 
 | Chế độ | Component | Mô tả |
 |---|---|---|
-| **RAG Assistant** | LangChain + Qdrant | Trả lời câu hỏi dựa trên tài liệu nội bộ. Không yêu cầu phê duyệt |
+| **RAG Assistant** | LLM Provider (httpx) + Qdrant | Trả lời câu hỏi dựa trên tài liệu nội bộ. Không yêu cầu phê duyệt |
 | **Proactive Monitor** | Cron Job + n8n | Chạy ngầm 24/7, quét dữ liệu, phát hiện bất thường, gửi cảnh báo Mattermost. Chỉ báo cáo, không tự hành động |
 | **Executive Agent** | Orchestrator + DX-DSL | Nhận lệnh ngôn ngữ tự nhiên, dịch sang DX-DSL, chờ phê duyệt, rồi thực thi |
 
-**Luồng thực thi (Executive Agent):** Nhận lệnh → LangChain ReAct phân tích → tạo **DX-DSL Command** → Orchestrator xác thực quyền + action whitelist → gửi Interactive Message Mattermost (Human-in-the-loop) → người dùng bấm [Phê duyệt] → Orchestrator gọi n8n API thực thi.
+**Luồng thực thi (Executive Agent):** Nhận lệnh → LLM Provider phân tích → tạo **DX-DSL Command** → Orchestrator xác thực quyền + action whitelist → gửi Interactive Message Mattermost (Human-in-the-loop) → người dùng bấm [Phê duyệt] → Orchestrator gọi n8n API thực thi.
 
 Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **[`docs/dsl-spec.md`](./dsl-spec.md)**.
 
@@ -163,27 +163,27 @@ Cấu trúc DSL chuẩn và danh sách action types được phép xem tại: **
 
 **Hard Limits (cứng, không cài đặt được):** AI chỉ thực thi các action nằm trong DX-DSL whitelist. Mọi yêu cầu ngoài danh sách (đặc biệt là `core.data.delete_all`, truy cập cross-tenant, sửa code) sẽ bị từ chối ngay tại tầng Orchestrator với lỗi `DSL_INVALID_ACTION`. Chi tiết đầy đủ xem tại **[`docs/clarification.md §9`](./clarification.md)**.
 
-### Phân công rõ ràng: n8n vs. LangChain (FastAPI)
+### Phân công rõ ràng: n8n vs. LLM Provider (FastAPI)
 
 > [!IMPORTANT]
-> **n8n là "bàn tay" (execution). LangChain là "bộ não" (reasoning).** Hai thứ không thay thế nhau được.
+> **n8n là "bàn tay" (execution). LLM Provider là "bộ não" (reasoning).** Hai thứ không thay thế nhau được.
 
-| Chế độ AI | n8n làm gì | LangChain (FastAPI) làm gì |
+| Chế độ AI | n8n làm gì | LLM Provider (FastAPI) làm gì |
 |---|---|---|
 | **RAG Assistant** | ❌ Không tham gia | ✅ Toàn bộ: embed query → Qdrant Hybrid Search → prompt → LLM → trả về |
 | **Proactive Monitor** | ✅ Toàn bộ: Cron trigger → PostgreSQL query → evaluate → Mattermost alert | ❌ Không tham gia |
 | **Executive Agent** | ✅ Nửa sau: nhận webhook từ FastAPI → thực thi hành động → callback | ✅ Nửa trước: hiểu ngôn ngữ tự nhiên → tạo DX-DSL → validate RBAC → quản lý Human-in-the-loop wait state |
 
-**Tại sao không dùng n8n AI Nodes thay LangChain hoàn toàn?**
+**Tại sao không dùng n8n AI Nodes thay LLM Provider hoàn toàn?**
 
-n8n có tích hợp AI Agent nodes (built-in LangChain), nhưng **không đủ cho production** vì:
+n8n có tích hợp AI Agent nodes, nhưng **không đủ cho production** vì:
 - Không hỗ trợ Qdrant Hybrid Search (Dense Vector + BM25) — cần cho tiếng Việt
 - Không thể inject `tenant_id` vào RAG context một cách type-safe
 - Không có Pydantic schema validation cho DX-DSL output
-- Debug prompt & trace với LangSmith không khả dụng
+- Khó custom prompt & trace so với API gọi trực tiếp qua httpx
 - Streaming response cho chat UI không hỗ trợ tốt
 
-**Tóm lại:** Mọi logic cần **LLM reasoning** → FastAPI + LangChain. Mọi logic cần **workflow automation** (cron, webhook, DB write, gửi thông báo) → n8n.
+**Tóm lại:** Mọi logic cần **LLM reasoning** → FastAPI + LLM Provider. Mọi logic cần **workflow automation** (cron, webhook, DB write, gửi thông báo) → n8n.
 
 ---
 

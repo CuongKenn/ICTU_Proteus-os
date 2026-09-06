@@ -21,6 +21,7 @@ erDiagram
         string notify_channel_id "Kênh thông báo mặc định"
         timestamp created_at
         timestamp updated_at
+        timestamp deleted_at "Soft delete"
     }
 
     USER {
@@ -34,6 +35,7 @@ erDiagram
         timestamp last_login_at "Dùng cho audit và bảo mật"
         timestamp joined_at
         timestamp updated_at "Dùng để tracking đồng bộ từ Keycloak"
+        timestamp deleted_at "Soft delete"
     }
 
     ROLE {
@@ -43,8 +45,10 @@ erDiagram
         string name "Tên vai trò (VD: hr_manager, finance_viewer)"
         string display_name "Tên hiển thị thân thiện"
         string description
+        jsonb permissions "JSONB chứa danh sách quyền hạn"
         boolean is_system_role "TRUE = Core Role, không xóa được"
         timestamp created_at
+        timestamp deleted_at "Soft delete"
     }
 
     USER_ROLE {
@@ -52,6 +56,7 @@ erDiagram
         uuid role_id FK
         uuid granted_by_user_id FK "Ai đã gán role này"
         timestamp granted_at
+        timestamp deleted_at "Soft delete"
     }
 
     PLUGIN {
@@ -73,6 +78,7 @@ erDiagram
         jsonb credentials_schema "Cấu trúc form nhập credentials (nếu có)"
         timestamp published_at
         timestamp updated_at
+        timestamp deleted_at "Soft delete"
     }
 
     TENANT_PLUGIN {
@@ -87,6 +93,18 @@ erDiagram
         jsonb credential_ids "Danh sách n8n credential IDs đã sinh ra"
         timestamp installed_at
         timestamp updated_at "Lần cập nhật trạng thái cuối cùng"
+        timestamp deleted_at "Soft delete"
+    }
+
+    TENANT_INTEGRATION {
+        uuid id PK
+        uuid tenant_id FK "Tích hợp thuộc về Tenant nào"
+        string provider "Tên provider (VD: n8n, metabase)"
+        jsonb config "Cấu hình connection"
+        boolean is_active "Trạng thái hoạt động"
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at "Soft delete"
     }
 
     AUDIT_LOG {
@@ -102,6 +120,7 @@ erDiagram
         string status "Enum: SUCCESS / FAILED / PENDING_APPROVAL"
         string ip_address
         timestamp created_at
+        timestamp deleted_at "Soft delete"
     }
 
     TENANT ||--o{ USER : "có nhiều"
@@ -113,6 +132,8 @@ erDiagram
     TENANT ||--o{ TENANT_PLUGIN : "cài đặt"
     PLUGIN ||--o{ TENANT_PLUGIN : "được cài bởi"
     USER ||--o{ TENANT_PLUGIN : "cài đặt bởi (installed_by)"
+
+    TENANT ||--o{ TENANT_INTEGRATION : "sử dụng"
 
     TENANT ||--o{ AUDIT_LOG : "thuộc về"
     USER ||--o{ AUDIT_LOG : "thực hiện"
@@ -187,6 +208,7 @@ erDiagram
         timestamp created_at
         timestamp approved_at
         timestamp executed_at
+        timestamp deleted_at "Soft delete"
     }
 ```
 
