@@ -51,6 +51,7 @@ from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
 from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.core.use_cases.tenant_onboarding import TenantOnboardingUseCase
 from app.core.use_cases.user_provisioning import UserProvisioningUseCase
+from app.infrastructure.config import settings
 from app.infrastructure.database import get_db_readonly, get_db_transactional
 
 logger = logging.getLogger(__name__)
@@ -246,6 +247,11 @@ async def get_current_tenant_context(
     # Trong môi trường dev, nếu token không có tenant_id, dùng default tenant
     tenant_id_raw = payload.get("tenant_id")
     if not tenant_id_raw or tenant_id_raw == "default":
+        if settings.ENVIRONMENT != "development":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token thiếu claim tenant_id.",
+            )
         tenant_id_raw = "a0000000-0000-4000-8000-000000000001"  # Default ICTU Tenant
 
     user_id_raw = payload.get("sub")
@@ -381,7 +387,6 @@ def require_permission(permission: str):
     ) -> TenantContext:
         if (
             any(r in context.roles for r in ["superadmin", "tenant_admin"])
-            or context.email == "admin@proteus.local"
         ):
             return context
 

@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Local LLM Migration (2026-09-06)
 
 ### Security
+- **[Backend]** Xóa bỏ các hardcode rủi ro tại `dependencies.py` bao gồm fallback mặc định về default Tenant (chỉ cho phép ở môi trường dev) và lỗ hổng bypass RBAC với tài khoản admin (Issue #598).
 - **[Frontend]** Vô hiệu hóa tính năng `debug: true` của NextAuth trên môi trường Production để ngăn chặn rò rỉ JWT token và refresh token vào server console (Issue #597).
 - **[Frontend]** Chuyển đổi các API calls trong `TenantTab` và `IntegrationsTab` sang sử dụng thư viện `api` trung gian để tuân thủ BFF Pattern, sửa lỗi gửi thiếu `Bearer` token gây ra lỗi 401 Unauthorized (Issue #595).
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
