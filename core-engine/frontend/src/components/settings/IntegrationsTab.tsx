@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Plug, Plus, Loader2, Link2, CheckCircle2, XCircle, Save } from "lucide-react";
 import { useSession } from "next-auth/react";
 
-import { api } from "@/lib/api";
+import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 
 interface IntegrationData {
@@ -30,8 +30,8 @@ export const IntegrationsTab: React.FC = () => {
   useEffect(() => {
     const fetchIntegrations = async () => {
       try {
-        const data = await api.get("/tenants/me/integrations");
-        setIntegrations(data);
+        const res = await api.get("/tenants/me/integrations");
+        setIntegrations(res.data);
       } catch (err) {
         logger.error("Failed to fetch integrations", err);
         setError("Không thể tải danh sách kết nối.");
@@ -56,12 +56,12 @@ export const IntegrationsTab: React.FC = () => {
         return;
       }
 
-      const data = await api.post("/tenants/me/integrations", {
+      const res = await api.post("/tenants/me/integrations", {
         provider: newProvider,
         config: parsedConfig,
       });
 
-      setIntegrations([...integrations, data]);
+      setIntegrations([...integrations, res.data]);
       setIsAdding(false);
       setNewProvider("");
       setNewConfig("");

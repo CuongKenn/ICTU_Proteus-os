@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Building2, Save, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
-import { api } from "@/lib/api";
+import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 
 interface TenantData {
@@ -31,9 +31,9 @@ export const TenantTab: React.FC = () => {
   useEffect(() => {
     const fetchTenant = async () => {
       try {
-        const data = await api.get("/tenants/me");
-        setTenant(data);
-        setName(data.name);
+        const res = await api.get("/tenants/me");
+        setTenant(res.data);
+        setName(res.data.name);
       } catch (err) {
         logger.error("Failed to fetch tenant", err);
         setError("Không thể tải thông tin tổ chức.");
@@ -52,8 +52,8 @@ export const TenantTab: React.FC = () => {
     setError(null);
     setSuccess(null);
     try {
-      const data = await api.patch("/tenants/me", { name });
-      setTenant(data);
+      const res = await api.patch("/tenants/me", { name });
+      setTenant(res.data);
       setSuccess("Cập nhật thông tin thành công!");
     } catch (err) {
       logger.error("Failed to update tenant", err);
