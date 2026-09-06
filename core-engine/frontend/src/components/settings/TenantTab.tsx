@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { Building2, Save, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
+import api from "@/lib/api";
+import { logger } from "@/lib/logger";
+
 interface TenantData {
   id: string;
   name: string;
@@ -28,18 +31,11 @@ export const TenantTab: React.FC = () => {
   useEffect(() => {
     const fetchTenant = async () => {
       try {
-        const res = await fetch("/api/v1/tenants/me", {
-          headers: {
-            Authorization: `Bearer ${(session as any)?.accessToken}`,
-          },
-        });
-        if (!res.ok) throw new Error("Failed to fetch tenant");
-        const data = await res.json();
-        setTenant(data);
-        setName(data.name);
+        const res = await api.get("/tenants/me");
+        setTenant(res.data);
+        setName(res.data.name);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
+        logger.error("Failed to fetch tenant", err);
         setError("Không thể tải thông tin tổ chức.");
       } finally {
         setLoading(false);
@@ -56,21 +52,11 @@ export const TenantTab: React.FC = () => {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch("/api/v1/tenants/me", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${(session as any)?.accessToken}`,
-        },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) throw new Error("Failed to update tenant");
-      const data = await res.json();
-      setTenant(data);
+      const res = await api.patch("/tenants/me", { name });
+      setTenant(res.data);
       setSuccess("Cập nhật thông tin thành công!");
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
+      logger.error("Failed to update tenant", err);
       setError("Có lỗi xảy ra khi lưu thông tin.");
     } finally {
       setSaving(false);
