@@ -56,6 +56,13 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_installation_status_by_task_id(
+        self, tenant_id: uuid.UUID, install_task_id: uuid.UUID
+    ) -> tuple[PluginStatus, uuid.UUID] | None:
+        """Trả về (status, plugin_id) dựa vào install_task_id."""
+        ...
+
+    @abstractmethod
     async def upsert_installation(
         self,
         tenant_id: uuid.UUID,
@@ -63,6 +70,7 @@ class AbstractPluginRepository(ABC):
         status: PluginStatus,
         installed_version: str | None = None,
         error_log: str | None = None,
+        install_task_id: uuid.UUID | None = None,
     ) -> None:
         """Tạo mới hoặc cập nhật bản ghi cài đặt trong bảng tenant_plugins."""
         ...

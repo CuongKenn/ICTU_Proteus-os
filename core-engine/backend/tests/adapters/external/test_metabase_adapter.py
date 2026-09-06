@@ -21,7 +21,9 @@ async def test_metabase_adapter_import_dashboard_success(adapter):
         mock_response.json.return_value = {"id": 123}
         mock_req.return_value = mock_response
 
-        dash_id = await adapter.import_dashboard(dashboard_json={"name": "Test Dashboard"})
+        dash_id = await adapter.import_dashboard(
+            dashboard_json={"name": "Test Dashboard"}
+        )
         assert dash_id == "123"
 
 

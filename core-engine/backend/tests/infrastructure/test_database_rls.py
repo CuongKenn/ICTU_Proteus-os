@@ -36,15 +36,13 @@ async def test_plugin_table_rls_isolation(db_session):
     await db_session.execute(text("RESET ROLE"))
 
     # 1. Create table and RLS policy
-    await db_session.execute(
-        text(f"""
+    await db_session.execute(text(f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
             id serial PRIMARY KEY,
             tenant_id uuid NOT NULL,
             data text
         )
-    """)
-    )
+    """))
     await db_session.execute(
         text(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY")
     )
@@ -52,14 +50,12 @@ async def test_plugin_table_rls_isolation(db_session):
     await db_session.execute(
         text(f"DROP POLICY IF EXISTS tenant_isolation_policy ON {table_name}")
     )
-    await db_session.execute(
-        text(f"""
+    await db_session.execute(text(f"""
         CREATE POLICY tenant_isolation_policy ON {table_name}
         FOR ALL TO public
         USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
         WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
-    """)
-    )
+    """))
 
     # 2. Insert data for tenant A
     await db_session.execute(

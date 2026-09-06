@@ -12,6 +12,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Chuyển đổi các API calls trong `TenantTab` và `IntegrationsTab` sang sử dụng thư viện `api` trung gian để tuân thủ BFF Pattern, sửa lỗi gửi thiếu `Bearer` token gây ra lỗi 401 Unauthorized (Issue #595).
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
+### Changed
+- **[Backend]** Cải thiện kiến trúc Plugin Install: Sử dụng chuẩn Dependency Injection cho `ManifestParser`, thay thế ID ảo bằng UUID `task_id` thực cho polling tiến trình cài đặt, loại bỏ sử dụng introspection rủi ro (Issue #637).
+
 ### Refactored
 - **[Frontend]** Tách các mock data inline ra file riêng (`marketplace.mock.ts`, `plugins.mock.ts`) và sử dụng dynamic import để tối ưu bundle size và cải thiện Separation of Concerns (Issue #630).
 
