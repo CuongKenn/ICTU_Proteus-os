@@ -126,7 +126,7 @@ services:
       KC_DB_SCHEMA: keycloak
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_HOSTNAME: auth.${DOMAIN}
+      KC_HOSTNAME: http://auth.${DOMAIN}
       KC_HOSTNAME_STRICT: "false"        # Allow HTTP in dev; don't enforce HTTPS-only hostnames
       KC_HOSTNAME_STRICT_HTTPS: "false"  # Don't redirect HTTP -> HTTPS
       KC_PROXY_HEADERS: xforwarded
