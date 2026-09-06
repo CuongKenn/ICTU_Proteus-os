@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Local LLM Migration (2026-09-06)
 
+### Security
+- **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
+
 ### Fixed
 - **[Frontend]** Cập nhật phương thức gọi API gỡ cài đặt Plugin thành `DELETE` và truyền payload `confirm_name` từ component `MarketplaceClient` nhằm khắc phục lỗi 405 Method Not Allowed (Issue #599).
 
