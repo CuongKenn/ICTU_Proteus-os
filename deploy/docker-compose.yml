@@ -30,6 +30,7 @@ services:
         aliases:
           - auth.proteus.local  # Internal containers reach Keycloak via Traefik -> proper X-Forwarded headers -> correct port in OIDC discovery
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
@@ -58,6 +59,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - "proteus.log=true"
 
   # ────────────────────────────────────────────────────────────
   # REDIS — Event Bus (Pub/Sub) + Cache
@@ -76,6 +79,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - "proteus.log=true"
 
   # ────────────────────────────────────────────────────────────
   # KEYCLOAK — SSO / Identity Provider
@@ -118,6 +123,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`auth.${DOMAIN}`)"
       - "traefik.http.routers.keycloak.entrypoints=web"
@@ -134,6 +140,8 @@ services:
       - qdrant-data:/qdrant/storage
     networks:
       - proteus-net
+    labels:
+      - "proteus.log=true"
     # Không expose ra ngoài — chỉ backend gọi qua internal network
 
   # ────────────────────────────────────────────────────────────
@@ -166,6 +174,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.n8n.rule=Host(`workflow.${DOMAIN}`)"
       - "traefik.http.routers.n8n.entrypoints=web"
@@ -198,6 +207,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.mattermost.rule=Host(`chat.${DOMAIN}`)"
       - "traefik.http.routers.mattermost.entrypoints=web"
@@ -227,6 +237,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.metabase.rule=Host(`analytics.${DOMAIN}`)"
       - "traefik.http.routers.metabase.entrypoints=web"
@@ -246,6 +257,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.appsmith.rule=Host(`apps.${DOMAIN}`) || PathPrefix(`/proxy/appsmith`)"
       - "traefik.http.routers.appsmith.entrypoints=web"
@@ -285,6 +297,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.outline.rule=Host(`wiki.${DOMAIN}`)"
       - "traefik.http.routers.outline.entrypoints=web"
@@ -298,8 +311,10 @@ services:
     image: grafana/loki:2.9.2
     container_name: proteus-loki
     restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - loki-data:/loki
+      - ./loki/config.yml:/etc/loki/local-config.yaml:ro
     networks:
       - proteus-net
 
@@ -375,6 +390,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/health`))"
       - "traefik.http.routers.backend.entrypoints=web"
@@ -403,6 +419,7 @@ services:
     networks:
       - proteus-net
     labels:
+      - "proteus.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.frontend.entrypoints=web"
