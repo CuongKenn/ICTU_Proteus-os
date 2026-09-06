@@ -58,6 +58,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/*/manifest.yaml]** Thêm `category`, `credentials_schema: []` vào tất cả 9 plugin manifests (hr, crm, finance, asset, document, it-helpdesk, meeting, procurement, project). HR thêm `tags`, `long_description`, `changelog`.
 
 ### Changed
+- **[docs]** Cập nhật tài liệu `docs/erd.md` và `docs/api-swagger.yaml` để đồng bộ với cấu trúc thực tế của Plugin Architecture Overhaul (thêm các endpoint về credentials và cập nhật ERD schema).
 - **[core-engine/frontend/src/app/marketplace/MarketplaceClient.tsx]** Bỏ hardcode category detection (`code_name.includes("hr")`) → dùng `p.category` từ backend. Truyền `credentialsSchema` từ plugin data vào `InstallPreviewDialog`. `handleConfirmInstall` nhận `CredentialInput[]` và pass trực tiếp vào `installPlugin()` — loại bỏ luồng 2 request riêng lẻ (credentials trước, install sau).
 - **[core-engine/frontend/src/components/marketplace/PluginCard.tsx]** Fix `Math.random()` rating → `plugin.rating ?? null` (không flicker). Hiển thị `plugin.author` thật thay vì hardcode "Proteus Core". Hỗ trợ `icon_url` (`<img>` thay vì chữ cái đầu).
 
