@@ -274,3 +274,17 @@ class AbstractEventBusPort(ABC):
     @abstractmethod
     async def aclose(self) -> None:
         pass
+
+
+# ─────────────────────────────────────────────────────────────
+# MANIFEST PARSER PORT
+# ─────────────────────────────────────────────────────────────
+
+
+class AbstractManifestParserPort(ABC):
+    """Port cho Manifest Parser (thay thế __code__ introspection)."""
+
+    @abstractmethod
+    def parse(self, plugin_code_name: str) -> "PluginManifest":
+        """Parse plugin manifest from somewhere (e.g. file, DB)"""
+        pass

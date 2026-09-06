@@ -99,22 +99,26 @@ async def test_configure_plugin_credentials_failure(override_auth):
 @pytest.mark.asyncio
 async def test_get_install_status_success(override_auth):
     mock_repo = AsyncMock(spec=AbstractPluginRepository)
-    mock_repo.get_installation_status.return_value = PluginStatus.ACTIVE
+    plugin_id = uuid.UUID("123e4567-e89b-12d3-a456-426614174001")
+    mock_repo.get_installation_status_by_task_id.return_value = (
+        PluginStatus.ACTIVE,
+        plugin_id,
+    )
 
     app.dependency_overrides[get_plugin_repo] = lambda: mock_repo
 
-    plugin_id = "123e4567-e89b-12d3-a456-426614174000"
+    task_id = "123e4567-e89b-12d3-a456-426614174000"
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get(
-            f"/api/v1/plugins/install/{plugin_id}/status",
+            f"/api/v1/plugins/install/{task_id}/status",
             headers={"Authorization": "Bearer fake"},
         )
 
     assert response.status_code == 200
     assert response.json()["overall_status"] == PluginStatus.ACTIVE.value
-    mock_repo.get_installation_status.assert_called_once_with(
+    mock_repo.get_installation_status_by_task_id.assert_called_once_with(
         uuid.UUID("11111111-1111-1111-1111-111111111111"),
-        uuid.UUID(plugin_id),
+        uuid.UUID(task_id),
     )
 
     app.dependency_overrides.pop(get_plugin_repo, None)
@@ -123,14 +127,14 @@ async def test_get_install_status_success(override_auth):
 @pytest.mark.asyncio
 async def test_get_install_status_not_found(override_auth):
     mock_repo = AsyncMock(spec=AbstractPluginRepository)
-    mock_repo.get_installation_status.return_value = None
+    mock_repo.get_installation_status_by_task_id.return_value = None
 
     app.dependency_overrides[get_plugin_repo] = lambda: mock_repo
 
-    plugin_id = "123e4567-e89b-12d3-a456-426614174000"
+    task_id = "123e4567-e89b-12d3-a456-426614174000"
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get(
-            f"/api/v1/plugins/install/{plugin_id}/status",
+            f"/api/v1/plugins/install/{task_id}/status",
             headers={"Authorization": "Bearer fake"},
         )
 
