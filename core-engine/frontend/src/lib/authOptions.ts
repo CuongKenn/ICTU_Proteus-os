@@ -48,7 +48,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
-  debug: true, // DEBUG ENABLED
+  debug: process.env.NODE_ENV === 'development',
   providers: [
     // Manual OAuth provider — Keycloak luôn trả id_token nên phải dùng idToken:true
     // Dùng wellKnown để NextAuth lấy jwks_uri (cho ID token verification)
