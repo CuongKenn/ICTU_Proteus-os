@@ -12,6 +12,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Chuyển đổi các API calls trong `TenantTab` và `IntegrationsTab` sang sử dụng thư viện `api` trung gian để tuân thủ BFF Pattern, sửa lỗi gửi thiếu `Bearer` token gây ra lỗi 401 Unauthorized (Issue #595).
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
+### Refactored
+- **[Frontend]** Tách các mock data inline ra file riêng (`marketplace.mock.ts`, `plugins.mock.ts`) và sử dụng dynamic import để tối ưu bundle size và cải thiện Separation of Concerns (Issue #630).
+
 ### Fixed
 - **[Frontend]** Khắc phục lỗi polling API vô tận (fake polling loop) trong `useMarketplace` khi mock mode được bật, ngăn chặn spam request 404 (Issue #626).
 - **[Frontend]** Xóa bỏ lệnh gọi `getServerSession` dư thừa trong AI BFF Route (`/api/ai/command`) giúp giảm độ trễ và tối ưu hiệu suất (Issue #625).

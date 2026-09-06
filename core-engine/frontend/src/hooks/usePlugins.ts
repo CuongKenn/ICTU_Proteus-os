@@ -77,8 +77,10 @@ export function usePlugins(): UsePluginsReturn {
       refetch();
     } catch (err) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
-        useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin (Mock).");
-        refetch();
+        import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
+          useNotificationStore.getState().addToast("success", MOCK_TOASTS.uninstall);
+          refetch();
+        });
       } else {
         useNotificationStore.getState().addToast("error", "Không thể gỡ cài đặt Plugin.");
         throw err;
@@ -93,8 +95,10 @@ export function usePlugins(): UsePluginsReturn {
       refetch();
     } catch (err) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
-        useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin (Mock).");
-        refetch();
+        import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
+          useNotificationStore.getState().addToast("success", MOCK_TOASTS.disable);
+          refetch();
+        });
       } else {
         useNotificationStore.getState().addToast("error", "Không thể vô hiệu hoá Plugin.");
         throw err;
@@ -109,8 +113,10 @@ export function usePlugins(): UsePluginsReturn {
       refetch();
     } catch (err) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
-        useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin (Mock).");
-        refetch();
+        import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
+          useNotificationStore.getState().addToast("success", MOCK_TOASTS.upgrade);
+          refetch();
+        });
       } else {
         useNotificationStore.getState().addToast("error", "Không thể nâng cấp Plugin.");
         throw err;
