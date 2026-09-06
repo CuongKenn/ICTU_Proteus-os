@@ -1,13 +1,18 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from unittest.mock import AsyncMock
+import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from httpx import AsyncClient
 
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.ai.kv_cache_ipc import KVCacheIPCManager
+from app.core.domain.entities import TenantContext
+from app.entrypoints.dependencies import get_current_tenant_context
+from main import app
 
 
 @pytest.fixture
@@ -68,16 +73,6 @@ async def test_retrieve_context(mock_qdrant, mock_redis):
     assert kwargs["tenant_id"] == "tenant-1"
     assert kwargs["query"] == "1234-5678"
     assert kwargs["filters"] == {"pointer_uuid": "1234-5678"}
-
-
-import uuid
-from unittest.mock import patch
-
-from httpx import AsyncClient
-
-from app.core.domain.entities import TenantContext
-from app.entrypoints.dependencies import get_current_tenant_context
-from main import app
 
 
 @pytest.mark.asyncio

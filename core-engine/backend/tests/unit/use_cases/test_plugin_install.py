@@ -166,9 +166,9 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    assert (
-        mock_session.execute.call_count == 5
-    )  # CREATE SCHEMA, SET search_path, SET LOCAL role, SET LOCAL tenant, and seed.sql
+    assert mock_session.execute.call_count == 8
+    # CREATE SCHEMA, SET search_path, SET LOCAL role, SET LOCAL tenant,
+    # seed.sql, and 3 RLS queries
     mock_mattermost_adapter.send_message.assert_called_once()
     mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
         action="installed",

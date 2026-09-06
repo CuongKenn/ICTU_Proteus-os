@@ -30,7 +30,10 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
         async with async_db_engine.begin() as conn:
             await conn.execute(
                 text(
-                    f"INSERT INTO tenants (id, name, domain, keycloak_realm, plan, is_active) VALUES ('{tenant_id}', 'E2E Tenant', 'e2e.proteus.local', 'e2e-realm-1', 'free', true) ON CONFLICT DO NOTHING"
+                    "INSERT INTO tenants "
+                    "(id, name, domain, keycloak_realm, plan, is_active) "
+                    f"VALUES ('{tenant_id}', 'E2E Tenant', 'e2e.proteus.local', "
+                    "'e2e-realm-1', 'free', true) ON CONFLICT DO NOTHING"
                 )
             )
 
@@ -59,7 +62,8 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
             async with async_db_engine.connect() as conn:
                 result = await conn.execute(
                     text(
-                        "SELECT column_name FROM information_schema.columns WHERE table_name = 'hr_employees'"
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'hr_employees'"
                     )
                 )
                 columns = [row[0] for row in result.fetchall()]
@@ -79,7 +83,8 @@ async def test_plugin_install_e2e(async_db_engine, db_session):
             async with async_db_engine.connect() as conn:
                 result = await conn.execute(
                     text(
-                        "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename  = 'hr_employees')"
+                        "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = "
+                        "'public' AND tablename  = 'hr_employees')"
                     )
                 )
                 exists = result.scalar()
@@ -104,7 +109,10 @@ async def test_plugin_install_fail_dirty(async_db_engine, db_session):
         async with async_db_engine.begin() as conn:
             await conn.execute(
                 text(
-                    f"INSERT INTO tenants (id, name, domain, keycloak_realm, plan, is_active) VALUES ('{tenant_id}', 'E2E Tenant 2', 'e2e2.proteus.local', 'e2e-realm-2', 'free', true) ON CONFLICT DO NOTHING"
+                    "INSERT INTO tenants "
+                    "(id, name, domain, keycloak_realm, plan, is_active) "
+                    f"VALUES ('{tenant_id}', 'E2E Tenant 2', 'e2e2.proteus.local', "
+                    "'e2e-realm-2', 'free', true) ON CONFLICT DO NOTHING"
                 )
             )
         # Mock lỗi khi import workflow (gây ra lỗi trong workflow phase)

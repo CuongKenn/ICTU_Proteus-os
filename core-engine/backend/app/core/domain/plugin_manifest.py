@@ -201,6 +201,9 @@ class PluginManifest(BaseModel):
     # ─── Changelog ────────────────────────────────────────────
     changelog: list[ManifestChangelogEntry] = Field(default_factory=list)
 
+    # ─── Migrations ───────────────────────────────────────────
+    migrations: list[str] = Field(default_factory=list)
+
     def get_credentials_schema_as_dict(self) -> list[dict[str, Any]]:
         """Trả về credentials_schema dưới dạng list[dict] để lưu vào DB (JSONB)."""
         return [f.model_dump(exclude_none=True) for f in self.credentials_schema]

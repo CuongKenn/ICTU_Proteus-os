@@ -13,10 +13,12 @@ erDiagram
     TENANT {
         uuid id PK
         string name "Tên Trường/Doanh nghiệp"
-        string domain "Subdomain định danh (VD: truong-a.proteus.vn)"
+        string slug "Slug định danh (URL-friendly)"
+        string domain "Subdomain định danh hoặc custom domain"
         string keycloak_realm "Tên Realm trên Keycloak"
         string plan "Gói dịch vụ: free / pro / enterprise"
         boolean is_active "Trạng thái hoạt động"
+        string notify_channel_id "Kênh thông báo mặc định"
         timestamp created_at
         timestamp updated_at
     }
@@ -64,6 +66,11 @@ erDiagram
         string license "Giấy phép (VD: AGPL-3.0)"
         boolean is_official "Plugin chính thức của Proteus OS?"
         integer download_count
+        string category "Phân loại (VD: HR, Finance, Utilities)"
+        array tags "Mảng các tag tìm kiếm (VD: ['leave', 'timesheet'])"
+        jsonb screenshots "Mảng URL ảnh chụp màn hình"
+        text long_description "Mô tả chi tiết hỗ trợ Markdown"
+        jsonb credentials_schema "Cấu trúc form nhập credentials (nếu có)"
         timestamp published_at
         timestamp updated_at
     }
@@ -76,8 +83,10 @@ erDiagram
         jsonb config_override "Cấu hình tùy chỉnh của Tenant (ghi đè default)"
         text install_error_log "Lưu stacktrace nếu status = FAILED_DIRTY"
         uuid installed_by_user_id FK "Admin nào đã bấm Install"
+        jsonb install_steps_log "Lịch sử các bước cài đặt (database, metabase, etc.)"
+        jsonb credential_ids "Danh sách n8n credential IDs đã sinh ra"
         timestamp installed_at
-        timestamp last_updated_at
+        timestamp updated_at "Lần cập nhật trạng thái cuối cùng"
     }
 
     AUDIT_LOG {
@@ -248,8 +257,12 @@ RLS là lớp bảo vệ cuối cùng ở cấp độ Database, đảm bảo d�
 
 PostgreSQL sử dụng một biến session (`app.current_tenant_id`) được set bởi SQLAlchemy middleware tại thời điểm bắt đầu mỗi request. Khi một query chạy, PostgreSQL sẽ tự động áp thêm điều kiện `WHERE tenant_id = current_setting('app.current_tenant_id')`.
 
-### 4.2. Middleware Set Session Variable
+### 4.2. Khởi tạo Tự động & Middleware Set Session Variable
 
+**Tự động tạo Policy:**
+Khi Plugin được cài đặt, **Plugin Manager (`plugin_install.py`) sẽ tự động đọc danh sách bảng từ `manifest.yaml` và sinh ra các lệnh SQL `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` và `CREATE POLICY ...` cho từng bảng.** Developer không cần viết script RLS thủ công trong `seed_data.sql`.
+
+**Middleware Set Session Variable:**
 Trong FastAPI backend (`core-engine/backend/adapters/postgres_adapter.py`), mỗi request được xử lý như sau:
 
 ```sql

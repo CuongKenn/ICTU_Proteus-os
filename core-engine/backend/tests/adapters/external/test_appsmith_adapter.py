@@ -44,9 +44,6 @@ async def test_appsmith_adapter_delete_app_success(adapter):
         assert result is None
 
 
-import pytest
-
-
 @pytest.mark.asyncio
 async def test_appsmith_adapter_import_app_retry_success(adapter):
     with patch("httpx.AsyncClient.request", new_callable=AsyncMock) as mock_req:

@@ -6,9 +6,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import InsufficientPermissionsError
-from app.entrypoints.dependencies import require_permission
+from app.entrypoints.dependencies import (
+    get_tenant_onboarding_use_case,
+    require_permission,
+)
 
 
 @pytest.fixture
@@ -88,10 +92,6 @@ async def test_require_permission_tenant_admin_bypass(
     result = await checker(context=tenant_admin_context, role_repo=mock_role_repo)
     assert result == tenant_admin_context
     mock_role_repo.get_user_permissions.assert_not_called()
-
-
-from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
-from app.entrypoints.dependencies import get_tenant_onboarding_use_case
 
 
 @pytest.mark.asyncio

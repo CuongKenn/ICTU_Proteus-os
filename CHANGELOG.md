@@ -1,4 +1,4 @@
-# Changelog
+# Changelog 
 
 Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ được ghi chép tại file này.
 
@@ -19,8 +19,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
+### Changed
+- **[Backend]** Fix schema mismatch by adding `domain` and `slug` columns properly to `TenantModel` and database migrations.
+
 ### Added
 - **[deploy/setup.ps1]** Tự động cấu hình Appsmith API Key sử dụng PowerShell WebSessions.
+- **[Backend]** Implement Plugin Migration Runner cho Plugin Upgrade Saga (`PluginUpgradeUseCase`). Hỗ trợ chạy các file sql theo thứ tự phiên bản, rollback khi có lỗi và ghi log từng bước. Bổ sung Regex validate tên file và ngăn chặn `DELETE FROM` thiếu an toàn.
+- **[Backend]** Auto-create PostgreSQL Row Level Security (RLS) policies trong Plugin Install Saga (`PluginInstallUseCase`). Tự động bật RLS cho các bảng plugin và áp dụng policy `tenant_isolation_policy`.
 - **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
 - **[plugins/crm-module/dashboards]** Implement `sales_pipeline` (pipeline overview, top leads, conversion rate, revenue forecast) và `customer_health` (avg satisfaction, churn risk, ticket volume) cho Metabase.
 - **[plugins/crm-module/ui]** Implement `appsmith_app.json` với 4 trang: Dashboard, Leads, Opportunities, Support Tickets.
@@ -69,6 +74,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[plugins/*/manifest.yaml]** Thêm `category`, `credentials_schema: []` vào tất cả 9 plugin manifests (hr, crm, finance, asset, document, it-helpdesk, meeting, procurement, project). HR thêm `tags`, `long_description`, `changelog`.
 
 ### Changed
+- **[docs]** Cập nhật tài liệu `docs/erd.md` và `docs/api-swagger.yaml` để đồng bộ với cấu trúc thực tế của Plugin Architecture Overhaul (thêm các endpoint về credentials và cập nhật ERD schema).
 - **[core-engine/frontend/src/app/marketplace/MarketplaceClient.tsx]** Bỏ hardcode category detection (`code_name.includes("hr")`) → dùng `p.category` từ backend. Truyền `credentialsSchema` từ plugin data vào `InstallPreviewDialog`. `handleConfirmInstall` nhận `CredentialInput[]` và pass trực tiếp vào `installPlugin()` — loại bỏ luồng 2 request riêng lẻ (credentials trước, install sau).
 - **[core-engine/frontend/src/components/marketplace/PluginCard.tsx]** Fix `Math.random()` rating → `plugin.rating ?? null` (không flicker). Hiển thị `plugin.author` thật thay vì hardcode "Proteus Core". Hỗ trợ `icon_url` (`<img>` thay vì chữ cái đầu).
 
@@ -109,12 +115,10 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Chuyển đổi Event Bus từ Redis Pub/Sub (fire-and-forget) sang Redis Streams (`publish_critical`) cho các sự kiện quan trọng nhằm đảm bảo tính bền bỉ (persistence). Bổ sung cơ chế Retry Exponential Backoff và Dead Letter Queue (DLQ) ghi log khi mất kết nối Redis (Issue #492).
 - **[core-engine/frontend]** Bổ sung type augmentation cho NextAuth (`next-auth.d.ts`) nhằm cung cấp type safety cho custom claims `tenant_id` và `roles`, thay thế việc ép kiểu `(session.user as any)` trong `AuthProvider.tsx` (Issue #538).
 ### Fixed
-<<<<<<< HEAD
 - **[deploy/setup.ps1]** Fix lỗi Crash Loop trong luồng Zero-Touch Provisioning (ZTP) khi API khởi tạo Mattermost Bot/Webhook trả về mã lỗi 400 (Bad Request). Wrap các HTTP call bằng cấu trúc try-catch, bỏ qua các lỗi không nghiêm trọng để luồng script có thể chạy Idempotent. Cập nhật timeout và fix lỗi n8n API.
 - **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Metabase (tạo db `metabase`) để khắc phục lỗi khởi tạo `databasechangelog` do trùng lặp schema với Core Data khiến Metabase v0.50 văng lỗi 502 Bad Gateway.
 - **[deploy/docker-compose.yml, deploy/postgres/init.sql]** Tách riêng Database cho Outline (tạo db `outline`), xóa bỏ biến môi trường `DATABASE_SCHEMA` để khắc phục lỗi xung đột khi Sequelize tạo bảng nhầm vào `public` thay vì `outline`, gây lỗi 404 Crash-loop.
 - **[deploy/docker-compose.yml, deploy/.env.example]** Cập nhật `PGSSLMODE=disable` cho Outline để fix lỗi kết nối HTTPS với Postgres nội bộ. Generate các biến môi trường cấu hình `SECRET_KEY` bằng định dạng 32-byte HEX để tránh lỗi invalid config từ Outline container.
-=======
 - **[core-engine/backend/app/adapters/external]** Vá lỗi rò rỉ kết nối (Connection Leak) bằng cách bổ sung và chuẩn hóa phương thức `aclose()` trên các Adapter (`QdrantAdapter`, `KeycloakAdapter`, `MattermostAdapter`) và bổ sung abstract method `aclose()` vào toàn bộ 7 Port interfaces (Issue #548, #552, #533).
 - **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Sửa lỗi format của JWT khi tạo Metabase Signed Embed URL (Issue #549).
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật logic `_rollback()` lấy `keycloak_realm` từ CSDL thay vì hardcode chuỗi `"proteus"` để ngăn chặn xóa nhầm Keycloak role khi cài đặt plugin thất bại (Issue #534).
@@ -139,7 +143,6 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Nhập trực tiếp `get_db_transactional` từ `app.infrastructure.database` thay vì import tắt qua module `dependencies` (Issue #515).
 
 
->>>>>>> origin/main
 - **[deploy/docker-compose.yml]** Sửa lỗi Traefik Routing Conflict khi NextAuth API (`/api/auth/*`) bị chuyển tiếp nhầm sang FastAPI backend. Giới hạn route của backend chỉ bắt các đường dẫn `/api/v1`, `/docs`, `/openapi.json`, `/health` để frontend xử lý đúng logic đăng nhập.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Sửa lỗi `NameError` crash vòng lặp do khai báo sai thứ tự dependency injection `get_tenant_repo` (gọi trước khi định nghĩa).
 - **[core-engine/backend/main.py]** Sửa lỗi `TypeError` gây crash khi khởi động FastAPI do khởi tạo thư viện `AsyncQdrantClient` thừa tham số `httpx_client`.
