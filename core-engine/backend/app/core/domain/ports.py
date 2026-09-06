@@ -73,8 +73,6 @@ class AbstractWorkflowEnginePort(ABC):
     async def import_workflow(
         self,
         workflow_json: dict[str, Any],
-        tenant_id: str,
-        workflow_name: str,
     ) -> str:
         """Import một workflow definition vào n8n. Trả về workflow ID."""
         pass
@@ -125,8 +123,6 @@ class AbstractUIBuilderPort(ABC):
     async def import_application(
         self,
         app_json: dict[str, Any],
-        tenant_id: str,
-        app_name: str,
         integration_config: dict[str, Any] | None = None,
     ) -> str:
         """Import một Appsmith application. Trả về application ID."""
@@ -154,8 +150,6 @@ class AbstractAnalyticsPort(ABC):
     async def import_dashboard(
         self,
         dashboard_json: dict[str, Any],
-        tenant_id: str,
-        dashboard_name: str,
     ) -> str:
         """Import một Metabase dashboard. Trả về dashboard ID."""
         pass

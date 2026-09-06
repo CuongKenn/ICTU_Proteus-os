@@ -16,6 +16,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Tách các mock data inline ra file riêng (`marketplace.mock.ts`, `plugins.mock.ts`) và sử dụng dynamic import để tối ưu bundle size và cải thiện Separation of Concerns (Issue #630).
 
 ### Fixed
+- **[Backend]** Sửa lỗi không khớp (mismatch) method signature giữa các Outbound Adapter (n8n, Appsmith, Metabase) và Abstract Port trong Hexagonal Architecture, loại bỏ cơ chế bypass `hasattr()` (Issue #633).
 - **[Frontend]** Khắc phục lỗi polling API vô tận (fake polling loop) trong `useMarketplace` khi mock mode được bật, ngăn chặn spam request 404 (Issue #626).
 - **[Frontend]** Xóa bỏ lệnh gọi `getServerSession` dư thừa trong AI BFF Route (`/api/ai/command`) giúp giảm độ trễ và tối ưu hiệu suất (Issue #625).
 - **[Frontend]** Loại bỏ các fallback rò rỉ dữ liệu mock trên môi trường production/staging (Plugins giả, task ID giả, toast message giả). Các mock data giờ đây chỉ được bật một cách chủ động thông qua biến môi trường `NEXT_PUBLIC_ENABLE_MOCKS=true` (Issue #600).
