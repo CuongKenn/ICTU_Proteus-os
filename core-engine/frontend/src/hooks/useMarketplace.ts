@@ -64,35 +64,9 @@ export function useMarketplace(): UseMarketplaceReturn {
         logger.error("[useMarketplace] fetch error:", err);
         if (!cancelled) {
           if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
-            const mockPlugins: PluginInfo[] = [
-              {
-                id: "hr-module",
-                code_name: "hr-module",
-                display_name: "Quản lý Nhân sự Pro",
-                description: "Quản lý nhân sự toàn diện: chấm công, nghỉ phép, lương.",
-                version: "2.1.0",
-                author: "ICTU Team",
-                is_official: true,
-                download_count: 120,
-                category: "HR",
-                tags: ["hr", "payroll"],
-                credentials_schema: [],
-              },
-              {
-                id: "crm-module",
-                code_name: "crm-module",
-                display_name: "CRM Tối giản",
-                description: "Quản lý khách hàng, cơ hội bán hàng và ticket hỗ trợ.",
-                version: "1.0.0",
-                author: "ICTU Team",
-                is_official: true,
-                download_count: 85,
-                category: "CRM",
-                tags: ["crm", "sales"],
-                credentials_schema: [],
-              },
-            ];
-            setPlugins(mockPlugins);
+            import("../__tests__/marketplace.mock").then(({ MOCK_PLUGINS }) => {
+              setPlugins(MOCK_PLUGINS);
+            });
           } else {
             setError("Không thể tải danh sách Plugin. Vui lòng thử lại.");
             useNotificationStore.getState().addToast("error", "Không thể tải danh sách Plugin.");
