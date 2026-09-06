@@ -154,8 +154,9 @@ class TenantEntity(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    domain: str | None = None
     keycloak_realm: str
-    plan: str = "starter"
+    plan: str = "free"
     is_active: bool = True
     notify_channel_id: str | None = None
 

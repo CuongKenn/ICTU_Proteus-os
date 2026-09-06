@@ -9,7 +9,7 @@ info:
     - Mọi endpoint (trừ `/health` và `/health/detailed`) đều yêu cầu JWT Bearer Token từ Keycloak.
     - Backend trích xuất `tenant_id` và `roles` từ JWT để xử lý Multi-Tenancy và RBAC.
     - Client (browser) không bao giờ gọi trực tiếp vào đây; mọi request đi qua Next.js BFF.
-  version: 2.0.0
+  version: 0.1.0
   contact:
     name: ICTU Proteus OS Team
     url: https://github.com/CuongKenn/ICTU_Proteus-os
