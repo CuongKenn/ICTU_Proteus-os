@@ -99,6 +99,7 @@ async def test_upgrade_plugin_success(
         status=PluginStatus.ACTIVE,
         installed_version="1.2.0",
     )
+    mock_plugin_repo.update_install_steps_log.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -128,6 +129,26 @@ async def test_upgrade_plugin_drop_table_forbidden(
     setup_mocks,
 ):
     with pytest.raises(PluginUpgradeError, match="chứa lệnh DROP không được phép"):
+        await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
+
+
+@pytest.mark.asyncio
+@patch("app.core.use_cases.plugin_upgrade.os.path.exists", return_value=True)
+@patch(
+    "app.core.use_cases.plugin_upgrade.os.listdir",
+    return_value=["V1.1.0__delete.sql"],
+)
+@patch("builtins.open", new_callable=mock_open, read_data="DELETE FROM test;")
+async def test_upgrade_plugin_delete_without_tenant_id_forbidden(
+    mock_file,
+    mock_listdir,
+    mock_exists,
+    use_case,
+    tenant_context,
+    plugin_id,
+    setup_mocks,
+):
+    with pytest.raises(PluginUpgradeError, match="chứa lệnh DELETE FROM không an toàn"):
         await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
 
 

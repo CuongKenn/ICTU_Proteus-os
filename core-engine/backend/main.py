@@ -134,6 +134,7 @@ async def lifespan(app: FastAPI):
         """Scan local plugins directory and upsert into plugins table."""
         try:
             from sqlalchemy import text
+
             parser = LocalManifestParser()
             plugins_dir = parser.plugins_dir
             if not plugins_dir.exists():
@@ -171,10 +172,12 @@ async def lifespan(app: FastAPI):
                                 "icon_url": manifest.icon_url,
                                 "manifest_url": f"file:///{plugin_path.name}/manifest.yaml",
                                 "is_official": manifest.is_official,
-                            }
+                            },
                         )
                     except Exception as e:
-                        logger.warning("Failed to sync plugin %s: %s", plugin_path.name, e)
+                        logger.warning(
+                            "Failed to sync plugin %s: %s", plugin_path.name, e
+                        )
 
                 await session.commit()
                 logger.info("Marketplace plugins synced successfully.")
