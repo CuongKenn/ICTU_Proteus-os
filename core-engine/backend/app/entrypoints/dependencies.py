@@ -259,6 +259,7 @@ async def get_current_tenant_context(
     user_id_raw = payload.get("sub")
 
     if not user_id_raw:
+        logger.error(f"Token thi?u claim sub. Payload: {payload}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token thiếu claim sub (user_id).",
