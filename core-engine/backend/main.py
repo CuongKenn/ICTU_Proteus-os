@@ -142,37 +142,22 @@ async def lifespan(app: FastAPI):
                 return
 
             async with AsyncSessionLocal() as session:
+                plugin_repo = SQLAlchemyPluginRepository(session=session)
                 for plugin_path in plugins_dir.iterdir():
                     if not plugin_path.is_dir():
                         continue
                     try:
                         manifest = parser.parse(plugin_path.name)
-                        await session.execute(
-                            text(
-                                "INSERT INTO plugins (code_name, display_name, description, version, author, license, icon_url, manifest_url, is_official, updated_at) "
-                                "VALUES (:code_name, :display_name, :description, :version, :author, :license, :icon_url, :manifest_url, :is_official, NOW()) "
-                                "ON CONFLICT (code_name) DO UPDATE SET "
-                                "display_name = EXCLUDED.display_name, "
-                                "description = EXCLUDED.description, "
-                                "version = EXCLUDED.version, "
-                                "author = EXCLUDED.author, "
-                                "license = EXCLUDED.license, "
-                                "icon_url = EXCLUDED.icon_url, "
-                                "manifest_url = EXCLUDED.manifest_url, "
-                                "is_official = EXCLUDED.is_official, "
-                                "updated_at = NOW()"
-                            ),
-                            {
-                                "code_name": plugin_path.name,
-                                "display_name": manifest.display_name,
-                                "description": manifest.description,
-                                "version": manifest.version,
-                                "author": manifest.author,
-                                "license": manifest.license,
-                                "icon_url": manifest.icon_url,
-                                "manifest_url": f"file:///{plugin_path.name}/manifest.yaml",
-                                "is_official": manifest.is_official,
-                            },
+                        await plugin_repo.upsert_from_manifest(
+                            code_name=plugin_path.name,
+                            display_name=manifest.display_name,
+                            description=manifest.description,
+                            version=manifest.version,
+                            author=manifest.author,
+                            license=manifest.license,
+                            icon_url=manifest.icon_url,
+                            manifest_url=f"file:///{plugin_path.name}/manifest.yaml",
+                            is_official=manifest.is_official,
                         )
                     except Exception as e:
                         logger.warning(

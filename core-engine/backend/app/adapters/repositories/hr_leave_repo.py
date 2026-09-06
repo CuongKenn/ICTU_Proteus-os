@@ -3,10 +3,21 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import text
+from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.base import AbstractHRLeaveRepository
+
+# Định nghĩa cấu trúc động cho bảng hr_leave_requests (không đưa vào models.py để tránh Alembic)
+dynamic_metadata = MetaData()
+hr_leave_requests_table = Table(
+    "hr_leave_requests",
+    dynamic_metadata,
+    Column("employee_id", String),
+    Column("created_at", DateTime(timezone=True)),
+    Column("days_count", Integer),
+    Column("status", String),
+)
 
 
 class SQLAlchemyHRLeaveRepository(AbstractHRLeaveRepository):
@@ -30,12 +41,15 @@ class SQLAlchemyHRLeaveRepository(AbstractHRLeaveRepository):
         now = datetime.now(UTC)
         day_ago = now - timedelta(days=days)
 
-        sql_leaves = text("""
-            SELECT employee_id, created_at, days_count 
-            FROM hr_leave_requests
-            WHERE status = 'pending'
-              AND created_at < :day_ago
-        """)
-        res_leaves = await self._session.execute(sql_leaves, {"day_ago": day_ago})
+        stmt = select(
+            hr_leave_requests_table.c.employee_id,
+            hr_leave_requests_table.c.created_at,
+            hr_leave_requests_table.c.days_count,
+        ).where(
+            hr_leave_requests_table.c.status == "pending",
+            hr_leave_requests_table.c.created_at < day_ago,
+        )
+
+        res_leaves = await self._session.execute(stmt)
         rows = res_leaves.mappings().all()
         return [dict(row) for row in rows]
