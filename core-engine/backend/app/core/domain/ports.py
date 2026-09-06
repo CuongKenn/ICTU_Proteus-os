@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.core.domain.plugin_manifest import PluginManifest
 
 # ─────────────────────────────────────────────────────────────
 # DOCUMENT SOURCE PORT
@@ -287,4 +290,18 @@ class AbstractLLMPort(ABC):
     @abstractmethod
     async def ainvoke(self, messages: list[dict[str, str]]) -> Any:
         """Gọi LLM với danh sách messages, trả về đối tượng có thuộc tính content."""
+        pass
+
+
+# ─────────────────────────────────────────────────────────────
+# MANIFEST PARSER PORT
+# ─────────────────────────────────────────────────────────────
+
+
+class AbstractManifestParserPort(ABC):
+    """Port cho Manifest Parser (thay thế __code__ introspection)."""
+
+    @abstractmethod
+    def parse(self, plugin_code_name: str) -> "PluginManifest":
+        """Parse plugin manifest from somewhere (e.g. file, DB)"""
         pass

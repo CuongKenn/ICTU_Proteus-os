@@ -21,7 +21,7 @@ from fastapi import (
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
-from app.core.domain.entities import CredentialInput, TenantContext
+from app.core.domain.entities import CredentialInput, PluginStatus, TenantContext
 from app.core.domain.ports import AbstractLLMPort
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
@@ -269,6 +269,16 @@ async def install_plugin(
         for c in (body.credentials or [])
     ]
 
+    task_id = uuid.uuid4()
+
+    # Save the pending task ID to database
+    await repo.upsert_installation(
+        ctx.tenant_id,
+        plugin_id,
+        PluginStatus.INSTALLING,
+        install_task_id=task_id,
+    )
+
     background_tasks.add_task(
         _run_install_plugin_background,
         ctx=ctx,
@@ -280,7 +290,7 @@ async def install_plugin(
     return {
         "message": "Plugin installation queued.",
         "plugin_id": str(plugin_id),
-        "task_id": str(plugin_id),
+        "task_id": str(task_id),
         "status": "INSTALLING",
     }
 
@@ -301,17 +311,20 @@ async def get_install_status(
     Frontend dùng endpoint này để polling tiến trình cài đặt.
     """
     try:
-        plugin_uuid = uuid.UUID(task_id)
+        install_task_uuid = uuid.UUID(task_id)
     except ValueError as e:
         raise HTTPException(
-            status_code=400, detail="Invalid task_id (must be UUID of plugin)"
+            status_code=400, detail="Invalid task_id (must be a valid UUID)"
         ) from e
 
-    status_val = await repo.get_installation_status(ctx.tenant_id, plugin_uuid)
-    if status_val is None:
+    result = await repo.get_installation_status_by_task_id(
+        ctx.tenant_id, install_task_uuid
+    )
+    if result is None:
         raise HTTPException(
-            status_code=404, detail="Plugin installation not found for this tenant"
+            status_code=404, detail="Plugin installation task not found for this tenant"
         )
+    status_val, plugin_uuid = result
 
     # Lấy steps_log thực tế từ DB
     steps: list[InstallStepLog] = []

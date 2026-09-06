@@ -10,6 +10,7 @@ import yaml
 from pydantic import ValidationError
 
 from app.core.domain.plugin_manifest import PluginManifest
+from app.core.domain.ports import AbstractManifestParserPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ class ManifestParserError(Exception):
     """Lỗi khi đọc hoặc parse manifest."""
 
 
-class LocalManifestParser:
+class LocalManifestParser(AbstractManifestParserPort):
     """
     Adapter để đọc và parse file manifest.yaml từ ổ đĩa (Local filesystem).
     """

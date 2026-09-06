@@ -14,7 +14,6 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.external.local_manifest_parser import LocalManifestParser
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import CredentialInput, PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
@@ -23,6 +22,7 @@ from app.core.domain.ports import (
     AbstractChatOpsPort,
     AbstractEventBusPort,
     AbstractIdentityProviderPort,
+    AbstractManifestParserPort,
     AbstractUIBuilderPort,
     AbstractWorkflowEnginePort,
 )
@@ -44,7 +44,7 @@ class PluginInstallUseCase:
     def __init__(
         self,
         plugin_repo: AbstractPluginRepository,
-        manifest_parser: LocalManifestParser,
+        manifest_parser: AbstractManifestParserPort,
         n8n_adapter: AbstractWorkflowEnginePort,
         metabase_adapter: AbstractAnalyticsPort,
         appsmith_adapter: AbstractUIBuilderPort,
@@ -658,15 +658,9 @@ class PluginInstallUseCase:
 
                         app_ids = created_assets.get("appsmith", [])
                         for aid in reversed(app_ids):
-                            if (
-                                "integration_config"
-                                in self.appsmith_adapter.delete_app.__code__.co_varnames
-                            ):
-                                await self.appsmith_adapter.delete_app(
-                                    aid, integration_config=integration_config
-                                )
-                            else:
-                                await self.appsmith_adapter.delete_app(aid)
+                            await self.appsmith_adapter.delete_application(
+                                aid, integration_config=integration_config
+                            )
                 elif step == "metabase":
                     if hasattr(self.metabase_adapter, "delete_dashboard"):
                         db_ids = created_assets.get("metabase", [])

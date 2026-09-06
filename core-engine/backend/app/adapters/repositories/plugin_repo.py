@@ -111,6 +111,24 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         row = result.first()
         return PluginStatus(row[0]) if row else None
 
+    async def get_installation_status_by_task_id(
+        self, tenant_id: uuid.UUID, install_task_id: uuid.UUID
+    ) -> tuple[PluginStatus, uuid.UUID] | None:
+        """Trả về (status, plugin_id) dựa vào install_task_id."""
+        result = await self._session.execute(
+            text(
+                "SELECT status, plugin_id FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND install_task_id = :install_task_id"
+            ),
+            {"tenant_id": tenant_id, "install_task_id": install_task_id},
+        )
+        row = result.first()
+        if not row:
+            return None
+        # Convert UUID string if needed or directly return
+        pid = row[1] if isinstance(row[1], uuid.UUID) else uuid.UUID(row[1])
+        return PluginStatus(row[0]), pid
+
     async def upsert_installation(
         self,
         tenant_id: uuid.UUID,
@@ -118,6 +136,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         status: PluginStatus,
         installed_version: str | None = None,
         error_log: str | None = None,
+        install_task_id: uuid.UUID | None = None,
     ) -> None:
         logger.info(
             "Upserting plugin installation",
@@ -125,16 +144,18 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "tenant_id": str(tenant_id),
                 "plugin_id": str(plugin_id),
                 "status": status,
+                "install_task_id": str(install_task_id) if install_task_id else None,
             },
         )
         await self._session.execute(
             text(
-                "INSERT INTO tenant_plugins (tenant_id, plugin_id, status, installed_version, install_error_log) "
-                "VALUES (:tenant_id, :plugin_id, :status, :version, :error_log) "
+                "INSERT INTO tenant_plugins (tenant_id, plugin_id, status, installed_version, install_error_log, install_task_id) "
+                "VALUES (:tenant_id, :plugin_id, :status, :version, :error_log, :install_task_id) "
                 "ON CONFLICT (tenant_id, plugin_id) DO UPDATE SET "
                 "status = EXCLUDED.status, "
                 "installed_version = COALESCE(EXCLUDED.installed_version, tenant_plugins.installed_version), "
                 "install_error_log = EXCLUDED.install_error_log, "
+                "install_task_id = COALESCE(EXCLUDED.install_task_id, tenant_plugins.install_task_id), "
                 "last_updated_at = NOW()"
             ),
             {
@@ -143,6 +164,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
                 "status": status.value,
                 "version": installed_version,
                 "error_log": error_log,
+                "install_task_id": install_task_id,
             },
         )
 
