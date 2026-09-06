@@ -156,7 +156,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
     async def import_app(
         self,
         json_data: dict[str, Any],
-        integration_config: dict[str, Any] | None = None
+        integration_config: dict[str, Any] | None = None,
     ) -> str:
         """
         Import một UI App JSON vào Appsmith.
@@ -212,9 +212,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         return app_id
 
     async def delete_app(
-        self,
-        app_id: str,
-        integration_config: dict[str, Any] | None = None
+        self, app_id: str, integration_config: dict[str, Any] | None = None
     ) -> None:
         """
         Xóa vĩnh viễn một UI App khỏi Appsmith.
