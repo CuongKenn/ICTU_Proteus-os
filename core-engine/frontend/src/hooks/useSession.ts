@@ -13,7 +13,6 @@ export interface SessionUser {
   image?: string | null;
   roles?: string[];
   tenant_id?: string;
-  [key: string]: any;
 }
 
 export interface UseSessionReturn {

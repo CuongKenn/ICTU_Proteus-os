@@ -56,7 +56,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
     { name: "Cài đặt", href: "/settings", icon: Settings, requiredRole: "tenant_admin" },
   ];
 
-  const filterLinks = (links: any[]) => links.filter(
+  interface NavLink {
+    name: string;
+    href: string;
+    icon: React.ElementType;
+    requiredRole: string | null;
+  }
+
+  const filterLinks = (links: NavLink[]) => links.filter(
     (link) => !link.requiredRole || userRoles.includes(link.requiredRole)
   );
 
