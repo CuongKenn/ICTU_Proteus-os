@@ -703,9 +703,13 @@ class PluginInstallUseCase:
                         for cred in getattr(self, "_credential_ids", []):
                             try:
                                 await self.n8n_adapter.delete_credential(cred["id"])
-                                logger.info("Rollback: Deleted n8n credential %s", cred["name"])
+                                logger.info(
+                                    "Rollback: Deleted n8n credential %s", cred["name"]
+                                )
                             except Exception as e:
-                                logger.error("Rollback credential %s failed: %s", cred["id"], e)
+                                logger.error(
+                                    "Rollback credential %s failed: %s", cred["id"], e
+                                )
             except Exception as e:
                 logger.error(
                     "Rollback step %s thất bại cho plugin %s: %s",
