@@ -211,7 +211,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         )
         return app_id
 
-    async def delete_app(
+    async def delete_application(
         self, app_id: str, integration_config: dict[str, Any] | None = None
     ) -> None:
         """
@@ -340,20 +340,3 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         logger.debug("No path conflict found", extra={"path": path})
         return False
 
-    async def import_application(
-        self,
-        app_json: dict[str, Any],
-        tenant_id: str,
-        app_name: str,
-        integration_config: dict[str, Any] | None = None,
-    ) -> str:
-        """Alias cho import_app để tuân thủ interface AbstractUIBuilderPort."""
-        return await self.import_app(app_json, integration_config)
-
-    async def delete_application(
-        self,
-        app_id: str,
-        integration_config: dict[str, Any] | None = None,
-    ) -> None:
-        """Alias cho delete_app để tuân thủ interface AbstractUIBuilderPort."""
-        return await self.delete_app(app_id, integration_config)

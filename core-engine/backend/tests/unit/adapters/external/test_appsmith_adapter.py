@@ -27,34 +27,34 @@ def adapter(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_import_app_success(adapter, mock_client):
+async def test_import_application_success(adapter, mock_client):
     mock_client.request.return_value = httpx.Response(
         200, json={"data": {"id": "app-123", "name": "HR App"}}
     )
-    app_id = await adapter.import_app({"name": "HR App"})
+    app_id = await adapter.import_application({"name": "HR App"})
     assert app_id == "app-123"
     mock_client.request.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_import_app_failure(adapter, mock_client):
+async def test_import_application_failure(adapter, mock_client):
     mock_client.request.return_value = httpx.Response(400, text="Bad Request")
 
     with pytest.raises(AppsmithAdapterError, match="HTTP 400"):
-        await adapter.import_app({"name": "HR App"})
+        await adapter.import_application({"name": "HR App"})
 
 
 @pytest.mark.asyncio
-async def test_delete_app_success(adapter, mock_client):
+async def test_delete_application_success(adapter, mock_client):
     mock_client.request.return_value = httpx.Response(204)
-    await adapter.delete_app("app-123")
+    await adapter.delete_application("app-123")
     mock_client.request.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_delete_app_not_found(adapter, mock_client):
+async def test_delete_application_not_found(adapter, mock_client):
     mock_client.request.return_value = httpx.Response(404)
-    await adapter.delete_app("app-123")
+    await adapter.delete_application("app-123")
     mock_client.request.assert_called_once()
 
 
