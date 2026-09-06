@@ -8,6 +8,8 @@ import logging
 
 import httpx
 
+from app.core.domain.ports import AbstractLLMPort
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +18,6 @@ class LLMResponse:
 
     def __init__(self, content: str):
         self.content = content
-from app.core.domain.ports import AbstractLLMPort
 
 
 class LocalLLMProvider(AbstractLLMPort):
