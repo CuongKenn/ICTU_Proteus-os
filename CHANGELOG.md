@@ -38,6 +38,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ### Changed
 - **[Frontend]** Refactor nâng cao chất lượng code: Sửa type `any` trong `Sidebar.tsx` và `useSession.ts`, loại bỏ hiển thị trùng lặp User Profile trên Topbar (Issue #609).
+- **[Backend]** Định nghĩa `AbstractLLMPort` trong Hexagonal Architecture nhằm cô lập AI Use Cases khỏi sự phụ thuộc trực tiếp vào `LocalLLMProvider` cụ thể, tăng tính linh hoạt và dễ dàng mock LLM trong Unit Tests (Issue #628).
 - **[Backend]** Gỡ bỏ hoàn toàn package `langchain-openai` khỏi hệ thống.
 - **[Backend]** Chỉnh sửa `PluginSynthesizer` và `config.py` để sử dụng chuẩn API OpenAI `/v1/chat/completions` trỏ tới `LLM_BASE_URL` cho phép kết nối vLLM/Ollama dễ dàng.
 - **[DevOps]** Thay thế cấu hình `OPENAI_API_KEY` trong `.env.example` bằng cấu hình `LLM_BASE_URL` và `LLM_MODEL_NAME`. Cập nhật tài liệu triển khai `docs/deployment.md`.

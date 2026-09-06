@@ -9,33 +9,21 @@ import logging
 import re
 from pathlib import Path
 
-from app.ai.llm_provider import LocalLLMProvider
+from app.core.domain.ports import AbstractLLMPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class PluginSynthesizer:
-    def __init__(self):
+    def __init__(self, llm: AbstractLLMPort | None = None):
         self._plugins_dir = Path(settings.PLUGINS_DIR)
         if not self._plugins_dir.is_absolute():
             backend_dir = Path(__file__).parent.parent.parent.parent
             root_dir = backend_dir.parent.parent
             self._plugins_dir = (root_dir / settings.PLUGINS_DIR).resolve()
 
-        # Initialize LLM with a fallback if base url is missing
-        if getattr(settings, "LLM_BASE_URL", "") == "":
-            logger.warning(
-                "LLM_BASE_URL chua duoc cau hinh, PluginSynthesizer se dung mock mode"
-            )
-            self.llm = None
-        else:
-            model_name = getattr(settings, "LLM_MODEL_NAME", "llama3")
-            self.llm = LocalLLMProvider(
-                base_url=settings.LLM_BASE_URL,
-                model_name=model_name,
-                api_key=getattr(settings, "LLM_API_KEY", "dummy"),
-            )
+        self.llm = llm
 
     async def synthesize(self, prompt: str) -> str:
         """

@@ -38,8 +38,10 @@ from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.role_repo import RoleRepository
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+from app.ai.llm_provider import LocalLLMProvider
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import InsufficientPermissionsError
+from app.core.domain.ports import AbstractLLMPort
 from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
@@ -396,3 +398,19 @@ def require_permission(permission: str):
         return context
 
     return check_permission
+
+
+async def get_llm_port() -> AbstractLLMPort | None:
+    """Inject LLM Provider qua AbstractLLMPort."""
+    if getattr(settings, "LLM_BASE_URL", "") == "":
+        logger.warning(
+            "LLM_BASE_URL chua duoc cau hinh, PluginSynthesizer se dung mock mode"
+        )
+        return None
+
+    model_name = getattr(settings, "LLM_MODEL_NAME", "llama3")
+    return LocalLLMProvider(
+        base_url=settings.LLM_BASE_URL,
+        model_name=model_name,
+        api_key=getattr(settings, "LLM_API_KEY", "dummy"),
+    )

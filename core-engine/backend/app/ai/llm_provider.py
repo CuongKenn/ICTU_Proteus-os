@@ -16,9 +16,10 @@ class LLMResponse:
 
     def __init__(self, content: str):
         self.content = content
+from app.core.domain.ports import AbstractLLMPort
 
 
-class LocalLLMProvider:
+class LocalLLMProvider(AbstractLLMPort):
     def __init__(self, base_url: str, model_name: str, api_key: str = "dummy"):
         self.base_url = base_url.rstrip("/")
         self.model_name = model_name
