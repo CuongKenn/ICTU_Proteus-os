@@ -154,6 +154,24 @@ class AbstractPluginRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    async def upsert_from_manifest(
+        self,
+        code_name: str,
+        display_name: str,
+        description: str,
+        version: str,
+        author: str,
+        license: str,
+        icon_url: str,
+        manifest_url: str,
+        is_official: bool,
+    ) -> None:
+        """
+        Thêm mới hoặc cập nhật thông tin Plugin từ local manifest.
+        """
+        ...
+
 
 class AbstractTenantRepository(ABC):
     """Port: Giao tiếp với Tenant data store."""

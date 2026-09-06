@@ -343,6 +343,48 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             return data or []
         return []
 
+    async def upsert_from_manifest(
+        self,
+        code_name: str,
+        display_name: str,
+        description: str,
+        version: str,
+        author: str,
+        license: str,
+        icon_url: str,
+        manifest_url: str,
+        is_official: bool,
+    ) -> None:
+        """Thêm mới hoặc cập nhật thông tin Plugin từ local manifest."""
+        logger.info("Upserting plugin from manifest", extra={"code_name": code_name})
+        await self._session.execute(
+            text(
+                "INSERT INTO plugins (code_name, display_name, description, version, author, license, icon_url, manifest_url, is_official, updated_at) "
+                "VALUES (:code_name, :display_name, :description, :version, :author, :license, :icon_url, :manifest_url, :is_official, NOW()) "
+                "ON CONFLICT (code_name) DO UPDATE SET "
+                "display_name = EXCLUDED.display_name, "
+                "description = EXCLUDED.description, "
+                "version = EXCLUDED.version, "
+                "author = EXCLUDED.author, "
+                "license = EXCLUDED.license, "
+                "icon_url = EXCLUDED.icon_url, "
+                "manifest_url = EXCLUDED.manifest_url, "
+                "is_official = EXCLUDED.is_official, "
+                "updated_at = NOW()"
+            ),
+            {
+                "code_name": code_name,
+                "display_name": display_name,
+                "description": description,
+                "version": version,
+                "author": author,
+                "license": license,
+                "icon_url": icon_url,
+                "manifest_url": manifest_url,
+                "is_official": is_official,
+            },
+        )
+
     @staticmethod
     def _to_entity(row: dict[str, Any]) -> PluginEntity:
         from app.core.domain.entities import CredentialFieldSchema
