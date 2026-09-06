@@ -133,8 +133,6 @@ async def lifespan(app: FastAPI):
     async def sync_marketplace_plugins() -> None:
         """Scan local plugins directory and upsert into plugins table."""
         try:
-            from sqlalchemy import text
-
             parser = LocalManifestParser()
             plugins_dir = parser.plugins_dir
             if not plugins_dir.exists():

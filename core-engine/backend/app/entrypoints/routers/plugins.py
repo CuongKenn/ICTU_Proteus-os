@@ -217,7 +217,7 @@ async def _run_install_plugin_background(
                 credentials=credentials,
             )
     except Exception as e:
-        logger.error(f"Background task plugin install failed: {e}", exc_info=True)
+        logger.error("Background task plugin install failed: %s", e, exc_info=True)
 
 
 @router.post(
