@@ -127,6 +127,8 @@ export function useMarketplace(): UseMarketplaceReturn {
           if (pollingRef.current) clearInterval(pollingRef.current);
           setTimeout(() => {
             setInstallingId(null);
+            setInstallStatus(null);
+            setInstallProgress(0);
           }, 2000);
         }
       }
@@ -134,7 +136,11 @@ export function useMarketplace(): UseMarketplaceReturn {
       if (pollingRef.current) clearInterval(pollingRef.current);
       setInstallStatus("failed");
       useNotificationStore.getState().addToast("error", "Không thể kiểm tra tiến trình cài đặt. Vui lòng kiểm tra lại Backend.");
-      setTimeout(() => setInstallingId(null), 2000);
+      setTimeout(() => {
+        setInstallingId(null);
+        setInstallStatus(null);
+        setInstallProgress(0);
+      }, 2000);
     }
   }, []);
 
