@@ -9,10 +9,8 @@ from app.ai.plugin_synthesizer import PluginSynthesizer
 
 
 @pytest.mark.asyncio
-@patch("app.ai.plugin_synthesizer.os.getenv")
-async def test_mock_synthesize(mock_getenv, tmp_path):
-    mock_getenv.return_value = "dummy"
-
+@patch("app.ai.plugin_synthesizer.settings.LLM_BASE_URL", new="")
+async def test_mock_synthesize(tmp_path):
     synthesizer = PluginSynthesizer()
     synthesizer._plugins_dir = tmp_path
 
@@ -29,10 +27,8 @@ async def test_mock_synthesize(mock_getenv, tmp_path):
 
 
 @pytest.mark.asyncio
-@patch("app.ai.plugin_synthesizer.os.getenv")
-async def test_mock_synthesize_generic(mock_getenv, tmp_path):
-    mock_getenv.return_value = "dummy"
-
+@patch("app.ai.plugin_synthesizer.settings.LLM_BASE_URL", new="")
+async def test_mock_synthesize_generic(tmp_path):
     synthesizer = PluginSynthesizer()
     synthesizer._plugins_dir = tmp_path
 
