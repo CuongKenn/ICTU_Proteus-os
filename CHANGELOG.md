@@ -19,6 +19,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[Frontend]** Thêm nút Logout trong user profile section của Sidebar và tooltip cho các navigation items khi sidebar thu gọn (Issue #606).
 - **[Backend]** Triển khai custom `LocalLLMProvider` giao tiếp trực tiếp qua `httpx` thay thế hoàn toàn Langchain OpenAI package, đảm bảo độc lập với các thư viện đóng (Issue #585).
 - **[DevOps]** Bổ sung cấu hình Docker Compose Profiles (`vllm`, `ollama`) và service `ollama-init` tự động pull model llama3, cập nhật file biến môi trường `COMPOSE_PROFILES` cho phép khởi chạy linh hoạt Local LLM (Issue #591).
 - **[DevOps]** Cấu hình service `ollama` (như một template bị comment) trong `deploy/docker-compose.yml` để dễ dàng thử nghiệm môi trường local.
