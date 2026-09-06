@@ -16,6 +16,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật quá trình install để fetch và truyền cấu hình Appsmith cho adapter.
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Cập nhật quá trình uninstall để fetch và truyền cấu hình Appsmith cho adapter.
 - **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thiết kế lại trang "Kết nối & Tích hợp" với Dropdown chọn Provider có sẵn (Appsmith, n8n, Metabase) thay vì phải tự gõ JSON.
+## [Unreleased] — DevOps Centralized Logging (2026-09-06)
+
+### Added
+- **[DevOps]** Tích hợp Grafana, Loki và Promtail vào `deploy/docker-compose.yml` để thu thập log tập trung (Centralized Logging) đáp ứng NFR5.
+- **[DevOps]** Cấu hình `deploy/loki/config.yml` (retention 30 ngày) và `deploy/promtail/config.yml` (chỉ scrape các container có label `proteus.log=true`).
+- **[DevOps]** Cấu hình `deploy/grafana/provisioning/dashboards/` với 3 dashboards JSON: Plugin Install Monitoring, AI Command Activity, và System Errors.
+- **[Backend]** Cấu hình `structlog` trong `logging_config.py` để xuất log dưới định dạng JSON với đầy đủ context.
+- **[Backend]** Gắn log chi tiết (có context `tenant_id`, `plugin_code_name`, `ai_command`, `action`, v.v.) vào các tiến trình cài đặt Plugin (`plugin_install.py`) và thực thi lệnh AI (`ai_command.py`).
 
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
