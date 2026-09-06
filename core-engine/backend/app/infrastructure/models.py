@@ -67,6 +67,9 @@ class TenantModel(BaseModel, SoftDeleteMixin):
     slug: Mapped[str] = mapped_column(
         String(255), nullable=False, unique=True, index=True
     )
+    domain: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True, index=True
+    )
     keycloak_realm: Mapped[str] = mapped_column(
         String(255), nullable=False, unique=True
     )

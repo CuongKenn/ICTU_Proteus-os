@@ -13,10 +13,12 @@ erDiagram
     TENANT {
         uuid id PK
         string name "Tên Trường/Doanh nghiệp"
-        string domain "Subdomain định danh (VD: truong-a.proteus.vn)"
+        string slug "Slug định danh (URL-friendly)"
+        string domain "Subdomain định danh hoặc custom domain"
         string keycloak_realm "Tên Realm trên Keycloak"
         string plan "Gói dịch vụ: free / pro / enterprise"
         boolean is_active "Trạng thái hoạt động"
+        string notify_channel_id "Kênh thông báo mặc định"
         timestamp created_at
         timestamp updated_at
     }
