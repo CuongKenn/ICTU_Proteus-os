@@ -4,6 +4,17 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Local LLM Migration (2026-09-06)
+
+### Added
+- **[Backend]** Triển khai custom `LocalLLMProvider` giao tiếp trực tiếp qua `httpx` thay thế hoàn toàn Langchain OpenAI package, đảm bảo độc lập với các thư viện đóng (Issue #585).
+- **[DevOps]** Cấu hình service `ollama` (như một template bị comment) trong `deploy/docker-compose.yml` để dễ dàng thử nghiệm môi trường local.
+
+### Changed
+- **[Backend]** Gỡ bỏ hoàn toàn package `langchain-openai` khỏi hệ thống.
+- **[Backend]** Chỉnh sửa `PluginSynthesizer` và `config.py` để sử dụng chuẩn API OpenAI `/v1/chat/completions` trỏ tới `LLM_BASE_URL` cho phép kết nối vLLM/Ollama dễ dàng.
+- **[DevOps]** Thay thế cấu hình `OPENAI_API_KEY` trong `.env.example` bằng cấu hình `LLM_BASE_URL` và `LLM_MODEL_NAME`. Cập nhật tài liệu triển khai `docs/deployment.md`.
+
 ## [Unreleased] — Automated Backup & Recovery (2026-09-06)
 
 ### Added

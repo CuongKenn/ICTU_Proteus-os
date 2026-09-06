@@ -6,13 +6,10 @@
 
 import json
 import logging
-import os
 import re
 from pathlib import Path
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
+from app.ai.llm_provider import LocalLLMProvider
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
@@ -26,15 +23,19 @@ class PluginSynthesizer:
             root_dir = backend_dir.parent.parent
             self._plugins_dir = (root_dir / settings.PLUGINS_DIR).resolve()
 
-        # Initialize LLM with a fallback if API key is missing
-        if not settings.OPENAI_API_KEY:
+        # Initialize LLM with a fallback if base url is missing
+        if getattr(settings, "LLM_BASE_URL", "") == "":
             logger.warning(
-                "OPENAI_API_KEY chua duoc cau hinh, PluginSynthesizer se dung mock mode"
+                "LLM_BASE_URL chua duoc cau hinh, PluginSynthesizer se dung mock mode"
             )
             self.llm = None
         else:
-            model_name = getattr(settings, "LLM_MODEL_NAME", "gpt-4o")
-            self.llm = ChatOpenAI(model=model_name, api_key=settings.OPENAI_API_KEY)
+            model_name = getattr(settings, "LLM_MODEL_NAME", "llama3")
+            self.llm = LocalLLMProvider(
+                base_url=settings.LLM_BASE_URL,
+                model_name=model_name,
+                api_key=getattr(settings, "LLM_API_KEY", "dummy"),
+            )
 
     async def synthesize(self, prompt: str) -> str:
         """
@@ -65,17 +66,17 @@ class PluginSynthesizer:
         - Không được có cột tenant_id (hệ thống sẽ tự tiêm).
         """
 
-        chat_prompt = ChatPromptTemplate.from_messages(
-            [("system", system_prompt), ("human", prompt)]
-        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
 
         try:
-            # Fallback mock for testing without API Key
-            if os.getenv("OPENAI_API_KEY", "dummy") == "dummy" or self.llm is None:
+            # Fallback mock for testing without LLM
+            if self.llm is None:
                 return self._mock_synthesize(prompt)
 
-            chain = chat_prompt | self.llm
-            response = await chain.ainvoke({})
+            response = await self.llm.ainvoke(messages)
             content = response.content
 
             # Clean markdown if generated

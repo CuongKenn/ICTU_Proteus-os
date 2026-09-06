@@ -172,6 +172,21 @@ services:
     # Không expose ra ngoài — chỉ backend gọi qua internal network
 
   # ────────────────────────────────────────────────────────────
+  # OLLAMA — Local LLM Provider (Optional)
+  # ────────────────────────────────────────────────────────────
+  # Bỏ comment block dưới đây để chạy Ollama local.
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: proteus-ollama
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ollama-data:/root/.ollama
+  #   networks:
+  #     - proteus-net
+  #   labels:
+  #     - "proteus.log=true"
+
+  # ────────────────────────────────────────────────────────────
   # N8N — Workflow Automation Engine
   # ────────────────────────────────────────────────────────────
   n8n:
@@ -476,3 +491,4 @@ volumes:
   mattermost-plugins:
   mattermost-client-plugins:
   mattermost-bleve-indexes:
+  ollama-data:

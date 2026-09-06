@@ -237,23 +237,27 @@ AI là tính năng tiêu thụ tài nguyên đáng kể nhất. Cần lưu ý kh
 | **n8n** | Chạy Proactive Monitor Agent (Cron Workflow) | Cần kết nối với PostgreSQL và Mattermost |
 | **LangChain (Core Engine)** | Phân tích ngôn ngữ tự nhiên, tạo DX-DSL | Chạy trong container FastAPI, gọi API LLM ngoài |
 
-### 7.2. LLM Provider (External API)
+### 7.2. LLM Provider (Local LLM)
 
-AI Orchestrator gọi ra một LLM provider bên ngoài. Cần cấu hình trong `.env`:
+Để đảm bảo **Data Privacy** tuyệt đối và tối ưu chi phí, Proteus OS hỗ trợ chạy AI hoàn toàn cục bộ (Local LLM) thông qua vLLM hoặc Ollama. Hệ thống sẽ kết nối với Local LLM thông qua giao thức API chuẩn tương tự OpenAI.
+
+Cần cấu hình trong `.env`:
 
 ```env
-# Chọn một trong các provider sau:
-OPENAI_API_KEY=sk-...              # OpenAI GPT-4o
-GEMINI_API_KEY=AIza...             # Google Gemini Pro
-ANTHROPIC_API_KEY=sk-ant-...       # Anthropic Claude
-
-# Model để dùng
-LLM_MODEL=gpt-4o                   # Hoặc gemini-1.5-pro, claude-3-5-sonnet
-LLM_TEMPERATURE=0.1                # Thấp để giảm hallucination trong tác vụ thực thi
+LLM_PROVIDER=local_llm
+LLM_BASE_URL=http://ollama:11434/v1 # Hoặc URL của vLLM server
+LLM_MODEL_NAME=llama3              # Tên model bạn đã tải
+LLM_API_KEY=dummy                  # Bắt buộc nếu vLLM yêu cầu auth
 ```
 
+> [!TIP]
+> **Khởi chạy Local LLM bằng Ollama (Môi trường Dev):**
+> 1. Bỏ comment service `ollama` trong file `docker-compose.yml`.
+> 2. Khởi chạy container: `docker compose up -d ollama`.
+> 3. Tải model mong muốn vào container: `docker exec -it proteus-ollama ollama run llama3`.
+
 > [!WARNING]
-> **Chi phí:** Mỗi lệnh AI gửi đến LLM đều tốn token. Cần monitor usage và đặt budget alert tại provider. Tính năng RAG (Proactive Monitor, Q&A) có thể tốn nhiều token hơn dự kiến nếu không giới hạn context size.
+> **Tài nguyên (Hardware):** Chạy LLM local đòi hỏi dung lượng RAM/VRAM lớn. Khuyến nghị sử dụng máy chủ có GPU rời (NVIDIA) và triển khai vLLM để đạt hiệu suất tối ưu trên Production.
 
 ### 7.3. Proactive Monitor — Cấu hình Lịch chạy
 
