@@ -69,9 +69,10 @@ class Settings(BaseSettings):
     OUTLINE_URL: str = "http://localhost:3000"
     OUTLINE_API_KEY: str = ""
     # ─── LLM Provider ─────────────────────────────────────────
-    LLM_PROVIDER: Literal["openai", "azure_openai", "local_ollama"] = "openai"
-    OPENAI_API_KEY: str = ""
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    LLM_PROVIDER: Literal["local_llm"] = "local_llm"
+    LLM_BASE_URL: str = "http://localhost:11434/v1"
+    LLM_MODEL_NAME: str = "llama3"
+    LLM_API_KEY: str = "dummy"
 
     @property
     def keycloak_jwks_url(self) -> str:
