@@ -66,6 +66,11 @@ erDiagram
         string license "Giấy phép (VD: AGPL-3.0)"
         boolean is_official "Plugin chính thức của Proteus OS?"
         integer download_count
+        string category "Phân loại (VD: HR, Finance, Utilities)"
+        array tags "Mảng các tag tìm kiếm (VD: ['leave', 'timesheet'])"
+        jsonb screenshots "Mảng URL ảnh chụp màn hình"
+        text long_description "Mô tả chi tiết hỗ trợ Markdown"
+        jsonb credentials_schema "Cấu trúc form nhập credentials (nếu có)"
         timestamp published_at
         timestamp updated_at
     }
@@ -78,8 +83,10 @@ erDiagram
         jsonb config_override "Cấu hình tùy chỉnh của Tenant (ghi đè default)"
         text install_error_log "Lưu stacktrace nếu status = FAILED_DIRTY"
         uuid installed_by_user_id FK "Admin nào đã bấm Install"
+        jsonb install_steps_log "Lịch sử các bước cài đặt (database, metabase, etc.)"
+        jsonb credential_ids "Danh sách n8n credential IDs đã sinh ra"
         timestamp installed_at
-        timestamp last_updated_at
+        timestamp updated_at "Lần cập nhật trạng thái cuối cùng"
     }
 
     AUDIT_LOG {

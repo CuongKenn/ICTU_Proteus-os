@@ -236,6 +236,89 @@ components:
           format: email
           description: "Email admin đầu tiên, sẽ được tạo tài khoản Keycloak tự động"
 
+    PluginDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/PluginInfo'
+        - type: object
+          properties:
+            screenshots:
+              type: array
+              items:
+                type: string
+            long_description:
+              type: string
+            license:
+              type: string
+
+    CredentialFieldSchemaOut:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        placeholder:
+          type: string
+        description:
+          type: string
+        default:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        credential_type_name:
+          type: string
+
+    CredentialInputSchema:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        credential_type_name:
+          type: string
+      required:
+        - key
+        - value
+
+    PluginCredentialPayload:
+      type: object
+      properties:
+        credentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/CredentialInputSchema'
+
+    InstallStepLog:
+      type: object
+      properties:
+        step:
+          type: string
+        status:
+          type: string
+        at:
+          type: string
+        message:
+          type: string
+
+    InstallStatusResponse:
+      type: object
+      properties:
+        overall_status:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstallStepLog'
+        plugin_id:
+          type: string
+
     PluginInfo:
       type: object
       properties:
@@ -263,6 +346,17 @@ components:
           type: boolean
         download_count:
           type: integer
+        category:
+          type: string
+          example: "HR"
+        tags:
+          type: array
+          items:
+            type: string
+        credentials_schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/CredentialFieldSchemaOut'
 
     InstalledPluginInfo:
       allOf:
@@ -303,6 +397,10 @@ components:
           type: object
           nullable: true
           description: "Cấu hình tùy chỉnh (ghi đè default trong manifest)"
+        credentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/CredentialInputSchema'
 
     InstallTaskStatus:
       type: object
@@ -803,6 +901,79 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/InstalledPluginInfo'
+
+  /plugins/{plugin_id}:
+    get:
+      summary: Chi tiết Plugin
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: plugin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Chi tiết
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PluginDetailResponse'
+
+  /plugins/{plugin_id}/credentials:
+    post:
+      summary: Cấu hình credentials cho plugin
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: plugin_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PluginCredentialPayload'
+      responses:
+        '200':
+          description: Lưu thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+
+  /plugins/install/{task_id}/status:
+    get:
+      summary: Theo dõi trạng thái cài đặt plugin
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trạng thái cài đặt
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstallStatusResponse'
 
   /plugins/install:
     post:
