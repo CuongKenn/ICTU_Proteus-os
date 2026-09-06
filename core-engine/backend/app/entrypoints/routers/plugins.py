@@ -22,6 +22,7 @@ from fastapi import (
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import CredentialInput, PluginStatus, TenantContext
+from app.core.domain.ports import AbstractLLMPort
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
@@ -33,6 +34,7 @@ from app.core.use_cases.plugin_uninstall import (
 from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeUseCase
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
+    get_llm_port,
     get_plugin_credentials_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
@@ -482,6 +484,7 @@ async def synthesize_plugin(
     request: Request,
     body: PluginSynthesizeRequest,
     ctx: TenantContext = Depends(require_permission("plugins.install")),
+    llm: AbstractLLMPort | None = Depends(get_llm_port),
 ) -> dict[str, str]:
     """
     Sử dụng LLM (LangChain) để tự động sinh mã nguồn cho một Plugin mới
@@ -489,7 +492,7 @@ async def synthesize_plugin(
     """
     from app.ai.plugin_synthesizer import PluginSynthesizer
 
-    synthesizer = PluginSynthesizer()
+    synthesizer = PluginSynthesizer(llm=llm)
     try:
         plugin_name = await synthesizer.synthesize(body.prompt)
         loader = getattr(request.app.state, "plugin_loader", None)

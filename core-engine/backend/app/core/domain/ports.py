@@ -280,6 +280,20 @@ class AbstractEventBusPort(ABC):
 
 
 # ─────────────────────────────────────────────────────────────
+# LLM PORT
+# ─────────────────────────────────────────────────────────────
+
+
+class AbstractLLMPort(ABC):
+    """Port cho LLM Provider (vLLM, Ollama, OpenAI, v.v.)."""
+
+    @abstractmethod
+    async def ainvoke(self, messages: list[dict[str, str]]) -> Any:
+        """Gọi LLM với danh sách messages, trả về đối tượng có thuộc tính content."""
+        pass
+
+
+# ─────────────────────────────────────────────────────────────
 # MANIFEST PARSER PORT
 # ─────────────────────────────────────────────────────────────
 
