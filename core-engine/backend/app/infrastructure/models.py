@@ -15,7 +15,6 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -201,7 +200,9 @@ class PluginModel(BaseModel, SoftDeleteMixin):
     tags: Mapped[list[str]] = mapped_column(
         ARRAY(String()), nullable=True, default=list
     )
-    screenshots: Mapped[list[Any] | None] = mapped_column(JSONB, nullable=True, default=list)
+    screenshots: Mapped[list[Any] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
     """JSON array of screenshot URLs/paths."""
     long_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     credentials_schema: Mapped[list[Any] | None] = mapped_column(

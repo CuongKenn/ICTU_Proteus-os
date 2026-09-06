@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 
 from app.core.domain.entities import PluginStatus
 
-
 # ─────────────────────────────────────────────────────────────
 # CREDENTIAL SCHEMAS
 # ─────────────────────────────────────────────────────────────
@@ -36,7 +35,9 @@ class CredentialInputSchema(BaseModel):
     """Input credential từ người dùng khi cài plugin."""
 
     key: str = Field(..., description="Khóa field (khớp với credentials_schema[].key)")
-    value: str = Field(..., description="Giá trị credential (không bao giờ lưu vào DB Proteus)")
+    value: str = Field(
+        ..., description="Giá trị credential (không bao giờ lưu vào DB Proteus)"
+    )
     credential_type_name: str | None = Field(
         None,
         description="n8n credential type override (nếu để trống sẽ dùng từ schema)",
@@ -70,7 +71,9 @@ class InstallPluginRequest(BaseModel):
 class InstallStepLog(BaseModel):
     """Một bước trong quá trình cài đặt plugin."""
 
-    step: str = Field(description="Tên bước: database | n8n | metabase | appsmith | keycloak | events | credentials | complete")
+    step: str = Field(
+        description="Tên bước: database | n8n | metabase | appsmith | keycloak | events | credentials | complete"
+    )
     status: Literal["PENDING", "RUNNING", "DONE", "FAILED"] = "PENDING"
     at: str | None = Field(None, description="ISO8601 timestamp")
     message: str | None = None

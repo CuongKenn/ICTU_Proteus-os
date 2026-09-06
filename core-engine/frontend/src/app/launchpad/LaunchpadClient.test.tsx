@@ -105,6 +105,10 @@ describe("LaunchpadClient", () => {
           version: "1.0.0",
           status: "ACTIVE",
           is_official: false,
+          category: "Utilities",
+          tags: [],
+          credentials_schema: [],
+          download_count: 0,
         },
       ],
       isLoading: false,
@@ -165,7 +169,7 @@ describe("LaunchpadClient", () => {
     // Should open iframe with n8n overlay title
     expect(screen.getByText(/n8n Workflow/, { selector: "h2" })).toBeInTheDocument();
     const iframe = screen.getByTitle("Đóng (Esc)").parentElement?.nextElementSibling?.querySelector("iframe");
-    expect(iframe).toHaveAttribute("src", "http://localhost:5678");
+    expect(iframe).toHaveAttribute("src", "http://workflow.proteus.local");
   });
 
   it("fetches signed url and opens Metabase in iframe overlay", async () => {

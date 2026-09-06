@@ -38,6 +38,9 @@ describe("MarketplaceClient", () => {
           author: "ICTU Team",
           is_official: true,
           download_count: 85,
+          category: "CRM",
+          tags: ["crm"],
+          credentials_schema: [],
         },
       ],
       isLoading: false,
@@ -94,7 +97,7 @@ describe("MarketplaceClient", () => {
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
-      expect(mockInstallPlugin).toHaveBeenCalledWith("crm-module");
+      expect(mockInstallPlugin).toHaveBeenCalledWith("crm-module", []);
     });
   });
 

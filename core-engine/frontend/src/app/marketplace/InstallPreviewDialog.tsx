@@ -116,6 +116,13 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
   const [credValues, setCredValues] = useState<CredentialValues>({});
   const [validationError, setValidationError] = useState("");
 
+  // useCallback MUST be called unconditionally (Rules of Hooks) — place before early return
+  const handleClose = useCallback(() => {
+    setCredValues({});
+    setValidationError("");
+    onClose();
+  }, [onClose]);
+
   const hasRequiredCreds = credentialsSchema.some((f) => f.required);
   const hasAnyCreds = credentialsSchema.length > 0;
 
@@ -148,12 +155,6 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
 
     onConfirm(credentials);
   };
-
-  const handleClose = useCallback(() => {
-    setCredValues({});
-    setValidationError("");
-    onClose();
-  }, [onClose]);
 
   return (
     <Modal

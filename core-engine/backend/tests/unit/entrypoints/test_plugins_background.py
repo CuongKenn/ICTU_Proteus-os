@@ -40,12 +40,12 @@ async def test_run_install_plugin_background_passes_tenant_repo():
         mock_tenant_repo_instance = MagicMock()
         mock_tenant_repo_cls.return_value = mock_tenant_repo_instance
 
-        await _run_install_plugin_background(ctx, "hr_module", app_state)
+        await _run_install_plugin_background(ctx, "hr_module", [], app_state)
 
         mock_use_case_cls.assert_called_once()
         _, kwargs = mock_use_case_cls.call_args
         assert "tenant_repo" in kwargs
         assert kwargs["tenant_repo"] == mock_tenant_repo_instance
         mock_use_case_instance.execute.assert_called_once_with(
-            context=ctx, plugin_code_name="hr_module"
+            context=ctx, plugin_code_name="hr_module", credentials=[]
         )

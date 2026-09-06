@@ -69,7 +69,7 @@ async def test_send_interactive_message_success(adapter, mock_client):
         extra_context={"tenant_id": "t-1"},
     )
 
-    assert result["id"] == "msg-123"
+    assert result == "msg-123"
 
     # Verify payload structure
     call_kwargs = mock_client.post.call_args[1]
@@ -88,5 +88,5 @@ async def test_send_interactive_message_success(adapter, mock_client):
 async def test_send_interactive_message_no_token(adapter, mock_client):
     adapter.token = None
     result = await adapter.send_interactive_message("channel-123", "Text", "act-1")
-    assert result == {}
+    assert result == ""
     mock_client.post.assert_not_called()

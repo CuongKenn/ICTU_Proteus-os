@@ -7,6 +7,7 @@
 import json
 import logging
 import re
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -51,7 +52,7 @@ class PluginInstallUseCase:
         mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
         event_bus: AbstractEventBusPort | None = None,
-        tenant_repo=None,  # Added for backwards compatibility during refactor
+        tenant_repo=None,
     ) -> None:
         self.plugin_repo = plugin_repo
         self.manifest_parser = manifest_parser
@@ -462,9 +463,7 @@ class PluginInstallUseCase:
         Trả về list của {"id": "n8n-id", "name": "safe_name"} để rollback.
         """
         # Build lookup map từ credentials_schema
-        schema_map = {
-            f.key: f for f in manifest.credentials_schema
-        }
+        schema_map = {f.key: f for f in manifest.credentials_schema}
         created: list[dict[str, str]] = []
 
         for cred_input in credentials:
@@ -475,7 +474,9 @@ class PluginInstallUseCase:
                 or (schema_field.credential_type_name if schema_field else None)
                 or cred_input.key
             )
-            safe_name = f"tenant_{context.tenant_id}_{plugin_code_name}_{cred_input.key}"
+            safe_name = (
+                f"tenant_{context.tenant_id}_{plugin_code_name}_{cred_input.key}"
+            )
 
             if not hasattr(self.n8n_adapter, "create_credential"):
                 logger.warning("n8n_adapter không có create_credential, bỏ qua.")
@@ -500,7 +501,9 @@ class PluginInstallUseCase:
                     safe_name,
                     e,
                 )
-                raise PluginInstallError(f"Tạo credential '{cred_input.key}' thất bại: {e}") from e
+                raise PluginInstallError(
+                    f"Tạo credential '{cred_input.key}' thất bại: {e}"
+                ) from e
 
         return created
 
@@ -546,17 +549,19 @@ class PluginInstallUseCase:
                 entry["at"] = now_iso
                 return
         # Thêm mới
-        self._steps_log.append({
-            "step": step_name,
-            "status": status,
-            "at": now_iso,
-            "message": message,
-        })
+        self._steps_log.append(
+            {
+                "step": step_name,
+                "status": status,
+                "at": now_iso,
+                "message": message,
+            }
+        )
 
     async def _persist_steps(
         self,
         context: TenantContext,
-        plugin_id: "uuid.UUID",
+        plugin_id: uuid.UUID,
     ) -> None:
         """Lưu _steps_log hiện tại vào DB (best-effort, không raise)."""
         try:
