@@ -410,7 +410,7 @@ class PluginInstallUseCase:
         workflow_ids = []
         for wf in manifest.workflows:
             wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
-            if wf_path.exists() and hasattr(self.n8n_adapter, "import_workflow"):
+            if wf_path.exists():
                 with open(wf_path, encoding="utf-8") as f:
                     wf_json = json.load(f)
 
@@ -425,10 +425,10 @@ class PluginInstallUseCase:
         dashboard_ids = []
         for db in manifest.dashboards:
             db_path = self.manifest_parser.plugins_dir / plugin_code_name / db.file
-            if db_path.exists() and hasattr(self.metabase_adapter, "create_dashboard"):
+            if db_path.exists():
                 with open(db_path, encoding="utf-8") as f:
                     db_json = json.load(f)
-                did = await self.metabase_adapter.create_dashboard(db_json)
+                did = await self.metabase_adapter.import_dashboard(db_json)
                 dashboard_ids.append(did)
         return dashboard_ids
 
@@ -449,20 +449,13 @@ class PluginInstallUseCase:
 
         for app in manifest.ui_apps:
             app_path = self.manifest_parser.plugins_dir / plugin_code_name / app.file
-            if app_path.exists() and hasattr(self.appsmith_adapter, "import_app"):
+            if app_path.exists():
                 with open(app_path, encoding="utf-8") as f:
                     app_json = json.load(f)
 
-                # Cần hỗ trợ truyền integration_config xuống adapter
-                if (
-                    "integration_config"
-                    in self.appsmith_adapter.import_app.__code__.co_varnames
-                ):
-                    aid = await self.appsmith_adapter.import_app(
-                        app_json, integration_config=integration_config
-                    )
-                else:
-                    aid = await self.appsmith_adapter.import_app(app_json)
+                aid = await self.appsmith_adapter.import_application(
+                    app_json, integration_config=integration_config
+                )
 
                 app_ids.append(aid)
         return app_ids

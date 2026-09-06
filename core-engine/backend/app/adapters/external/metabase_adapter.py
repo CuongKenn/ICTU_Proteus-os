@@ -148,7 +148,7 @@ class MetabaseAdapter(AbstractAnalyticsPort):
             "Metabase request failed after all retries"
         )
 
-    async def create_dashboard(self, config: dict[str, Any]) -> str:
+    async def import_dashboard(self, dashboard_json: dict[str, Any]) -> str:
         """
         Import một dashboard JSON vào Metabase.
 
@@ -156,7 +156,7 @@ class MetabaseAdapter(AbstractAnalyticsPort):
         Trả về dashboard_id (string) để lưu vào DB cho việc uninstall sau này.
 
         Args:
-            config: Nội dung dashboard theo định dạng Metabase JSON export.
+            dashboard_json: Nội dung dashboard theo định dạng Metabase JSON export.
                     Bao gồm: name, description, cards, parameters, v.v.
 
         Returns:
@@ -168,10 +168,10 @@ class MetabaseAdapter(AbstractAnalyticsPort):
         url = self._build_url("dashboard")
         logger.info(
             "Creating dashboard on Metabase",
-            extra={"dashboard_name": config.get("name", "unknown")},
+            extra={"dashboard_name": dashboard_json.get("name", "unknown")},
         )
 
-        response = await self._request_with_retry("POST", url, json_data=config)
+        response = await self._request_with_retry("POST", url, json_data=dashboard_json)
 
         if response.status_code not in (200, 201, 202):
             logger.error(
@@ -179,7 +179,7 @@ class MetabaseAdapter(AbstractAnalyticsPort):
                 extra={"status": response.status_code, "body": response.text[:500]},
             )
             raise MetabaseAdapterError(
-                f"Metabase create_dashboard failed: HTTP {response.status_code} "
+                f"Metabase import_dashboard failed: HTTP {response.status_code} "
                 f"— {response.text[:200]}"
             )
 
@@ -290,9 +290,3 @@ class MetabaseAdapter(AbstractAnalyticsPort):
             },
         )
         return embed_url
-
-    async def import_dashboard(
-        self, dashboard_json: dict[str, Any], tenant_id: str, dashboard_name: str
-    ) -> str:
-        """Alias cho create_dashboard để tuân thủ interface AbstractAnalyticsPort."""
-        return await self.create_dashboard(dashboard_json)

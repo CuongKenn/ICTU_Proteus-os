@@ -153,9 +153,9 @@ class AppsmithAdapter(AbstractUIBuilderPort):
             "Appsmith request failed after all retries"
         )
 
-    async def import_app(
+    async def import_application(
         self,
-        json_data: dict[str, Any],
+        app_json: dict[str, Any],
         integration_config: dict[str, Any] | None = None,
     ) -> str:
         """
@@ -165,7 +165,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         Trả về app_id (string) để lưu vào DB cho việc uninstall sau này.
 
         Args:
-            json_data: Nội dung App theo định dạng Appsmith JSON export.
+            app_json: Nội dung App theo định dạng Appsmith JSON export.
 
         Returns:
             app_id: ID của UI App vừa tạo trên Appsmith.
@@ -176,12 +176,12 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         url = self._build_url("applications/import")
         logger.info(
             "Importing UI App to Appsmith",
-            extra={"app_name": json_data.get("name", "unknown")},
+            extra={"app_name": app_json.get("name", "unknown")},
         )
 
         headers = self._get_headers(integration_config)
         response = await self._request_with_retry(
-            "POST", url, json_data=json_data, headers=headers
+            "POST", url, json_data=app_json, headers=headers
         )
 
         if response.status_code not in (200, 201):
@@ -211,7 +211,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         )
         return app_id
 
-    async def delete_app(
+    async def delete_application(
         self, app_id: str, integration_config: dict[str, Any] | None = None
     ) -> None:
         """
@@ -339,21 +339,3 @@ class AppsmithAdapter(AbstractUIBuilderPort):
 
         logger.debug("No path conflict found", extra={"path": path})
         return False
-
-    async def import_application(
-        self,
-        app_json: dict[str, Any],
-        tenant_id: str,
-        app_name: str,
-        integration_config: dict[str, Any] | None = None,
-    ) -> str:
-        """Alias cho import_app để tuân thủ interface AbstractUIBuilderPort."""
-        return await self.import_app(app_json, integration_config)
-
-    async def delete_application(
-        self,
-        app_id: str,
-        integration_config: dict[str, Any] | None = None,
-    ) -> None:
-        """Alias cho delete_app để tuân thủ interface AbstractUIBuilderPort."""
-        return await self.delete_app(app_id, integration_config)

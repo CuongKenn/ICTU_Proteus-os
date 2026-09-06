@@ -23,22 +23,22 @@ def adapter(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_create_dashboard_success(adapter, mock_client):
+async def test_import_dashboard_success(adapter, mock_client):
     mock_client.request.return_value = httpx.Response(
         200, json={"id": 42, "name": "HR Dashboard"}
     )
-    dashboard_id = await adapter.create_dashboard({"name": "HR Dashboard"})
+    dashboard_id = await adapter.import_dashboard({"name": "HR Dashboard"})
 
     assert dashboard_id == "42"
     mock_client.request.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_create_dashboard_failure(adapter, mock_client):
+async def test_import_dashboard_failure(adapter, mock_client):
     mock_client.request.return_value = httpx.Response(400, text="Bad Request")
 
     with pytest.raises(MetabaseAdapterError, match="HTTP 400"):
-        await adapter.create_dashboard({"name": "HR Dashboard"})
+        await adapter.import_dashboard({"name": "HR Dashboard"})
 
 
 @pytest.mark.asyncio
