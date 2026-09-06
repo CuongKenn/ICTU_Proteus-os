@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAICommand, ChatMessage, DslPreview } from "@/hooks/useAICommand";
+import { logger } from "@/lib/logger";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -435,9 +436,8 @@ class AIChatErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
-    // eslint-disable-next-line no-console
-    console.error("AIChatWidget Error:", error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    logger.error("AIChatWidget Error:", error, errorInfo);
   }
 
   render() {
