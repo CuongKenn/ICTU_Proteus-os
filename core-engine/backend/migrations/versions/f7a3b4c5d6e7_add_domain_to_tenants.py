@@ -22,14 +22,19 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "tenants", sa.Column("domain", sa.String(length=255), nullable=True)
-    )
-    op.create_unique_constraint(None, "tenants", ["domain"])
-    op.create_index(op.f("ix_tenants_domain"), "tenants", ["domain"], unique=True)
+    # Add slug column (missing in DB but present in models)
+    op.add_column("tenants", sa.Column("slug", sa.String(length=255), nullable=True))
+    op.execute("UPDATE tenants SET slug = domain WHERE slug IS NULL")
+    op.alter_column("tenants", "slug", nullable=False)
+    op.create_unique_constraint("uq_tenants_slug", "tenants", ["slug"])
+    op.create_index(op.f("ix_tenants_slug"), "tenants", ["slug"], unique=True)
+
+    # Alter domain column to be nullable=True (as requested by issue)
+    op.alter_column("tenants", "domain", existing_type=sa.String(length=255), nullable=True)
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_tenants_domain"), table_name="tenants")
-    op.drop_constraint(None, "tenants", type_="unique")
-    op.drop_column("tenants", "domain")
+    op.alter_column("tenants", "domain", existing_type=sa.String(length=255), nullable=False)
+    op.drop_index(op.f("ix_tenants_slug"), table_name="tenants")
+    op.drop_constraint("uq_tenants_slug", "tenants", type_="unique")
+    op.drop_column("tenants", "slug")
