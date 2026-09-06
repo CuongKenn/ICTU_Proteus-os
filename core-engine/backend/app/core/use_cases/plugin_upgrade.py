@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from packaging.version import InvalidVersion, parse
@@ -93,21 +94,19 @@ class PluginUpgradeUseCase:
             )
 
         sql_files = [f for f in os.listdir(migrations_dir) if f.endswith(".sql")]
-        migrations_to_run: list[tuple[Any, str]] = []
+        migrations_to_run: list[tuple[Any, str, str]] = []
 
+        migration_regex = re.compile(r"^V(\d+\.\d+\.\d+)__.+\.sql$")
         for f in sql_files:
-            # Format expected: V1.1.0__description.sql
-            if not f.startswith("V"):
+            match = migration_regex.match(f)
+            if not match:
                 continue
-            parts = f.split("__", 1)
-            if len(parts) != 2:
-                continue
-            v_str = parts[0][1:]  # remove 'V'
+            v_str = match.group(1)
             try:
                 v_parsed = parse(v_str)
                 if parsed_installed < v_parsed <= parsed_new:
                     file_path = os.path.join(migrations_dir, f)
-                    migrations_to_run.append((v_parsed, file_path))
+                    migrations_to_run.append((v_parsed, file_path, f))
             except InvalidVersion:
                 continue
 
@@ -131,13 +130,17 @@ class PluginUpgradeUseCase:
             await self.session.commit()
             return
 
-        for _, file_path in migrations_to_run:
+        for _, file_path, f in migrations_to_run:
             with open(file_path, encoding="utf-8") as file:
                 sql_content = file.read()
                 upper_sql = sql_content.upper()
                 if "DROP TABLE" in upper_sql or "DROP COLUMN" in upper_sql:
                     raise PluginUpgradeError(
                         f"Migration file {file_path} chứa lệnh DROP không được phép."
+                    )
+                if "DELETE FROM" in upper_sql and "WHERE TENANT_ID" not in upper_sql:
+                    raise PluginUpgradeError(
+                        f"Migration file {file_path} chứa lệnh DELETE FROM không an toàn (thiếu WHERE tenant_id)."
                     )
 
         # Thuc thi Migration voi RLS
@@ -155,10 +158,26 @@ class PluginUpgradeUseCase:
                 text("SELECT set_config('app.current_tenant_id', :tid, true)"),
                 {"tid": str(context.tenant_id)},
             )
-            for _, file_path in migrations_to_run:
+            steps_log = []
+            for _, file_path, f in migrations_to_run:
                 with open(file_path, encoding="utf-8") as file:
                     sql_content = file.read()
                     await self.session.execute(text(sql_content))
+
+                steps_log.append(
+                    {
+                        "step": f"migration_{f}",
+                        "status": "DONE",
+                        "at": datetime.now(UTC).isoformat(),
+                        "message": f"Chạy thành công script {f}",
+                    }
+                )
+
+            await self.plugin_repo.update_install_steps_log(
+                tenant_id=context.tenant_id,
+                plugin_id=plugin_id,
+                steps_log=steps_log,
+            )
 
             await self.plugin_repo.upsert_installation(
                 tenant_id=context.tenant_id,

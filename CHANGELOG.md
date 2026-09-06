@@ -10,6 +10,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Backend]** Fix schema mismatch by adding `domain` and `slug` columns properly to `TenantModel` and database migrations.
 
 ### Added
+- **[Backend]** Implement Plugin Migration Runner cho Plugin Upgrade Saga (`PluginUpgradeUseCase`). Hỗ trợ chạy các file sql theo thứ tự phiên bản, rollback khi có lỗi và ghi log từng bước. Bổ sung Regex validate tên file và ngăn chặn `DELETE FROM` thiếu an toàn.
 - **[Backend]** Auto-create PostgreSQL Row Level Security (RLS) policies trong Plugin Install Saga (`PluginInstallUseCase`). Tự động bật RLS cho các bảng plugin và áp dụng policy `tenant_isolation_policy`.
 - **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
 - **[plugins/crm-module/dashboards]** Implement `sales_pipeline` (pipeline overview, top leads, conversion rate, revenue forecast) và `customer_health` (avg satisfaction, churn risk, ticket volume) cho Metabase.
