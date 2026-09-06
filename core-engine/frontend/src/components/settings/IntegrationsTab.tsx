@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { Plug, Plus, Loader2, Link2, CheckCircle2, XCircle, Save } from "lucide-react";
 import { useSession } from "next-auth/react";
 
+import { api } from "@/lib/api";
+import { logger } from "@/lib/logger";
+
 interface IntegrationData {
   id: string;
   provider: string;
@@ -27,17 +30,10 @@ export const IntegrationsTab: React.FC = () => {
   useEffect(() => {
     const fetchIntegrations = async () => {
       try {
-        const res = await fetch("/api/v1/tenants/me/integrations", {
-          headers: {
-            Authorization: `Bearer ${(session as any)?.accessToken}`,
-          },
-        });
-        if (!res.ok) throw new Error("Failed to fetch integrations");
-        const data = await res.json();
+        const data = await api.get("/tenants/me/integrations");
         setIntegrations(data);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
+        logger.error("Failed to fetch integrations", err);
         setError("Không thể tải danh sách kết nối.");
       } finally {
         setLoading(false);
@@ -60,27 +56,17 @@ export const IntegrationsTab: React.FC = () => {
         return;
       }
 
-      const res = await fetch("/api/v1/tenants/me/integrations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${(session as any)?.accessToken}`,
-        },
-        body: JSON.stringify({
-          provider: newProvider,
-          config: parsedConfig,
-        }),
+      const data = await api.post("/tenants/me/integrations", {
+        provider: newProvider,
+        config: parsedConfig,
       });
 
-      if (!res.ok) throw new Error("Failed to add integration");
-      const data = await res.json();
       setIntegrations([...integrations, data]);
       setIsAdding(false);
       setNewProvider("");
       setNewConfig("");
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
+      logger.error("Failed to add integration", err);
       setError("Có lỗi xảy ra khi thêm kết nối.");
     }
   };
