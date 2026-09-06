@@ -90,19 +90,15 @@ export function useMarketplace(): UseMarketplaceReturn {
 
       if (statusData) {
         // Tính progress từ steps thực tế
-        let progress = 0;
         if (statusData.steps && statusData.steps.length > 0) {
           const completedSteps = statusData.steps.filter(
             (s) => s.status === "DONE"
           ).length;
-          progress = Math.round((completedSteps / statusData.steps.length) * 100);
+          const realProgress = Math.round((completedSteps / statusData.steps.length) * 100);
+          setInstallProgress((prev) => Math.max(prev, realProgress));
         } else {
           // Fallback khi steps rỗng
-          setInstallProgress((prev) => Math.min(prev + 10, 90));
-        }
-
-        if (progress > 0) {
-          setInstallProgress(progress);
+          setInstallProgress((prev) => Math.min(prev + 5, 85));
         }
 
         // Check terminal status — dùng overall_status từ API mới
@@ -127,6 +123,8 @@ export function useMarketplace(): UseMarketplaceReturn {
           if (pollingRef.current) clearInterval(pollingRef.current);
           setTimeout(() => {
             setInstallingId(null);
+            setInstallStatus(null);
+            setInstallProgress(0);
           }, 2000);
         }
       }
@@ -134,7 +132,11 @@ export function useMarketplace(): UseMarketplaceReturn {
       if (pollingRef.current) clearInterval(pollingRef.current);
       setInstallStatus("failed");
       useNotificationStore.getState().addToast("error", "Không thể kiểm tra tiến trình cài đặt. Vui lòng kiểm tra lại Backend.");
-      setTimeout(() => setInstallingId(null), 2000);
+      setTimeout(() => {
+        setInstallingId(null);
+        setInstallStatus(null);
+        setInstallProgress(0);
+      }, 2000);
     }
   }, []);
 
