@@ -16,6 +16,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Tách các mock data inline ra file riêng (`marketplace.mock.ts`, `plugins.mock.ts`) và sử dụng dynamic import để tối ưu bundle size và cải thiện Separation of Concerns (Issue #630).
 
 ### Fixed
+- **[Frontend]** Khắc phục lỗi thanh tiến trình cài đặt Plugin bị kẹt ở 90% và thỉnh thoảng nhảy sụt giảm đột ngột (jumpy) khi backend trả về tiến độ mới thấp hơn tiến độ mô phỏng (Issue #636).
 - **[Frontend]** Sửa lỗi `installStatus` và `installProgress` của Plugin không được reset (clear state) sau khi quá trình cài đặt thất bại, gây ra hiện tượng thanh tiến trình bị kẹt ở UI (Issue #635).
 - **[Backend]** Sửa lỗi không khớp (mismatch) method signature giữa các Outbound Adapter (n8n, Appsmith, Metabase) và Abstract Port trong Hexagonal Architecture, loại bỏ cơ chế bypass `hasattr()` (Issue #633).
 - **[Frontend]** Khắc phục lỗi polling API vô tận (fake polling loop) trong `useMarketplace` khi mock mode được bật, ngăn chặn spam request 404 (Issue #626).
