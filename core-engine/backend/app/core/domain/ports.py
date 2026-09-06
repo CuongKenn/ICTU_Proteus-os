@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.core.domain.plugin_manifest import PluginManifest
 
 # ─────────────────────────────────────────────────────────────
 # DOCUMENT SOURCE PORT

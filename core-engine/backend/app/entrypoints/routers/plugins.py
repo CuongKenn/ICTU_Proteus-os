@@ -21,7 +21,7 @@ from fastapi import (
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
-from app.core.domain.entities import CredentialInput, TenantContext
+from app.core.domain.entities import CredentialInput, TenantContext, PluginStatus
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
