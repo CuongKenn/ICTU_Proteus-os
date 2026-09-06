@@ -24,6 +24,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[Frontend]** Bổ sung màn hình Empty State toàn cục cho trang Marketplace khi hệ thống hoàn toàn chưa có bất kỳ Plugin nào, giúp cải thiện trải nghiệm người dùng (UX) (Issue #629).
 - **[Frontend]** Thêm thanh tìm kiếm (tên, mô tả, tags) vào trang Marketplace và phím tắt (Ctrl+K) để đóng/mở nhanh AI Chat Widget (Issue #607).
 - **[Frontend]** Thêm nút Logout trong user profile section của Sidebar và tooltip cho các navigation items khi sidebar thu gọn (Issue #606).
 - **[Frontend]** Xây dựng component `NotificationPanel` thay thế nút Bell trên Topbar, hiển thị danh sách thông báo và cho phép người dùng quản lý (Issue #605).

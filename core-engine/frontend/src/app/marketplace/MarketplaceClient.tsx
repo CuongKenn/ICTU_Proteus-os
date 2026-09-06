@@ -191,6 +191,16 @@ export const MarketplaceClient: React.FC = () => {
             <SkeletonCard />
             <SkeletonCard />
           </div>
+        ) : allPlugins.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
+            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
+              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
+            </div>
+            <h3 className="text-xl font-bold text-text-primary mb-2">Chưa có Plugin nào trên Marketplace</h3>
+            <p className="text-text-secondary max-w-md">
+              Hệ thống hiện chưa có ứng dụng nào được phát hành. Vui lòng quay lại sau.
+            </p>
+          </div>
         ) : filteredPlugins.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
             <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
