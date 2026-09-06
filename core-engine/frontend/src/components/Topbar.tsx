@@ -7,8 +7,9 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Bell, LogOut, Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { NotificationPanel } from "@/components/NotificationPanel";
 
 interface TopbarProps {
   toggleMobileMenu: () => void;
@@ -53,9 +54,7 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
 
       <div className="flex items-center gap-2 sm:gap-4">
         {/* Notification Center */}
-        <button className="relative p-2 text-text-secondary hover:bg-bg-hover rounded-full transition-colors">
-          <Bell className="w-5 h-5" />
-        </button>
+        <NotificationPanel />
 
         <div className="w-px h-6 bg-border mx-1" />
 
