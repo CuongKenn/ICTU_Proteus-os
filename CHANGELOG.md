@@ -8,6 +8,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ### Added
 - **[Backend]** Triển khai custom `LocalLLMProvider` giao tiếp trực tiếp qua `httpx` thay thế hoàn toàn Langchain OpenAI package, đảm bảo độc lập với các thư viện đóng (Issue #585).
+- **[DevOps]** Bổ sung cấu hình Docker Compose Profiles (`vllm`, `ollama`) và service `ollama-init` tự động pull model llama3, cập nhật file biến môi trường `COMPOSE_PROFILES` cho phép khởi chạy linh hoạt Local LLM (Issue #591).
 - **[DevOps]** Cấu hình service `ollama` (như một template bị comment) trong `deploy/docker-compose.yml` để dễ dàng thử nghiệm môi trường local.
 
 ### Changed
