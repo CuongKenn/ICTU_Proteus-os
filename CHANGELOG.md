@@ -1,4 +1,4 @@
-# Changelog
+# Changelog 
 
 Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ được ghi chép tại file này.
 
@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
 ### Added
+- **[Backend]** Auto-create PostgreSQL Row Level Security (RLS) policies trong Plugin Install Saga (`PluginInstallUseCase`). Tự động bật RLS cho các bảng plugin và áp dụng policy `tenant_isolation_policy`.
 - **[plugins/crm-module/workflows]** Implement đầy đủ 4 workflows: `lead_capture`, `opportunity_followup`, `customer_satisfaction`, `ticket_assignment` — đầy đủ nodes, connections, Postgres queries và Mattermost notifications.
 - **[plugins/crm-module/dashboards]** Implement `sales_pipeline` (pipeline overview, top leads, conversion rate, revenue forecast) và `customer_health` (avg satisfaction, churn risk, ticket volume) cho Metabase.
 - **[plugins/crm-module/ui]** Implement `appsmith_app.json` với 4 trang: Dashboard, Leads, Opportunities, Support Tickets.

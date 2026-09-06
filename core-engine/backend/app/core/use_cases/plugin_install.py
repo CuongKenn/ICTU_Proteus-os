@@ -301,49 +301,86 @@ class PluginInstallUseCase:
     async def _step_1_database(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
     ) -> None:
-        """Thực thi seed_file của plugin."""
-        if manifest.database and manifest.database.seed_file:
-            seed_path = (
-                self.manifest_parser.plugins_dir
-                / plugin_code_name
-                / manifest.database.seed_file
-            )
-            if seed_path.exists():
-                with open(seed_path, encoding="utf-8") as f:
-                    sql = f.read()
+        """Thực thi seed_file của plugin và setup RLS."""
+        if manifest.database:
+            schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+            if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                raise PluginInstallError("Invalid schema name.")
 
-                # Validation: Cấm các lệnh SQL nguy hiểm
-                forbidden_pattern = re.compile(
-                    r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
-                    r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
-                    re.IGNORECASE,
+            has_schema = False
+            if manifest.database.seed_file:
+                seed_path = (
+                    self.manifest_parser.plugins_dir
+                    / plugin_code_name
+                    / manifest.database.seed_file
                 )
-                if forbidden_pattern.search(sql):
-                    raise PluginInstallError(
-                        "Seed file chứa các lệnh SQL không được phép."
+                if seed_path.exists():
+                    with open(seed_path, encoding="utf-8") as f:
+                        sql = f.read()
+
+                    # Validation: Cấm các lệnh SQL nguy hiểm
+                    forbidden_pattern = re.compile(
+                        r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
+                        r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
+                        re.IGNORECASE,
+                    )
+                    if forbidden_pattern.search(sql):
+                        raise PluginInstallError(
+                            "Seed file chứa các lệnh SQL không được phép."
+                        )
+
+                    # Set search_path để sandbox SQL execution trong schema của Tenant
+                    await self.session.execute(
+                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                    )
+                    await self.session.execute(
+                        text(f'SET search_path TO "{schema_name}"')
+                    )
+                    has_schema = True
+
+                    # Setup RLS context cho tenant
+                    await self.session.execute(
+                        text("SELECT set_config('role', 'tenant_admin', true)")
+                    )
+                    await self.session.execute(
+                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                        {"tid": str(context.tenant_id)},
                     )
 
-                # Set search_path để sandbox SQL execution trong schema của Tenant
-                schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
-                if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
-                    raise PluginInstallError("Invalid schema name.")
-                await self.session.execute(
-                    text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
-                )
-                await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
+                    # Execute raw SQL
+                    await self.session.execute(text(sql))
+                    # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
 
-                # Setup RLS context cho tenant
-                await self.session.execute(
-                    text("SELECT set_config('role', 'tenant_admin', true)")
-                )
-                await self.session.execute(
-                    text("SELECT set_config('app.current_tenant_id', :tid, true)"),
-                    {"tid": str(context.tenant_id)},
-                )
+            # Tự động tạo RLS cho các bảng
+            if manifest.database.tables:
+                if not has_schema:
+                    await self.session.execute(
+                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                    )
+                    await self.session.execute(
+                        text(f'SET search_path TO "{schema_name}"')
+                    )
 
-                # Execute raw SQL
-                await self.session.execute(text(sql))
-                # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
+                for table in manifest.database.tables:
+                    if not re.match(r"^[a-zA-Z0-9_]+$", table):
+                        raise PluginInstallError(f"Invalid table name: {table}")
+
+                    await self.session.execute(
+                        text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
+                    )
+                    await self.session.execute(
+                        text(
+                            f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
+                        )
+                    )
+                    policy_sql = f"""
+                        CREATE POLICY tenant_isolation_policy ON "{table}"
+                        FOR ALL TO app_user
+                        USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
+                        WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
+                    """
+                    await self.session.execute(text(policy_sql))
+
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
     async def _step_2_n8n(
