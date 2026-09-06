@@ -28,6 +28,11 @@
 
 ---
 
+<div align="center">
+  <img src="./docs/images/architecture_flow.svg" alt="Architecture Flow Animation" width="100%">
+  <p><em>Sơ đồ Kiến trúc & Luồng Dữ liệu (Automated by AI)</em></p>
+</div>
+
 ## 🌟 Tầm nhìn & Sứ mệnh
 
 **Proteus OS** không chỉ là một phần mềm quản trị thông thường, mà là một **Hệ điều hành Đa năng (Universal OS)**. Với kiến trúc Lõi (Core) kết hợp linh hoạt cùng Chợ ứng dụng (Plugin Marketplace), hệ thống có thể biến hóa để giải quyết triệt để "nỗi đau" của bất kỳ tổ chức nào (từ Doanh nghiệp SME, Trường học cho đến Bệnh viện) bằng cách đập bỏ "ốc đảo thông tin", tự động hóa quy trình (Workflow) và nhúng Trí tuệ Nhân tạo (Agentic AI) vào mọi ngóc ngách của quá trình vận hành.
