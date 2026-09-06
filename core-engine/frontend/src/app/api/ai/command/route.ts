@@ -18,17 +18,14 @@
 //   - docs/dsl-spec.md §4 (Effect Levels)
 //   - docs/api-swagger.yaml POST /ai/command
 
-import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/authOptions";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // 1. Xác thực session — Token được đọc từ HttpOnly Cookie phía server
   const token = await getToken({ req: request });
-  const session = await getServerSession(authOptions);
 
   if (!token?.accessToken) {
     return NextResponse.json(
