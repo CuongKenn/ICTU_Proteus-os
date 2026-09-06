@@ -60,7 +60,7 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
 
         {/* User Profile */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex flex-col items-end">
+          <div className="hidden sm:flex md:hidden flex-col items-end">
             <span className="text-sm font-medium text-text-primary leading-none">
               {session?.user?.name || "Người dùng"}
             </span>
