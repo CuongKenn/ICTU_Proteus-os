@@ -181,8 +181,10 @@ export function LaunchpadClient() {
             <h2 className="text-lg font-bold text-text-primary uppercase tracking-widest flex items-center gap-2">
               {activeApp === "metabase" ? (
                 <><Box className="w-5 h-5 text-brand-primary" /> Metabase Analytics</>
-              ) : (
+              ) : activeApp === "n8n" ? (
                 <><Network className="w-5 h-5 text-orange-500" /> n8n Workflow</>
+              ) : (
+                <><Blocks className="w-5 h-5 text-brand-primary" /> {plugins.find(p => p.code_name === activeApp)?.display_name || activeApp}</>
               )}
             </h2>
             <button
