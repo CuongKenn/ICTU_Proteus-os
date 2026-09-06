@@ -63,6 +63,33 @@ services:
       - "proteus.log=true"
 
   # ────────────────────────────────────────────────────────────
+  # POSTGRES-BACKUP — Automated Database Backup
+  # ────────────────────────────────────────────────────────────
+  postgres-backup:
+    image: postgres:16-alpine
+    container_name: proteus-postgres-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-proteus}
+      POSTGRES_USER: ${POSTGRES_USER:-proteus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      MATTERMOST_WEBHOOK_URL: ${MATTERMOST_WEBHOOK_URL}
+    volumes:
+      - ${BACKUP_DIR:-./backups/postgres}:/backups
+      - ./scripts:/scripts:ro
+    command: /scripts/start_cron.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - proteus-net
+    labels:
+      - "proteus.log=true"
+
+  # ────────────────────────────────────────────────────────────
   # REDIS — Event Bus (Pub/Sub) + Cache
   # ────────────────────────────────────────────────────────────
   redis:

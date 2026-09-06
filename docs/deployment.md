@@ -188,22 +188,39 @@ Tại đây, bạn sẽ thấy 3 Dashboards có sẵn:
 
 ## 6. Sao lưu & Phục hồi (Backup & Recovery)
 
-Để đáp ứng NFR6 và đảm bảo Business Continuity:
+Để đáp ứng NFR6 và đảm bảo Business Continuity, hệ thống đã được cấu hình tự động sao lưu dữ liệu quan trọng.
 
-### 6.1. Chiến lược Sao lưu
+### 6.1. Cấu hình Sao lưu (PostgreSQL)
 
-- **PostgreSQL:** Cronjob tự động `pg_dump` mỗi ngày lúc 2:00 AM, lưu vào volume `./backups/postgres/`. Giữ lại 30 bản gần nhất.
-- **Qdrant Vector DB:** Sao lưu snapshot mỗi tuần (dữ liệu vector có thể rebuild lại từ tài liệu gốc nếu cần).
-- **Nextcloud Files:** Rsync hàng đêm sang storage phụ (có thể là S3-compatible như MinIO).
-- **Mattermost:** Export message history theo tháng.
+Hệ thống có một service `postgres-backup` chạy ngầm.
+Trong file `.env`, bạn cần cấu hình các biến sau:
+```env
+BACKUP_DIR=./backups/postgres
+BACKUP_RETENTION_DAYS=7
+MATTERMOST_WEBHOOK_URL=http://mattermost:8065/hooks/XXX
+```
+- **Cronjob** tự động chạy `pg_dump` mỗi ngày lúc 2:00 AM, lưu trữ vào thư mục được chỉ định bởi `BACKUP_DIR`.
+- Tự động xoá (rotate) các bản backup cũ hơn `BACKUP_RETENTION_DAYS` ngày.
+- Gửi thông báo webhook về Mattermost (nếu cấu hình) khi sao lưu thành công hoặc thất bại.
 
-### 6.2. Kiểm tra Phục hồi
+### 6.2. Hướng dẫn Phục hồi (Disaster Recovery)
 
-Định kỳ 3 tháng/lần, Admin phải thực hiện **Disaster Recovery Test**:
-1. Dừng toàn bộ hệ thống.
-2. Khởi tạo lại từ bản backup mới nhất.
-3. Xác nhận dữ liệu nguyên vẹn.
-4. Ghi chép RTO (Recovery Time Objective) và RPO (Recovery Point Objective) đạt được.
+Nếu hệ thống gặp sự cố mất dữ liệu PostgreSQL, bạn có thể phục hồi nhanh chóng bằng script tích hợp sẵn:
+
+1. Xác định file backup muốn phục hồi (ví dụ: `proteus_backup_2026-09-06.sql.gz`) trong thư mục backup.
+2. Tại máy chủ đang chạy Docker Compose, thực thi:
+   ```bash
+   cd deploy
+   ./scripts/restore_backup.sh ./backups/postgres/proteus_backup_YYYY-MM-DD.sql.gz
+   ```
+3. Xác nhận yêu cầu khi có prompt cảnh báo. Script sẽ giải nén và nạp trực tiếp vào CSDL đang chạy.
+
+### 6.3. Kiểm tra Phục hồi Định kỳ
+
+Định kỳ 3 tháng/lần, Admin nên thực hiện **Disaster Recovery Test**:
+1. Clone hệ thống ra một môi trường Staging.
+2. Chạy script phục hồi từ bản backup gần nhất.
+3. Xác nhận dữ liệu nguyên vẹn (RTO/RPO).
 
 ---
 

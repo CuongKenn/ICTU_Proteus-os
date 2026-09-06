@@ -4,6 +4,14 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Automated Backup & Recovery (2026-09-06)
+
+### Added
+- **[DevOps]** Implement cơ chế tự động sao lưu PostgreSQL thông qua service `postgres-backup` (sử dụng cron chạy ngầm trên nền Alpine Linux) đáp ứng NFR6.
+- **[DevOps]** Tự động xoá/rotate các bản backup quá hạn (cấu hình mặc định 7 ngày qua `BACKUP_RETENTION_DAYS`).
+- **[DevOps]** Tích hợp cảnh báo Webhook sang Mattermost: Gửi notification kèm tên file khi backup thành công và cảnh báo khẩn cấp khi thất bại.
+- **[DevOps]** Thêm script phục hồi `deploy/scripts/restore_backup.sh` giúp Disaster Recovery dễ dàng.
+
 ## [Unreleased] — Appsmith API Key UI Migration (2026-09-06)
 
 ### Added
