@@ -11,11 +11,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
+from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypeVar
 
 import redis.asyncio as aioredis
 
@@ -24,8 +26,11 @@ from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Redis channel prefix cho Plugin events
+# Redis channel/stream prefix cho Plugin events
 _CHANNEL_PREFIX: str = "proteus:events"
+_MAX_RETRIES: int = 3
+
+T = TypeVar("T")
 
 
 class EventBusPublishError(Exception):
@@ -114,6 +119,37 @@ class RedisEventBusPublisher(AbstractEventBusPort):
             "payload": payload,
         }
 
+    async def _retry(
+        self,
+        operation: Callable[[], Coroutine[Any, Any, T]],
+        error_msg: str,
+    ) -> T:
+        """
+        Helper function: Retry operation with exponential backoff.
+        """
+        last_exc: Exception | None = None
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                return await operation()
+            except Exception as exc:
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    sleep_time = 0.5 * (2 ** (attempt - 1))
+                    logger.warning(
+                        "%s (attempt %d/%d). Retrying in %.1fs...",
+                        error_msg,
+                        attempt,
+                        _MAX_RETRIES,
+                        sleep_time,
+                    )
+                    await asyncio.sleep(sleep_time)
+
+        # Hết retry
+        logger.error(
+            "%s failed after %d attempts: %s", error_msg, _MAX_RETRIES, last_exc
+        )
+        raise EventBusPublishError(f"{error_msg} - {last_exc}") from last_exc
+
     async def publish(
         self,
         event_type: str,
@@ -147,12 +183,17 @@ class RedisEventBusPublisher(AbstractEventBusPort):
         )
         message = json.dumps(envelope, ensure_ascii=False)
 
-        try:
+        async def _do_publish() -> int:
             conn = await self._get_connection()
-            subscribers_count = await conn.publish(channel, message)
+            return await conn.publish(channel, message)
 
+        try:
+            subscribers_count = await self._retry(
+                _do_publish,
+                f"Redis Pub/Sub publish failed for event '{event_type}'",
+            )
             logger.info(
-                "Event published to Redis",
+                "Event published to Redis Pub/Sub",
                 extra={
                     "event_type": event_type,
                     "channel": channel,
@@ -162,19 +203,76 @@ class RedisEventBusPublisher(AbstractEventBusPort):
                     "event_id": envelope["event_id"],
                 },
             )
-
-        except Exception as exc:
+        except EventBusPublishError as e:
+            # DLQ (Log-based) cho Pub/Sub
             logger.error(
-                "Failed to publish event to Redis",
+                "[DLQ] Failed to publish real-time event to Pub/Sub",
                 extra={
                     "event_type": event_type,
                     "tenant_id": tenant_id,
-                    "error": str(exc),
+                    "envelope": envelope,
+                    "error": str(e),
                 },
             )
-            raise EventBusPublishError(
-                f"Redis publish failed for event '{event_type}': {exc}"
-            ) from exc
+            raise e
+
+    async def publish_critical(
+        self,
+        event_type: str,
+        tenant_id: str,
+        plugin_source: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """
+        Publish một critical event lên Redis Streams (có persistence).
+
+        Args:
+            event_type: Loại event
+            tenant_id: UUID Tenant
+            plugin_source: Nguồn phát sinh
+            payload: Dữ liệu
+        """
+        stream_name = self._build_channel(event_type)
+        envelope = self._build_event_envelope(
+            event_type=event_type,
+            tenant_id=tenant_id,
+            plugin_source=plugin_source,
+            payload=payload,
+        )
+        message_dict = {"data": json.dumps(envelope, ensure_ascii=False)}
+
+        async def _do_xadd() -> str:
+            conn = await self._get_connection()
+            return await conn.xadd(stream_name, message_dict)  # type: ignore
+
+        try:
+            message_id = await self._retry(
+                _do_xadd,
+                f"Redis Streams xadd failed for event '{event_type}'",
+            )
+            logger.info(
+                "Critical Event published to Redis Stream",
+                extra={
+                    "event_type": event_type,
+                    "stream": stream_name,
+                    "tenant_id": tenant_id,
+                    "plugin_source": plugin_source,
+                    "message_id": message_id,
+                    "event_id": envelope["event_id"],
+                },
+            )
+        except EventBusPublishError as e:
+            # DLQ (Log-based) cho Redis Streams
+            logger.error(
+                "[DLQ] Failed to publish critical event to Redis Stream",
+                extra={
+                    "event_type": event_type,
+                    "tenant_id": tenant_id,
+                    "envelope": envelope,
+                    "error": str(e),
+                },
+            )
+            raise e
 
     async def publish_plugin_lifecycle(
         self,
@@ -206,7 +304,7 @@ class RedisEventBusPublisher(AbstractEventBusPort):
         if extra_data:
             payload.update(extra_data)
 
-        await self.publish(
+        await self.publish_critical(
             event_type=event_type,
             tenant_id=tenant_id,
             plugin_source=plugin_name,

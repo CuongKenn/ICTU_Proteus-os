@@ -20,6 +20,7 @@ from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
     AbstractAnalyticsPort,
     AbstractChatOpsPort,
+    AbstractEventBusPort,
     AbstractIdentityProviderPort,
     AbstractUIBuilderPort,
     AbstractWorkflowEnginePort,
@@ -49,7 +50,8 @@ class PluginInstallUseCase:
         keycloak_adapter: AbstractIdentityProviderPort,
         mattermost_adapter: AbstractChatOpsPort,
         session: AsyncSession,
-        tenant_repo=None,
+        event_bus: AbstractEventBusPort | None = None,
+        tenant_repo=None,  # Added for backwards compatibility during refactor
     ) -> None:
         self.plugin_repo = plugin_repo
         self.manifest_parser = manifest_parser
@@ -59,6 +61,7 @@ class PluginInstallUseCase:
         self.keycloak_adapter = keycloak_adapter
         self.mattermost_adapter = mattermost_adapter
         self.session = session
+        self.event_bus = event_bus
         self.tenant_repo = tenant_repo
         # ─ Install steps log (mược lướu theo từng execute() call)
         self._steps_log: list[dict[str, Any]] = []
@@ -216,6 +219,18 @@ class PluginInstallUseCase:
             except Exception as e:
                 logger.warning("Đang bỏ qua thông báo Mattermost: %s", e)
 
+            # Publish lifecycle event
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        action="installed",
+                        tenant_id=str(context.tenant_id),
+                        plugin_name=plugin_code_name,
+                        plugin_version=manifest.version,
+                    )
+                except Exception as e:
+                    logger.warning("Không thể publish event plugin.installed: %s", e)
+
             logger.info("Cài đặt plugin %s thành công.", plugin_code_name)
 
         except Exception as e:
@@ -265,54 +280,100 @@ class PluginInstallUseCase:
             except Exception:
                 pass
 
+            # Publish failed lifecycle event
+            if self.event_bus:
+                try:
+                    await self.event_bus.publish_plugin_lifecycle(
+                        action="failed",
+                        tenant_id=str(context.tenant_id),
+                        plugin_name=plugin_code_name,
+                        plugin_version=(
+                            manifest.version if "manifest" in locals() else "unknown"
+                        ),
+                        extra_data={"error": str(e)},
+                    )
+                except Exception as ev_err:
+                    logger.warning("Không thể publish event plugin.failed: %s", ev_err)
+
             raise PluginInstallError(f"Cài đặt plugin thất bại: {e}") from e
 
     async def _step_1_database(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
     ) -> None:
-        """Thực thi seed_file của plugin."""
-        if manifest.database and manifest.database.seed_file:
-            seed_path = (
-                self.manifest_parser.plugins_dir
-                / plugin_code_name
-                / manifest.database.seed_file
-            )
-            if seed_path.exists():
-                with open(seed_path, encoding="utf-8") as f:
-                    sql = f.read()
+        """Thực thi seed_file của plugin và setup RLS."""
+        if manifest.database:
+            schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
+            if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
+                raise PluginInstallError("Invalid schema name.")
 
-                # Validation: Cấm các lệnh SQL nguy hiểm
-                forbidden_pattern = re.compile(
-                    r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
-                    r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
-                    re.IGNORECASE,
+            has_schema = False
+            if manifest.database.seed_file:
+                seed_path = (
+                    self.manifest_parser.plugins_dir
+                    / plugin_code_name
+                    / manifest.database.seed_file
                 )
-                if forbidden_pattern.search(sql):
-                    raise PluginInstallError(
-                        "Seed file chứa các lệnh SQL không được phép."
+                if seed_path.exists():
+                    with open(seed_path, encoding="utf-8") as f:
+                        sql = f.read()
+
+                    # Validation: Cấm các lệnh SQL nguy hiểm
+                    forbidden_pattern = re.compile(
+                        r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
+                        r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
+                        re.IGNORECASE,
+                    )
+                    if forbidden_pattern.search(sql):
+                        raise PluginInstallError(
+                            "Seed file chứa các lệnh SQL không được phép."
+                        )
+
+                    # Set search_path để sandbox SQL execution trong schema của Tenant
+                    await self.session.execute(
+                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                    )
+                    await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
+                    has_schema = True
+
+                    # Setup RLS context cho tenant
+                    await self.session.execute(
+                        text("SELECT set_config('role', 'tenant_admin', true)")
+                    )
+                    await self.session.execute(
+                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                        {"tid": str(context.tenant_id)},
                     )
 
-                # Set search_path để sandbox SQL execution trong schema của Tenant
-                schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
-                if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
-                    raise PluginInstallError("Invalid schema name.")
-                await self.session.execute(
-                    text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
-                )
-                await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
+                    # Execute raw SQL
+                    await self.session.execute(text(sql))
+                    # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
 
-                # Setup RLS context cho tenant
-                await self.session.execute(
-                    text("SELECT set_config('role', 'tenant_admin', true)")
-                )
-                await self.session.execute(
-                    text("SELECT set_config('app.current_tenant_id', :tid, true)"),
-                    {"tid": str(context.tenant_id)},
-                )
+            # Tự động tạo RLS cho các bảng
+            if manifest.database.tables:
+                if not has_schema:
+                    await self.session.execute(
+                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                    )
+                    await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
 
-                # Execute raw SQL
-                await self.session.execute(text(sql))
-                # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
+                for table in manifest.database.tables:
+                    if not re.match(r"^[a-zA-Z0-9_]+$", table):
+                        raise PluginInstallError(f"Invalid table name: {table}")
+
+                    await self.session.execute(
+                        text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
+                    )
+                    await self.session.execute(
+                        text(f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"')
+                    )
+                    policy_sql = f"""
+                        CREATE POLICY tenant_isolation_policy ON "{table}"
+                        FOR ALL TO app_user
+                        USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
+                        WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
+                    """
+                    await self.session.execute(text(policy_sql))
+
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
     async def _step_2_n8n(

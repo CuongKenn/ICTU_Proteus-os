@@ -21,6 +21,7 @@ async def test_redis_publisher_publish_success(publisher):
     ) as mock_from_url:
         mock_redis = MagicMock()
         mock_redis.publish = AsyncMock(return_value=1)
+        mock_redis.xadd = AsyncMock(return_value="1620000000-0")
         mock_redis.close = AsyncMock()
         mock_from_url.return_value = mock_redis
 
@@ -31,13 +32,14 @@ async def test_redis_publisher_publish_success(publisher):
             plugin_version="1.0.0",
         )
 
-        assert mock_redis.publish.call_count == 1
-        call_args = mock_redis.publish.call_args[0]
+        assert mock_redis.xadd.call_count == 1
+        call_args = mock_redis.xadd.call_args[0]
         # Check topic
         assert "proteus:events:plugin" in call_args[0]
 
         # Check envelope
-        event_data = json.loads(call_args[1])
+        message_dict = call_args[1]
+        event_data = json.loads(message_dict["data"])
         assert event_data["event_type"] == "plugin.INSTALL_STARTED"
         assert event_data["tenant_id"] == "tenant-1"
         assert event_data["payload"]["plugin_name"] == "demo"
@@ -75,9 +77,10 @@ async def test_redis_publisher_publish_failure(publisher):
         mock_redis.publish = AsyncMock(side_effect=Exception("Redis down"))
         mock_from_url.return_value = mock_redis
 
-        with pytest.raises(EventBusPublishError) as exc_info:
-            await publisher.publish("test", "t1", "p1", {})
-        assert "Redis publish failed" in str(exc_info.value)
+        with patch("app.adapters.external.redis_event_bus.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            with pytest.raises(EventBusPublishError, match="Redis down"):
+                await publisher.publish("test", "t1", "p1", {})
+            assert mock_sleep.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -86,7 +89,7 @@ async def test_redis_publisher_publish_lifecycle_extra(publisher):
         "app.adapters.external.redis_event_bus.aioredis.from_url"
     ) as mock_from_url:
         mock_redis = MagicMock()
-        mock_redis.publish = AsyncMock(return_value=1)
+        mock_redis.xadd = AsyncMock(return_value="1620000000-0")
         mock_from_url.return_value = mock_redis
 
         await publisher.publish_plugin_lifecycle(
@@ -96,6 +99,7 @@ async def test_redis_publisher_publish_lifecycle_extra(publisher):
             plugin_version="1.0.0",
             extra_data={"error": "db_conn"},
         )
-        call_args = mock_redis.publish.call_args[0]
-        event_data = json.loads(call_args[1])
+        call_args = mock_redis.xadd.call_args[0]
+        message_dict = call_args[1]
+        event_data = json.loads(message_dict["data"])
         assert event_data["payload"]["error"] == "db_conn"

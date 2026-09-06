@@ -248,8 +248,12 @@ RLS là lớp bảo vệ cuối cùng ở cấp độ Database, đảm bảo d�
 
 PostgreSQL sử dụng một biến session (`app.current_tenant_id`) được set bởi SQLAlchemy middleware tại thời điểm bắt đầu mỗi request. Khi một query chạy, PostgreSQL sẽ tự động áp thêm điều kiện `WHERE tenant_id = current_setting('app.current_tenant_id')`.
 
-### 4.2. Middleware Set Session Variable
+### 4.2. Khởi tạo Tự động & Middleware Set Session Variable
 
+**Tự động tạo Policy:**
+Khi Plugin được cài đặt, **Plugin Manager (`plugin_install.py`) sẽ tự động đọc danh sách bảng từ `manifest.yaml` và sinh ra các lệnh SQL `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` và `CREATE POLICY ...` cho từng bảng.** Developer không cần viết script RLS thủ công trong `seed_data.sql`.
+
+**Middleware Set Session Variable:**
 Trong FastAPI backend (`core-engine/backend/adapters/postgres_adapter.py`), mỗi request được xử lý như sau:
 
 ```sql
