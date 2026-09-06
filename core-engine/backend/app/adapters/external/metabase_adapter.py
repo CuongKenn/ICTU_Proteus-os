@@ -290,5 +290,3 @@ class MetabaseAdapter(AbstractAnalyticsPort):
             },
         )
         return embed_url
-
-

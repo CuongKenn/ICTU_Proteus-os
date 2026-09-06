@@ -339,4 +339,3 @@ class AppsmithAdapter(AbstractUIBuilderPort):
 
         logger.debug("No path conflict found", extra={"path": path})
         return False
-
