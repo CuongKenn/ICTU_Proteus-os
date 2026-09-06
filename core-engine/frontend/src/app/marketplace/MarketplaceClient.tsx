@@ -59,6 +59,7 @@ export const MarketplaceClient: React.FC = () => {
           isOfficial: p.is_official,
           category: p.category || "Utilities",
           author: p.author ?? undefined,
+          tags: p.tags ?? [],
         },
         credSchema: p.credentials_schema ?? [],
         status: uiStatus,
@@ -82,6 +83,7 @@ export const MarketplaceClient: React.FC = () => {
             isOfficial: p.is_official,
             category: p.category || "Utilities",
             author: p.author ?? undefined,
+            tags: p.tags ?? [],
           },
           credSchema: p.credentials_schema ?? [],
           status: "available",
@@ -97,8 +99,10 @@ export const MarketplaceClient: React.FC = () => {
   const filteredPlugins = useMemo(() => {
     return allPlugins.filter(p => {
       const matchCategory = selectedCategory === "All" || p.data.category === selectedCategory;
-      const matchSearch = p.data.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.data.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const searchLower = searchQuery.toLowerCase();
+      const matchSearch = p.data.name.toLowerCase().includes(searchLower) || 
+                          p.data.description.toLowerCase().includes(searchLower) ||
+                          p.data.tags?.some(tag => tag.toLowerCase().includes(searchLower));
       return matchCategory && matchSearch;
     });
   }, [allPlugins, searchQuery, selectedCategory]);
