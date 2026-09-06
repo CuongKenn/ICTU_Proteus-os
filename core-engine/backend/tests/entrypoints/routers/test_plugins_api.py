@@ -7,9 +7,13 @@ import pytest
 from httpx import AsyncClient
 
 from app.adapters.external.n8n_adapter import N8nAdapterError
-from app.core.domain.entities import TenantContext
+from app.adapters.repositories.base import AbstractPluginRepository
+from app.core.domain.entities import PluginStatus, TenantContext
+from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
+    get_plugin_credentials_use_case,
+    get_plugin_repo,
     get_role_repo,
 )
 from main import app
@@ -35,10 +39,6 @@ def override_auth():
     app.dependency_overrides[get_role_repo] = mock_get_role_repo
     yield
     app.dependency_overrides.clear()
-
-
-from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
-from app.entrypoints.dependencies import get_plugin_credentials_use_case
 
 
 @pytest.mark.asyncio
@@ -94,11 +94,6 @@ async def test_configure_plugin_credentials_failure(override_auth):
 
     # Cleanup
     app.dependency_overrides.pop(get_plugin_credentials_use_case, None)
-
-
-from app.adapters.repositories.base import AbstractPluginRepository
-from app.core.domain.entities import PluginStatus
-from app.entrypoints.dependencies import get_plugin_repo
 
 
 @pytest.mark.asyncio

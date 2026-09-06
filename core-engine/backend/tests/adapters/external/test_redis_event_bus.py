@@ -6,7 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+from app.adapters.external.redis_event_bus import (
+    EventBusPublishError,
+    RedisEventBusPublisher,
+)
 
 
 @pytest.fixture
@@ -45,9 +48,6 @@ async def test_redis_publisher_publish_success(publisher):
         assert event_data["payload"]["plugin_name"] == "demo"
         assert "event_id" in event_data
         assert "created_at" in event_data
-
-
-from app.adapters.external.redis_event_bus import EventBusPublishError
 
 
 @pytest.mark.asyncio

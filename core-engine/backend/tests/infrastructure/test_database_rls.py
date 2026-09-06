@@ -66,7 +66,9 @@ async def test_plugin_table_rls_isolation(db_session):
     # 3. Query as tenant A (must use a non-superuser role to test RLS)
     await db_session.execute(
         text(
-            "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'test_app_user') THEN CREATE ROLE test_app_user; END IF; END $$"
+            "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles "
+            "WHERE rolname = 'test_app_user') THEN CREATE ROLE test_app_user; "
+            "END IF; END $$"
         )
     )
     await db_session.execute(text("GRANT USAGE ON SCHEMA public TO test_app_user"))

@@ -30,7 +30,8 @@ async def async_db_engine(postgres_container):
     """Creates a fresh database schema for each test."""
     url = postgres_container.get_connection_url()
 
-    # Workaround: testcontainers returns postgresql+asyncpg:// but SQLAlchemy needs it too
+    # Workaround: testcontainers returns postgresql+asyncpg://
+    # but SQLAlchemy needs it too
     # sometimes testcontainers returns just postgresql://, we enforce asyncpg
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://")
@@ -52,8 +53,8 @@ async def async_db_engine(postgres_container):
 @pytest.fixture(scope="function")
 async def db_session(async_db_engine):
     """Provides an async session."""
-    SessionLocal = async_sessionmaker(
+    session_local = async_sessionmaker(
         autocommit=False, autoflush=False, bind=async_db_engine
     )
-    async with SessionLocal() as session:
+    async with session_local() as session:
         yield session

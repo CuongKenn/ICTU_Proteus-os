@@ -11,7 +11,8 @@ from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
 @pytest.mark.asyncio
 async def test_rls_middleware_sets_tenant_id():
     """
-    Test kiểm tra xem RLS event listener có tự động SET LOCAL app.current_tenant_id hay không.
+    Test kiểm tra xem RLS event listener có tự động
+    SET LOCAL app.current_tenant_id hay không.
     """
     # 1. Set context_var
     valid_uuid = "12345678-1234-5678-1234-567812345678"
@@ -36,7 +37,8 @@ async def test_rls_middleware_sets_tenant_id():
 @pytest.mark.asyncio
 async def test_rls_middleware_empty_tenant_id():
     """
-    Trường hợp không có tenant_id (như background jobs), session sẽ được set empty string.
+    Trường hợp không có tenant_id (như background jobs),
+    session sẽ được set empty string.
     """
     token = current_tenant_id.set(None)
 
