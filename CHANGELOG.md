@@ -20,6 +20,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Tách các mock data inline ra file riêng (`marketplace.mock.ts`, `plugins.mock.ts`) và sử dụng dynamic import để tối ưu bundle size và cải thiện Separation of Concerns (Issue #630).
 
 ### Fixed
+- **[Auth/DevOps]** Bổ sung `sub` claim mapper trực tiếp vào Keycloak openid scope (`realm-import.json`) để sửa lỗi thiếu thông tin định danh trong JWT Access Token, khắc phục triệt để lỗi 403 Forbidden khi phân quyền cài đặt Plugin (Issue #651). Đồng thời cấu hình rõ `http` scheme cho `KC_HOSTNAME` trong Docker Compose.
 - **[DevOps/Frontend]** Sửa lỗi Next.js BFF trong Docker không thể resolve được `KEYCLOAK_ISSUER` public domain, bằng cách bổ sung `KEYCLOAK_INTERNAL_URL` cho các server-side auth calls (Issue #643).
 - **[Backend]** Bổ sung bước xoá credentials trong quá trình rollback Saga Pattern (`PluginInstallUseCase._rollback`) để ngăn chặn việc credential bị bỏ lại (orphan) trên n8n khi quá trình cài đặt plugin thất bại (Issue #634).
 - **[Frontend]** Khắc phục lỗi thanh tiến trình cài đặt Plugin bị kẹt ở 90% và thỉnh thoảng nhảy sụt giảm đột ngột (jumpy) khi backend trả về tiến độ mới thấp hơn tiến độ mô phỏng (Issue #636).
