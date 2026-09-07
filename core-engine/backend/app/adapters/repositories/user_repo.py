@@ -6,6 +6,8 @@ import uuid
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 
 from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.entities import UserEntity
@@ -21,9 +23,9 @@ def _to_entity(model: UserModel) -> UserEntity:
         email=model.email,
         full_name=model.full_name,
         is_active=model.is_active,
-        # Roles should be populated from realm_access or separate table
-        roles=[],
+        roles=[role.name for role in getattr(model, 'roles', [])] if hasattr(model, 'roles') else [],
     )
+
 
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
@@ -37,7 +39,8 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         stmt = select(UserModel).where(
             UserModel.keycloak_id == keycloak_id,
             UserModel.deleted_at.is_(None),
-        )
+        ).options(selectinload(UserModel.roles))
+
         result = await self.session.execute(stmt)
         model = result.scalars().first()
         if not model:
@@ -94,7 +97,9 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                 UserModel.tenant_id == tenant_id,
                 UserModel.deleted_at.is_(None),
             )
+            .options(selectinload(UserModel.roles))
             .order_by(UserModel.created_at.desc())
+
             .limit(limit)
             .offset(offset)
         )

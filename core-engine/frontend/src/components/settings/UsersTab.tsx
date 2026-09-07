@@ -16,8 +16,10 @@ interface User {
   keycloak_id: string | null;
   email: string;
   full_name: string | null;
+  roles: string[];
   is_active: boolean;
 }
+
 
 interface Role {
   id: string;
@@ -163,15 +165,18 @@ export const UsersTab = () => {
             <thead>
               <tr className="border-b border-border bg-bg-surface/30">
                 <th className="py-3 px-4 text-sm font-medium text-text-secondary">Tên & Email</th>
+                <th className="py-3 px-4 text-sm font-medium text-text-secondary">Vai trò</th>
                 <th className="py-3 px-4 text-sm font-medium text-text-secondary">Trạng thái</th>
+
                 <th className="py-3 px-4 text-sm font-medium text-text-secondary text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-12 text-center text-text-secondary">
+                  <td colSpan={4} className="py-12 text-center text-text-secondary">
                     Chưa có nhân viên nào. Bấm &quot;Mời nhân viên&quot; để bắt đầu.
+
                   </td>
                 </tr>
               ) : (
@@ -182,6 +187,20 @@ export const UsersTab = () => {
                       <div className="text-sm text-text-secondary">{user.email}</div>
                     </td>
                     <td className="py-3 px-4">
+                      {user.roles && user.roles.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.map((role, idx) => (
+                            <span key={idx} className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary font-medium">
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-text-secondary italic">Chưa có</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+
                       <span className={`px-2 py-1 text-xs rounded-md font-medium ${
                         user.is_active
                           ? "bg-green-500/10 text-green-400"

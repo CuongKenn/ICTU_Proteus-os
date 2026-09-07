@@ -35,7 +35,9 @@ class UserResponse(BaseModel):
     keycloak_id: uuid.UUID | None
     email: str
     full_name: str | None
+    roles: list[str] = []
     is_active: bool
+
 
     model_config = {"from_attributes": True}
 
@@ -75,7 +77,9 @@ async def list_users(
             keycloak_id=u.keycloak_id,
             email=u.email,
             full_name=u.full_name,
+            roles=u.roles,
             is_active=u.is_active,
+
         )
         for u in users
     ]
@@ -165,7 +169,9 @@ async def invite_user(
         keycloak_id=user_entity.keycloak_id,
         email=user_entity.email,
         full_name=user_entity.full_name,
+        roles=user_entity.roles,
         is_active=user_entity.is_active,
+
     )
 
 
