@@ -12,6 +12,7 @@ import api from "@/lib/api";
 export interface Role {
   id: string;
   name: string;
+  display_name: string;
   description: string | null;
   permissions: Record<string, string[]>;
 }
@@ -30,7 +31,7 @@ export const RolesTab = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [formData, setFormData] = useState({ name: "", description: "" });
+  const [formData, setFormData] = useState({ name: "", display_name: "", description: "" });
   const [formPermissions, setFormPermissions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
@@ -52,11 +53,11 @@ export const RolesTab = () => {
   const handleOpenModal = (role?: Role) => {
     if (role) {
       setSelectedRole(role);
-      setFormData({ name: role.name, description: role.description || "" });
+      setFormData({ name: role.name, display_name: role.display_name || role.name, description: role.description || "" });
       setFormPermissions(role.permissions || {});
     } else {
       setSelectedRole(null);
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", display_name: "", description: "" });
       setFormPermissions({});
     }
     setIsModalOpen(true);
@@ -75,7 +76,18 @@ export const RolesTab = () => {
 
   const handleSave = async () => {
     try {
-      const payload = { ...formData, permissions: formPermissions };
+      const payload = {
+        name: selectedRole ? selectedRole.name : formData.display_name.toLowerCase().replace(/[\s\W-]+/g, '_').replace(/^_+|_+$/g, ''),
+        display_name: formData.display_name,
+        description: formData.description,
+        permissions: formPermissions,
+      };
+      
+      if (!payload.display_name) {
+        alert("Tên Role không được để trống");
+        return;
+      }
+      
       if (selectedRole) {
         await api.put(`/v1/roles/${selectedRole.id}`, payload);
       } else {
@@ -126,7 +138,7 @@ export const RolesTab = () => {
                   <ShieldAlert className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-text-primary">{role.name}</h3>
+                  <h3 className="text-lg font-semibold text-text-primary">{role.display_name || role.name}</h3>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -178,8 +190,8 @@ export const RolesTab = () => {
               <label className="text-sm font-semibold text-text-primary">Tên Role</label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.display_name}
+                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                 className="w-full bg-bg-base border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-text-disabled"
                 placeholder="VD: Quản lý Nhân sự"
               />
