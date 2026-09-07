@@ -14,6 +14,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ### Added
 - **[Frontend]** Khởi tạo giao diện cấu hình Role và phân quyền Permission dạng Matrix trên trang Settings (Issue #654).
+- **[Frontend]** Tích hợp cơ chế RBAC Frontend thông qua custom hook `useRBAC` để tự động khóa các thao tác không được cấp quyền trên `PluginCard` (Issue #655).
 
 ### Changed
 - **[Docs]** Đồng bộ tài liệu hệ thống (`erd.md`, `api-swagger.yaml`, `architecture.md`) và Domain Entities với thực tế triển khai mã nguồn, cập nhật các schema bị thiếu sót (Issue #627).

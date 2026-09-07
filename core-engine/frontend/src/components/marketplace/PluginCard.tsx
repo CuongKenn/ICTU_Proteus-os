@@ -6,9 +6,10 @@
 import React from "react";
 import Image from "next/image";
 import clsx from "clsx";
-import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck } from "lucide-react";
+import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useRBAC } from "@/hooks/useRBAC";
 
 export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
 
@@ -57,8 +58,27 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   // Dùng rating thực tế nếu có; không dùng Math.random() để tránh flicker
   const rating = plugin.rating ?? null;
   const category = plugin.category || "Utilities";
-  // author field thực tế từ backend thay vì hardcode
   const developer = plugin.author || plugin.developer || "Proteus Core";
+  const { hasPermission } = useRBAC();
+  const canInstall = hasPermission("plugins:install");
+  
+  const renderUninstallButton = () => {
+    if (!onUninstall) return null;
+    return (
+      <Button 
+        variant="ghost" 
+        onClick={() => onUninstall(plugin.id)} 
+        disabled={!canInstall}
+        className={clsx(
+          "px-3",
+          canInstall ? "text-text-muted hover:text-danger hover:bg-danger/10" : "text-text-muted/50 cursor-not-allowed"
+        )} 
+        title={!canInstall ? "Bạn không có quyền thao tác (plugins:install)" : "Gỡ cài đặt"}
+      >
+        {!canInstall ? <Lock className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+      </Button>
+    );
+  };
 
   return (
     <div 
@@ -128,9 +148,14 @@ export const PluginCard: React.FC<PluginCardProps> = ({
         {status === "available" && onInstall && (
           <Button 
             onClick={() => onInstall(plugin.id)} 
-            className="w-full font-semibold shadow-sm hover:shadow-md transition-shadow"
+            disabled={!canInstall}
+            className={clsx(
+              "w-full font-semibold shadow-sm transition-shadow",
+              canInstall ? "hover:shadow-md" : "opacity-50 cursor-not-allowed"
+            )}
+            title={!canInstall ? "Bạn không có quyền cài đặt Plugin (plugins:install)" : ""}
           >
-            <Download className="w-4 h-4 mr-2" /> Nhận
+            {!canInstall ? <Lock className="w-4 h-4 mr-2" /> : <Download className="w-4 h-4 mr-2" />} Nhận
           </Button>
         )}
         
@@ -154,16 +179,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
               >
                 Mở
               </Button>
-              {onUninstall && (
-                <Button 
-                  variant="ghost" 
-                  onClick={() => onUninstall(plugin.id)} 
-                  className="text-text-muted hover:text-danger hover:bg-danger/10 px-3" 
-                  title="Gỡ cài đặt"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+              {renderUninstallButton()}
             </div>
             <span className="flex items-center text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/20">
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã cài
@@ -184,16 +200,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               <Button variant="danger" onClick={() => onRetry?.(plugin.id)} className="font-semibold">Thử lại</Button>
-              {onUninstall && (
-                <Button 
-                  variant="ghost" 
-                  onClick={() => onUninstall(plugin.id)} 
-                  className="text-danger border-danger/30 hover:border-danger hover:bg-danger/10 px-3" 
-                  title="Xoá dữ liệu lỗi"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+              {renderUninstallButton()}
             </div>
             <span className="flex items-center text-xs font-medium text-danger bg-danger/10 px-2.5 py-1 rounded-full border border-danger/20">
               <XCircle className="w-3.5 h-3.5 mr-1" /> Lỗi
@@ -204,16 +211,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
         {status === "disabled" && (
           <div className="flex items-center justify-between w-full">
             <Button variant="secondary" onClick={() => onEnable?.(plugin.id)} className="font-semibold">Bật</Button>
-            {onUninstall && (
-              <Button 
-                variant="ghost" 
-                onClick={() => onUninstall(plugin.id)} 
-                className="text-text-muted hover:text-danger hover:bg-danger/10 px-3" 
-                title="Gỡ cài đặt"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            {renderUninstallButton()}
           </div>
         )}
       </div>
