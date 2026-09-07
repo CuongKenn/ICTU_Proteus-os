@@ -125,6 +125,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Backend]** Cấu hình `structlog` trong `logging_config.py` để xuất log dưới định dạng JSON với đầy đủ context.
 - **[Backend]** Gắn log chi tiết (có context `tenant_id`, `plugin_code_name`, `ai_command`, `action`, v.v.) vào các tiến trình cài đặt Plugin (`plugin_install.py`) và thực thi lệnh AI (`ai_command.py`).
 
+## [Unreleased] - Sắp tới
+
+### Fixed
+- **[DB/tenant_plugins]** Hotfix: Thêm cột `install_task_id UUID` vào bảng `tenant_plugins` bằng lệnh `ALTER TABLE` trực tiếp (migration tự động bị chặn do lỗi type-cast enum ở migration kế tiếp). Lỗi này gây ra `UndefinedColumnError` khi gọi `POST /plugins/:id/install`.
+- **[core-engine/backend/app/adapters/repositories/user_repo.py]** Fix `MissingGreenlet` triệt để: `_to_entity()` không bao giờ access `model.roles` trực tiếp; luôn nhận `roles` là tham số tường minh được eager-load qua `selectinload`.
+- **[core-engine/backend/app/entrypoints/dependencies.py]** `UserProvisioningUseCase` đổi sang dùng `get_db_transactional` thay vì readonly session.
+
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 
 ### Changed
