@@ -133,6 +133,7 @@ export const authOptions: NextAuthOptions = {
         return {
           ...token,
           accessToken: account.access_token,
+          idToken: account.id_token,       // ← BẮT BUỘC cho federated logout
           refreshToken: account.refresh_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
