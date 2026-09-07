@@ -4,6 +4,17 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — SaaS Tenant Onboarding (2026-09-07)
+
+### Added
+- **[core-engine/frontend]** Thêm trang đăng ký trực tuyến `src/app/signup/page.tsx` và form `SignupForm` cho tính năng SaaS Onboarding tự động.
+- **[core-engine/frontend]** Thêm API trung gian (BFF) `POST /api/onboarding/signup` để bảo mật proxy sang backend.
+- **[core-engine/backend]** Thêm Use Case `OnboardingUseCase` và API Endpoint `POST /api/v1/onboarding/signup` để xử lý logic cấp phát Tenant và tạo tài khoản Keycloak tự động.
+- **[core-engine/backend]** Bổ sung các hàm xử lý User Account vào `KeycloakAdapter` (`create_user`, `set_user_password`, `assign_role_to_user`).
+
+### Changed
+- **[core-engine/backend]** Thay đổi `get_admin_token` trong `KeycloakAdapter` để sử dụng `grant_type="password"` từ biến cấu hình `KEYCLOAK_ADMIN_USER`/`PASSWORD` thay vì `client_credentials`.
+
 ## [Unreleased] — Local LLM Migration (2026-09-06)
 
 ### Security

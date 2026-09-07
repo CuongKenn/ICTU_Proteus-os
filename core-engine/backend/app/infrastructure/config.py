@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     KEYCLOAK_CLIENT_ID: str = "proteus-bff"
     KEYCLOAK_ADMIN_CLIENT_ID: str = "admin-cli"
     KEYCLOAK_ADMIN_CLIENT_SECRET: str = ""
+    KEYCLOAK_ADMIN_USER: str = "admin"
+    KEYCLOAK_ADMIN_PASSWORD: str = ""
     KEYCLOAK_CLIENT_SECRET: str = ""
     KEYCLOAK_WEBHOOK_SECRET: str = ""
 

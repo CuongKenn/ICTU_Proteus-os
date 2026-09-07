@@ -93,12 +93,13 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         return cast(dict[str, Any], payload)
 
     async def get_admin_token(self) -> str:
-        """Lấy token của admin-cli qua Client Credentials Grant để gọi Admin API."""
+        """Lấy token của admin-cli qua Password Grant để gọi Admin API."""
         url = f"{settings.KEYCLOAK_URL}/realms/master/protocol/openid-connect/token"
         data = {
-            "grant_type": "client_credentials",
+            "grant_type": "password",
             "client_id": settings.KEYCLOAK_ADMIN_CLIENT_ID,
-            "client_secret": settings.KEYCLOAK_ADMIN_CLIENT_SECRET,
+            "username": settings.KEYCLOAK_ADMIN_USER,
+            "password": settings.KEYCLOAK_ADMIN_PASSWORD,
         }
         response = await self._client.post(url, data=data, timeout=10.0)
         response.raise_for_status()
@@ -167,8 +168,97 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             "Keycloak group created", extra={"group": group_name, "realm": realm}
         )
 
+    async def get_role(self, realm: str, role_name: str) -> dict[str, Any]:
+        """Lấy thông tin Role từ Keycloak để lấy ID."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/roles/{role_name}"
+        response = await self._client.get(
+            url,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def create_user(
+        self,
+        realm: str,
+        username: str,
+        email: str,
+        first_name: str,
+        last_name: str,
+        attributes: dict[str, list[str]],
+    ) -> str:
+        """Tạo User trong Keycloak, trả về user_id (sub)."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users"
+        user_data = {
+            "username": username,
+            "email": email,
+            "firstName": first_name,
+            "lastName": last_name,
+            "enabled": True,
+            "emailVerified": True,
+            "attributes": attributes,
+        }
+        response = await self._client.post(
+            url,
+            json=user_data,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        
+        if response.status_code == 409:
+            raise ValueError(f"User with email {email} already exists in Keycloak")
+            
+        response.raise_for_status()
+        
+        # Keycloak POST /users returns 201 Created with Location header containing the ID
+        location = response.headers.get("Location")
+        if not location:
+            # Fallback: search by email to get ID
+            search_url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users?email={email}&exact=true"
+            search_res = await self._client.get(search_url, headers={"Authorization": f"Bearer {admin_token}"})
+            search_res.raise_for_status()
+            users = search_res.json()
+            if not users:
+                raise RuntimeError("Created user not found")
+            return users[0]["id"]
+            
+        return location.split("/")[-1]
+
+    async def set_user_password(
+        self, realm: str, user_id: str, password: str
+    ) -> None:
+        """Đặt mật khẩu cho user."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/reset-password"
+        payload = {
+            "type": "password",
+            "value": password,
+            "temporary": False
+        }
+        response = await self._client.put(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+
     async def assign_role_to_user(
         self, realm: str, user_id: str, role_name: str
     ) -> None:
-        """Chưa implement."""
-        raise NotImplementedError("assign_role_to_user chưa được implement")
+        """Gán Role cho User (Realm Role)."""
+        role = await self.get_role(realm, role_name)
+        admin_token = await self.get_admin_token()
+        
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/role-mappings/realm"
+        response = await self._client.post(
+            url,
+            json=[role],
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+

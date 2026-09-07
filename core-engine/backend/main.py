@@ -41,6 +41,7 @@ from app.entrypoints.routers import (
     health,
     keycloak_webhook,
     mattermost_webhook,
+    onboarding,
     plugins,
     roles,
     tenants,
@@ -333,6 +334,7 @@ async def proteus_exception_handler(
 # ─── Routers ──────────────────────────────────────────────────
 app.include_router(health.router, tags=["System"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
+app.include_router(onboarding.router, prefix="/api/v1", tags=["Onboarding"])
 app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(roles.router, prefix="/api/v1", tags=["Roles"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])

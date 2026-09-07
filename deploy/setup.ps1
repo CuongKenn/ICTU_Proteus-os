@@ -315,7 +315,7 @@ if ($envContent -match "CHANGE_ME_GET_FROM_KEYCLOAK_UI") {
             }
         }
         Set-Content .env -Value $envContent -Encoding UTF8
-        docker compose restart backend outline
+        docker compose restart backend outline frontend
         Write-Host "[OK] Keycloak Secrets synced successfully." -ForegroundColor Green
     } else {
         Write-Host "[WARN] Failed to sync Keycloak Secrets. Is Keycloak fully running?" -ForegroundColor Yellow
