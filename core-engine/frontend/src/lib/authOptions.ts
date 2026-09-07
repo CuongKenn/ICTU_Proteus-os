@@ -152,11 +152,13 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Expose access token cho BFF Proxy — KHÔNG expose xuống browser
-      // session.accessToken = token.accessToken as string; // REMOVED for security (Issue #327)
+      // Expose access token cho BFF Proxy (server-side only).
+      // Token này KHÔNG bao giờ xuống browser — chỉ BFF API Route đọc qua getServerSession().
+      // Bắt buộc để BFF proxy có thể inject Authorization header khi forward request đến backend.
+      (session as any).accessToken = token.accessToken as string;
       session.user.roles = (token.roles as string[]) ?? [];
 
-      // Truyền lỗi refresh lên client để có thể hiển thị thông báo
+      // Truyền lỗi refresh lên client để hiển thị thông báo (vd: RefreshAccessTokenError)
       if (token.error) {
         (session as any).error = token.error;
       }

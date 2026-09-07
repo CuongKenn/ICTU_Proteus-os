@@ -3,11 +3,13 @@
 //
 // BFF API Route — Backend Proxy
 // Tất cả request từ Client → BFF Proxy → FastAPI Backend.
-// Token được inject tự động. Browser KHÔNG bao giờ gọi Backend trực tiếp.
+// Token được inject và tự động refresh. Browser KHÔNG bao giờ gọi Backend trực tiếp.
+// Dùng getServerSession() để trigger jwt callback (silent refresh) thay vì getToken().
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
+import { authOptions } from "@/lib/authOptions";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -16,10 +18,13 @@ async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  // Dùng getServerSession thay vì getToken để trigger jwt callback (silent refresh).
+  // getToken() chỉ đọc raw cookie, KHÔNG refresh access_token khi hết hạn.
+  const session = await getServerSession(authOptions);
+  const accessToken = (session as any)?.accessToken;
 
-  if (!token?.accessToken) {
-    logger.error("[BFF] Proxy 401: token missing or accessToken null", { hasToken: !!token });
+  if (!accessToken) {
+    logger.error("[BFF] Proxy 401: session missing or accessToken null", { hasSession: !!session });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,7 +33,7 @@ async function proxyHandler(
 
   // Forward headers có chọn lọc — không forward cookie, host, x-forwarded-* từ client
   const headers = new Headers({
-    Authorization: `Bearer ${token.accessToken}`,
+    Authorization: `Bearer ${accessToken}`,
     "Content-Type": request.headers.get("Content-Type") ?? "application/json",
     Accept: request.headers.get("Accept") ?? "application/json",
     "X-Forwarded-For": request.headers.get("x-forwarded-for") ?? "",
@@ -82,6 +87,7 @@ async function proxyHandler(
     headers: { "Content-Type": contentType },
   });
 }
+
 
 export const GET = proxyHandler;
 export const POST = proxyHandler;
