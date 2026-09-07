@@ -15,7 +15,13 @@ from app.core.domain.exceptions import NotFoundError
 from app.infrastructure.models import UserModel
 
 
-def _to_entity(model: UserModel) -> UserEntity:
+def _to_entity(model: UserModel, roles: list[str] | None = None) -> UserEntity:
+    """Convert ORM model to domain entity.
+    
+    QUAN TRỌNG: Không bao giờ access model.roles trực tiếp ở đây vì sẽ trigger
+    SQLAlchemy lazy load trong async context -> MissingGreenlet error.
+    Luôn truyền roles đã được eager-load thông qua tham số `roles`.
+    """
     return UserEntity(
         id=model.id,
         tenant_id=model.tenant_id,
@@ -23,7 +29,7 @@ def _to_entity(model: UserModel) -> UserEntity:
         email=model.email,
         full_name=model.full_name,
         is_active=model.is_active,
-        roles=[role.display_name or role.name for role in getattr(model, 'roles', [])] if hasattr(model, 'roles') else [],
+        roles=roles if roles is not None else [],
     )
 
 
@@ -35,6 +41,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
     async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> UserEntity | None:
         """
         Lấy thông tin User dựa vào keycloak_id.
+        Dùng selectinload để eager-load roles trong cùng 1 query.
         """
         stmt = select(UserModel).where(
             UserModel.keycloak_id == keycloak_id,
@@ -45,7 +52,12 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         model = result.scalars().first()
         if not model:
             return None
-        return _to_entity(model)
+        # Roles đã được eager-load, lấy an toàn từ model.__dict__
+        loaded_roles = [
+            role.display_name or role.name
+            for role in model.__dict__.get('roles', [])
+        ]
+        return _to_entity(model, roles=loaded_roles)
 
     async def upsert(self, user_data: dict) -> UserEntity:
         """
@@ -67,10 +79,14 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         result = await self.session.execute(stmt)
         model = result.scalar_one()
         
-        # Reload to ensure relationships (like roles) are loaded
+        # Flush để đảm bảo record đã có trong DB trước khi reload
+        await self.session.flush()
+        
+        # Reload với eager-load roles để tránh MissingGreenlet
         entity = await self.get_by_keycloak_id(model.keycloak_id)
         if not entity:
-            return _to_entity(model) # Fallback if somehow not found
+            # Fallback an toàn: KHÔNG access model.roles (lazy load = crash)
+            return _to_entity(model, roles=[])
         return entity
 
     async def deactivate(self, user_id: uuid.UUID) -> None:
@@ -110,7 +126,14 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
-        return [_to_entity(model) for model in models]
+        entities = []
+        for model in models:
+            loaded_roles = [
+                role.display_name or role.name
+                for role in model.__dict__.get('roles', [])
+            ]
+            entities.append(_to_entity(model, roles=loaded_roles))
+        return entities
 
     async def commit(self) -> None:
         await self.session.commit()
