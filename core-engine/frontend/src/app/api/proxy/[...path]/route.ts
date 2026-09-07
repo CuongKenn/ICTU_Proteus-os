@@ -4,12 +4,12 @@
 // BFF API Route — Backend Proxy
 // Tất cả request từ Client → BFF Proxy → FastAPI Backend.
 // Token được inject và tự động refresh. Browser KHÔNG bao giờ gọi Backend trực tiếp.
-// Dùng getServerSession() để trigger jwt callback (silent refresh) thay vì getToken().
+// Dùng getToken() + manual refresh thay vì getServerSession() (gây 500 trong App Router).
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/authOptions";
+import { refreshAccessToken } from "@/lib/authOptions";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -18,13 +18,30 @@ async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  // Dùng getServerSession thay vì getToken để trigger jwt callback (silent refresh).
-  // getToken() chỉ đọc raw cookie, KHÔNG refresh access_token khi hết hạn.
-  const session = await getServerSession(authOptions);
-  const accessToken = (session as any)?.accessToken;
+  // getToken() đọc JWT từ session cookie — nhẹ hơn getServerSession() và không gây 500.
+  // Nếu access_token hết hạn, tự refresh bằng refreshAccessToken() trước khi forward.
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+  if (!token) {
+    logger.error("[BFF] Proxy 401: no session token found");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Kiểm tra token hết hạn — refresh nếu cần (buffer 30s)
+  let accessToken = token.accessToken as string;
+  const expires = token.accessTokenExpires as number | undefined;
+  if (expires && Date.now() > expires - 30_000) {
+    logger.info("[BFF] access_token gần hết hạn — đang refresh...");
+    const refreshed = await refreshAccessToken(token);
+    if (refreshed.error) {
+      logger.error("[BFF] Refresh token thất bại — yêu cầu đăng nhập lại");
+      return NextResponse.json({ error: "RefreshAccessTokenError" }, { status: 401 });
+    }
+    accessToken = refreshed.accessToken as string;
+  }
 
   if (!accessToken) {
-    logger.error("[BFF] Proxy 401: session missing or accessToken null", { hasSession: !!session });
+    logger.error("[BFF] Proxy 401: accessToken null sau refresh");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -67,7 +84,7 @@ async function proxyHandler(
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
   }
 
-  logger.info(`[BFF] Proxy to ${targetUrl} returned ${response.status}`);
+  logger.info(`[BFF] ${request.method} ${targetUrl} → ${response.status}`);
 
   if (response.status === 401) {
     const txt = await response.text();
@@ -89,7 +106,6 @@ async function proxyHandler(
     headers: { "Content-Type": contentType },
   });
 }
-
 
 export const GET = proxyHandler;
 export const POST = proxyHandler;

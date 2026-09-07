@@ -18,7 +18,8 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
 // ─── Silent Token Refresh ─────────────────────────────────────
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
 // Được gọi tự động khi access_token hết hạn trong JWT callback.
-async function refreshAccessToken(token: JWT): Promise<JWT> {
+// Export để BFF Proxy có thể gọi trực tiếp khi cần refresh.
+export async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
     const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
     const response = await fetch(tokenUrl, {
