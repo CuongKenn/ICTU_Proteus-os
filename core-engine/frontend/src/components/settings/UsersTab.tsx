@@ -341,7 +341,6 @@ export const UsersTab = () => {
               ))}
             </div>
           )}
-          )}
         </div>
       </Modal>
     </div>
