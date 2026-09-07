@@ -1,3 +1,6 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """remove unique keycloak_realm
 
 Revision ID: i3d4e5f6g7h8

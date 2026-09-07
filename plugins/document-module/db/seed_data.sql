@@ -1,3 +1,6 @@
+-- Copyright (c) 2026 CuongKenn & ICTU Team
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
 INSERT INTO document_categories (id, name, description) VALUES
     ('11111111-1111-1111-1111-111111111111', 'Nghị quyết', 'Nghị quyết của Đảng ủy, Hội đồng trường'),
     ('22222222-2222-2222-2222-222222222222', 'Quyết định', 'Quyết định hành chính'),

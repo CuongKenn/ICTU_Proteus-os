@@ -57,6 +57,10 @@ Hệ thống **Proteus OS Community Edition** tích hợp 3 đột phá lõi đ�
 
 Toàn bộ tài liệu đặc tả, thiết kế kiến trúc và giao diện được lưu trữ công khai trong thư mục `/docs`. Vui lòng đọc kỹ trước khi đóng góp code:
 
+- 🏆 **[Báo cáo Đáp ứng Tiêu chí Nguồn mở (PoF Compliance)](./docs/POF_COMPLIANCE.md):** Báo cáo tự đánh giá chi tiết 50/50 điểm Tiêu chí PoF Cuộc thi PMNM tích hợp AI 2026 (ICTU).
+- 🛠️ **[Hướng dẫn Biên dịch & Cài đặt từ Mã nguồn (Building from Source)](./BUILDING.md):** Quy trình build độc lập không sửa header, sử dụng 100% công cụ nguồn mở.
+- 📦 **[Quản lý Thư viện & Gói Đính kèm (Dependencies)](./DEPENDENCIES.md):** Danh mục thư viện, cam kết Zero-Bundling và không can thiệp mã nguồn bên thứ 3.
+- 📜 **[Thông báo Bản quyền & Giấy phép (License Notice)](./docs/LICENSE_NOTICE.md):** Mục đích lựa chọn AGPLv3 và Ma trận tương thích giấy phép mã nguồn mở.
 - 📄 **[Tài liệu Đặc tả Yêu cầu (BRD)](./docs/BRD.md):** Tầm nhìn, chức năng và rào chắn kỹ thuật (NFR).
 - 🏗️ **[Thiết kế Kiến trúc Tổng thể (SAD)](./docs/architecture.md):** Phân tích kiến trúc Hexagonal (Backend), Custom Hooks (Frontend), SSO flow bảo mật và ADR chốt Redis Event Bus.
 - 🎨 **[Thiết kế Giao diện (UI/UX)](./docs/ui_ux_design.md):** Phác thảo giao diện Launchpad & App Store theo phong cách Glassmorphism.
@@ -115,8 +119,16 @@ Dự án yêu cầu môi trường **Docker** và **Docker Compose** để chạ
   - Communication: `Mattermost`
   - Knowledge Base: `Outline`, `Nextcloud`
 
-## 🤝 Đóng góp (Contributing)
-Mọi đóng góp (Pull Request, Báo lỗi - Issue) đều được hoan nghênh. Vui lòng đọc kỹ bộ tài liệu trong thư mục `docs/` để nắm rõ triết lý thiết kế trước khi gửi mã nguồn.
+## 🐛 Quản lý Lỗi & Đóng góp (Bug Tracker & Contributing)
+- **Hệ thống theo dõi lỗi (Bug Tracker):** Toàn bộ vấn đề kỹ thuật, thảo luận tính năng và báo cáo lỗi được quản lý công khai tại [GitHub Issues](https://github.com/CuongKenn/ICTU_Proteus-os/issues).
+- **Quy chuẩn đóng góp:** Vui lòng đọc kỹ [CONTRIBUTING.md](./CONTRIBUTING.md) và bộ tài liệu trong thư mục `docs/` trước khi gửi Pull Request.
 
-## 📜 Giấy phép (License)
-Dự án được phân phối dưới giấy phép **GNU AGPLv3**. Vui lòng xem tệp [LICENSE](./LICENSE) để biết thêm chi tiết.
+## 📦 Bản phát hành (Releases)
+- Các bản phát hành chính thức được đánh số phiên bản ngữ nghĩa (Semantic Versioning) và cung cấp định dạng mã nguồn mở chuẩn POSIX **`.tar.gz`** tại [GitHub Releases](https://github.com/CuongKenn/ICTU_Proteus-os/releases).
+- Tải trực tiếp bản phát hành mới nhất: [v1.0.2 Source Code (.tar.gz)](https://github.com/CuongKenn/ICTU_Proteus-os/archive/refs/tags/v1.0.2.tar.gz)
+
+## 📜 Giấy phép & Bản quyền (License & Legal)
+- Dự án được phân phối chính thức dưới giấy phép mã nguồn mở **GNU Affero General Public License Version 3 (GNU AGPLv3)** được OSI công nhận.
+- Xem bản sao toàn văn giấy phép tại: [LICENSE](./LICENSE).
+- Xem thông báo về mục đích giấy phép và ma trận tương thích pháp lý tại: [docs/LICENSE_NOTICE.md](./docs/LICENSE_NOTICE.md).
+- Báo cáo chi tiết đáp ứng tiêu chuẩn phần mềm nguồn mở: [docs/POF_COMPLIANCE.md](./docs/POF_COMPLIANCE.md).

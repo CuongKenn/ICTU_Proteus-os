@@ -7,6 +7,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Added
+- [docs/POF_COMPLIANCE.md] Bổ sung Báo cáo Giải trình Đáp ứng Tiêu chí Nguồn mở (PoF Compliance Report) tự đánh giá đạt 50/50 điểm Tiêu chí PoF của Cuộc thi "Phát triển phần mềm mã nguồn mở tích hợp AI 2026" - Khoa CNTT Trường ĐH CNTT & TT (ICTU).
+- [BUILDING.md] Biên soạn tài liệu Hướng dẫn Biên dịch & Cài đặt từ Mã nguồn (Building from Source) chi tiết cho cả môi trường Docker và Bare-metal, tuân thủ nguyên tắc cấu hình qua biến môi trường (.env) và sử dụng 100% công cụ mã nguồn mở.
+- [DEPENDENCIES.md] Biên soạn tài liệu Quản lý Thư viện & Gói Đính kèm (Dependencies & Bundling Policy) làm rõ danh mục thư viện, giấy phép tương thích và cam kết chính sách "Zero Bundling / No Modified Vendoring".
+- [docs/LICENSE_NOTICE.md] Công bố Thông báo Mục đích Giấy phép GNU AGPLv3 và Ma trận Tương thích Giấy phép (License Compatibility Matrix) với các thư viện bên thứ ba (MIT, Apache 2.0, BSD-3-Clause, PostgreSQL License).
+- [codebase] Rà soát và bổ sung toàn diện header bản quyền chuẩn SPDX (`Copyright (c) 2026 CuongKenn & ICTU Team` và `SPDX-License-Identifier: AGPL-3.0-or-later`) trên 100% các tệp mã nguồn của dự án (Python, TypeScript, SQL, Shell, PowerShell), loại bỏ hoàn toàn nguy cơ bị trừ điểm về cấp phép per-file.
+- [README.md] Cập nhật liên kết trực tiếp tới Hệ thống quản lý lỗi (Bug Tracker), Bản phát hành mã nguồn mở chuẩn POSIX (.tar.gz), Báo cáo PoF Compliance, và các hướng dẫn biên dịch.
 - [core-engine/frontend/src/components/settings/IntegrationsTab.tsx] Hiển thị danh sách các dịch vụ lõi của hệ thống (Keycloak, Mattermost, Appsmith, n8n, Metabase) trong phần "Kết nối & Tích hợp" với trạng thái "Hoạt động" và gắn nhãn "Hệ thống". Giúp Admin dễ dàng nắm bắt được các dịch vụ cốt lõi đang tích hợp sẵn cùng Proteus OS, đồng thời vẫn giữ khả năng thêm các kết nối tùy chỉnh (Third-party) của riêng Tenant.
 - [deploy/setup.sh] Bổ sung bước tạo database cho Outline (`outline`) và Metabase (`metabase`) bằng SQL query (tương tự setup.ps1) để khắc phục lỗi 502/Crash-loop do thiếu CSDL riêng.
 
