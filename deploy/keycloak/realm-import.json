@@ -1,5 +1,6 @@
 {
   "realm": "proteus",
+  "loginTheme": "proteus",
   "enabled": true,
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 28800,

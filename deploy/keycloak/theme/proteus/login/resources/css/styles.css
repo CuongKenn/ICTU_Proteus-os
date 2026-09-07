@@ -1,0 +1,95 @@
+/* Custom CSS for Proteus OS Keycloak Theme (Glassmorphism + Dark Mode) */
+
+/* Global Body Styling */
+body, .pf-v5-c-login {
+    background-color: #05050a !important;
+    background-image: 
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.2) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.2) 0%, transparent 40%) !important;
+    color: white !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+/* Make headers text white */
+.pf-v5-c-title, .pf-v5-c-content h1, #kc-header-wrapper {
+    color: white !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+}
+
+/* Login Card Container (Glassmorphism) */
+.pf-v5-c-login__main, .kc-login-card, #kc-form {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5) !important;
+    color: white !important;
+}
+
+/* Hide some default backgrounds */
+.pf-v5-c-login__container {
+    background: transparent !important;
+}
+.pf-v5-c-login__main-header, .pf-v5-c-login__main-body, .pf-v5-c-login__main-footer {
+    background: transparent !important;
+}
+
+/* Inputs */
+.pf-v5-c-form-control input, input[type="text"], input[type="password"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1rem !important;
+}
+.pf-v5-c-form-control input:focus, input[type="text"]:focus, input[type="password"]:focus {
+    border-color: rgba(59, 130, 246, 0.8) !important;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3) !important;
+    outline: none !important;
+}
+.pf-v5-c-form__label-text, label {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Buttons */
+.pf-v5-c-button.pf-m-primary, input[type="submit"] {
+    background: linear-gradient(135deg, #3b82f6, #9333ea) !important;
+    border-radius: 12px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    padding: 1rem !important;
+    transition: all 0.3s ease !important;
+    color: white !important;
+    cursor: pointer !important;
+    width: 100%;
+}
+.pf-v5-c-button.pf-m-primary:hover, input[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Links */
+a, .pf-v5-c-login__main-footer-links a {
+    color: #93c5fd !important;
+    transition: color 0.2s !important;
+}
+a:hover {
+    color: #bfdbfe !important;
+    text-decoration: none !important;
+}
+
+/* Divider */
+.pf-v5-c-divider {
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Fix Alert Messages */
+.pf-v5-c-alert {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 12px !important;
+}

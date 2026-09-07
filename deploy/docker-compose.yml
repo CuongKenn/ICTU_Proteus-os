@@ -141,6 +141,7 @@ services:
         condition: service_healthy
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
+      - ./keycloak/theme/proteus:/opt/keycloak/themes/proteus:ro
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' 2>/dev/null && exit 0 || exit 1"]
       interval: 30s
@@ -458,6 +459,8 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
+      KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       N8N_URL: http://n8n:5678
       N8N_API_KEY: ${N8N_API_KEY}
       QDRANT_URL: http://qdrant:6333

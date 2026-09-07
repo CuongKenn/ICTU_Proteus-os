@@ -8,7 +8,7 @@ from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.entrypoints.schemas.onboarding_schemas import SignupRequest, SignupResponse
-from app.infrastructure.database import get_db_session
+from app.infrastructure.database import get_db_transactional
 from app.use_cases.tenants.onboarding_use_case import OnboardingRequest, OnboardingUseCase
 
 router = APIRouter(prefix="/onboarding")
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/onboarding")
 async def signup(
     request: Request,
     payload: SignupRequest,
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_db_transactional),
 ) -> SignupResponse:
     # Khởi tạo repositories và adapters
     tenant_repo = SQLAlchemyTenantRepository(session=session)

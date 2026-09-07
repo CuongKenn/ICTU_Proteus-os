@@ -7,13 +7,21 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — SaaS Tenant Onboarding (2026-09-07)
 
 ### Added
+- **[core-engine/frontend]** Bổ sung Landing Page (Trang chủ công khai) tại `src/app/page.tsx` với thiết kế Glassmorphism hiện đại làm mặt tiền hệ thống.
 - **[core-engine/frontend]** Thêm trang đăng ký trực tuyến `src/app/signup/page.tsx` và form `SignupForm` cho tính năng SaaS Onboarding tự động.
 - **[core-engine/frontend]** Thêm API trung gian (BFF) `POST /api/onboarding/signup` để bảo mật proxy sang backend.
 - **[core-engine/backend]** Thêm Use Case `OnboardingUseCase` và API Endpoint `POST /api/v1/onboarding/signup` để xử lý logic cấp phát Tenant và tạo tài khoản Keycloak tự động.
 - **[core-engine/backend]** Bổ sung các hàm xử lý User Account vào `KeycloakAdapter` (`create_user`, `set_user_password`, `assign_role_to_user`).
+- **[deploy/keycloak]** Bổ sung Custom Login Theme `proteus` (CSS override) mang phong cách Glassmorphism và Dark Mode, cập nhật `docker-compose.yml` và `realm-import.json`.
 
 ### Changed
+- **[core-engine/frontend]** Cập nhật `middleware.ts` để mở khoá (allow public access) các route `/`, `/signup`, `/api/onboarding/*`, không yêu cầu đăng nhập đối với khách.
 - **[core-engine/backend]** Thay đổi `get_admin_token` trong `KeycloakAdapter` để sử dụng `grant_type="password"` từ biến cấu hình `KEYCLOAK_ADMIN_USER`/`PASSWORD` thay vì `client_credentials`.
+
+### Fixed
+- **[core-engine/backend]** Fix lỗi crash do import thiếu `EmailStr` bằng Regex Pattern trong `onboarding_schemas.py`.
+- **[core-engine/backend]** Fix lỗi circular import `get_db_session` trong Router bằng `get_db_transactional`.
+- **[core-engine/backend]** Cập nhật thủ công Schema Database các bảng `tenants` (thiếu `notify_channel_id`) và `users` (thiếu `keycloak_id`, `joined_at`) do lỗi mất đồng bộ Alembic.
 
 ## [Unreleased] — Local LLM Migration (2026-09-06)
 
