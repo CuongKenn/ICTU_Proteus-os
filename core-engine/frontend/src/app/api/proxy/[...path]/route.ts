@@ -28,12 +28,23 @@ async function proxyHandler(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Kiểm tra token hết hạn
+  // Kiểm tra token hết hạn — thử refresh inline thay vì trả 401 ngay
   let accessToken = token.accessToken as string;
   const expires = token.accessTokenExpires as number | undefined;
   if (expires && Date.now() > expires - 10_000) {
-    logger.info("[BFF] access_token hết hạn — báo Frontend tự refresh qua getSession()");
-    return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
+    logger.info("[BFF] access_token sắp/đã hết hạn — thử refresh inline");
+    try {
+      const refreshed = await refreshAccessToken(token as Parameters<typeof refreshAccessToken>[0]);
+      if (refreshed.error) {
+        logger.error("[BFF] Refresh token thất bại:", refreshed.error);
+        return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
+      }
+      accessToken = refreshed.accessToken as string;
+      logger.info("[BFF] Refresh token thành công — tiếp tục proxy với token mới");
+    } catch (err) {
+      logger.error("[BFF] Lỗi khi refresh token:", err);
+      return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
+    }
   }
 
   if (!accessToken) {

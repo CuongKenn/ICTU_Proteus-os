@@ -95,17 +95,20 @@ class PluginInstallUseCase:
                 f"Plugin '{plugin_code_name}' không tồn tại trên Marketplace."
             )
 
-        # 2. Check if already installed
+        # 2. Check if already installed or being removed.
+        # NOTE: INSTALLING is intentionally excluded from this guard —
+        # the HTTP endpoint sets status=INSTALLING before queuing this background task,
+        # so blocking on INSTALLING would prevent the task from ever running.
         status = await self.plugin_repo.get_installation_status(
             context.tenant_id, plugin.id
         )
-        if status in (
-            PluginStatus.ACTIVE,
-            PluginStatus.INSTALLING,
-            PluginStatus.UNINSTALLING,
-        ):
+        if status == PluginStatus.ACTIVE:
             raise PluginInstallError(
-                f"Plugin '{plugin_code_name}' đang ở trạng thái {status}."
+                f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
+            )
+        if status == PluginStatus.UNINSTALLING:
+            raise PluginInstallError(
+                f"Plugin '{plugin_code_name}' đang trong quá trình gỡ cài đặt, vui lòng thử lại sau."
             )
 
         # 3. Load manifest
@@ -603,13 +606,15 @@ class PluginInstallUseCase:
         context: TenantContext,
         plugin_id: uuid.UUID,
     ) -> None:
-        """Lưu _steps_log hiện tại vào DB (best-effort, không raise)."""
+        """Lưu _steps_log hiện tại vào DB và commit ngay để status polling thấy được."""
         try:
             await self.plugin_repo.update_install_steps_log(
                 tenant_id=context.tenant_id,
                 plugin_id=plugin_id,
                 steps_log=self._steps_log,
             )
+            # Commit ngay để status endpoint thấy progress realtime
+            await self.session.commit()
         except Exception as e:
             logger.warning("Không thể persist steps_log: %s", e)
 
