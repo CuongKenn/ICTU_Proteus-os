@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     PLUGINS_DIR: str = "/plugins"  # Container path
 
     # ─── Metabase (Analytics) ───────────────────────────────
+    METABASE_INTERNAL_URL: str | None = None
     METABASE_SITE_URL: str = "http://localhost:3000"
     METABASE_SECRET_KEY: str = ""
     METABASE_EMBEDDING_KEY: str | None = None

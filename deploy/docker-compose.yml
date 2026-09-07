@@ -469,6 +469,7 @@ services:
       ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: http://localhost:3001
+      METABASE_INTERNAL_URL: http://metabase:3000
       PLUGINS_DIR: /plugins
     volumes:
       - ../plugins:/plugins:ro

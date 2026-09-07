@@ -275,6 +275,15 @@ class PluginInstallUseCase:
                 completed_steps, context, plugin_code_name, manifest, created_assets
             )
 
+            # Reset session state trước khi update status:
+            # 1. Rollback nếu session đang ở trạng thái lỗi (aborted transaction)
+            # 2. Reset search_path về public (tránh bị kẹt ở tenant schema từ step 1)
+            try:
+                await self.session.rollback()
+                await self.session.execute(text("SET search_path TO public"))
+            except Exception as reset_err:
+                logger.warning("Không thể reset session trước error handler: %s", reset_err)
+
             # Update status to FAILED_DIRTY
             await self.plugin_repo.update_status(
                 tenant_id=context.tenant_id,
@@ -338,7 +347,7 @@ class PluginInstallUseCase:
                     / manifest.database.seed_file
                 )
                 if seed_path.exists():
-                    with open(seed_path, encoding="utf-8") as f:
+                    with open(seed_path, encoding="utf-8-sig") as f:
                         sql = f.read()
 
                     # Validation: Cấm các lệnh SQL nguy hiểm
@@ -361,20 +370,34 @@ class PluginInstallUseCase:
                     )
                     has_schema = True
 
-                    # Setup RLS context cho tenant
-                    await self.session.execute(
-                        text("SELECT set_config('role', 'tenant_admin', true)")
-                    )
-                    await self.session.execute(
-                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
-                        {"tid": str(context.tenant_id)},
-                    )
+                    # app.current_tenant_id được set tự động bởi after_begin event listener
+                    # khi current_tenant_id contextvar được thiết lập trong background task.
+                    # KHÔNG dùng set_config('role', ...) vì role 'tenant_admin' không tồn tại.
 
-                    # Execute raw SQL
-                    await self.session.execute(text(sql))
-                    # Không commit ở đây để dùng chung transaction hoặc commit tùy strategy
+                    # asyncpg không hỗ trợ nhiều statement trong một execute().
+                    # Phải split theo dấu ';' và execute từng câu một.
+                    # Dùng SAVEPOINT cho từng câu để seed data fail không làm hỏng transaction.
+                    statements = [s.strip() for s in sql.split(";") if s.strip()]
+                    for i, stmt in enumerate(statements):
+                        sp_name = f"seed_stmt_{i}"
+                        try:
+                            await self.session.execute(text(f"SAVEPOINT {sp_name}"))
+                            await self.session.execute(text(stmt))
+                            await self.session.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+                        except Exception as stmt_err:
+                            logger.warning(
+                                "Seed statement %d failed (skipped): %s — %s",
+                                i,
+                                stmt[:80],
+                                stmt_err,
+                            )
+                            await self.session.execute(
+                                text(f"ROLLBACK TO SAVEPOINT {sp_name}")
+                            )
+                    # Reset search_path về public để tránh ảnh hưởng session tiếp theo
+                    await self.session.execute(text("SET search_path TO public"))
 
-            # Tự động tạo RLS cho các bảng
+            # Tự động tạo RLS cho các bảng (best-effort — table có thể chưa tồn tại)
             if manifest.database.tables:
                 if not has_schema:
                     await self.session.execute(
@@ -388,21 +411,32 @@ class PluginInstallUseCase:
                     if not re.match(r"^[a-zA-Z0-9_]+$", table):
                         raise PluginInstallError(f"Invalid table name: {table}")
 
-                    await self.session.execute(
-                        text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
-                    )
-                    await self.session.execute(
-                        text(
-                            f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
+                    sp = f"rls_{table}"
+                    try:
+                        await self.session.execute(text(f"SAVEPOINT {sp}"))
+                        await self.session.execute(
+                            text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
                         )
-                    )
-                    policy_sql = f"""
-                        CREATE POLICY tenant_isolation_policy ON "{table}"
-                        FOR ALL TO app_user
-                        USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
-                        WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
-                    """
-                    await self.session.execute(text(policy_sql))
+                        await self.session.execute(
+                            text(
+                                f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
+                            )
+                        )
+                        policy_sql = f"""
+                            CREATE POLICY tenant_isolation_policy ON "{table}"
+                            FOR ALL TO app_user
+                            USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
+                            WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
+                        """
+                        await self.session.execute(text(policy_sql))
+                        await self.session.execute(text(f"RELEASE SAVEPOINT {sp}"))
+                    except Exception as rls_err:
+                        logger.warning(
+                            "RLS setup failed for table %s (skipped): %s", table, rls_err
+                        )
+                        await self.session.execute(
+                            text(f"ROLLBACK TO SAVEPOINT {sp}")
+                        )
 
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
@@ -414,7 +448,7 @@ class PluginInstallUseCase:
         for wf in manifest.workflows:
             wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
             if wf_path.exists():
-                with open(wf_path, encoding="utf-8") as f:
+                with open(wf_path, encoding="utf-8-sig") as f:
                     wf_json = json.load(f)
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
@@ -429,7 +463,7 @@ class PluginInstallUseCase:
         for db in manifest.dashboards:
             db_path = self.manifest_parser.plugins_dir / plugin_code_name / db.file
             if db_path.exists():
-                with open(db_path, encoding="utf-8") as f:
+                with open(db_path, encoding="utf-8-sig") as f:
                     db_json = json.load(f)
                 did = await self.metabase_adapter.import_dashboard(db_json)
                 dashboard_ids.append(did)
@@ -453,7 +487,7 @@ class PluginInstallUseCase:
         for app in manifest.ui_apps:
             app_path = self.manifest_parser.plugins_dir / plugin_code_name / app.file
             if app_path.exists():
-                with open(app_path, encoding="utf-8") as f:
+                with open(app_path, encoding="utf-8-sig") as f:
                     app_json = json.load(f)
 
                 aid = await self.appsmith_adapter.import_application(

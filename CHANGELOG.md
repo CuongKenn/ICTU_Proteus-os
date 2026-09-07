@@ -7,6 +7,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
 
 ### Fixed
+- **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi HTTP 400 (Bad Request) khi import workflow n8n do truyền các trường read-only (`active`, `tags`, v.v.). Chuyển sang sử dụng allowlist các trường hợp lệ (`name`, `nodes`, `connections`, `settings`, `triggerCount`) giúp tiến trình cài đặt plugin vượt qua bước cài đặt n8n.
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Sửa lỗi kẹt tiến trình cài đặt Plugin ở 85% do transaction lỗi không được rollback và `search_path` không được reset về `public` trước khi cập nhật trạng thái lỗi (`FAILED_DIRTY`). Lỗi này từng làm tiến trình background chạy ngầm bị sập khiến Frontend rơi vào trạng thái polling vô tận (và cuối cùng nhận lỗi 401).
 - **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Thay `getServerSession()` (gây HTTP 500 trong Next.js App Router route handler) bằng `getToken()` + manual refresh — sửa lỗi Users/Roles/Plugins tabs không load được.
 - **[core-engine/frontend/src/lib/tokenRefresh.ts]** Tách `refreshAccessToken` ra file độc lập để tránh circular import khi BFF proxy import `authOptions` (chứa NextAuth Keycloak provider internal).
 - **[core-engine/backend/migrations/versions/a9f01234b567]** Thêm Alembic migration fix schema bảng `roles`: bổ sung cột `plugin_code_name`, `is_system_role`, `updated_at`, `deleted_at`; xóa `plugin_id` FK — đồng bộ ORM model với DB thực tế.
