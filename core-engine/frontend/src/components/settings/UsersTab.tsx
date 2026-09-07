@@ -299,7 +299,6 @@ export const UsersTab = () => {
                 />
               </div>
             </div>
-            </div>
           </div>
         )}
       </Modal>
