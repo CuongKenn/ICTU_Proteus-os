@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 CuongKenn & ICTU Team
+# Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """fix tenant_plugins trigger: replace update_last_updated_at_column with update_updated_at_column
@@ -21,8 +21,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    # Fix trigger: table tenant_plugins still uses old function update_last_updated_at_column()
-    # which references NEW.last_updated_at. Replace with update_updated_at_column() (uses NEW.updated_at)
+    # Create or replace trigger function so it exists before the trigger is created
+    conn.execute(sa.text("""
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = now();
+                RETURN NEW;
+            END;
+            $$ LANGUAGE 'plpgsql';
+            """))
     conn.execute(
         sa.text(
             "DROP TRIGGER IF EXISTS set_tenant_plugins_updated_at ON tenant_plugins"

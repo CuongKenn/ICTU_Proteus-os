@@ -22,7 +22,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_constraint("tenants_keycloak_realm_key", "tenants", type_="unique")
+    conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            "ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_keycloak_realm_key"
+        )
+    )
 
 
 def downgrade() -> None:
