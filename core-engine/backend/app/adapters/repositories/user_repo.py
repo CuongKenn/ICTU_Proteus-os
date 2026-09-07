@@ -8,7 +8,6 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-
 from app.adapters.repositories.base import AbstractUserRepository
 from app.core.domain.entities import UserEntity
 from app.core.domain.exceptions import NotFoundError
@@ -17,7 +16,7 @@ from app.infrastructure.models import UserModel
 
 def _to_entity(model: UserModel, roles: list[str] | None = None) -> UserEntity:
     """Convert ORM model to domain entity.
-    
+
     QUAN TRỌNG: Không bao giờ access model.roles trực tiếp ở đây vì sẽ trigger
     SQLAlchemy lazy load trong async context -> MissingGreenlet error.
     Luôn truyền roles đã được eager-load thông qua tham số `roles`.
@@ -31,7 +30,6 @@ def _to_entity(model: UserModel, roles: list[str] | None = None) -> UserEntity:
         is_active=model.is_active,
         roles=roles if roles is not None else [],
     )
-
 
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
@@ -49,10 +47,9 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         model = result.scalars().first()
         if not model:
             return None
-            
+
         loaded_roles = [
-            role.display_name or role.name
-            for role in model.__dict__.get('roles', [])
+            role.display_name or role.name for role in model.__dict__.get("roles", [])
         ]
         return _to_entity(model, roles=loaded_roles)
 
@@ -61,10 +58,14 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         Lấy thông tin User dựa vào keycloak_id.
         Dùng selectinload để eager-load roles trong cùng 1 query.
         """
-        stmt = select(UserModel).where(
-            UserModel.keycloak_id == keycloak_id,
-            UserModel.deleted_at.is_(None),
-        ).options(selectinload(UserModel.roles))
+        stmt = (
+            select(UserModel)
+            .where(
+                UserModel.keycloak_id == keycloak_id,
+                UserModel.deleted_at.is_(None),
+            )
+            .options(selectinload(UserModel.roles))
+        )
 
         result = await self.session.execute(stmt)
         model = result.scalars().first()
@@ -72,8 +73,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             return None
         # Roles đã được eager-load, lấy an toàn từ model.__dict__
         loaded_roles = [
-            role.display_name or role.name
-            for role in model.__dict__.get('roles', [])
+            role.display_name or role.name for role in model.__dict__.get("roles", [])
         ]
         return _to_entity(model, roles=loaded_roles)
 
@@ -96,10 +96,10 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
 
         result = await self.session.execute(stmt)
         model = result.scalar_one()
-        
+
         # Flush để đảm bảo record đã có trong DB trước khi reload
         await self.session.flush()
-        
+
         # Reload với eager-load roles để tránh MissingGreenlet
         entity = await self.get_by_keycloak_id(model.keycloak_id)
         if not entity:
@@ -138,7 +138,6 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             )
             .options(selectinload(UserModel.roles))
             .order_by(UserModel.created_at.desc())
-
             .limit(limit)
             .offset(offset)
         )
@@ -148,7 +147,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         for model in models:
             loaded_roles = [
                 role.display_name or role.name
-                for role in model.__dict__.get('roles', [])
+                for role in model.__dict__.get("roles", [])
             ]
             entities.append(_to_entity(model, roles=loaded_roles))
         return entities

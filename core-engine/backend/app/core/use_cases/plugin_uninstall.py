@@ -74,7 +74,9 @@ class PluginUninstallUseCase:
         if getattr(self, "tenant_repo", None):
             tenant = await self.tenant_repo.get_by_id(context.tenant_id)
 
-        status = await self.plugin_repo.get_installation_status(context.tenant_id, plugin_id)
+        status = await self.plugin_repo.get_installation_status(
+            context.tenant_id, plugin_id
+        )
         if status is None:
             raise PluginUninstallError(
                 "Plugin này chưa được cài đặt hoặc không có quyền."
@@ -184,7 +186,7 @@ class PluginUninstallUseCase:
                 e,
                 exc_info=True,
             )
-            
+
             await self.session.rollback()
 
             # Nếu lỗi, ta mark là FAILED_DIRTY để admin hoặc job cleanup xử lý

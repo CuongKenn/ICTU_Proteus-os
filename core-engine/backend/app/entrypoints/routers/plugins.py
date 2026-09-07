@@ -191,11 +191,21 @@ async def _run_install_plugin_background(
     app_state,
 ):
     import sys
+
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+
     # Set tenant_id contextvar để after_begin event listener cài RLS đúng
     tenant_id_ctx.set(str(ctx.tenant_id))
-    print(f"[BG_TASK] _run_install_plugin_background STARTED: {plugin_code_name}", flush=True, file=sys.stderr)
-    logger.info("Background task started for plugin %s, tenant %s", plugin_code_name, ctx.tenant_id)
+    print(
+        f"[BG_TASK] _run_install_plugin_background STARTED: {plugin_code_name}",
+        flush=True,
+        file=sys.stderr,
+    )
+    logger.info(
+        "Background task started for plugin %s, tenant %s",
+        plugin_code_name,
+        ctx.tenant_id,
+    )
 
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
@@ -228,7 +238,11 @@ async def _run_install_plugin_background(
             )
         print(f"[BG_TASK] COMPLETED: {plugin_code_name}", flush=True, file=sys.stderr)
     except BaseException as e:
-        print(f"[BG_TASK] FAILED: {plugin_code_name} — {type(e).__name__}: {e}", flush=True, file=sys.stderr)
+        print(
+            f"[BG_TASK] FAILED: {plugin_code_name} — {type(e).__name__}: {e}",
+            flush=True,
+            file=sys.stderr,
+        )
         logger.error("Background task plugin install failed: %s", e, exc_info=True)
 
 

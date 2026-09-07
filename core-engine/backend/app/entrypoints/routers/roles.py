@@ -6,11 +6,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import NotFoundError
 from app.core.use_cases.role_management import RoleManagementUseCase
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_db_transactional,
@@ -30,6 +30,7 @@ def get_role_use_case(
     session: AsyncSession = Depends(get_db_transactional),
 ) -> RoleManagementUseCase:
     from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+
     role_repo = RoleRepository(session)
     user_repo = SQLAlchemyUserRepository(session)
     return RoleManagementUseCase(role_repo, user_repo)
@@ -129,11 +130,11 @@ async def assign_role_to_user(
         role = await use_case.get_role(role_id, tenant_context.tenant_id)
         if not role:
             raise ValueError("Role not found")
-            
+
         await use_case.assign_role_to_user(
             data.user_id, role_id, tenant_context.user_id, tenant_context.tenant_id
         )
-        
+
         # Assign role in Keycloak
         try:
             await keycloak.assign_role_to_user(
@@ -141,7 +142,10 @@ async def assign_role_to_user(
             )
         except Exception as exc:
             import logging
-            logging.getLogger(__name__).warning("Lỗi khi gán role cho Keycloak user", exc_info=exc)
+
+            logging.getLogger(__name__).warning(
+                "Lỗi khi gán role cho Keycloak user", exc_info=exc
+            )
 
         return {"detail": "Role assigned successfully"}
     except ValueError as e:
@@ -168,11 +172,11 @@ async def revoke_role_from_user(
         role = await use_case.get_role(role_id, tenant_context.tenant_id)
         if not role:
             raise ValueError("Role not found")
-            
+
         await use_case.revoke_role_from_user(
             data.user_id, role_id, tenant_context.tenant_id
         )
-        
+
         # Revoke role in Keycloak
         try:
             await keycloak.revoke_role_from_user(
@@ -180,8 +184,11 @@ async def revoke_role_from_user(
             )
         except Exception as exc:
             import logging
-            logging.getLogger(__name__).warning("Lỗi khi thu hồi role từ Keycloak user", exc_info=exc)
-            
+
+            logging.getLogger(__name__).warning(
+                "Lỗi khi thu hồi role từ Keycloak user", exc_info=exc
+            )
+
         return {"detail": "Role revoked successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

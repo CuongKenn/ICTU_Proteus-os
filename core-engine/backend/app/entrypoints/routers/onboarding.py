@@ -9,9 +9,13 @@ from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.entrypoints.schemas.onboarding_schemas import SignupRequest, SignupResponse
 from app.infrastructure.database import get_db_transactional
-from app.use_cases.tenants.onboarding_use_case import OnboardingRequest, OnboardingUseCase
+from app.use_cases.tenants.onboarding_use_case import (
+    OnboardingRequest,
+    OnboardingUseCase,
+)
 
 router = APIRouter(prefix="/onboarding")
+
 
 @router.post(
     "/signup",
@@ -50,11 +54,10 @@ async def signup(
         return SignupResponse(**result)
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Có lỗi xảy ra khi tạo tài khoản. Vui lòng thử lại sau."
+            detail="Có lỗi xảy ra khi tạo tài khoản. Vui lòng thử lại sau.",
         ) from e

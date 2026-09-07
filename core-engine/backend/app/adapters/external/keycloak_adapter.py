@@ -188,9 +188,7 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
                 return group.get("id")
         return None
 
-    async def add_user_to_group(
-        self, realm: str, user_id: str, group_id: str
-    ) -> None:
+    async def add_user_to_group(self, realm: str, user_id: str, group_id: str) -> None:
         """Thêm User vào Group trong Keycloak."""
         admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/groups/{group_id}"
@@ -240,37 +238,33 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=10.0,
         )
-        
+
         if response.status_code == 409:
             raise ValueError(f"User with email {email} already exists in Keycloak")
-            
+
         response.raise_for_status()
-        
+
         # Keycloak POST /users returns 201 Created with Location header containing the ID
         location = response.headers.get("Location")
         if not location:
             # Fallback: search by email to get ID
             search_url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users?email={email}&exact=true"
-            search_res = await self._client.get(search_url, headers={"Authorization": f"Bearer {admin_token}"})
+            search_res = await self._client.get(
+                search_url, headers={"Authorization": f"Bearer {admin_token}"}
+            )
             search_res.raise_for_status()
             users = search_res.json()
             if not users:
                 raise RuntimeError("Created user not found")
             return users[0]["id"]
-            
+
         return location.split("/")[-1]
 
-    async def set_user_password(
-        self, realm: str, user_id: str, password: str
-    ) -> None:
+    async def set_user_password(self, realm: str, user_id: str, password: str) -> None:
         """Đặt mật khẩu cho user."""
         admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/reset-password"
-        payload = {
-            "type": "password",
-            "value": password,
-            "temporary": False
-        }
+        payload = {"type": "password", "value": password, "temporary": False}
         response = await self._client.put(
             url,
             json=payload,
@@ -285,7 +279,7 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         """Gán Role cho User (Realm Role)."""
         role = await self.get_role(realm, role_name)
         admin_token = await self.get_admin_token()
-        
+
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/role-mappings/realm"
         response = await self._client.post(
             url,
@@ -301,13 +295,13 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         """Thu hồi Role từ User (Realm Role)."""
         role = await self.get_role(realm, role_name)
         admin_token = await self.get_admin_token()
-        
+
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/role-mappings/realm"
         request = httpx.Request(
             "DELETE",
             url,
             json=[role],
-            headers={"Authorization": f"Bearer {admin_token}"}
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
         response = await self._client.send(request, timeout=10.0)
         response.raise_for_status()

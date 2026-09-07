@@ -51,7 +51,7 @@ class RoleManagementUseCase:
         role = await self.role_repo.get_role(role_id, tenant_id)
         if not role:
             raise ValueError(f"Role {role_id} not found in tenant {tenant_id}")
-            
+
         admin_internal_id = None
         if self.user_repo and granted_by:
             admin_user = await self.user_repo.get_by_keycloak_id(granted_by)

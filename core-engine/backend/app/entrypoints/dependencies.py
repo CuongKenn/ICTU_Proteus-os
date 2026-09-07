@@ -280,7 +280,7 @@ async def get_current_tenant_context(
                 tenant_id_raw = str(db_user.tenant_id)
                 logger.info(
                     "tenant_id không có trong token — resolved từ DB",
-                    extra={"keycloak_id": user_id_raw, "tenant_id": tenant_id_raw}
+                    extra={"keycloak_id": user_id_raw, "tenant_id": tenant_id_raw},
                 )
             else:
                 raise HTTPException(
@@ -325,7 +325,6 @@ async def get_current_tenant_context(
         email=payload.get("email", ""),
         full_name=full_name,
     )
-
 
 
 async def get_tenant_onboarding_use_case(

@@ -3,11 +3,15 @@
 
 from pydantic import BaseModel, Field
 
+
 class SignupRequest(BaseModel):
     company_name: str = Field(..., min_length=2, max_length=255)
     admin_full_name: str = Field(..., min_length=2, max_length=255)
-    admin_email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    admin_email: str = Field(
+        ..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    )
     admin_password: str = Field(..., min_length=8)
+
 
 class SignupResponse(BaseModel):
     tenant_id: str

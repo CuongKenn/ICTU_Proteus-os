@@ -12,8 +12,8 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
-from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
+from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import NotFoundError
 from app.entrypoints.dependencies import (
@@ -30,6 +30,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
 
+
 class UserResponse(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
@@ -38,7 +39,6 @@ class UserResponse(BaseModel):
     full_name: str | None
     roles: list[str] = []
     is_active: bool
-
 
     model_config = {"from_attributes": True}
 
@@ -51,6 +51,7 @@ class InviteUserRequest(BaseModel):
     @classmethod
     def validate_email(cls, v: str) -> str:
         import re
+
         pattern = r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
         if not re.match(pattern, v):
             raise ValueError("Email không hợp lệ")
@@ -58,6 +59,7 @@ class InviteUserRequest(BaseModel):
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
 
 @router.get(
     "",
@@ -80,7 +82,6 @@ async def list_users(
             full_name=u.full_name,
             roles=u.roles,
             is_active=u.is_active,
-
         )
         for u in users
     ]
@@ -138,7 +139,10 @@ async def invite_user(
             realm=realm, user_id=keycloak_user_id, role_name="user"
         )
     except Exception:
-        logger.warning("Không thể gán role mặc định cho user mới", extra={"user_id": keycloak_user_id})
+        logger.warning(
+            "Không thể gán role mặc định cho user mới",
+            extra={"user_id": keycloak_user_id},
+        )
 
     # 2.5 Gán user vào Keycloak Group của Tenant
     try:
@@ -147,7 +151,9 @@ async def invite_user(
         if group_id:
             await keycloak.add_user_to_group(realm, keycloak_user_id, group_id)
         else:
-            logger.warning("Không tìm thấy Keycloak group để map user", extra={"group": group_name})
+            logger.warning(
+                "Không tìm thấy Keycloak group để map user", extra={"group": group_name}
+            )
     except Exception as e:
         logger.warning("Lỗi khi map user vào Keycloak group", exc_info=e)
 
@@ -165,14 +171,16 @@ async def invite_user(
 
     # 4. Lưu user vào DB
     new_user_id = uuid.uuid4()
-    user_entity = await user_repo.upsert({
-        "id": new_user_id,
-        "tenant_id": context.tenant_id,
-        "keycloak_id": uuid.UUID(keycloak_user_id),
-        "email": payload.email,
-        "full_name": payload.full_name,
-        "is_active": True,
-    })
+    user_entity = await user_repo.upsert(
+        {
+            "id": new_user_id,
+            "tenant_id": context.tenant_id,
+            "keycloak_id": uuid.UUID(keycloak_user_id),
+            "email": payload.email,
+            "full_name": payload.full_name,
+            "is_active": True,
+        }
+    )
     await db.commit()
 
     logger.info(
@@ -188,7 +196,6 @@ async def invite_user(
         full_name=user_entity.full_name,
         roles=user_entity.roles,
         is_active=user_entity.is_active,
-
     )
 
 
@@ -214,7 +221,9 @@ async def deactivate_user(
     users = await user_repo.list_by_tenant(tenant_id=context.tenant_id)
     target = next((u for u in users if u.id == user_id), None)
     if not target:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy user.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy user."
+        )
 
     # Không cho phép deactivate chính mình
     if target.keycloak_id == context.user_id:
@@ -226,7 +235,9 @@ async def deactivate_user(
     # Disable trên Keycloak trước
     if target.keycloak_id:
         try:
-            await keycloak.disable_user(realm="proteus", user_id=str(target.keycloak_id))
+            await keycloak.disable_user(
+                realm="proteus", user_id=str(target.keycloak_id)
+            )
         except Exception as e:
             logger.error(f"Không thể disable user trên Keycloak: {e}")
 

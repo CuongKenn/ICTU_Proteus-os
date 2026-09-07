@@ -187,7 +187,7 @@ class AppsmithAdapter(AbstractUIBuilderPort):
         if response.status_code in (401, 403):
             logger.warning(
                 "Appsmith authentication failed (401/403). UI App import skipped.",
-                extra={"app_name": app_json.get("name", "unknown")}
+                extra={"app_name": app_json.get("name", "unknown")},
             )
             return "skipped-appsmith-app"
 

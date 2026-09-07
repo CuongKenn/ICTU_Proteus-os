@@ -282,7 +282,9 @@ class PluginInstallUseCase:
                 await self.session.rollback()
                 await self.session.execute(text("SET search_path TO public"))
             except Exception as reset_err:
-                logger.warning("Không thể reset session trước error handler: %s", reset_err)
+                logger.warning(
+                    "Không thể reset session trước error handler: %s", reset_err
+                )
 
             # Update status to FAILED_DIRTY
             await self.plugin_repo.update_status(
@@ -383,7 +385,9 @@ class PluginInstallUseCase:
                         try:
                             await self.session.execute(text(f"SAVEPOINT {sp_name}"))
                             await self.session.execute(text(stmt))
-                            await self.session.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+                            await self.session.execute(
+                                text(f"RELEASE SAVEPOINT {sp_name}")
+                            )
                         except Exception as stmt_err:
                             logger.warning(
                                 "Seed statement %d failed (skipped): %s — %s",
@@ -432,11 +436,11 @@ class PluginInstallUseCase:
                         await self.session.execute(text(f"RELEASE SAVEPOINT {sp}"))
                     except Exception as rls_err:
                         logger.warning(
-                            "RLS setup failed for table %s (skipped): %s", table, rls_err
+                            "RLS setup failed for table %s (skipped): %s",
+                            table,
+                            rls_err,
                         )
-                        await self.session.execute(
-                            text(f"ROLLBACK TO SAVEPOINT {sp}")
-                        )
+                        await self.session.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
 
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
@@ -726,7 +730,9 @@ class PluginInstallUseCase:
                                     text(f'DROP TABLE IF EXISTS "{table}" CASCADE')
                                 )
                         finally:
-                            await self.session.execute(text("SET search_path TO public"))
+                            await self.session.execute(
+                                text("SET search_path TO public")
+                            )
                 elif step == "credentials":
                     if hasattr(self.n8n_adapter, "delete_credential"):
                         for cred in getattr(self, "_credential_ids", []):
