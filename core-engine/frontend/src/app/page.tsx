@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/authOptions";
 import { LandingPage } from "@/components/home/LandingPage";
 
 export default async function HomePage() {
