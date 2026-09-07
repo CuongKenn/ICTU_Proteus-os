@@ -87,7 +87,7 @@ async def update_role(
         )
         return role
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -102,7 +102,7 @@ async def delete_role(
     try:
         await use_case.delete_role(role_id, tenant_context.tenant_id)
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/{role_id}/assign")
@@ -121,7 +121,7 @@ async def assign_role_to_user(
         )
         return {"detail": "Role assigned successfully"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/{role_id}/revoke")
@@ -140,6 +140,6 @@ async def revoke_role_from_user(
         )
         return {"detail": "Role revoked successfully"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
