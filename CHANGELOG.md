@@ -13,6 +13,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Frontend]** Xóa bỏ endpoint debug `/debug-token` tại BFF Proxy nhằm ngăn chặn hoàn toàn nguy cơ lộ lọt nguyên bản JWT Token ra bên ngoài (Issue #596).
 
 ### Added
+- **[Frontend]** Khởi tạo giao diện cấu hình Role và phân quyền Permission dạng Matrix trên trang Settings (Issue #654).
 - **[Frontend]** Tích hợp cơ chế RBAC Frontend thông qua custom hook `useRBAC` để tự động khóa các thao tác không được cấp quyền trên `PluginCard` (Issue #655).
 
 ### Changed
