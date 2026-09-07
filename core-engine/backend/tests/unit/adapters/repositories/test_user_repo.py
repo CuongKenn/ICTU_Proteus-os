@@ -77,7 +77,7 @@ async def test_upsert(user_repo, mock_session):
     # Assert
     assert result is not None
     assert result.id == expected_user.id
-    mock_session.execute.assert_called_once()
+    assert mock_session.execute.call_count == 2
     mock_result.scalar_one.assert_called_once()
 
 
