@@ -31,7 +31,8 @@ export const TenantTab: React.FC = () => {
   useEffect(() => {
     const fetchTenant = async () => {
       try {
-        const res = await api.get("/tenants/me");
+        const res = await api.get("/v1/tenants/me");
+
         setTenant(res.data);
         setName(res.data.name);
       } catch (err) {
@@ -52,7 +53,8 @@ export const TenantTab: React.FC = () => {
     setError(null);
     setSuccess(null);
     try {
-      const res = await api.patch("/tenants/me", { name });
+      const res = await api.patch("/v1/tenants/me", { name });
+
       setTenant(res.data);
       setSuccess("Cập nhật thông tin thành công!");
     } catch (err) {

@@ -30,7 +30,8 @@ export const IntegrationsTab: React.FC = () => {
   useEffect(() => {
     const fetchIntegrations = async () => {
       try {
-        const res = await api.get("/tenants/me/integrations");
+        const res = await api.get("/v1/tenants/me/integrations");
+
         setIntegrations(res.data);
       } catch (err) {
         logger.error("Failed to fetch integrations", err);
@@ -56,7 +57,8 @@ export const IntegrationsTab: React.FC = () => {
         return;
       }
 
-      const res = await api.post("/tenants/me/integrations", {
+      const res = await api.post("/v1/tenants/me/integrations", {
+
         provider: newProvider,
         config: parsedConfig,
       });
