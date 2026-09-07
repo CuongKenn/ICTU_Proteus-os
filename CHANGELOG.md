@@ -4,7 +4,23 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
+
+### Fixed
+- **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Thay `getServerSession()` (gây HTTP 500 trong Next.js App Router route handler) bằng `getToken()` + manual refresh — sửa lỗi Users/Roles/Plugins tabs không load được.
+- **[core-engine/frontend/src/lib/tokenRefresh.ts]** Tách `refreshAccessToken` ra file độc lập để tránh circular import khi BFF proxy import `authOptions` (chứa NextAuth Keycloak provider internal).
+- **[core-engine/backend/migrations/versions/a9f01234b567]** Thêm Alembic migration fix schema bảng `roles`: bổ sung cột `plugin_code_name`, `is_system_role`, `updated_at`, `deleted_at`; xóa `plugin_id` FK — đồng bộ ORM model với DB thực tế.
+- **[core-engine/frontend/src/hooks/usePlugins.ts]** Thêm prefix `/v1/` vào tất cả 6 API calls (trước đây gọi `/plugins/...` gây 404 — BFF proxy map sang `/api/plugins/...` thay vì `/api/v1/plugins/...`).
+- **[core-engine/frontend/src/hooks/useMarketplace.ts]** Thêm prefix `/v1/` vào endpoint `GET /plugins` và `GET /plugins/install/{taskId}/status`.
+- **[core-engine/frontend/src/components/settings/TenantTab.tsx]** Thêm prefix `/v1/` vào `GET/PATCH /tenants/me`.
+- **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thêm prefix `/v1/` vào `GET/POST /tenants/me/integrations`.
+
+### Changed
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Loại bỏ hoàn toàn hardcoded `tenant_id` — thay bằng DB lookup theo `keycloak_sub` từ JWT token.
+- **[core-engine/backend/tests/entrypoints/test_auth_dependency.py]** Rewrite test file để match signature mới của `get_current_tenant_context` (có param `db`).
+
 ## [Unreleased] — SaaS Tenant Onboarding (2026-09-07)
+
 
 ### Added
 - **[core-engine/frontend]** Bổ sung Landing Page (Trang chủ công khai) tại `src/app/page.tsx` với thiết kế Glassmorphism hiện đại làm mặt tiền hệ thống.
