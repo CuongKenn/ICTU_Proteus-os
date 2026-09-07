@@ -335,10 +335,10 @@ async def get_tenant_onboarding_use_case(
 
 
 async def get_user_provisioning_use_case(
-    repo: AbstractUserRepository = Depends(get_user_repo),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> UserProvisioningUseCase:
-    """Inject User Provisioning Use Case."""
-    return UserProvisioningUseCase(user_repo=repo)
+    """Inject User Provisioning Use Case với Transactional Session (upsert cần ghi DB)."""
+    return UserProvisioningUseCase(user_repo=SQLAlchemyUserRepository(session=db))
 
 
 async def get_keycloak_webhook_use_case(
