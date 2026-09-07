@@ -67,6 +67,9 @@ async def test_upsert(user_repo, mock_session):
 
     expected_user = UserModel(**user_data, id=uuid.uuid4(), is_active=True)
     mock_result.scalar_one.return_value = expected_user
+    mock_scalars = MagicMock()
+    mock_scalars.first.return_value = expected_user
+    mock_result.scalars.return_value = mock_scalars
 
     # Execute
     result = await user_repo.upsert(user_data)

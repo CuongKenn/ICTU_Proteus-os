@@ -17,6 +17,7 @@ def mock_client():
 @pytest.fixture
 def adapter(mock_client):
     with patch("app.adapters.external.metabase_adapter.settings") as mock_settings:
+        mock_settings.METABASE_INTERNAL_URL = None
         mock_settings.METABASE_SITE_URL = "http://metabase.local"
         mock_settings.METABASE_EMBEDDING_KEY = "supersecretkey"
         yield MetabaseAdapter(client=mock_client)

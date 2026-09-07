@@ -30,10 +30,12 @@ def make_mock_db(keycloak_id: str | None = None, tenant_id: str | None = None):
         mock_user = MagicMock()
         mock_user.tenant_id = uuid.UUID(tenant_id)
         from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+
         # Patch get_by_keycloak_id trên SQLAlchemyUserRepository
         SQLAlchemyUserRepository.get_by_keycloak_id = AsyncMock(return_value=mock_user)
     else:
         from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+
         SQLAlchemyUserRepository.get_by_keycloak_id = AsyncMock(return_value=None)
     return db
 
@@ -83,7 +85,9 @@ async def test_get_current_tenant_context_invalid_jwt(mock_keycloak, valid_crede
 
 
 @pytest.mark.asyncio
-async def test_get_current_tenant_context_fallback_to_db(mock_keycloak, valid_credentials):
+async def test_get_current_tenant_context_fallback_to_db(
+    mock_keycloak, valid_credentials
+):
     """Token không có tenant_id → fallback lookup DB theo keycloak sub."""
     user_sub = str(uuid.uuid4())
     real_tenant_id = str(uuid.uuid4())
@@ -102,8 +106,11 @@ async def test_get_current_tenant_context_fallback_to_db(mock_keycloak, valid_cr
     mock_user.tenant_id = uuid.UUID(real_tenant_id)
 
     from app.adapters.repositories import user_repo as user_repo_module
+
     original = user_repo_module.SQLAlchemyUserRepository.get_by_keycloak_id
-    user_repo_module.SQLAlchemyUserRepository.get_by_keycloak_id = AsyncMock(return_value=mock_user)
+    user_repo_module.SQLAlchemyUserRepository.get_by_keycloak_id = AsyncMock(
+        return_value=mock_user
+    )
 
     try:
         tenant_context = await get_current_tenant_context(
@@ -131,8 +138,11 @@ async def test_get_current_tenant_context_missing_tenant_no_db_record(
     )
 
     from app.adapters.repositories import user_repo as user_repo_module
+
     original = user_repo_module.SQLAlchemyUserRepository.get_by_keycloak_id
-    user_repo_module.SQLAlchemyUserRepository.get_by_keycloak_id = AsyncMock(return_value=None)
+    user_repo_module.SQLAlchemyUserRepository.get_by_keycloak_id = AsyncMock(
+        return_value=None
+    )
 
     try:
         with pytest.raises(HTTPException) as exc_info:

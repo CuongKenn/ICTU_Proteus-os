@@ -40,7 +40,7 @@ async def test_sync_user_profile(use_case, mock_user_repo):
         keycloak_id=user_id,
         email="test@example.com",
         full_name="Test User",
-        roles=[],
+        roles=["admin"],
         is_active=True,
     )
 
