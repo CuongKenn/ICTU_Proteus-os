@@ -27,8 +27,10 @@ router = APIRouter(prefix="/roles", tags=["Roles"])
 def get_role_use_case(
     session: AsyncSession = Depends(get_db_transactional),
 ) -> RoleManagementUseCase:
+    from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
     role_repo = RoleRepository(session)
-    return RoleManagementUseCase(role_repo)
+    user_repo = SQLAlchemyUserRepository(session)
+    return RoleManagementUseCase(role_repo, user_repo)
 
 
 @router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)

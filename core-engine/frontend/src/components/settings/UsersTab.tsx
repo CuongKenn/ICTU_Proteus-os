@@ -24,6 +24,7 @@ interface User {
 interface Role {
   id: string;
   name: string;
+  display_name: string;
   description: string | null;
 }
 
@@ -238,13 +239,20 @@ export const UsersTab = () => {
       </div>
 
       {/* Invite Modal */}
-      <Modal isOpen={isInviteModalOpen} onClose={() => {
-        setIsInviteModalOpen(false);
-        setInviteError(null);
-        setInviteSuccess(false);
-        setInviteEmail("");
-        setInviteFullName("");
-      }} title="Mời nhân viên mới">
+      <Modal 
+        isOpen={isInviteModalOpen} 
+        onClose={() => {
+          setIsInviteModalOpen(false);
+          setInviteError(null);
+          setInviteSuccess(false);
+          setInviteEmail("");
+          setInviteFullName("");
+        }} 
+        title="Mời nhân viên mới"
+        onConfirm={!inviteSuccess ? handleInvite : undefined}
+        confirmLabel="Gửi lời mời"
+        isConfirmLoading={inviting}
+      >
         {inviteSuccess ? (
           <div className="flex flex-col items-center gap-4 py-6">
             <CheckCircle2 className="w-12 h-12 text-success" />
@@ -291,22 +299,20 @@ export const UsersTab = () => {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4 border-t border-border mt-4">
-              <Button variant="secondary" onClick={() => setIsInviteModalOpen(false)}>Hủy</Button>
-              <Button
-                onClick={handleInvite}
-                disabled={inviting || !inviteEmail || !inviteFullName}
-                isLoading={inviting}
-              >
-                Gửi lời mời
-              </Button>
             </div>
           </div>
         )}
       </Modal>
 
       {/* Assign Role Modal */}
-      <Modal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} title="Gán Role cho Người Dùng">
+      <Modal 
+        isOpen={isRoleModalOpen} 
+        onClose={() => setIsRoleModalOpen(false)} 
+        title="Gán Role cho Người Dùng"
+        onConfirm={handleAssignRole}
+        confirmLabel="Lưu thay đổi"
+        isConfirmLoading={assigning}
+      >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
             Đang cấu hình cho: <strong className="text-text-primary">{selectedUser?.full_name || selectedUser?.email}</strong>
@@ -326,7 +332,7 @@ export const UsersTab = () => {
                     className="w-4 h-4 text-primary focus:ring-primary/20"
                   />
                   <div>
-                    <span className="text-text-primary font-medium">{role.name}</span>
+                    <span className="text-text-primary font-medium">{role.display_name || role.name}</span>
                     {role.description && (
                       <p className="text-xs text-text-secondary">{role.description}</p>
                     )}
@@ -335,16 +341,7 @@ export const UsersTab = () => {
               ))}
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-4 border-t border-border mt-4">
-            <Button variant="secondary" onClick={() => setIsRoleModalOpen(false)}>Hủy</Button>
-            <Button
-              onClick={handleAssignRole}
-              disabled={assigning || !selectedRoleId}
-              isLoading={assigning}
-            >
-              Lưu thay đổi
-            </Button>
-          </div>
+          )}
         </div>
       </Modal>
     </div>
