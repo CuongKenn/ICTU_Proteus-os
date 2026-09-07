@@ -171,7 +171,7 @@ export const UsersTab = () => {
               {users.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-12 text-center text-text-secondary">
-                    Chưa có nhân viên nào. Bấm "Mời nhân viên" để bắt đầu.
+                    Chưa có nhân viên nào. Bấm &quot;Mời nhân viên&quot; để bắt đầu.
                   </td>
                 </tr>
               ) : (
