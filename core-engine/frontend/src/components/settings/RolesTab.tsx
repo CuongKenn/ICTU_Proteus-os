@@ -164,59 +164,71 @@ export const RolesTab = () => {
       </div>
 
       {/* Cấu hình Role Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selectedRole ? "Chỉnh sửa Role" : "Tạo Role Mới"}>
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title={selectedRole ? "Chỉnh sửa Role" : "Tạo Role Mới"}
+        maxWidth="2xl"
+        onConfirm={handleSave}
+        confirmLabel="Lưu Role"
+      >
+        <div className="space-y-6 pb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">Tên Role</label>
+              <label className="text-sm font-semibold text-text-primary">Tên Role</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors"
-                placeholder="VD: Manager"
+                className="w-full bg-bg-base border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-text-disabled"
+                placeholder="VD: Quản lý Nhân sự"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">Mô tả (Tùy chọn)</label>
+              <label className="text-sm font-semibold text-text-primary">Mô tả (Tùy chọn)</label>
               <input
                 type="text"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors"
-                placeholder="Mô tả vai trò này..."
+                className="w-full bg-bg-base border border-border rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-text-disabled"
+                placeholder="VD: Quản trị các module liên quan đến nhân sự..."
               />
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-text-secondary">Cấu hình Permissions (Matrix)</h4>
-            <div className="border border-border rounded-xl overflow-hidden bg-bg-surface/30">
+            <h4 className="text-sm font-semibold text-text-primary">Quyền truy cập (Permissions)</h4>
+            <div className="border border-border rounded-xl overflow-hidden bg-bg-base/50">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-bg-surface/50">
-                    <th className="py-3 px-4 font-medium text-text-secondary w-1/3">Module</th>
-                    <th className="py-3 px-4 font-medium text-text-secondary">Actions</th>
+                    <th className="py-3 px-5 font-semibold text-text-secondary w-1/3">Module / Chức năng</th>
+                    <th className="py-3 px-5 font-semibold text-text-secondary">Quyền hạn (Actions)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/50">
                   {AVAILABLE_MODULES.map((mod) => (
-                    <tr key={mod.id} className="hover:bg-bg-hover/30 transition-colors">
-                      <td className="py-3 px-4 font-medium text-text-primary">{mod.name}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-4">
+                    <tr key={mod.id} className="hover:bg-bg-hover/20 transition-colors">
+                      <td className="py-4 px-5 align-top">
+                        <span className="font-medium text-text-primary block">{mod.name}</span>
+                        <span className="text-xs text-text-muted mt-1 block">Tùy chỉnh quyền truy cập cho {mod.name}</span>
+                      </td>
+                      <td className="py-4 px-5">
+                        <div className="flex flex-wrap gap-x-6 gap-y-3">
                           {mod.actions.map(action => {
                             const isChecked = (formPermissions[mod.id] || []).includes(action);
                             return (
-                              <label key={action} className="flex items-center gap-2 cursor-pointer group">
-                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-primary border-primary text-white' : 'border-text-muted group-hover:border-primary/50 bg-transparent'}`}>
+                              <label key={action} className="flex items-center gap-2.5 cursor-pointer group select-none">
+                                <div className={`relative flex items-center justify-center w-5 h-5 rounded-[6px] border transition-all duration-200 ${isChecked ? 'bg-primary border-primary text-white shadow-[0_0_8px_rgba(168,85,247,0.4)]' : 'bg-bg-surface border-border group-hover:border-primary/50'}`}>
                                   {isChecked && (
-                                    <svg viewBox="0 0 14 14" fill="none" className="w-3 h-3">
-                                      <path d="M3 7.5L5.5 10L11 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <svg viewBox="0 0 14 14" fill="none" className="w-3.5 h-3.5" style={{ strokeDasharray: 10, strokeDashoffset: 0 }}>
+                                      <path d="M3 7.5L5.5 10L11 4.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                   )}
                                 </div>
-                                <span className={`text-sm ${isChecked ? 'text-text-primary' : 'text-text-secondary group-hover:text-text-primary'}`}>{action}</span>
+                                <span className={`text-sm capitalize transition-colors duration-200 ${isChecked ? 'text-text-primary font-medium' : 'text-text-secondary group-hover:text-text-primary'}`}>
+                                  {action.replace('_', ' ')}
+                                </span>
                                 <input 
                                   type="checkbox" 
                                   className="hidden" 
@@ -234,13 +246,9 @@ export const RolesTab = () => {
               </table>
             </div>
           </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Hủy</Button>
-            <Button onClick={handleSave}>Lưu Role</Button>
-          </div>
         </div>
       </Modal>
+
     </div>
   );
 };
