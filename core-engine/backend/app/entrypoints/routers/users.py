@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import NotFoundError
 from app.entrypoints.dependencies import (
@@ -105,6 +106,11 @@ async def invite_user(
     """
     realm = "proteus"
     user_repo = SQLAlchemyUserRepository(session=db)
+    tenant_repo = SQLAlchemyTenantRepository(session=db)
+
+    tenant = await tenant_repo.get_by_id(context.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=500, detail="Tenant không tồn tại")
 
     # 1. Tạo user trên Keycloak (enabled nhưng chưa có password — yêu cầu actions)
     name_parts = payload.full_name.strip().split(" ", 1)
@@ -133,6 +139,17 @@ async def invite_user(
         )
     except Exception:
         logger.warning("Không thể gán role mặc định cho user mới", extra={"user_id": keycloak_user_id})
+
+    # 2.5 Gán user vào Keycloak Group của Tenant
+    try:
+        group_name = f"tenant_{tenant.slug}"
+        group_id = await keycloak.get_group_by_name(realm, group_name)
+        if group_id:
+            await keycloak.add_user_to_group(realm, keycloak_user_id, group_id)
+        else:
+            logger.warning("Không tìm thấy Keycloak group để map user", extra={"group": group_name})
+    except Exception as e:
+        logger.warning("Lỗi khi map user vào Keycloak group", exc_info=e)
 
     # 3. Gửi email mời đặt mật khẩu
     try:

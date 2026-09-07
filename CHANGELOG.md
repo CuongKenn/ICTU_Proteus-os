@@ -14,6 +14,12 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/frontend/src/hooks/useMarketplace.ts]** Thêm prefix `/v1/` vào endpoint `GET /plugins` và `GET /plugins/install/{taskId}/status`.
 - **[core-engine/frontend/src/components/settings/TenantTab.tsx]** Thêm prefix `/v1/` vào `GET/PATCH /tenants/me`.
 - **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thêm prefix `/v1/` vào `GET/POST /tenants/me/integrations`.
+- **[core-engine/backend/app/adapters/external/keycloak_adapter.py]** Bổ sung hàm `add_user_to_group` và `get_group_by_name` để thao tác trực tiếp với Keycloak Group.
+- **[core-engine/backend/app/entrypoints/routers/users.py]** Fix lỗi không map user vào Keycloak Group khi gửi email mời nhân viên (`/users/invite`). Bây giờ user sẽ được tự động thêm vào Group `tenant_{slug}` thay vì chỉ được gán attribute.
+- **[core-engine/backend/app/adapters/repositories/user_repo.py]** Sửa lỗi `MissingGreenletError` ngầm trên API `/v1/auth/me` do lazy loading của SQLAlchemy. Chỉnh `upsert` nạp lại entity để luôn lấy được mảng `roles` cho Frontend.
+- **[core-engine/frontend/src/components/auth/AuthProvider.tsx]** Chỉnh sửa luồng xác thực: Buộc gọi `/v1/auth/me` để lấy danh sách Roles thực tế từ DB mỗi khi load lại trang, thay vì chỉ phụ thuộc hoàn toàn vào bản chụp JWT từ Keycloak.
+- **[core-engine/frontend/src/hooks/useRBAC.ts]** Sửa logic so khớp quyền: Kiểm tra cả `role.name` và `role.display_name` để đảm bảo Frontend không bị miss quyền khi user giữ custom role có tên tiếng Việt (như "Giám Đốc").
+- **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts & api.ts]** Fix lỗi văng đăng xuất (Logout) liên tục do mất đồng bộ Token Refresh. Chuyển logic Silent Refresh từ BFF Proxy sang Axios Interceptor trên Frontend (`getSession()`) để NextAuth có thể set lại HTTP-Only Cookie chứa token mới sau mỗi lần Refresh Token Rotation.
 
 ### Changed
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Loại bỏ hoàn toàn hardcoded `tenant_id` — thay bằng DB lookup theo `keycloak_sub` từ JWT token.

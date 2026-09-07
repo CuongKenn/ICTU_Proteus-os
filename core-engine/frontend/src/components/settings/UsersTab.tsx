@@ -48,6 +48,15 @@ export const UsersTab = () => {
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
 
+  // Global action messages
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const clearMessages = () => {
+    setActionSuccess(null);
+    setActionError(null);
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -96,12 +105,14 @@ export const UsersTab = () => {
 
   const handleDeactivate = async (userId: string) => {
     if (!confirm("Bạn có chắc muốn vô hiệu hóa tài khoản này? Họ sẽ mất quyền truy cập ngay lập tức.")) return;
+    clearMessages();
     try {
       await api.patch(`/v1/users/${userId}/deactivate`);
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, is_active: false } : u));
+      setActionSuccess("Vô hiệu hóa tài khoản thành công!");
     } catch (err: any) {
       const detail = err.response?.data?.detail || "Không thể vô hiệu hóa tài khoản.";
-      alert(detail);
+      setActionError(detail);
     }
   };
 
@@ -114,15 +125,16 @@ export const UsersTab = () => {
   const handleAssignRole = async () => {
     if (!selectedUser || !selectedRoleId) return;
     setAssigning(true);
+    clearMessages();
     try {
       await api.post(`/v1/roles/${selectedRoleId}/assign`, {
         user_id: selectedUser.id,
       });
       setIsRoleModalOpen(false);
-      alert("Gán Role thành công!");
+      setActionSuccess(`Gán Role thành công cho ${selectedUser.full_name || selectedUser.email}!`);
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Không thể gán role.");
+      setActionError(err.response?.data?.detail || "Không thể gán role.");
     } finally {
       setAssigning(false);
     }
@@ -161,6 +173,20 @@ export const UsersTab = () => {
           Mời nhân viên
         </Button>
       </div>
+
+      {actionError && (
+        <div className="bg-error/10 border border-error text-error px-4 py-3 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="text-sm">{actionError}</p>
+        </div>
+      )}
+      
+      {actionSuccess && (
+        <div className="bg-success/10 border border-success text-success px-4 py-3 rounded-lg flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <p className="text-sm">{actionSuccess}</p>
+        </div>
+      )}
 
       <div className="bg-bg-surface/50 border border-border rounded-xl overflow-hidden backdrop-blur-glass">
         <div className="overflow-x-auto">

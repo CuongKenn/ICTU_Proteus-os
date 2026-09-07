@@ -168,6 +168,39 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             "Keycloak group created", extra={"group": group_name, "realm": realm}
         )
 
+    async def get_group_by_name(self, realm: str, group_name: str) -> str | None:
+        """Tìm Group ID theo tên Group trong Keycloak."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/groups"
+        response = await self._client.get(
+            url,
+            params={"search": group_name, "exact": "true"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        groups = response.json()
+        if not groups:
+            return None
+        # Đảm bảo match chính xác tên vì API search có thể trả về group con
+        for group in groups:
+            if group.get("name") == group_name:
+                return group.get("id")
+        return None
+
+    async def add_user_to_group(
+        self, realm: str, user_id: str, group_id: str
+    ) -> None:
+        """Thêm User vào Group trong Keycloak."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/groups/{group_id}"
+        response = await self._client.put(
+            url,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+
     async def get_role(self, realm: str, role_name: str) -> dict[str, Any]:
         """Lấy thông tin Role từ Keycloak để lấy ID."""
         admin_token = await self.get_admin_token()
@@ -260,6 +293,23 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=10.0,
         )
+        response.raise_for_status()
+
+    async def revoke_role_from_user(
+        self, realm: str, user_id: str, role_name: str
+    ) -> None:
+        """Thu hồi Role từ User (Realm Role)."""
+        role = await self.get_role(realm, role_name)
+        admin_token = await self.get_admin_token()
+        
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}/role-mappings/realm"
+        request = httpx.Request(
+            "DELETE",
+            url,
+            json=[role],
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        response = await self._client.send(request, timeout=10.0)
         response.raise_for_status()
 
     async def send_invite_email(

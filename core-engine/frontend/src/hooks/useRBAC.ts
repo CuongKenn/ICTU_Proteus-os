@@ -32,7 +32,7 @@ export const useRBAC = () => {
       // Cố gắng fetch từ API Roles (nếu Backend có hỗ trợ lấy danh sách role để parse)
       const res = await api.get('/v1/roles');
       const allRoles = res.data;
-      const userRoles = allRoles.filter((r: any) => user.roles.includes(r.name));
+      const userRoles = allRoles.filter((r: any) => user.roles.includes(r.name) || user.roles.includes(r.display_name));
       
       const perms = new Set<string>();
       userRoles.forEach((r: any) => {

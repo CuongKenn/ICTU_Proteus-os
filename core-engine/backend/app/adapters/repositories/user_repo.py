@@ -66,7 +66,12 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
 
         result = await self.session.execute(stmt)
         model = result.scalar_one()
-        return _to_entity(model)
+        
+        # Reload to ensure relationships (like roles) are loaded
+        entity = await self.get_by_keycloak_id(model.keycloak_id)
+        if not entity:
+            return _to_entity(model) # Fallback if somehow not found
+        return entity
 
     async def deactivate(self, user_id: uuid.UUID) -> None:
         """
