@@ -28,6 +28,12 @@ def upgrade() -> None:
     op.add_column('ai_commands', sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True))
     op.add_column('ai_commands', sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False))
     op.add_column('ai_commands', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True))
+    # Drop indexes tham chieu enum type TRUOC khi alter column type
+    # De tranh loi: operator does not exist khi PostgreSQL kiem tra index WHERE clause
+    op.drop_index('idx_ai_commands_deadline', table_name='ai_commands', postgresql_where="(status = 'PENDING_APPROVAL'::ai_command_status)")
+    op.drop_index('idx_ai_commands_status', table_name='ai_commands')
+    op.drop_index('idx_ai_commands_tenant_id', table_name='ai_commands')
+
     op.alter_column('ai_commands', 'effect',
                existing_type=sa.VARCHAR(length=20),
                type_=sa.String(length=50),
@@ -36,10 +42,8 @@ def upgrade() -> None:
                existing_type=postgresql.ENUM('PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'EXECUTING', 'COMPLETED', 'FAILED', 'TIMEOUT', name='ai_command_status'),
                type_=sa.String(length=50),
                existing_nullable=False,
-               existing_server_default=sa.text("'PENDING_APPROVAL'::ai_command_status"))
-    op.drop_index('idx_ai_commands_deadline', table_name='ai_commands', postgresql_where="(status = 'PENDING_APPROVAL'::ai_command_status)")
-    op.drop_index('idx_ai_commands_status', table_name='ai_commands')
-    op.drop_index('idx_ai_commands_tenant_id', table_name='ai_commands')
+               existing_server_default=sa.text("'PENDING_APPROVAL'::ai_command_status"),
+               postgresql_using="status::text")
     op.create_index(op.f('ix_ai_commands_deleted_at'), 'ai_commands', ['deleted_at'], unique=False)
     op.create_index(op.f('ix_ai_commands_id'), 'ai_commands', ['id'], unique=False)
     op.create_index(op.f('ix_ai_commands_issued_by_user_id'), 'ai_commands', ['issued_by_user_id'], unique=False)
@@ -69,13 +73,18 @@ def upgrade() -> None:
     op.add_column('audit_logs', sa.Column('status', sa.String(length=50), nullable=False))
     op.add_column('audit_logs', sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False))
     op.add_column('audit_logs', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True))
+    # Drop indexes audit_logs truoc khi alter
+    op.drop_index('idx_audit_logs_created_at', table_name='audit_logs')
+    op.drop_index('idx_audit_logs_tenant_id', table_name='audit_logs')
+
     op.alter_column('audit_logs', 'tenant_id',
                existing_type=sa.UUID(),
                nullable=True)
     op.alter_column('audit_logs', 'actor_type',
                existing_type=postgresql.ENUM('HUMAN', 'AI_AGENT', 'SYSTEM', name='actor_type'),
                type_=sa.String(length=50),
-               existing_nullable=False)
+               existing_nullable=False,
+               postgresql_using="actor_type::text")
     op.alter_column('audit_logs', 'resource_type',
                existing_type=sa.VARCHAR(length=100),
                type_=sa.String(length=50),
@@ -83,9 +92,8 @@ def upgrade() -> None:
     op.alter_column('audit_logs', 'ip_address',
                existing_type=postgresql.INET(),
                type_=sa.String(length=45),
-               existing_nullable=True)
-    op.drop_index('idx_audit_logs_created_at', table_name='audit_logs')
-    op.drop_index('idx_audit_logs_tenant_id', table_name='audit_logs')
+               existing_nullable=True,
+               postgresql_using="ip_address::text")
     op.create_index(op.f('ix_audit_logs_action'), 'audit_logs', ['action'], unique=False)
     op.create_index(op.f('ix_audit_logs_deleted_at'), 'audit_logs', ['deleted_at'], unique=False)
     op.create_index(op.f('ix_audit_logs_id'), 'audit_logs', ['id'], unique=False)
@@ -103,7 +111,7 @@ def upgrade() -> None:
     op.drop_column('audit_logs', 'actor_id')
     op.drop_column('audit_logs', 'metadata')
     op.add_column('plugins', sa.Column('homepage_url', sa.String(length=1024), nullable=True))
-    op.add_column('plugins', sa.Column('category', sa.String(length=100), nullable=False))
+    op.add_column('plugins', sa.Column('category', sa.String(length=100), nullable=False, server_default='Utilities'))
     op.add_column('plugins', sa.Column('tags', postgresql.ARRAY(sa.String()), nullable=True))
     op.add_column('plugins', sa.Column('screenshots', postgresql.JSONB(astext_type=sa.Text()), nullable=True))
     op.add_column('plugins', sa.Column('long_description', sa.Text(), nullable=True))
@@ -160,39 +168,104 @@ def upgrade() -> None:
     op.create_index(op.f('ix_tenant_integrations_deleted_at'), 'tenant_integrations', ['deleted_at'], unique=False)
     op.create_index(op.f('ix_tenant_integrations_id'), 'tenant_integrations', ['id'], unique=False)
     op.create_index(op.f('ix_tenant_integrations_tenant_id'), 'tenant_integrations', ['tenant_id'], unique=False)
-    op.add_column('tenant_plugins', sa.Column('install_task_id', sa.UUID(), nullable=True))
-    op.add_column('tenant_plugins', sa.Column('install_steps_log', postgresql.JSONB(astext_type=sa.Text()), nullable=True))
-    op.add_column('tenant_plugins', sa.Column('credential_ids', postgresql.JSONB(astext_type=sa.Text()), nullable=True))
-    op.add_column('tenant_plugins', sa.Column('id', sa.UUID(), nullable=False))
-    op.add_column('tenant_plugins', sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False))
-    op.add_column('tenant_plugins', sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False))
-    op.add_column('tenant_plugins', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True))
-    op.alter_column('tenant_plugins', 'status',
-               existing_type=postgresql.ENUM('INSTALLING', 'ACTIVE', 'FAILED_DIRTY', 'DISABLED', 'UNINSTALLING', 'DELETED', name='plugin_status'),
-               type_=sa.String(length=50),
-               existing_nullable=False,
-               existing_server_default=sa.text("'INSTALLING'::plugin_status"))
-    op.alter_column('tenant_plugins', 'installed_version',
-               existing_type=sa.VARCHAR(length=50),
-               nullable=False)
-    op.drop_index('idx_tenant_plugins_status', table_name='tenant_plugins')
-    op.create_index(op.f('ix_tenant_plugins_deleted_at'), 'tenant_plugins', ['deleted_at'], unique=False)
-    op.create_index(op.f('ix_tenant_plugins_id'), 'tenant_plugins', ['id'], unique=False)
-    op.create_index(op.f('ix_tenant_plugins_plugin_id'), 'tenant_plugins', ['plugin_id'], unique=False)
-    op.create_index(op.f('ix_tenant_plugins_tenant_id'), 'tenant_plugins', ['tenant_id'], unique=False)
-    op.create_unique_constraint('uq_tenant_plugin', 'tenant_plugins', ['tenant_id', 'plugin_id'])
-    op.drop_constraint('tenant_plugins_plugin_id_fkey', 'tenant_plugins', type_='foreignkey')
-    op.drop_constraint('tenant_plugins_installed_by_user_id_fkey', 'tenant_plugins', type_='foreignkey')
-    op.drop_constraint('tenant_plugins_tenant_id_fkey', 'tenant_plugins', type_='foreignkey')
-    op.create_foreign_key(None, 'tenant_plugins', 'plugins', ['plugin_id'], ['id'], ondelete='CASCADE')
-    op.create_foreign_key(None, 'tenant_plugins', 'users', ['installed_by_user_id'], ['id'], ondelete='SET NULL')
-    op.create_foreign_key(None, 'tenant_plugins', 'tenants', ['tenant_id'], ['id'], ondelete='CASCADE')
+    # tenant_plugins: Dùng raw SQL idempotent để tránh lỗi khi cột đã tồn tại (hotfix manual)
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS install_task_id UUID")
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS install_steps_log JSONB")
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS credential_ids JSONB")
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid()")
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()")
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()")
+    op.execute("ALTER TABLE tenant_plugins ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
+    # Cast status ENUM -> VARCHAR (IF COLUMN TYPE IS ENUM)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='tenant_plugins' AND column_name='status'
+                  AND udt_name = 'plugin_status'
+            ) THEN
+                ALTER TABLE tenant_plugins ALTER COLUMN status TYPE VARCHAR(50) USING status::text;
+            END IF;
+        END $$;
+    """)
+    # Drop idx_tenant_plugins_status IF EXISTS
+    op.execute("DROP INDEX IF EXISTS idx_tenant_plugins_status")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_plugins_deleted_at ON tenant_plugins (deleted_at)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_plugins_id ON tenant_plugins (id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_plugins_plugin_id ON tenant_plugins (plugin_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_plugins_tenant_id ON tenant_plugins (tenant_id)")
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname='uq_tenant_plugin'
+            ) THEN
+                ALTER TABLE tenant_plugins ADD CONSTRAINT uq_tenant_plugin UNIQUE (tenant_id, plugin_id);
+            END IF;
+        END $$;
+    """)
+    # Drop FKs IF EXISTS, recreate
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenant_plugins_plugin_id_fkey') THEN
+                ALTER TABLE tenant_plugins DROP CONSTRAINT tenant_plugins_plugin_id_fkey;
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenant_plugins_installed_by_user_id_fkey') THEN
+                ALTER TABLE tenant_plugins DROP CONSTRAINT tenant_plugins_installed_by_user_id_fkey;
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenant_plugins_tenant_id_fkey') THEN
+                ALTER TABLE tenant_plugins DROP CONSTRAINT tenant_plugins_tenant_id_fkey;
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenant_plugins_plugin_id_fkey1') THEN
+                ALTER TABLE tenant_plugins ADD CONSTRAINT tenant_plugins_plugin_id_fkey1
+                FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE;
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenant_plugins_installed_by_user_id_fkey1') THEN
+                ALTER TABLE tenant_plugins ADD CONSTRAINT tenant_plugins_installed_by_user_id_fkey1
+                FOREIGN KEY (installed_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenant_plugins_tenant_id_fkey1') THEN
+                ALTER TABLE tenant_plugins ADD CONSTRAINT tenant_plugins_tenant_id_fkey1
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+            END IF;
+        END $$;
+    """)
+    # Drop last_updated_at nếu còn tồn tại (đã được xử lý bởi migration khác)
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='tenant_plugins' AND column_name='last_updated_at'
+            ) THEN
+                ALTER TABLE tenant_plugins DROP COLUMN last_updated_at;
+            END IF;
+        END $$;
+    """)
     op.drop_table_comment(
         'tenant_plugins',
         existing_comment='Quan hệ M-N giữa Tenant và Plugin. Ghi nhận trạng thái cài đặt và cấu hình.',
         schema=None
     )
-    op.drop_column('tenant_plugins', 'last_updated_at')
     op.add_column('tenants', sa.Column('domain', sa.String(length=255), nullable=True))
     op.alter_column('tenants', 'slug',
                existing_type=sa.VARCHAR(length=100),
