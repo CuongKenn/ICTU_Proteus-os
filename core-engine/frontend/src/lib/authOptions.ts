@@ -102,14 +102,38 @@ export const authOptions: NextAuthOptions = {
       // Lần đầu login — lưu access_token, refresh_token và expiry vào JWT session
       if (account) {
         let roles: string[] = [];
-        const kcProfile = profile as any;
-        if (kcProfile?.realm_access?.roles) {
-          roles = kcProfile.realm_access.roles;
+
+        // Ưu tiên decode access_token để lấy realm_access.roles
+        // vì Keycloak đảm bảo realm_access luôn có trong access_token.
+        // id_token (profile) chỉ chứa roles nếu đã cấu hình Protocol Mapper riêng.
+        if (account.access_token) {
+          try {
+            const payloadBase64 = account.access_token.split(".")[1];
+            const decoded = JSON.parse(
+              Buffer.from(payloadBase64, "base64").toString("utf-8")
+            );
+            if (decoded?.realm_access?.roles) {
+              roles = decoded.realm_access.roles;
+            }
+          } catch {
+            // Fallback: thử lấy từ profile (id_token)
+            const kcProfile = profile as any;
+            if (kcProfile?.realm_access?.roles) {
+              roles = kcProfile.realm_access.roles;
+            }
+          }
+        } else {
+          // Fallback: thử lấy từ profile (id_token)
+          const kcProfile = profile as any;
+          if (kcProfile?.realm_access?.roles) {
+            roles = kcProfile.realm_access.roles;
+          }
         }
 
         return {
           ...token,
           accessToken: account.access_token,
+          refreshToken: account.refresh_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ
