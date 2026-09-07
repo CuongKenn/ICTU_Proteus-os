@@ -19,7 +19,7 @@ import type { CredentialFieldSchema, CredentialInput } from "@/types";
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
 export const MarketplaceClient: React.FC = () => {
-  const { user } = useSession();
+  useSession();
   const { hasPermission, isLoading: isRBACLoading } = useRBAC();
   const canInstall = hasPermission("plugins:install");
 
@@ -113,7 +113,7 @@ export const MarketplaceClient: React.FC = () => {
 
   // Handlers
   const handleInstallClick = (id: string) => {
-    if (!isAdmin) return;
+    if (!canInstall) return;
     const found = allPlugins.find(p => p.data.id === id);
     if (found) {
       setPreviewPlugin(found.data);
@@ -123,7 +123,7 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   const handleConfirmInstall = async (credentials: CredentialInput[]) => {
-    if (previewPlugin && isAdmin) {
+    if (previewPlugin && canInstall) {
       setIsInstallPreviewOpen(false);
       // Pass credentials vào install — backend sẽ xử lý n8n credential creation
       await installPlugin(previewPlugin.id || "", credentials);
@@ -131,7 +131,7 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   const handleUninstallClick = (id: string) => {
-    if (!isAdmin) return;
+    if (!canInstall) return;
     const plugin = allPlugins.find(p => p.data.id === id)?.data;
     if (plugin) {
       setUninstallPluginData({ id: plugin.id, name: plugin.name });
@@ -140,7 +140,7 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   const handleConfirmUninstall = async () => {
-    if (uninstallPluginData && isAdmin) {
+    if (uninstallPluginData && canInstall) {
       setIsUninstalling(true);
       await uninstallPlugin(uninstallPluginData.id, uninstallPluginData.name);
       setIsUninstalling(false);
