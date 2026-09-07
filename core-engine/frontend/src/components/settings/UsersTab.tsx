@@ -119,6 +119,8 @@ export const UsersTab = () => {
         user_id: selectedUser.id,
       });
       setIsRoleModalOpen(false);
+      alert("Gán Role thành công!");
+      fetchData();
     } catch (err: any) {
       alert(err.response?.data?.detail || "Không thể gán role.");
     } finally {
