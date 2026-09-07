@@ -3,7 +3,8 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -19,6 +20,12 @@ interface TopbarProps {
 export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin }) => {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
 
   const handleLogout = async () => {
     try {
@@ -65,11 +72,13 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
               {session?.user?.name || "Người dùng"}
             </span>
             <span className="text-xs text-text-secondary mt-1">
-              {isTenantAdmin ? "Admin" : "Nhân viên"}
+              {isMounted ? (isTenantAdmin ? "Admin" : "Nhân viên") : ""}
+
             </span>
           </div>
           <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 text-accent font-bold cursor-pointer">
-            {(session?.user?.name || "U").charAt(0).toUpperCase()}
+            {isMounted ? (session?.user?.name || "U").charAt(0).toUpperCase() : ""}
+
           </div>
           <Button 
             variant="ghost" 

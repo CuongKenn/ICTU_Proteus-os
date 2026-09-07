@@ -33,6 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
 
   const handleLogout = async () => {
     // Federated Logout: đăng xuất khỏi cả NextAuth lẫn Keycloak SSO session
@@ -45,9 +47,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const saved = localStorage.getItem("proteus_sidebar_collapsed");
     if (saved) setIsCollapsed(saved === "true");
   }, []);
+
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -181,7 +185,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
                     {session?.user?.name || "Người dùng"}
                   </div>
                   <div className="text-xs text-text-disabled truncate">
-                    {userRoles.includes("tenant_admin") ? "Admin" : "Thành viên"}
+                    {isMounted && userRoles.includes("tenant_admin") ? "Admin" : isMounted ? "Thành viên" : ""}
+
                   </div>
                 </div>
               )}
