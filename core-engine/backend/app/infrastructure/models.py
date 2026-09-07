@@ -118,7 +118,11 @@ class UserModel(BaseModel, SoftDeleteMixin):
     # Relationships
     tenant: Mapped["TenantModel"] = relationship("TenantModel", back_populates="users")
     roles: Mapped[list["RoleModel"]] = relationship(
-        "RoleModel", secondary="user_roles", backref="users"
+        "RoleModel", 
+        secondary="user_roles", 
+        primaryjoin="UserModel.id == user_roles.c.user_id",
+        secondaryjoin="RoleModel.id == user_roles.c.role_id",
+        backref="users"
     )
 
 
