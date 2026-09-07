@@ -9,8 +9,9 @@
 
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { refreshAccessToken } from "@/lib/authOptions";
+import { refreshAccessToken } from "@/lib/tokenRefresh";
 import { logger } from "@/lib/logger";
+
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
