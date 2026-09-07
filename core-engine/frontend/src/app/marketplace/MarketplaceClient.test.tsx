@@ -7,11 +7,13 @@ import { MarketplaceClient } from "./MarketplaceClient";
 import { useSession } from "@/hooks/useSession";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePlugins } from "@/hooks/usePlugins";
+import { useRBAC } from "@/hooks/useRBAC";
 
 // Mock hooks
 vi.mock("@/hooks/useSession");
 vi.mock("@/hooks/useMarketplace");
 vi.mock("@/hooks/usePlugins");
+vi.mock("@/hooks/useRBAC");
 
 describe("MarketplaceClient", () => {
   const mockInstallPlugin = vi.fn();
@@ -25,6 +27,10 @@ describe("MarketplaceClient", () => {
       status: "authenticated",
       isLoading: false,
       hasRole: (role: string) => role === "tenant_admin",
+    });
+
+    (useRBAC as any).mockReturnValue({
+      hasPermission: () => true,
     });
 
     (useMarketplace as any).mockReturnValue({
