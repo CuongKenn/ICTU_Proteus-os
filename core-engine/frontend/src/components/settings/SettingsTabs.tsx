@@ -4,7 +4,7 @@
 "use client";
 
 import React from "react";
-import { User, Building2, Palette, Blocks, Shield, Info } from "lucide-react";
+import { User, Building2, Palette, Blocks, Shield, Info, Users } from "lucide-react";
 import { clsx } from "clsx";
 import type { SettingsTabId } from "@/app/settings/SettingsClient";
 
@@ -17,6 +17,7 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({ activeTab, onChangeT
   const tabs: { id: SettingsTabId; label: string; icon: React.ElementType }[] = [
     { id: "profile", label: "Profile", icon: User },
     { id: "tenant", label: "Organization", icon: Building2 },
+    { id: "users", label: "Users", icon: Users },
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "integrations", label: "Integrations", icon: Blocks },
     { id: "security", label: "Security", icon: Shield },
