@@ -23,7 +23,7 @@ def _to_entity(model: UserModel) -> UserEntity:
         email=model.email,
         full_name=model.full_name,
         is_active=model.is_active,
-        roles=[role.name for role in getattr(model, 'roles', [])] if hasattr(model, 'roles') else [],
+        roles=[role.display_name or role.name for role in getattr(model, 'roles', [])] if hasattr(model, 'roles') else [],
     )
 
 
