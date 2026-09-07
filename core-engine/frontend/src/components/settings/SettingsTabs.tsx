@@ -18,6 +18,7 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({ activeTab, onChangeT
     { id: "profile", label: "Profile", icon: User },
     { id: "tenant", label: "Organization", icon: Building2 },
     { id: "users", label: "Users", icon: Users },
+    { id: "roles", label: "Roles", icon: Shield },
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "integrations", label: "Integrations", icon: Blocks },
     { id: "security", label: "Security", icon: Shield },
