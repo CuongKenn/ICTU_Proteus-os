@@ -7,7 +7,8 @@ import React from "react";
 import clsx from "clsx";
 import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
-import { CheckCircle2, ArrowUpCircle, XCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, ArrowUpCircle, XCircle, Trash2, Lock } from "lucide-react";
+import { useRBAC } from "@/hooks/useRBAC";
 
 export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
 
@@ -47,6 +48,39 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   onUninstall,
 }) => {
   const isDisabled = status === "disabled";
+  const { hasPermission } = useRBAC();
+  
+  const canInstall = hasPermission("plugins:install");
+  
+  const renderInstallButton = () => (
+    <Button 
+      onClick={() => onInstall?.(plugin.id)} 
+      disabled={!canInstall}
+      title={!canInstall ? "Bạn không có quyền cài đặt Plugin (plugins:install)" : ""}
+      className={!canInstall ? "opacity-50 cursor-not-allowed flex items-center gap-2" : ""}
+    >
+      {!canInstall && <Lock className="w-4 h-4" />}
+      INSTALL
+    </Button>
+  );
+
+  const renderUninstallButton = () => {
+    if (!onUninstall) return null;
+    return (
+      <Button 
+        variant="ghost" 
+        onClick={() => onUninstall(plugin.id)} 
+        disabled={!canInstall}
+        className={clsx(
+          "text-danger border-danger/30 p-2",
+          canInstall ? "hover:border-danger" : "opacity-50 cursor-not-allowed"
+        )} 
+        title={!canInstall ? "Bạn không có quyền gỡ cài đặt (plugins:install)" : "Gỡ cài đặt"}
+      >
+        {!canInstall ? <Lock className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+      </Button>
+    );
+  };
   
   return (
     <div className={clsx("glass-card p-4 flex flex-col gap-4 relative", isDisabled && "opacity-60 grayscale-[50%]")}>
@@ -86,9 +120,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
       {/* Action Area */}
       <div className="mt-auto pt-4 flex items-center justify-between min-h-[3rem]">
-        {status === "available" && onInstall && (
-          <Button onClick={() => onInstall(plugin.id)}>INSTALL</Button>
-        )}
+        {status === "available" && onInstall && renderInstallButton()}
         
         {status === "installing" && (
           <div className="w-full">
@@ -102,11 +134,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
               <Button variant="ghost" onClick={() => onOpen?.(plugin.id)} className="text-success border-success/30 hover:border-success">
                 OPEN
               </Button>
-              {onUninstall && (
-                <Button variant="ghost" onClick={() => onUninstall(plugin.id)} className="text-danger border-danger/30 hover:border-danger p-2" title="Gỡ cài đặt">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+              {renderUninstallButton()}
             </div>
             <span className="flex items-center text-xs text-success bg-success/10 px-2 py-1 rounded-full border border-success/20">
               <CheckCircle2 className="w-3 h-3 mr-1" /> Đã cài
@@ -124,11 +152,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               <Button variant="danger" onClick={() => onRetry?.(plugin.id)}>RETRY</Button>
-              {onUninstall && (
-                <Button variant="ghost" onClick={() => onUninstall(plugin.id)} className="text-danger border-danger/30 hover:border-danger p-2" title="Gỡ cài đặt">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+              {renderUninstallButton()}
             </div>
             <span className="flex items-center text-xs text-danger bg-danger/10 px-2 py-1 rounded-full border border-danger/20">
               <XCircle className="w-3 h-3 mr-1" /> FAILED
@@ -139,11 +163,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
         {status === "disabled" && (
           <div className="flex items-center justify-between w-full">
             <Button variant="secondary" onClick={() => onEnable?.(plugin.id)}>ENABLE</Button>
-            {onUninstall && (
-              <Button variant="ghost" onClick={() => onUninstall(plugin.id)} className="text-danger border-danger/30 hover:border-danger p-2" title="Gỡ cài đặt">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            {renderUninstallButton()}
           </div>
         )}
       </div>
