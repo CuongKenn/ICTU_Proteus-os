@@ -64,7 +64,16 @@ bearer_scheme = HTTPBearer(auto_error=True)
 async def get_plugin_repo(
     db: AsyncSession = Depends(get_db_readonly),
 ) -> AbstractPluginRepository:
-    """Inject Plugin Repository."""
+    """Inject Plugin Repository (read-only, no auto-commit)."""
+    return SQLAlchemyPluginRepository(session=db)
+
+
+async def get_plugin_repo_write(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> AbstractPluginRepository:
+    """Inject Plugin Repository (transactional — auto-commit on success).
+    Dùng cho các write endpoints: install, uninstall, configure, v.v.
+    """
     return SQLAlchemyPluginRepository(session=db)
 
 

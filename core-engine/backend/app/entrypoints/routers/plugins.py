@@ -38,6 +38,7 @@ from app.entrypoints.dependencies import (
     get_plugin_credentials_use_case,
     get_plugin_list_use_case,
     get_plugin_repo,
+    get_plugin_repo_write,
     get_plugin_toggle_use_case,
     get_plugin_uninstall_use_case,
     get_plugin_upgrade_use_case,
@@ -233,7 +234,7 @@ async def install_plugin(
     background_tasks: BackgroundTasks,
     body: InstallPluginRequest = Body(default_factory=InstallPluginRequest),
     ctx: TenantContext = Depends(require_permission("plugins.install")),
-    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
 ) -> dict[str, Any]:
     """
     Khởi động quá trình cài đặt Plugin (async).
