@@ -10,7 +10,7 @@ export default async function HomePage() {
 
   // Nếu đã đăng nhập → vào thẳng dashboard, không cho quay lại landing page
   if (session) {
-    redirect("/dashboard");
+    redirect("/launchpad");
   }
 
   return <LandingPage />;
