@@ -23,6 +23,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 
 ### Added
+- **[core-engine/backend & frontend]** Hiển thị danh sách vai trò (Roles) hiện tại của người dùng trên UI quản lý Users (`UsersTab.tsx`). Cập nhật `UserModel` để load relationship `roles` qua bảng `user_roles`.
+
 - **[core-engine/frontend]** Bổ sung Landing Page (Trang chủ công khai) tại `src/app/page.tsx` với thiết kế Glassmorphism hiện đại làm mặt tiền hệ thống.
 - **[core-engine/frontend]** Thêm trang đăng ký trực tuyến `src/app/signup/page.tsx` và form `SignupForm` cho tính năng SaaS Onboarding tự động.
 - **[core-engine/frontend]** Thêm API trung gian (BFF) `POST /api/onboarding/signup` để bảo mật proxy sang backend.
