@@ -85,3 +85,44 @@ class RoleRepository:
                     )
 
         return list(all_permissions)
+
+    async def get_role(
+        self, role_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> RoleModel | None:
+        """
+        Lấy chi tiết một Role theo ID và Tenant.
+        """
+        stmt = select(RoleModel).where(
+            and_(RoleModel.id == role_id, RoleModel.tenant_id == tenant_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_role(
+        self, role_id: uuid.UUID, tenant_id: uuid.UUID, data: dict
+    ) -> RoleModel:
+        """
+        Cập nhật Role.
+        """
+        role = await self.get_role(role_id, tenant_id)
+        if not role:
+            raise NotFoundError(f"Role {role_id} not found in tenant {tenant_id}")
+
+        for key, value in data.items():
+            if hasattr(role, key):
+                setattr(role, key, value)
+
+        await self.session.flush()
+        return role
+
+    async def delete_role(self, role_id: uuid.UUID, tenant_id: uuid.UUID) -> None:
+        """
+        Xóa Role.
+        """
+        stmt = delete(RoleModel).where(
+            and_(RoleModel.id == role_id, RoleModel.tenant_id == tenant_id)
+        )
+        result = await self.session.execute(stmt)
+        if result.rowcount == 0:
+            raise NotFoundError(f"Role {role_id} not found in tenant {tenant_id}")
+        await self.session.flush()
