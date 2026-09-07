@@ -34,6 +34,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
   const { data: session } = useSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const handleLogout = async () => {
+    // Federated Logout: đăng xuất khỏi cả NextAuth lẫn Keycloak SSO session
+    // Nếu không làm bước này, Keycloak vẫn nhớ session và tự login lại ngay
+    const res = await fetch("/api/auth/federated-logout");
+    const data = await res.json();
+    // Xóa NextAuth session trước, rồi redirect sang Keycloak end_session endpoint
+    await signOut({ redirect: false });
+    window.location.href = data.url ?? "/login";
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem("proteus_sidebar_collapsed");
     if (saved) setIsCollapsed(saved === "true");
@@ -179,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
             
             {!isCollapsed && (
               <button 
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={handleLogout}
                 className="p-1.5 text-text-disabled hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
                 title="Đăng xuất"
               >
@@ -192,7 +202,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
           {isCollapsed && (
             <div className="mt-2 flex justify-center">
               <button 
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={handleLogout}
                 className="p-2 text-text-disabled hover:text-error hover:bg-error/10 rounded-lg transition-colors"
                 title="Đăng xuất"
               >
