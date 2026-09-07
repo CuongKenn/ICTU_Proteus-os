@@ -235,8 +235,9 @@ export const MarketplaceClient: React.FC = () => {
                   plugin={data}
                   status={currentStatus as PluginStatus}
                   installProgress={installingId === data.id ? installProgress : 0}
-                  onInstall={!isRBACLoading && canInstall ? handleInstallClick : undefined}
-                  onUninstall={!isRBACLoading && canInstall ? handleUninstallClick : undefined}
+                  canInstall={canInstall}
+                  onInstall={handleInstallClick}
+                  onUninstall={handleUninstallClick}
                 />
               );
             })}
