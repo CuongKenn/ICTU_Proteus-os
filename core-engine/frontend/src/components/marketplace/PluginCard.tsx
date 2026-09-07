@@ -9,7 +9,6 @@ import clsx from "clsx";
 import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { useRBAC } from "@/hooks/useRBAC";
 
 export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
 
@@ -59,8 +58,9 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   const rating = plugin.rating ?? null;
   const category = plugin.category || "Utilities";
   const developer = plugin.author || plugin.developer || "Proteus Core";
-  const { hasPermission } = useRBAC();
-  const canInstall = hasPermission("plugins:install");
+  // canInstall được kiểm soát bởi component cha (MarketplaceClient) thông qua useRBAC.
+  // Nếu cha truyền onInstall/onUninstall thì user có quyền; nếu không có thì không có quyền.
+  const canInstall = !!onInstall || !!onUninstall;
   
   const renderUninstallButton = () => {
     if (!onUninstall) return null;

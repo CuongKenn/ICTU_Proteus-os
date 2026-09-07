@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useSession } from "@/hooks/useSession";
+import { useRBAC } from "@/hooks/useRBAC";
 import { PluginCard, type PluginData, type PluginStatus } from "@/components/marketplace/PluginCard";
 import { CategoryFilter } from "@/components/marketplace/CategoryFilter";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
@@ -18,8 +19,9 @@ import type { CredentialFieldSchema, CredentialInput } from "@/types";
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
 export const MarketplaceClient: React.FC = () => {
-  const { user, hasRole } = useSession();
-  const isAdmin = hasRole("tenant_admin") || user?.email === "admin@proteus.local";
+  const { user } = useSession();
+  const { hasPermission, isLoading: isRBACLoading } = useRBAC();
+  const canInstall = hasPermission("plugins:install");
 
   const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
   const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
@@ -233,8 +235,8 @@ export const MarketplaceClient: React.FC = () => {
                   plugin={data}
                   status={currentStatus as PluginStatus}
                   installProgress={installingId === data.id ? installProgress : 0}
-                  onInstall={isAdmin ? handleInstallClick : undefined}
-                  onUninstall={isAdmin ? handleUninstallClick : undefined}
+                  onInstall={!isRBACLoading && canInstall ? handleInstallClick : undefined}
+                  onUninstall={!isRBACLoading && canInstall ? handleUninstallClick : undefined}
                 />
               );
             })}
