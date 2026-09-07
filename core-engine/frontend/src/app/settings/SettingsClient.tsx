@@ -13,9 +13,10 @@ import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { SecurityTab } from "@/components/settings/SecurityTab";
 import { AboutTab } from "@/components/settings/AboutTab";
 import { UsersTab } from "@/components/settings/UsersTab";
+import { RolesTab } from "@/components/settings/RolesTab";
 import { useSession } from "next-auth/react";
 
-export type SettingsTabId = "profile" | "tenant" | "users" | "appearance" | "integrations" | "security" | "about";
+export type SettingsTabId = "profile" | "tenant" | "users" | "roles" | "appearance" | "integrations" | "security" | "about";
 
 export const SettingsClient = () => {
   const [activeTab, setActiveTab] = useState<SettingsTabId>("profile");
@@ -29,6 +30,8 @@ export const SettingsClient = () => {
         return <TenantTab />;
       case "users":
         return <UsersTab />;
+      case "roles":
+        return <RolesTab />;
       case "integrations":
         return <IntegrationsTab />;
       case "appearance":
