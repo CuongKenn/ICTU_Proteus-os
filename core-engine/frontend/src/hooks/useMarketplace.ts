@@ -56,7 +56,8 @@ export function useMarketplace(): UseMarketplaceReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await api.get<{ items: PluginInfo[]; total: number }>("/plugins");
+        const response = await api.get<{ items: PluginInfo[]; total: number }>("/v1/plugins");
+
         if (!cancelled) {
           setPlugins(response.data.items || []);
         }
@@ -85,7 +86,8 @@ export function useMarketplace(): UseMarketplaceReturn {
 
   const pollStatus = useCallback(async (taskId: string, pluginId: string) => {
     try {
-      const response = await api.get<InstallTaskStatus>(`/plugins/install/${taskId}/status`);
+      const response = await api.get<InstallTaskStatus>(`/v1/plugins/install/${taskId}/status`);
+
       const statusData = response.data;
 
       if (statusData) {

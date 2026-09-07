@@ -38,7 +38,8 @@ export function usePlugins(): UsePluginsReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await api.get<PluginListResponse>("/plugins/installed");
+        const response = await api.get<PluginListResponse>("/v1/plugins/installed");
+
         if (!cancelled) {
           setPlugins(response.data.items);
         }
@@ -61,7 +62,8 @@ export function usePlugins(): UsePluginsReturn {
 
   const install = useCallback(async (pluginId: string, credentials?: CredentialInput[]) => {
     try {
-      const response = await api.post<{ task_id: string }>(`/plugins/${pluginId}/install`, {
+      const response = await api.post<{ task_id: string }>(`/v1/plugins/${pluginId}/install`, {
+
         credentials: credentials ?? [],
       });
       return response.data;
@@ -72,7 +74,8 @@ export function usePlugins(): UsePluginsReturn {
 
   const uninstall = useCallback(async (pluginId: string, confirmName: string = '') => {
     try {
-      await api.delete(`/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
+      await api.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
+
       useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
       refetch();
     } catch (err) {
@@ -90,7 +93,8 @@ export function usePlugins(): UsePluginsReturn {
 
   const disable = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/disable`, {});
+      await api.post(`/v1/plugins/${pluginId}/disable`, {});
+
       useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin.");
       refetch();
     } catch (err) {
@@ -108,7 +112,8 @@ export function usePlugins(): UsePluginsReturn {
 
   const upgrade = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/plugins/${pluginId}/upgrade`, {});
+      await api.post(`/v1/plugins/${pluginId}/upgrade`, {});
+
       useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin.");
       refetch();
     } catch (err) {
@@ -126,7 +131,8 @@ export function usePlugins(): UsePluginsReturn {
 
   const configureCredentials = useCallback(async (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => {
     try {
-      const response = await api.post(`/plugins/${pluginId}/credentials`, payload);
+      const response = await api.post(`/v1/plugins/${pluginId}/credentials`, payload);
+
       useNotificationStore.getState().addToast("success", "Cấu hình Credentials thành công.");
       return response.data;
     } catch (err) {
