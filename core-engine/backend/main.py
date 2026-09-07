@@ -45,6 +45,7 @@ from app.entrypoints.routers import (
     plugins,
     roles,
     tenants,
+    users,
 )
 from app.infrastructure.config import settings
 from app.infrastructure.database import AsyncSessionLocal, current_tenant_id
@@ -339,6 +340,7 @@ app.include_router(plugins.router, prefix="/api/v1", tags=["Plugins"])
 app.include_router(roles.router, prefix="/api/v1", tags=["Roles"])
 app.include_router(ai.router, prefix="/api/v1", tags=["AI Orchestrator"])
 app.include_router(tenants.router, prefix="/api/v1", tags=["Tenants"])
+app.include_router(users.router, prefix="/api/v1", tags=["Users"])
 app.include_router(mattermost_webhook.router, prefix="/api/v1")
 app.include_router(keycloak_webhook.router, prefix="/api/v1")
 app.include_router(embed.router, prefix="/api/v1", tags=["Embed"])

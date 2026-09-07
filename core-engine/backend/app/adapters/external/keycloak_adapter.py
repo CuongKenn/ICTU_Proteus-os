@@ -262,3 +262,55 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         )
         response.raise_for_status()
 
+    async def send_invite_email(
+        self, realm: str, user_id: str, redirect_uri: str | None = None
+    ) -> None:
+        """
+        Kích hoạt luồng mời nhân viên qua email.
+        Keycloak gửi email chứa link để user tự đặt mật khẩu và xác thực email.
+        Yêu cầu SMTP được cấu hình trong Keycloak Realm Settings → Email.
+        """
+        admin_token = await self.get_admin_token()
+        url = (
+            f"{settings.KEYCLOAK_URL}/admin/realms/{realm}"
+            f"/users/{user_id}/execute-actions-email"
+        )
+        params: dict[str, str] = {}
+        if redirect_uri:
+            params["redirect_uri"] = redirect_uri
+
+        response = await self._client.put(
+            url,
+            json=["UPDATE_PASSWORD", "VERIFY_EMAIL"],
+            params=params,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=15.0,
+        )
+        # 204 No Content = thành công; 400 = SMTP chưa cấu hình
+        if response.status_code == 400:
+            detail = response.json().get("errorMessage", response.text)
+            raise RuntimeError(
+                f"Không thể gửi email mời. Keycloak lỗi: {detail}. "
+                "Kiểm tra SMTP tại Keycloak Admin → Realm Settings → Email."
+            )
+        response.raise_for_status()
+        logger.info(
+            "Invite email sent via Keycloak",
+            extra={"user_id": user_id, "realm": realm},
+        )
+
+    async def disable_user(self, realm: str, user_id: str) -> None:
+        """Vô hiệu hóa User trên Keycloak (enabled=false)."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        response = await self._client.put(
+            url,
+            json={"enabled": False},
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info(
+            "User disabled on Keycloak",
+            extra={"user_id": user_id, "realm": realm},
+        )
