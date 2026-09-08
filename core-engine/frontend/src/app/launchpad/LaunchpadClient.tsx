@@ -19,7 +19,7 @@ import { useAuthStore } from "@/store/authStore";
 export function LaunchpadClient() {
   const { data: session } = useSession();
   const hasRole = useAuthStore((state) => state.hasRole);
-  const isAdmin = hasRole("tenant_admin");
+  const isAdmin = hasRole("tenant_admin") || hasRole("superadmin");
   const { plugins, isLoading } = usePlugins();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
