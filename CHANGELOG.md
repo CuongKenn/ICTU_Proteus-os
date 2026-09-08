@@ -4,6 +4,11 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - Sắp tới
+
+### Added
+- [docs/demo-guide.md] Bổ sung tài liệu Hướng dẫn Demo chi tiết các kịch bản cốt lõi (Multi-tenancy, Micro-kernel, AI Human-in-the-loop) để trình diễn trước hội đồng.
+
 ## [v1.0.3] - 2026-09-08
 
 ### Added
