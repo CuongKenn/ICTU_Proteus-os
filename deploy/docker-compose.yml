@@ -470,6 +470,8 @@ services:
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: http://localhost:3001
       METABASE_INTERNAL_URL: http://metabase:3000
+      APPSMITH_URL: ${APPSMITH_URL}
+      APPSMITH_API_KEY: ${APPSMITH_API_KEY}
       PLUGINS_DIR: /plugins
     volumes:
       - ../plugins:/plugins:ro
