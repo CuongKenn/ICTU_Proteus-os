@@ -88,7 +88,7 @@ export function LaunchpadClient() {
           Hệ thống
           <div className="flex-1 h-px bg-border/50" />
         </h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 sm:gap-8 justify-items-center">
+        <div className="flex flex-wrap gap-6 sm:gap-8">
           <AppIcon
             appName="Mattermost"
             icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
@@ -123,7 +123,7 @@ export function LaunchpadClient() {
           <div className="flex-1 h-px bg-border/50" />
         </h2>
         
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 sm:gap-8 justify-items-center">
+        <div className="flex flex-wrap gap-6 sm:gap-8">
           {/* Plugin Skeletons */}
           {isLoading &&
             Array.from({ length: 4 }).map((_, i) => (
