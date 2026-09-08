@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name            VARCHAR(255) NOT NULL,
     slug            VARCHAR(100) NOT NULL UNIQUE,  -- VD: "ictu", "viettel"
+    domain          VARCHAR(255),
     keycloak_realm  VARCHAR(100) NOT NULL UNIQUE,  -- Tên Realm trong Keycloak
     plan            VARCHAR(50)  NOT NULL DEFAULT 'starter',  -- starter | pro | enterprise
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -90,6 +91,12 @@ CREATE TABLE IF NOT EXISTS plugins (
     manifest_url    TEXT NOT NULL,                 -- URL tải manifest.yaml
     is_official     BOOLEAN NOT NULL DEFAULT FALSE,
     download_count  INTEGER NOT NULL DEFAULT 0,
+    category        VARCHAR(100) NOT NULL DEFAULT 'Utilities',
+    tags            TEXT[] DEFAULT '{}',
+    screenshots     JSONB DEFAULT '[]',
+    long_description TEXT,
+    credentials_schema JSONB DEFAULT '[]',
+    homepage_url    VARCHAR(1024),
     published_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at      TIMESTAMPTZ                    -- Soft delete
@@ -124,6 +131,9 @@ CREATE TABLE IF NOT EXISTS tenant_plugins (
     config_override     JSONB DEFAULT '{}',         -- Ghi đè default_config của Plugin
     install_error_log   TEXT,                       -- Stacktrace nếu status = FAILED_DIRTY
     installed_by_user_id UUID REFERENCES users(id),
+    install_steps_log   JSONB DEFAULT '[]',
+    credential_ids      JSONB DEFAULT '[]',
+    install_task_id     UUID,
     installed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (tenant_id, plugin_id)
@@ -138,13 +148,16 @@ CREATE INDEX IF NOT EXISTS idx_tenant_plugins_status ON tenant_plugins(status);
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS roles (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    plugin_id       UUID REFERENCES plugins(id) ON DELETE CASCADE,  -- NULL = Core role
-    name            VARCHAR(100) NOT NULL,          -- VD: "hr_manager"
+    tenant_id       UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    plugin_code_name VARCHAR(255),
+    name            VARCHAR(255) NOT NULL,          -- VD: "hr_manager"
     display_name    VARCHAR(255),
     description     TEXT,
+    is_system_role  BOOLEAN NOT NULL DEFAULT FALSE,
     permissions     JSONB NOT NULL DEFAULT '[]',    -- ["hr:employees:read", ...]
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ,
     UNIQUE(tenant_id, name)
 );
 
