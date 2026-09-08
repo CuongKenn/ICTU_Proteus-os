@@ -138,7 +138,7 @@ if ($domain -eq "proteus.local") {
 
 # 5. Start Docker Compose
 Write-Host "[INFO] Starting services via Docker Compose..." -ForegroundColor Cyan
-docker compose up -d
+docker compose up -d --build
 
 # 6. Wait for backend health
 Write-Host "[INFO] Waiting for services to start (may take 1-2 minutes)..." -ForegroundColor Yellow

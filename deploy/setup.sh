@@ -92,7 +92,7 @@ fi
 
 # 5. Khởi động Docker Compose
 echo "🐳 Khởi động các dịch vụ qua Docker Compose..."
-docker compose up -d
+docker compose up -d --build
 
 # 6. Wait healthchecks
 echo "⏳ Đang chờ các dịch vụ khởi động (có thể mất 1-2 phút)..."
