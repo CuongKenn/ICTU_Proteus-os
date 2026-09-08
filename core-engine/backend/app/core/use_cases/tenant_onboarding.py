@@ -153,6 +153,14 @@ class TenantOnboardingUseCase:
         integrations = await self.tenant_repo.get_integrations(context.tenant_id)
         
         import uuid
+        from app.infrastructure.config import settings
+        
+        def is_configured(secret: str | None) -> bool:
+            if not secret:
+                return False
+            if secret.startswith("CHANGE_ME"):
+                return False
+            return True
         
         sys_integrations = [
             TenantIntegrationEntity(
@@ -160,7 +168,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="keycloak",
                 config={"role": "Quản lý Định danh & SSO", "type": "Core Component"},
-                is_active=True,
+                is_active=is_configured(settings.KEYCLOAK_CLIENT_SECRET),
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -168,7 +176,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="mattermost",
                 config={"role": "Nền tảng Chat & Webhook", "type": "Core Component"},
-                is_active=True,
+                is_active=is_configured(settings.MATTERMOST_BOT_TOKEN) or is_configured(settings.MATTERMOST_WEBHOOK_SECRET),
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -176,7 +184,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="appsmith",
                 config={"role": "Low-code UI Engine", "type": "Core Component"},
-                is_active=True,
+                is_active=is_configured(settings.APPSMITH_API_KEY),
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -184,7 +192,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="n8n",
                 config={"role": "Workflow Automation", "type": "Core Component"},
-                is_active=True,
+                is_active=is_configured(settings.N8N_API_KEY),
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -192,7 +200,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="metabase",
                 config={"role": "Data Analytics & BI", "type": "Core Component"},
-                is_active=True,
+                is_active=is_configured(settings.METABASE_SECRET_KEY),
                 is_system=True
             ),
         ]
