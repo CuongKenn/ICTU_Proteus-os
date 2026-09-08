@@ -4,7 +4,7 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - Sắp tới
+## [v1.0.3] - 2026-09-08
 
 ### Added
 - [docs/POF_COMPLIANCE.md] Bổ sung Báo cáo Giải trình Đáp ứng Tiêu chí Nguồn mở (PoF Compliance Report) tự đánh giá đạt 50/50 điểm Tiêu chí PoF của Cuộc thi "Phát triển phần mềm mã nguồn mở tích hợp AI 2026" - Khoa CNTT Trường ĐH CNTT & TT (ICTU).
@@ -41,7 +41,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Khắc phục lỗi timeout chờ N8N healthcheck và lỗi không sinh được N8N_API_KEY do script gọi nhầm vào cổng nội bộ không được expose (5678). Chuyển sang gọi API trực tiếp qua Traefik (kèm header Host).
 - [deploy/setup.sh] Bổ sung biến jq `.ServiceSettings.EnableBotAccountCreation = true` vào lệnh cập nhật cấu hình Mattermost, sửa lỗi API trả về 403 (Bot creation has been disabled) khiến việc tự động sinh MATTERMOST_BOT_TOKEN bị thất bại.
 
-## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
+### BFF Proxy & Database Schema Fixes (2026-09-07)
 
 ### Fixed
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi HTTP 400 (Bad Request) khi import workflow n8n do truyền các trường read-only (`active`, `tags`, v.v.). Chuyển sang sử dụng allowlist các trường hợp lệ (`name`, `nodes`, `connections`, `settings`, `triggerCount`) giúp tiến trình cài đặt plugin vượt qua bước cài đặt n8n.
@@ -67,7 +67,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Loại bỏ hoàn toàn hardcoded `tenant_id` — thay bằng DB lookup theo `keycloak_sub` từ JWT token.
 - **[core-engine/backend/tests/entrypoints/test_auth_dependency.py]** Rewrite test file để match signature mới của `get_current_tenant_context` (có param `db`).
 
-## [Unreleased] — SaaS Tenant Onboarding (2026-09-07)
+### SaaS Tenant Onboarding (2026-09-07)
 
 
 ### Added
