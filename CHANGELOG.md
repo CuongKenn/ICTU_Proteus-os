@@ -8,6 +8,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ### Added
 - [docs/demo-guide.md] Bổ sung tài liệu Hướng dẫn Demo chi tiết các kịch bản cốt lõi (Multi-tenancy, Micro-kernel, AI Human-in-the-loop) để trình diễn trước hội đồng.
+- [core-engine/backend] Hoàn thiện tích hợp luồng Human-in-the-loop: Chuyển đổi thông báo phê duyệt AI Command sang dạng Interactive Message trên Mattermost (gắn nút Phê duyệt/Từ chối thay vì chỉ gửi text thông báo thông thường). Hỗ trợ truyền tùy chỉnh `approval_message` từ Frontend xuống tận Mattermost Adapter.
 
 ## [v1.0.3] - 2026-09-08
 
