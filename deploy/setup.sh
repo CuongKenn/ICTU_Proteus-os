@@ -167,7 +167,7 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
   if [ -n "$MM_TOKEN" ]; then
     # 7.5 Enable Personal Access Tokens
     curl -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
-    jq '.ServiceSettings.EnablePersonalAccessTokens = true' /tmp/mm_config.json > /tmp/mm_config_new.json
+    jq '.ServiceSettings.EnablePersonalAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true' /tmp/mm_config.json > /tmp/mm_config_new.json
     curl -sf -X PUT "$MM_URL/config" \
       -H "$MM_HOST_HEADER" \
       -H "Authorization: Bearer $MM_TOKEN" \
@@ -214,7 +214,8 @@ fi
 
 # 8. Tự động hóa cấu hình n8n (Zero-Touch Provisioning)
 echo "⚙️  Đang cấu hình n8n (Tạo Owner Account & API Key)..."
-N8N_URL="http://localhost:5678"
+N8N_URL="http://localhost"
+N8N_HOST_HEADER="Host: workflow.$DOMAIN"
 
 # Lấy thông tin user từ .env (hoặc mặc định)
 N8N_ADMIN_EMAIL="admin@proteus.local"
@@ -224,7 +225,7 @@ N8N_ADMIN_PASSWORD=$(grep -E "^POSTGRES_PASSWORD=" .env | cut -d '=' -f2) # Dùn
 N8N_TIMEOUT=120
 N8N_ELAPSED=0
 while [ $N8N_ELAPSED -lt $N8N_TIMEOUT ]; do
-  if curl -sf $N8N_URL/healthz > /dev/null; then
+  if curl -sf -H "$N8N_HOST_HEADER" http://localhost/healthz > /dev/null; then
     break
   fi
   sleep 5
@@ -233,7 +234,10 @@ done
 
 if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; then
   # 8.1 Tạo tài khoản Owner qua REST API ẩn
-  curl -sf -X POST "$N8N_URL/rest/owner/setup"     -H "Content-Type: application/json"     -d '{
+  curl -sf -X POST "$N8N_URL/rest/owner/setup" \
+    -H "$N8N_HOST_HEADER" \
+    -H "Content-Type: application/json" \
+    -d '{
       "email": "'"$N8N_ADMIN_EMAIL"'",
       "password": "'"$N8N_ADMIN_PASSWORD"'",
       "firstName": "Admin",
