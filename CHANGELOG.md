@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Added
+- [core-engine/frontend/src/components/settings/IntegrationsTab.tsx] Hiển thị danh sách các dịch vụ lõi của hệ thống (Keycloak, Mattermost, Appsmith, n8n, Metabase) trong phần "Kết nối & Tích hợp" với trạng thái "Hoạt động" và gắn nhãn "Hệ thống". Giúp Admin dễ dàng nắm bắt được các dịch vụ cốt lõi đang tích hợp sẵn cùng Proteus OS, đồng thời vẫn giữ khả năng thêm các kết nối tùy chỉnh (Third-party) của riêng Tenant.
 - [deploy/setup.sh] Bổ sung bước tạo database cho Outline (`outline`) và Metabase (`metabase`) bằng SQL query (tương tự setup.ps1) để khắc phục lỗi 502/Crash-loop do thiếu CSDL riêng.
 
 ### Changed
