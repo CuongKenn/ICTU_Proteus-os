@@ -14,6 +14,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
 
 ### Fixed
+- [core-engine/backend/app/core/use_cases/plugin_uninstall.py] Sửa lỗi API gỡ cài đặt Plugin luôn báo "Plugin này chưa được cài đặt hoặc không có quyền." do nhầm lẫn logic kiểm tra `status` của plugin từ bảng `plugins` thay vì bảng join `tenant_plugins`.
+- [core-engine/backend/app/core/use_cases/plugin_uninstall.py, plugin_install.py] Khắc phục lỗi rò rỉ (leak) `search_path` ở tầng database. Khi xoá/cài đặt bảng dữ liệu của Plugin, lệnh `SET search_path TO ...` không được reset về `public` trong khối `finally`, dẫn tới Transaction bị treo (`InFailedSQLTransactionError`) nếu có bất kỳ lỗi nào xảy ra trong chuỗi tiến trình. Đã bổ sung `await self.session.rollback()` và reset `search_path`.
 - [deploy/docker-compose.yml] Khắc phục lỗi `Appsmith connection failed: All connection attempts failed` khi cài đặt Plugin bằng cách bổ sung biến môi trường `APPSMITH_URL` và `APPSMITH_API_KEY` vào container `backend`.
 - [deploy/.env, deploy/.env.example] Sửa cổng mặc định của Appsmith từ 8080 thành 80.
 - [deploy/setup.sh] Sửa lỗi script âm thầm tạo database thất bại bằng cách đổi sang dùng cấu trúc pipe `echo "..." | psql` thay cho cờ `-c` kết hợp `\gexec`.
