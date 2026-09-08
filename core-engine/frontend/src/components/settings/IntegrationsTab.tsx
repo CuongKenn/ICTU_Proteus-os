@@ -27,6 +27,7 @@ export const IntegrationsTab: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [newProvider, setNewProvider] = useState("");
   const [newConfig, setNewConfig] = useState("");
+  const [newApiKey, setNewApiKey] = useState("");
 
   useEffect(() => {
     const fetchIntegrations = async () => {
@@ -51,15 +52,20 @@ export const IntegrationsTab: React.FC = () => {
     try {
       setError(null);
       let parsedConfig = {};
-      try {
-        parsedConfig = JSON.parse(newConfig);
-      } catch (e) {
-        setError("Cấu hình phải là định dạng JSON hợp lệ.");
-        return;
+      
+      if (newProvider === "other") {
+        try {
+          parsedConfig = JSON.parse(newConfig);
+        } catch (e) {
+          setError("Cấu hình phải là định dạng JSON hợp lệ.");
+          return;
+        }
+      } else {
+        const keyName = newProvider === "metabase" ? "secret_key" : "api_key";
+        parsedConfig = { [keyName]: newApiKey };
       }
 
       const res = await api.post("/v1/tenants/me/integrations", {
-
         provider: newProvider,
         config: parsedConfig,
       });
@@ -68,6 +74,7 @@ export const IntegrationsTab: React.FC = () => {
       setIsAdding(false);
       setNewProvider("");
       setNewConfig("");
+      setNewApiKey("");
     } catch (err) {
       logger.error("Failed to add integration", err);
       setError("Có lỗi xảy ra khi thêm kết nối.");
@@ -114,15 +121,8 @@ export const IntegrationsTab: React.FC = () => {
               value={newProvider}
               onChange={(e) => {
                 setNewProvider(e.target.value);
-                if (e.target.value === "appsmith") {
-                  setNewConfig(JSON.stringify({ api_key: "" }, null, 2));
-                } else if (e.target.value === "n8n") {
-                  setNewConfig(JSON.stringify({ api_key: "" }, null, 2));
-                } else if (e.target.value === "metabase") {
-                  setNewConfig(JSON.stringify({ secret_key: "" }, null, 2));
-                } else {
-                  setNewConfig("");
-                }
+                setNewConfig("");
+                setNewApiKey("");
               }}
               className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors"
             >
@@ -146,11 +146,25 @@ export const IntegrationsTab: React.FC = () => {
             </div>
           )}
 
-          {newProvider && (
+          {newProvider && newProvider !== "other" && (
             <div className="grid gap-2 animate-fade-in">
               <label className="text-sm font-medium text-text-primary">
-                Cấu hình (JSON) 
-                {newProvider === "appsmith" && <span className="text-text-secondary font-normal ml-2">- Yêu cầu trường &quot;api_key&quot;</span>}
+                {newProvider === "metabase" ? "Secret Key" : "API Key / Token"}
+              </label>
+              <input
+                type="password"
+                value={newApiKey}
+                onChange={(e) => setNewApiKey(e.target.value)}
+                placeholder="Dán mã khóa vào đây..."
+                className="w-full bg-bg-surface border border-border rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+          )}
+
+          {newProvider === "other" && (
+            <div className="grid gap-2 animate-fade-in">
+              <label className="text-sm font-medium text-text-primary">
+                Cấu hình (JSON)
               </label>
               <textarea
                 value={newConfig}
@@ -163,7 +177,7 @@ export const IntegrationsTab: React.FC = () => {
           )}
 
           <div className="flex justify-end pt-2">
-            <Button onClick={handleAddIntegration} disabled={!newProvider || !newConfig}>
+            <Button onClick={handleAddIntegration} disabled={!newProvider || (newProvider === "other" ? !newConfig : !newApiKey)}>
               <Save className="w-4 h-4 mr-2" /> Lưu Kết Nối
             </Button>
           </div>
