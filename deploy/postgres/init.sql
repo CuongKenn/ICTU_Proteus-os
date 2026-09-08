@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     name            VARCHAR(255) NOT NULL,
     slug            VARCHAR(100) NOT NULL UNIQUE,  -- VD: "ictu", "viettel"
     domain          VARCHAR(255),
-    keycloak_realm  VARCHAR(100) NOT NULL UNIQUE,  -- Tên Realm trong Keycloak
+    keycloak_realm  VARCHAR(100) NOT NULL,         -- Tên Realm trong Keycloak
     plan            VARCHAR(50)  NOT NULL DEFAULT 'starter',  -- starter | pro | enterprise
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     notify_channel_id VARCHAR(255),

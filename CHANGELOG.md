@@ -14,9 +14,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
 
 ### Fixed
+- [core-engine/backend, deploy/postgres/init.sql] Sửa lỗi xung đột `UniqueViolationError: duplicate key value violates unique constraint "tenants_keycloak_realm_key"` khi đăng ký Tenant thứ 2 trở lên. Do kiến trúc sử dụng 1 realm chung ("proteus") cho mọi Tenant, cột `keycloak_realm` không thể là `UNIQUE`. Đã xóa bỏ ràng buộc này trong ORM, DB schema và thêm Alembic migration.
 - [deploy/postgres/init.sql] Sửa lỗi thiếu cột `notify_channel_id` trong bảng `tenants` gây lỗi 500 khi người dùng đăng ký tài khoản mới (Tenant Onboarding).
-- [deploy/setup.sh, deploy/setup.ps1] Bổ sung cờ `--build` vào lệnh `docker compose up -d` để đảm bảo hệ thống luôn build lại ảnh mới nhất cho Frontend và Backend nếu có sự thay đổi mã nguồn, sửa lỗi kẹt giao diện cũ (thiếu Landing Page).
-- [deploy/setup.sh] Sửa lỗi sai logic if-else khiến script luôn báo "Không tìm thấy file .env.example" và dừng đột ngột sau khi tạo .env thành công.
+- [deploy/postgres/init.sql] Đồng bộ toàn bộ các cột bị thiếu so với Alembic models (như `domain`, `plugin_code_name`, `install_task_id`, `deleted_at`,...) để đảm bảo init script hoạt động chuẩn xác 100%.
 - [deploy/setup.sh] Sửa đường dẫn kiểm tra Backend Healthcheck từ `/api/v1/health` sang `/health` thông qua cổng Traefik (`http://localhost/health`) để tránh bị timeout chờ sai 120s.
 - [deploy/setup.sh] Khắc phục lỗi timeout chờ N8N healthcheck và lỗi không sinh được N8N_API_KEY do script gọi nhầm vào cổng nội bộ không được expose (5678). Chuyển sang gọi API trực tiếp qua Traefik (kèm header Host).
 - [deploy/setup.sh] Bổ sung biến jq `.ServiceSettings.EnableBotAccountCreation = true` vào lệnh cập nhật cấu hình Mattermost, sửa lỗi API trả về 403 (Bot creation has been disabled) khiến việc tự động sinh MATTERMOST_BOT_TOKEN bị thất bại.

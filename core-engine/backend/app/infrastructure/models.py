@@ -71,7 +71,7 @@ class TenantModel(BaseModel, SoftDeleteMixin):
         String(255), nullable=True, unique=True, index=True
     )
     keycloak_realm: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True
+        String(255), nullable=False
     )
     plan: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
