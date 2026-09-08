@@ -168,7 +168,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="keycloak",
                 config={"role": "Quản lý Định danh & SSO", "type": "Core Component"},
-                is_active=is_configured(settings.KEYCLOAK_CLIENT_SECRET),
+                is_active=is_configured(settings.KEYCLOAK_URL),
                 is_system=True
             ),
             TenantIntegrationEntity(
