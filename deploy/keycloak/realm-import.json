@@ -2,6 +2,16 @@
   "realm": "proteus",
   "loginTheme": "proteus",
   "enabled": true,
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "referrerPolicy": "no-referrer",
+    "xRobotsTag": "none",
+    "xFrameOptions": "ALLOW-FROM http://proteus.local https://proteus.local",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self' http://proteus.local https://proteus.local; object-src 'none';",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 28800,
