@@ -177,9 +177,9 @@
           "protocolMapper": "oidc-usermodel-property-mapper",
           "consentRequired": false,
           "config": {
-            "user.attribute": "id",
+            "user.attribute": "createdTimestamp",
             "claim.name": "id",
-            "jsonType.label": "String",
+            "jsonType.label": "long",
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
