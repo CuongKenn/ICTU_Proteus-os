@@ -715,15 +715,18 @@ class PluginInstallUseCase:
                         schema_name = f"tenant_{context.tenant_id}".replace("-", "_")
                         if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
                             continue
-                        await self.session.execute(
-                            text(f'SET search_path TO "{schema_name}"')
-                        )
-                        for table in reversed(manifest.database.tables):
-                            if not re.match(r"^[a-zA-Z0-9_]+$", table):
-                                continue
+                        try:
                             await self.session.execute(
-                                text(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+                                text(f'SET search_path TO "{schema_name}"')
                             )
+                            for table in reversed(manifest.database.tables):
+                                if not re.match(r"^[a-zA-Z0-9_]+$", table):
+                                    continue
+                                await self.session.execute(
+                                    text(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+                                )
+                        finally:
+                            await self.session.execute(text("SET search_path TO public"))
                 elif step == "credentials":
                     if hasattr(self.n8n_adapter, "delete_credential"):
                         for cred in getattr(self, "_credential_ids", []):
