@@ -99,7 +99,7 @@ echo "⏳ Đang chờ các dịch vụ khởi động (có thể mất 1-2 phút
 TIMEOUT=120
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
-  if curl -s http://localhost:8000/api/v1/health | grep -q "status"; then
+  if curl -s -H "Host: $DOMAIN" http://localhost/health | grep -q "status"; then
     echo "✅ Backend đã sẵn sàng!"
     break
   fi
@@ -112,6 +112,11 @@ if [ $ELAPSED -ge $TIMEOUT ]; then
   echo "Vui lòng kiểm tra log: docker compose logs backend"
 fi
 
+# 6.1 Ensure databases exist (Outline, Metabase)
+echo "ℹ️  Ensuring databases exist (outline, metabase)..."
+docker compose exec -T postgres psql -U proteus -d postgres -c "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec" > /dev/null 2>&1 || true
+docker compose exec -T postgres psql -U proteus -d postgres -c "SELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec" > /dev/null 2>&1 || true
+docker compose restart outline metabase
 
 # 7. Tự động hóa cấu hình Mattermost
 echo "⚙️  Đang cấu hình Mattermost (Tạo Bot, Webhook Secret)..."
@@ -161,11 +166,13 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
     
   if [ -n "$MM_TOKEN" ]; then
     # 7.5 Enable Personal Access Tokens
+    curl -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
+    jq '.ServiceSettings.EnablePersonalAccessTokens = true' /tmp/mm_config.json > /tmp/mm_config_new.json
     curl -sf -X PUT "$MM_URL/config" \
       -H "$MM_HOST_HEADER" \
       -H "Authorization: Bearer $MM_TOKEN" \
       -H "Content-Type: application/json" \
-      -d '{"ServiceSettings":{"EnableUserAccessTokens":true}}' > /dev/null
+      -d @/tmp/mm_config_new.json > /dev/null
 
     # 7.6 Tạo Bot account (hoặc lấy ID nếu đã có)
     BOT_USER_ID=$(curl -s -X POST "$MM_URL/bots" \

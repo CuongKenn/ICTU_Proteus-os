@@ -6,11 +6,16 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Added
+- [deploy/setup.sh] Bổ sung bước tạo database cho Outline (`outline`) và Metabase (`metabase`) bằng SQL query (tương tự setup.ps1) để khắc phục lỗi 502/Crash-loop do thiếu CSDL riêng.
+
 ### Changed
-- [deploy/setup.ps1, deploy/setup.sh] Nâng cấp luồng cài đặt: Bổ sung màn hình prompt yêu cầu người dùng nhập cấu hình Username và Password cho các tài khoản Admin hệ thống (Postgres, Redis, Keycloak, Mattermost, Appsmith) thay vì dùng giá trị cứng (hardcoded).
+- [deploy/setup.sh] Nâng cấp luồng cài đặt: Bổ sung màn hình prompt yêu cầu người dùng nhập cấu hình Username và Password cho các tài khoản Admin hệ thống (Postgres, Redis, Keycloak, Mattermost, Appsmith) thay vì dùng giá trị cứng (hardcoded).
+- [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
 
 ### Fixed
 - [deploy/setup.sh] Sửa lỗi sai logic if-else khiến script luôn báo "Không tìm thấy file .env.example" và dừng đột ngột sau khi tạo .env thành công.
+- [deploy/setup.sh] Sửa đường dẫn kiểm tra Backend Healthcheck từ `/api/v1/health` sang `/health` thông qua cổng Traefik (`http://localhost/health`) để tránh bị timeout chờ sai 120s.
 
 ## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
 
