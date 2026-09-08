@@ -13,14 +13,22 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
   ? `${process.env.KEYCLOAK_INTERNAL_URL}/realms/${realm}`
   : publicIssuer;
 
+// Cache promise để tránh concurrent refresh (race condition) gây lỗi revoke token ở Keycloak
+let refreshPromise: Promise<JWT> | null = null;
+
 /**
  * Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
  * Dùng cho BFF Proxy khi cần refresh token mà không muốn trigger jwt callback.
  */
 export async function refreshAccessToken(token: JWT): Promise<JWT> {
-  try {
-    const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
-    const response = await fetch(tokenUrl, {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
+      const response = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -46,5 +54,9 @@ export async function refreshAccessToken(token: JWT): Promise<JWT> {
     };
   } catch {
     return { ...token, error: "RefreshAccessTokenError" };
+  } finally {
+    refreshPromise = null;
   }
+})();
+return refreshPromise;
 }

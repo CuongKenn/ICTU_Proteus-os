@@ -19,10 +19,21 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
 // Được gọi tự động khi access_token hết hạn trong JWT callback.
 // (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
+// Cache promise để tránh concurrent refresh (race condition) gây lỗi revoke token ở Keycloak
+let refreshPromise: Promise<JWT> | null = null;
+
+// Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
+// Được gọi tự động khi access_token hết hạn trong JWT callback.
+// (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
 async function refreshAccessToken(token: JWT): Promise<JWT> {
-  try {
-    const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
-    const response = await fetch(tokenUrl, {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
+      const response = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -50,7 +61,11 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     };
   } catch {
     return { ...token, error: "RefreshAccessTokenError" };
+  } finally {
+    refreshPromise = null;
   }
+})();
+return refreshPromise;
 }
 
 // ─── NextAuth Config ──────────────────────────────────────────
