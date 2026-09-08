@@ -14,6 +14,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
 
 ### Fixed
+- [deploy/postgres/init.sql] Sửa lỗi thiếu cột `notify_channel_id` trong bảng `tenants` gây lỗi 500 khi người dùng đăng ký tài khoản mới (Tenant Onboarding).
 - [deploy/setup.sh, deploy/setup.ps1] Bổ sung cờ `--build` vào lệnh `docker compose up -d` để đảm bảo hệ thống luôn build lại ảnh mới nhất cho Frontend và Backend nếu có sự thay đổi mã nguồn, sửa lỗi kẹt giao diện cũ (thiếu Landing Page).
 - [deploy/setup.sh] Sửa lỗi sai logic if-else khiến script luôn báo "Không tìm thấy file .env.example" và dừng đột ngột sau khi tạo .env thành công.
 - [deploy/setup.sh] Sửa đường dẫn kiểm tra Backend Healthcheck từ `/api/v1/health` sang `/health` thông qua cổng Traefik (`http://localhost/health`) để tránh bị timeout chờ sai 120s.

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     keycloak_realm  VARCHAR(100) NOT NULL UNIQUE,  -- Tên Realm trong Keycloak
     plan            VARCHAR(50)  NOT NULL DEFAULT 'starter',  -- starter | pro | enterprise
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    notify_channel_id VARCHAR(255),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at      TIMESTAMPTZ  -- Soft delete
