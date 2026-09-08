@@ -7,6 +7,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Added
+- [core-engine/backend/app/core/use_cases/tenant_onboarding.py] Tự động hóa tạo Mattermost Team qua API khi một Tổ chức (Tenant) mới được tạo, giúp chia tách không gian làm việc giữa các tổ chức (Multi-Tenancy).
+- [core-engine/backend/app/entrypoints/routers/users.py] Cập nhật API `POST /v1/users/invite`: Tự động Pre-provision tài khoản Mattermost và Add nhân viên mới vào Team tương ứng của tổ chức ngay khi họ được mời, giúp họ đăng nhập một phát lọt thẳng vào Team mà không cần qua màn hình "Join/Create Team".
 - [core-engine/frontend/src/components/settings/IntegrationsTab.tsx] Hiển thị danh sách các dịch vụ lõi của hệ thống (Keycloak, Mattermost, Appsmith, n8n, Metabase) trong phần "Kết nối & Tích hợp" với trạng thái "Hoạt động" và gắn nhãn "Hệ thống". Giúp Admin dễ dàng nắm bắt được các dịch vụ cốt lõi đang tích hợp sẵn cùng Proteus OS, đồng thời vẫn giữ khả năng thêm các kết nối tùy chỉnh (Third-party) của riêng Tenant.
 - [deploy/setup.sh] Bổ sung bước tạo database cho Outline (`outline`) và Metabase (`metabase`) bằng SQL query (tương tự setup.ps1) để khắc phục lỗi 502/Crash-loop do thiếu CSDL riêng.
 

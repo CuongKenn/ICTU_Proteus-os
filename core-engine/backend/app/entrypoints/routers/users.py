@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
+from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import NotFoundError
@@ -20,6 +21,7 @@ from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_db_transactional,
     get_keycloak_adapter,
+    get_mattermost_adapter,
     require_permission,
 )
 
@@ -98,6 +100,7 @@ async def invite_user(
     request: Request,
     context: TenantContext = Depends(get_current_tenant_context),
     keycloak: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
 ):
     """
@@ -174,6 +177,26 @@ async def invite_user(
         "is_active": True,
     })
     await db.commit()
+
+    # 5. Pre-provision Mattermost user and add to team
+    if mattermost:
+        try:
+            team_id = await mattermost.get_team_by_name(tenant.slug[:64])
+            if team_id:
+                # Keycloak mapping: createdTimestamp -> id, but wait, Keycloak has createdTimestamp
+                # Actually, auth_data is not required for pre-provision if auth_service="gitlab" 
+                # Mattermost links by email automatically on first login.
+                mm_user_id = await mattermost.create_user(
+                    email=payload.email,
+                    username=payload.email.split("@")[0] + "-" + str(uuid.uuid4())[:8],
+                    auth_data="",
+                    auth_service="gitlab",
+                )
+                if mm_user_id:
+                    await mattermost.add_user_to_team(team_id, mm_user_id)
+                    logger.info("Pre-provisioned Mattermost user and added to team")
+        except Exception as e:
+            logger.warning("Failed to auto-sync Mattermost user", exc_info=e)
 
     logger.info(
         "Invited new user",

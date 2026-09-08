@@ -15,7 +15,7 @@ from app.core.domain.entities import (
     TenantEntity,
     TenantIntegrationEntity,
 )
-from app.core.domain.ports import AbstractIdentityProviderPort
+from app.core.domain.ports import AbstractIdentityProviderPort, AbstractChatOpsPort
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ class TenantOnboardingUseCase:
     ) -> None:
         self.tenant_repo = tenant_repo
         self.keycloak_adapter = keycloak_adapter
+        self.mattermost_adapter = mattermost_adapter
         self.session = session
 
     def _require_superadmin(self, context: TenantContext) -> None:
@@ -98,8 +99,20 @@ class TenantOnboardingUseCase:
             # Ở môi trường thực tế, nếu gọi KC lỗi, có thể cần rollback DB hoặc retry sau
             # Ở đây ta rollback giao dịch (nếu dùng chung self.session)
             # Vì AbstractTenantRepository không tự commit, ta có thể không commit.
-            msg = f"Lỗi tạo Tenant Group trên Keycloak: {e}"
-            raise TenantOnboardingError(msg) from e
+            raise TenantOnboardingError("Lỗi hệ thống khi tạo Tenant Identity") from e
+
+        # 3. Create Mattermost Team
+        if self.mattermost_adapter:
+            try:
+                team_name = slug[:64]  # Mattermost team name max length is 64
+                await self.mattermost_adapter.create_team(name=team_name, display_name=name)
+                logger.info(f"Đã tạo Mattermost team {team_name} cho tenant {slug}")
+            except Exception as e:
+                logger.error("Không thể tạo Mattermost team cho tenant %s: %s", slug, e)
+                # Fail gracefully for Mattermost since it's a side effect
+
+        # 4. Commit DB
+        await self.session.commit()
 
         return created_tenant
 
