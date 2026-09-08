@@ -25,6 +25,35 @@ if [ ! -f .env ]; then
     echo "📄 Khởi tạo file .env từ .env.example..."
     cp .env.example .env
     
+    echo "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):"
+    read -p "POSTGRES_USER [proteus]: " pg_user
+    pg_user=${pg_user:-proteus}
+    sed -i.bak "s|POSTGRES_USER=proteus|POSTGRES_USER=$pg_user|g" .env
+
+    read -p "POSTGRES_PASSWORD [random]: " pg_pass
+    pg_pass=${pg_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE|POSTGRES_PASSWORD=$pg_pass|g" .env
+    
+    read -p "REDIS_PASSWORD [random]: " redis_pass
+    redis_pass=${redis_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|REDIS_PASSWORD=CHANGE_ME_REDIS_PASSWORD_HERE|REDIS_PASSWORD=$redis_pass|g" .env
+
+    read -p "KEYCLOAK_ADMIN_USER [admin]: " kc_user
+    kc_user=${kc_user:-admin}
+    sed -i.bak "s|KEYCLOAK_ADMIN_USER=admin|KEYCLOAK_ADMIN_USER=$kc_user|g" .env
+
+    read -p "KEYCLOAK_ADMIN_PASSWORD [random]: " kc_pass
+    kc_pass=${kc_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD_HERE|KEYCLOAK_ADMIN_PASSWORD=$kc_pass|g" .env
+
+    read -p "MATTERMOST_ADMIN_PASSWORD [random]: " mm_pass
+    mm_pass=${mm_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|MATTERMOST_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE_123|MATTERMOST_ADMIN_PASSWORD=$mm_pass|g" .env
+
+    read -p "APPSMITH_ADMIN_PASSWORD [random]: " appsmith_pass
+    appsmith_pass=${appsmith_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|APPSMITH_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE|APPSMITH_ADMIN_PASSWORD=$appsmith_pass|g" .env
+    
     # 3. Auto-generate Secrets
     NEXTAUTH_SECRET=$(openssl rand -base64 32)
     sed -i.bak "s|NEXTAUTH_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL|NEXTAUTH_SECRET=$NEXTAUTH_SECRET|g" .env

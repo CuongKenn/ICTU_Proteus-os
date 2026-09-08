@@ -4,13 +4,13 @@
 # Entrypoint Router — Plugin Management
 # Tham chiếu: docs/api-swagger.yaml /plugins/*
 
+import asyncio
 import logging
 import uuid
 from typing import Any
 
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -190,6 +190,13 @@ async def _run_install_plugin_background(
     credentials: list[CredentialInput],
     app_state,
 ):
+    import sys
+    from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+    # Set tenant_id contextvar để after_begin event listener cài RLS đúng
+    tenant_id_ctx.set(str(ctx.tenant_id))
+    print(f"[BG_TASK] _run_install_plugin_background STARTED: {plugin_code_name}", flush=True, file=sys.stderr)
+    logger.info("Background task started for plugin %s, tenant %s", plugin_code_name, ctx.tenant_id)
+
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -219,7 +226,9 @@ async def _run_install_plugin_background(
                 plugin_code_name=plugin_code_name,
                 credentials=credentials,
             )
-    except Exception as e:
+        print(f"[BG_TASK] COMPLETED: {plugin_code_name}", flush=True, file=sys.stderr)
+    except BaseException as e:
+        print(f"[BG_TASK] FAILED: {plugin_code_name} — {type(e).__name__}: {e}", flush=True, file=sys.stderr)
         logger.error("Background task plugin install failed: %s", e, exc_info=True)
 
 
@@ -231,7 +240,6 @@ async def _run_install_plugin_background(
 async def install_plugin(
     request: Request,
     plugin_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
     body: InstallPluginRequest = Body(default_factory=InstallPluginRequest),
     ctx: TenantContext = Depends(require_permission("plugins.install")),
     repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
@@ -272,20 +280,29 @@ async def install_plugin(
 
     task_id = uuid.uuid4()
 
-    # Save the pending task ID to database
+    # Persist task_id với trạng thái INSTALLING — commit ngay trong handler
+    # để background task thấy ngay (tránh race condition)
     await repo.upsert_installation(
         ctx.tenant_id,
         plugin_id,
         PluginStatus.INSTALLING,
         install_task_id=task_id,
     )
+    # get_plugin_repo_write dùng get_db_transactional — tự commit khi handler return.
+    # Nhưng dùng asyncio.create_task() cần data đã committed trước khi task bắt đầu.
+    # Nên force commit ngay ở đây thay vì chờ dependency cleanup.
+    await repo._session.commit()
 
-    background_tasks.add_task(
-        _run_install_plugin_background,
-        ctx=ctx,
-        plugin_code_name=plugin.code_name,
-        credentials=credential_inputs,
-        app_state=request.app.state,
+    # Dùng asyncio.create_task() thay vì BackgroundTasks để tránh bug:
+    # FastAPI BackgroundTasks không chạy khi generator dependency (get_db_transactional)
+    # cleanup raise exception sau yield.
+    asyncio.get_event_loop().create_task(
+        _run_install_plugin_background(
+            ctx=ctx,
+            plugin_code_name=plugin.code_name,
+            credentials=credential_inputs,
+            app_state=request.app.state,
+        )
     )
 
     return {

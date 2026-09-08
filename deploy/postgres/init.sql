@@ -56,11 +56,13 @@ COMMENT ON COLUMN tenants.deleted_at IS 'Soft delete — NULL = còn hoạt đ�
 CREATE TABLE IF NOT EXISTS users (
     id              UUID PRIMARY KEY,              -- Đồng bộ với Keycloak User ID (sub)
     tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
+    keycloak_id     UUID NOT NULL UNIQUE,          -- ID thực tế bên Keycloak
     email           VARCHAR(255) NOT NULL,
     full_name       VARCHAR(255),
     avatar_url      TEXT,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     last_login_at   TIMESTAMPTZ,
+    joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at      TIMESTAMPTZ,                   -- Soft delete

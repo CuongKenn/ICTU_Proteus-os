@@ -56,6 +56,37 @@ if (-Not (Test-Path $envFile)) {
         $envContent = $envContent -replace "OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL.*",   "OUTLINE_SECRET_KEY=$outlineSecretKey"
         $envContent = $envContent -replace "OUTLINE_UTILS_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL.*", "OUTLINE_UTILS_SECRET=$outlineUtilsSecret"
 
+        Write-Host "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):" -ForegroundColor Cyan
+        
+        $pgUser = Read-Host "POSTGRES_USER [proteus]"
+        if (-not $pgUser) { $pgUser = "proteus" }
+        
+        $pgPass = Read-Host "POSTGRES_PASSWORD [random]"
+        if (-not $pgPass) { $pgPass = Get-RandomHex 12 }
+        
+        $redisPass = Read-Host "REDIS_PASSWORD [random]"
+        if (-not $redisPass) { $redisPass = Get-RandomHex 12 }
+        
+        $kcUser = Read-Host "KEYCLOAK_ADMIN_USER [admin]"
+        if (-not $kcUser) { $kcUser = "admin" }
+        
+        $kcPass = Read-Host "KEYCLOAK_ADMIN_PASSWORD [random]"
+        if (-not $kcPass) { $kcPass = Get-RandomHex 12 }
+        
+        $mmPass = Read-Host "MATTERMOST_ADMIN_PASSWORD [random]"
+        if (-not $mmPass) { $mmPass = Get-RandomHex 12 }
+        
+        $appsmithPass = Read-Host "APPSMITH_ADMIN_PASSWORD [random]"
+        if (-not $appsmithPass) { $appsmithPass = Get-RandomHex 12 }
+
+        $envContent = $envContent -replace "POSTGRES_USER=proteus", "POSTGRES_USER=$pgUser"
+        $envContent = $envContent -replace "POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "POSTGRES_PASSWORD=$pgPass"
+        $envContent = $envContent -replace "REDIS_PASSWORD=CHANGE_ME_REDIS_PASSWORD_HERE", "REDIS_PASSWORD=$redisPass"
+        $envContent = $envContent -replace "KEYCLOAK_ADMIN_USER=admin", "KEYCLOAK_ADMIN_USER=$kcUser"
+        $envContent = $envContent -replace "KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD_HERE", "KEYCLOAK_ADMIN_PASSWORD=$kcPass"
+        $envContent = $envContent -replace "MATTERMOST_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE_123", "MATTERMOST_ADMIN_PASSWORD=$mmPass"
+        $envContent = $envContent -replace "APPSMITH_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "APPSMITH_ADMIN_PASSWORD=$appsmithPass"
+
         Set-Content -Path $envFile -Value $envContent -Encoding UTF8
 
         Write-Host "[OK] .env created and secret keys generated." -ForegroundColor Green

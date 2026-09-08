@@ -4,11 +4,19 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - Sắp tới
+
+### Changed
+- [deploy/setup.ps1, deploy/setup.sh] Nâng cấp luồng cài đặt: Bổ sung màn hình prompt yêu cầu người dùng nhập cấu hình Username và Password cho các tài khoản Admin hệ thống (Postgres, Redis, Keycloak, Mattermost, Appsmith) thay vì dùng giá trị cứng (hardcoded).
+
 ## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
 
 ### Fixed
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi HTTP 400 (Bad Request) khi import workflow n8n do truyền các trường read-only (`active`, `tags`, v.v.). Chuyển sang sử dụng allowlist các trường hợp lệ (`name`, `nodes`, `connections`, `settings`, `triggerCount`) giúp tiến trình cài đặt plugin vượt qua bước cài đặt n8n.
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Sửa lỗi kẹt tiến trình cài đặt Plugin ở 85% do transaction lỗi không được rollback và `search_path` không được reset về `public` trước khi cập nhật trạng thái lỗi (`FAILED_DIRTY`). Lỗi này từng làm tiến trình background chạy ngầm bị sập khiến Frontend rơi vào trạng thái polling vô tận (và cuối cùng nhận lỗi 401).
+- **[core-engine/backend]** Sửa lỗi crash ngầm `Unexpected UTF-8 BOM` khi đọc file manifest, SQL, JSON (workflow/dashboard/app) do file được lưu ở định dạng UTF-8 with BOM trên Windows. Chuyển đổi mã hóa từ `encoding="utf-8"` sang `encoding="utf-8-sig"` trong toàn bộ logic đọc file của quá trình cài đặt và nâng cấp plugin.
+- **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Thêm logic `METABASE_INTERNAL_URL` cho phép Backend giao tiếp với Metabase container qua Docker internal network. Bỏ qua lỗi cài đặt Dashboard (trả về 401/403) nếu người dùng chưa thiết lập cấu hình/credentials cho Metabase để không block toàn bộ tiến trình cài đặt Plugin.
+- **[core-engine/backend/app/adapters/external/appsmith_adapter.py]** Bỏ qua lỗi cài đặt UI (trả về 401/403) nếu người dùng chưa thiết lập cấu hình/credentials cho Appsmith để cho phép cài đặt Plugin thành công một phần.
 - **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Thay `getServerSession()` (gây HTTP 500 trong Next.js App Router route handler) bằng `getToken()` + manual refresh — sửa lỗi Users/Roles/Plugins tabs không load được.
 - **[core-engine/frontend/src/lib/tokenRefresh.ts]** Tách `refreshAccessToken` ra file độc lập để tránh circular import khi BFF proxy import `authOptions` (chứa NextAuth Keycloak provider internal).
 - **[core-engine/backend/migrations/versions/a9f01234b567]** Thêm Alembic migration fix schema bảng `roles`: bổ sung cột `plugin_code_name`, `is_system_role`, `updated_at`, `deleted_at`; xóa `plugin_id` FK — đồng bộ ORM model với DB thực tế.

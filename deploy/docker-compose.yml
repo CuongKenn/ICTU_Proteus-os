@@ -116,7 +116,7 @@ services:
     image: quay.io/keycloak/keycloak:25.0
     container_name: proteus-keycloak
     restart: unless-stopped
-    command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
+    command: ${KEYCLOAK_START_MODE:-start-dev} --db=postgres --import-realm
     environment:
 
       KC_DB: postgres
