@@ -69,6 +69,7 @@ if [ ! -f .env ]; then
     
     rm -f .env.bak
     echo "✅ Đã tạo .env và generate secret keys."
+  else
     echo "❌ Lỗi: Không tìm thấy file .env.example"
     exit 1
   fi

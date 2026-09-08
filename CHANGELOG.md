@@ -9,6 +9,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ### Changed
 - [deploy/setup.ps1, deploy/setup.sh] Nâng cấp luồng cài đặt: Bổ sung màn hình prompt yêu cầu người dùng nhập cấu hình Username và Password cho các tài khoản Admin hệ thống (Postgres, Redis, Keycloak, Mattermost, Appsmith) thay vì dùng giá trị cứng (hardcoded).
 
+### Fixed
+- [deploy/setup.sh] Sửa lỗi sai logic if-else khiến script luôn báo "Không tìm thấy file .env.example" và dừng đột ngột sau khi tạo .env thành công.
+
 ## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
 
 ### Fixed
