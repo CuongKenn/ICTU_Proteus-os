@@ -5,6 +5,7 @@
 // Tích hợp luồng cài đặt Plugin (State Machine) từ usePlugins.
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { getSession } from "next-auth/react";
 import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -56,7 +57,8 @@ export function useMarketplace(): UseMarketplaceReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await api.get<{ items: PluginInfo[]; total: number }>("/plugins");
+        const response = await api.get<{ items: PluginInfo[]; total: number }>("/v1/plugins");
+
         if (!cancelled) {
           setPlugins(response.data.items || []);
         }
@@ -85,7 +87,8 @@ export function useMarketplace(): UseMarketplaceReturn {
 
   const pollStatus = useCallback(async (taskId: string, pluginId: string) => {
     try {
-      const response = await api.get<InstallTaskStatus>(`/plugins/install/${taskId}/status`);
+      const response = await api.get<InstallTaskStatus>(`/v1/plugins/install/${taskId}/status`);
+
       const statusData = response.data;
 
       if (statusData) {
@@ -97,8 +100,8 @@ export function useMarketplace(): UseMarketplaceReturn {
           const realProgress = Math.round((completedSteps / statusData.steps.length) * 100);
           setInstallProgress((prev) => Math.max(prev, realProgress));
         } else {
-          // Fallback khi steps rỗng
-          setInstallProgress((prev) => Math.min(prev + 5, 85));
+          // Fallback khi steps rỗng — cap at 95 để luôn còn chỗ cho completion
+          setInstallProgress((prev) => Math.min(prev + 5, 95));
         }
 
         // Check terminal status — dùng overall_status từ API mới
@@ -128,7 +131,19 @@ export function useMarketplace(): UseMarketplaceReturn {
           }, 2000);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      // 401: token hết hạn — force session refresh và tiếp tục polling
+      const httpStatus = err?.response?.status;
+      if (httpStatus === 401) {
+        logger.warn("[useMarketplace] 401 khi poll status — thử refresh session");
+        try {
+          await getSession(); // triggers next-auth token refresh
+        } catch {
+          // ignore — next poll sẽ thử lại tự động
+        }
+        return; // không dừng polling, thử lại lần sau
+      }
+      // Lỗi thực sự (5xx, network) → dừng polling
       if (pollingRef.current) clearInterval(pollingRef.current);
       setInstallStatus("failed");
       useNotificationStore.getState().addToast("error", "Không thể kiểm tra tiến trình cài đặt. Vui lòng kiểm tra lại Backend.");

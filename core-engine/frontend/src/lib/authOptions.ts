@@ -18,10 +18,22 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
 // ─── Silent Token Refresh ─────────────────────────────────────
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
 // Được gọi tự động khi access_token hết hạn trong JWT callback.
+// (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
+// Cache promise để tránh concurrent refresh (race condition) gây lỗi revoke token ở Keycloak
+let refreshPromise: Promise<JWT> | null = null;
+
+// Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
+// Được gọi tự động khi access_token hết hạn trong JWT callback.
+// (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
 async function refreshAccessToken(token: JWT): Promise<JWT> {
-  try {
-    const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
-    const response = await fetch(tokenUrl, {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
+      const response = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -49,7 +61,11 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     };
   } catch {
     return { ...token, error: "RefreshAccessTokenError" };
+  } finally {
+    refreshPromise = null;
   }
+})();
+return refreshPromise;
 }
 
 // ─── NextAuth Config ──────────────────────────────────────────
@@ -102,14 +118,39 @@ export const authOptions: NextAuthOptions = {
       // Lần đầu login — lưu access_token, refresh_token và expiry vào JWT session
       if (account) {
         let roles: string[] = [];
-        const kcProfile = profile as any;
-        if (kcProfile?.realm_access?.roles) {
-          roles = kcProfile.realm_access.roles;
+
+        // Ưu tiên decode access_token để lấy realm_access.roles
+        // vì Keycloak đảm bảo realm_access luôn có trong access_token.
+        // id_token (profile) chỉ chứa roles nếu đã cấu hình Protocol Mapper riêng.
+        if (account.access_token) {
+          try {
+            const payloadBase64 = account.access_token.split(".")[1];
+            const decoded = JSON.parse(
+              Buffer.from(payloadBase64, "base64").toString("utf-8")
+            );
+            if (decoded?.realm_access?.roles) {
+              roles = decoded.realm_access.roles;
+            }
+          } catch {
+            // Fallback: thử lấy từ profile (id_token)
+            const kcProfile = profile as any;
+            if (kcProfile?.realm_access?.roles) {
+              roles = kcProfile.realm_access.roles;
+            }
+          }
+        } else {
+          // Fallback: thử lấy từ profile (id_token)
+          const kcProfile = profile as any;
+          if (kcProfile?.realm_access?.roles) {
+            roles = kcProfile.realm_access.roles;
+          }
         }
 
         return {
           ...token,
           accessToken: account.access_token,
+          idToken: account.id_token,       // ← BẮT BUỘC cho federated logout
+          refreshToken: account.refresh_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000, // Fallback: 1 giờ
@@ -127,11 +168,13 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Expose access token cho BFF Proxy — KHÔNG expose xuống browser
-      // session.accessToken = token.accessToken as string; // REMOVED for security (Issue #327)
+      // Expose access token cho BFF Proxy (server-side only).
+      // Token này KHÔNG bao giờ xuống browser — chỉ BFF API Route đọc qua getServerSession().
+      // Bắt buộc để BFF proxy có thể inject Authorization header khi forward request đến backend.
+      (session as any).accessToken = token.accessToken as string;
       session.user.roles = (token.roles as string[]) ?? [];
 
-      // Truyền lỗi refresh lên client để có thể hiển thị thông báo
+      // Truyền lỗi refresh lên client để hiển thị thông báo (vd: RefreshAccessTokenError)
       if (token.error) {
         (session as any).error = token.error;
       }

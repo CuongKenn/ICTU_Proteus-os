@@ -70,9 +70,7 @@ class TenantModel(BaseModel, SoftDeleteMixin):
     domain: Mapped[str | None] = mapped_column(
         String(255), nullable=True, unique=True, index=True
     )
-    keycloak_realm: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True
-    )
+    keycloak_realm: Mapped[str] = mapped_column(String(255), nullable=False)
     plan: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_channel_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -117,6 +115,13 @@ class UserModel(BaseModel, SoftDeleteMixin):
 
     # Relationships
     tenant: Mapped["TenantModel"] = relationship("TenantModel", back_populates="users")
+    roles: Mapped[list["RoleModel"]] = relationship(
+        "RoleModel",
+        secondary="user_roles",
+        primaryjoin="UserModel.id == user_roles.c.user_id",
+        secondaryjoin="RoleModel.id == user_roles.c.role_id",
+        backref="users",
+    )
 
 
 # -----------------------------------------------------------------------------

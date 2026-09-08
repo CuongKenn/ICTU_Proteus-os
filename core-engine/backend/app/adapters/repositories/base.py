@@ -235,6 +235,11 @@ class AbstractUserRepository(ABC):
     """Port: Giao tiếp với User data store."""
 
     @abstractmethod
+    async def get(self, user_id: uuid.UUID) -> UserEntity | None:
+        """Lấy User theo ID."""
+        pass
+
+    @abstractmethod
     async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> UserEntity | None:
         """Lấy User theo keycloak_id."""
         ...

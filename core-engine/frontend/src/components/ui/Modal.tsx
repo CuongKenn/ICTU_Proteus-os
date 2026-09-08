@@ -18,7 +18,9 @@ export interface ModalProps {
   confirmLabel?: string;
   confirmVariant?: "primary" | "danger";
   isConfirmLoading?: boolean;
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
 }
+
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -30,7 +32,9 @@ export const Modal: React.FC<ModalProps> = ({
   confirmLabel = "Confirm",
   confirmVariant = "primary",
   isConfirmLoading = false,
+  maxWidth = "md",
 }) => {
+
   const [isRendered, setIsRendered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [keywordInput, setKeywordInput] = useState("");
@@ -87,13 +91,23 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={onClose}
       />
       
-      {/* Modal Dialog */}
       <div 
         className={clsx(
-          "relative w-full max-w-md glass-card bg-bg-surface/90 p-6 flex flex-col gap-4 shadow-2xl transition-all duration-[250ms] ease-out",
+          "relative w-full glass-card bg-bg-surface/90 p-6 flex flex-col gap-4 shadow-2xl transition-all duration-[250ms] ease-out",
+          {
+            "max-w-sm": maxWidth === "sm",
+            "max-w-md": maxWidth === "md",
+            "max-w-lg": maxWidth === "lg",
+            "max-w-xl": maxWidth === "xl",
+            "max-w-2xl": maxWidth === "2xl",
+            "max-w-3xl": maxWidth === "3xl",
+            "max-w-4xl": maxWidth === "4xl",
+            "max-w-5xl": maxWidth === "5xl",
+          },
           isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
         )}
       >
+
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-text-primary">{title}</h2>
           <button 

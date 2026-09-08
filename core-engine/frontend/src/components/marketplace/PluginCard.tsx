@@ -9,7 +9,6 @@ import clsx from "clsx";
 import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { useRBAC } from "@/hooks/useRBAC";
 
 export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
 
@@ -35,6 +34,7 @@ export interface PluginCardProps {
   plugin: PluginData;
   status: PluginStatus;
   installProgress?: number;
+  canInstall?: boolean;
   onInstall?: (id: string) => void;
   onUpdate?: (id: string) => void;
   onOpen?: (id: string) => void;
@@ -47,6 +47,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   plugin,
   status,
   installProgress = 0,
+  canInstall = false,
   onInstall,
   onUpdate,
   onOpen,
@@ -59,8 +60,6 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   const rating = plugin.rating ?? null;
   const category = plugin.category || "Utilities";
   const developer = plugin.author || plugin.developer || "Proteus Core";
-  const { hasPermission } = useRBAC();
-  const canInstall = hasPermission("plugins:install");
   
   const renderUninstallButton = () => {
     if (!onUninstall) return null;
@@ -145,9 +144,9 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
       {/* Action Area */}
       <div className="relative mt-auto pt-2 flex items-center justify-between min-h-[2.5rem]">
-        {status === "available" && onInstall && (
+        {status === "available" && (
           <Button 
-            onClick={() => onInstall(plugin.id)} 
+            onClick={() => canInstall && onInstall?.(plugin.id)} 
             disabled={!canInstall}
             className={clsx(
               "w-full font-semibold shadow-sm transition-shadow",

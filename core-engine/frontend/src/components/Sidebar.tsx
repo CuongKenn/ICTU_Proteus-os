@@ -33,11 +33,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+
+  const handleLogout = async () => {
+    // Federated Logout: đăng xuất khỏi cả NextAuth lẫn Keycloak SSO session
+    // Nếu không làm bước này, Keycloak vẫn nhớ session và tự login lại ngay
+    const res = await fetch("/api/auth/federated-logout");
+    const data = await res.json();
+    // Xóa NextAuth session trước, rồi redirect sang Keycloak end_session endpoint
+    await signOut({ redirect: false });
+    window.location.href = data.url ?? "/login";
+  };
 
   useEffect(() => {
+    setIsMounted(true);
     const saved = localStorage.getItem("proteus_sidebar_collapsed");
     if (saved) setIsCollapsed(saved === "true");
   }, []);
+
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -171,7 +185,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
                     {session?.user?.name || "Người dùng"}
                   </div>
                   <div className="text-xs text-text-disabled truncate">
-                    {userRoles.includes("tenant_admin") ? "Admin" : "Thành viên"}
+                    {isMounted && userRoles.includes("tenant_admin") ? "Admin" : isMounted ? "Thành viên" : ""}
+
                   </div>
                 </div>
               )}
@@ -179,7 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
             
             {!isCollapsed && (
               <button 
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={handleLogout}
                 className="p-1.5 text-text-disabled hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
                 title="Đăng xuất"
               >
@@ -192,7 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
           {isCollapsed && (
             <div className="mt-2 flex justify-center">
               <button 
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={handleLogout}
                 className="p-2 text-text-disabled hover:text-error hover:bg-error/10 rounded-lg transition-colors"
                 title="Đăng xuất"
               >

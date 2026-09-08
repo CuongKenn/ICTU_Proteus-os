@@ -166,9 +166,9 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    assert mock_session.execute.call_count == 8
-    # CREATE SCHEMA, SET search_path, SET LOCAL role, SET LOCAL tenant,
-    # seed.sql, and 3 RLS queries
+    assert mock_session.execute.call_count == 11
+    # CREATE SCHEMA, SET search_path, SAVEPOINT, seed stmt, RELEASE SAVEPOINT,
+    # SET search_path TO public, and RLS queries
     mock_mattermost_adapter.send_message.assert_called_once()
     mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
         action="installed",
@@ -200,7 +200,7 @@ async def test_execute_plugin_already_installed(
     mock_plugin_repo.get_by_code_name.return_value = sample_plugin
     mock_plugin_repo.get_installation_status.return_value = PluginStatus.ACTIVE
 
-    with pytest.raises(PluginInstallError, match="đang ở trạng thái ACTIVE"):
+    with pytest.raises(PluginInstallError, match="đang ACTIVE"):
         await plugin_install_use_case.execute(tenant_context, "hr-module")
 
 
@@ -219,17 +219,13 @@ async def test_execute_rollback_on_failure(
     mock_plugin_repo.get_by_code_name.return_value = sample_plugin
     mock_plugin_repo.get_installation_status.return_value = None
     mock_manifest_parser.parse.return_value = sample_manifest
-
-    # Force failure on session.execute
     mock_session.execute.side_effect = Exception("DB Error")
 
-    m_open = mock_open(read_data="SELECT 1;")
-    with patch("builtins.open", m_open):
+    with patch("builtins.open", mock_open(read_data="SELECT 1;")):
         with patch("pathlib.Path.exists", return_value=True):
             with pytest.raises(PluginInstallError, match="DB Error"):
                 await plugin_install_use_case.execute(tenant_context, "hr-module")
 
-    # Assert rollback occurred
     mock_plugin_repo.update_status.assert_called_once_with(
         tenant_id=tenant_context.tenant_id,
         plugin_id=sample_plugin.id,
@@ -268,5 +264,5 @@ async def test_execute_fails_with_malicious_sql(
             ):
                 await plugin_install_use_case.execute(tenant_context, "hr-module")
 
-    # Assert execute was never called
-    mock_session.execute.assert_not_called()
+    # Only rollback session reset was called
+    assert mock_session.execute.call_count == 1

@@ -64,7 +64,16 @@ bearer_scheme = HTTPBearer(auto_error=True)
 async def get_plugin_repo(
     db: AsyncSession = Depends(get_db_readonly),
 ) -> AbstractPluginRepository:
-    """Inject Plugin Repository."""
+    """Inject Plugin Repository (read-only, no auto-commit)."""
+    return SQLAlchemyPluginRepository(session=db)
+
+
+async def get_plugin_repo_write(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> AbstractPluginRepository:
+    """Inject Plugin Repository (transactional — auto-commit on success).
+    Dùng cho các write endpoints: install, uninstall, configure, v.v.
+    """
     return SQLAlchemyPluginRepository(session=db)
 
 
@@ -220,6 +229,7 @@ async def get_plugin_upgrade_use_case(
 async def get_current_tenant_context(
     credentials: HTTPAuthorizationCredentials = Security(bearer_scheme),
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    db: AsyncSession = Depends(get_db_readonly),
 ) -> TenantContext:
     """
     Extract và validate JWT Token.
@@ -230,6 +240,8 @@ async def get_current_tenant_context(
           header "Authorization: Bearer <token>"
         - Browser KHÔNG bao giờ gọi trực tiếp endpoint này
           với token tự mang theo
+        - Nếu token thiếu tenant_id (Keycloak chưa set attribute),
+          fallback lookup DB theo keycloak sub để tránh 404
     """
     # Bước 1: Verify JWT signature
     # (chỉ catch JWTError, không catch HTTPException)
@@ -245,25 +257,42 @@ async def get_current_tenant_context(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-    # Bước 2: Extract claims — raise 401 nếu thiếu field bắt buộc
-    # Trong môi trường dev, nếu token không có tenant_id, dùng default tenant
-    tenant_id_raw = payload.get("tenant_id")
-    if not tenant_id_raw or tenant_id_raw == "default":
-        if settings.ENVIRONMENT != "development":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token thiếu claim tenant_id.",
-            )
-        tenant_id_raw = "a0000000-0000-4000-8000-000000000001"  # Default ICTU Tenant
-
     user_id_raw = payload.get("sub")
-
     if not user_id_raw:
-        logger.error(f"Token thi?u claim sub. Payload: {payload}")
+        logger.error(f"Token thiếu claim sub. Payload: {payload}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token thiếu claim sub (user_id).",
         )
+
+    # Bước 2: Extract tenant_id từ token claim
+    tenant_id_raw = payload.get("tenant_id")
+
+    # Fallback: nếu token không có tenant_id, tra cứu DB theo keycloak_id
+    # Điều này xảy ra khi Keycloak Protocol Mapper chưa được cấu hình hoặc
+    # user đã được tạo trước khi mapper được thêm vào
+    if not tenant_id_raw or tenant_id_raw == "default":
+        try:
+            keycloak_uuid = uuid.UUID(str(user_id_raw))
+            user_repo = SQLAlchemyUserRepository(session=db)
+            db_user = await user_repo.get_by_keycloak_id(keycloak_uuid)
+            if db_user and db_user.tenant_id:
+                tenant_id_raw = str(db_user.tenant_id)
+                logger.info(
+                    "tenant_id không có trong token — resolved từ DB",
+                    extra={"keycloak_id": user_id_raw, "tenant_id": tenant_id_raw},
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Không xác định được tenant của người dùng.",
+                )
+        except (ValueError, Exception) as exc:
+            logger.error("Lỗi khi tra cứu tenant_id từ DB", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token thiếu claim tenant_id và không thể xác định tenant.",
+            ) from exc
 
     # Bước 3: Parse UUID — bắt ValueError nếu format không hợp lệ
     try:
@@ -314,10 +343,10 @@ async def get_tenant_onboarding_use_case(
 
 
 async def get_user_provisioning_use_case(
-    repo: AbstractUserRepository = Depends(get_user_repo),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> UserProvisioningUseCase:
-    """Inject User Provisioning Use Case."""
-    return UserProvisioningUseCase(user_repo=repo)
+    """Inject User Provisioning Use Case với Transactional Session (upsert cần ghi DB)."""
+    return UserProvisioningUseCase(user_repo=SQLAlchemyUserRepository(session=db))
 
 
 async def get_keycloak_webhook_use_case(

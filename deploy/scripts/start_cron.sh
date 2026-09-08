@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Script khởi chạy crond bên trong container postgres-backup
 
 # Khởi tạo crontab

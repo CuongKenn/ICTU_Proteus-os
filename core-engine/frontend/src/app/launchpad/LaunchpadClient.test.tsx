@@ -33,6 +33,13 @@ vi.mock("next-auth/react", () => ({
   useSession: () => ({ data: { user: { role: "tenant_admin" } }, status: "authenticated" }),
 }));
 
+vi.mock("@/store/authStore", () => ({
+  useAuthStore: (selector: any) =>
+    selector({
+      hasRole: (role: string) => role === "tenant_admin" || role === "superadmin",
+    }),
+}));
+
 describe("LaunchpadClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();

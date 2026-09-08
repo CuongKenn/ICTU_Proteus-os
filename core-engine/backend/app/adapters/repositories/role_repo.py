@@ -29,11 +29,17 @@ class RoleRepository:
         """
         Cấp role cho user.
         """
+        from sqlalchemy.exc import IntegrityError
+
         user_role = UserRoleModel(
             user_id=user_id, role_id=role_id, granted_by_user_id=granted_by
         )
         self.session.add(user_role)
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            raise ValueError(f"User {user_id} already has Role {role_id}")
+
         return user_role
 
     async def revoke_role(self, user_id: uuid.UUID, role_id: uuid.UUID) -> None:

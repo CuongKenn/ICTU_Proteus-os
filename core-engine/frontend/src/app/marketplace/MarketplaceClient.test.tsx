@@ -119,27 +119,32 @@ describe("MarketplaceClient", () => {
     const confirmBtn = screen.getByText("Gỡ cài đặt", { selector: "button.bg-danger" });
     expect(confirmBtn).toBeDisabled();
 
-    const input = screen.getByPlaceholderText("HR Pro");
-    fireEvent.change(input, { target: { value: "HR Pro" } });
+    const input = screen.getByPlaceholderText("hr-module");
+    fireEvent.change(input, { target: { value: "hr-module" } });
 
     expect(confirmBtn).not.toBeDisabled();
 
     fireEvent.click(confirmBtn);
     await waitFor(() => {
-      expect(mockUninstallPlugin).toHaveBeenCalledWith("1", "HR Pro");
+      expect(mockUninstallPlugin).toHaveBeenCalledWith("1", "hr-module");
     });
   });
 
-  it("hides install/uninstall actions if not tenant_admin", () => {
+  it("disables install/uninstall actions if user lacks permission", () => {
     (useSession as any).mockReturnValue({
       user: { name: "User", roles: ["hr_manager"] },
       status: "authenticated",
       isLoading: false,
       hasRole: (_role: string) => false,
     });
+    (useRBAC as any).mockReturnValue({
+      hasPermission: () => false,
+    });
     render(<MarketplaceClient />);
 
-    expect(screen.queryByText("Nhận")).not.toBeInTheDocument();
+    const installBtn = screen.getByText("Nhận").closest("button");
+    expect(installBtn).toBeDisabled();
     expect(screen.queryByTitle("Gỡ cài đặt")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Bạn không có quyền thao tác (plugins:install)")).toBeInTheDocument();
   });
 });

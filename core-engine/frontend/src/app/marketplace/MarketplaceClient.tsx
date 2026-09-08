@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useSession } from "@/hooks/useSession";
+import { useRBAC } from "@/hooks/useRBAC";
 import { PluginCard, type PluginData, type PluginStatus } from "@/components/marketplace/PluginCard";
 import { CategoryFilter } from "@/components/marketplace/CategoryFilter";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
@@ -18,8 +19,9 @@ import type { CredentialFieldSchema, CredentialInput } from "@/types";
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
 export const MarketplaceClient: React.FC = () => {
-  const { user, hasRole } = useSession();
-  const isAdmin = hasRole("tenant_admin") || user?.email === "admin@proteus.local";
+  useSession();
+  const { hasPermission, isLoading: isRBACLoading } = useRBAC();
+  const canInstall = hasPermission("plugins:install");
 
   const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
   const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
@@ -111,7 +113,7 @@ export const MarketplaceClient: React.FC = () => {
 
   // Handlers
   const handleInstallClick = (id: string) => {
-    if (!isAdmin) return;
+    if (!canInstall) return;
     const found = allPlugins.find(p => p.data.id === id);
     if (found) {
       setPreviewPlugin(found.data);
@@ -121,7 +123,7 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   const handleConfirmInstall = async (credentials: CredentialInput[]) => {
-    if (previewPlugin && isAdmin) {
+    if (previewPlugin && canInstall) {
       setIsInstallPreviewOpen(false);
       // Pass credentials vào install — backend sẽ xử lý n8n credential creation
       await installPlugin(previewPlugin.id || "", credentials);
@@ -129,16 +131,16 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   const handleUninstallClick = (id: string) => {
-    if (!isAdmin) return;
+    if (!canInstall) return;
     const plugin = allPlugins.find(p => p.data.id === id)?.data;
     if (plugin) {
-      setUninstallPluginData({ id: plugin.id, name: plugin.name });
+      setUninstallPluginData({ id: plugin.id || "", name: plugin.codeName || plugin.name });
       setIsUninstallConfirmOpen(true);
     }
   };
 
   const handleConfirmUninstall = async () => {
-    if (uninstallPluginData && isAdmin) {
+    if (uninstallPluginData && canInstall) {
       setIsUninstalling(true);
       await uninstallPlugin(uninstallPluginData.id, uninstallPluginData.name);
       setIsUninstalling(false);
@@ -233,8 +235,9 @@ export const MarketplaceClient: React.FC = () => {
                   plugin={data}
                   status={currentStatus as PluginStatus}
                   installProgress={installingId === data.id ? installProgress : 0}
-                  onInstall={isAdmin ? handleInstallClick : undefined}
-                  onUninstall={isAdmin ? handleUninstallClick : undefined}
+                  canInstall={canInstall}
+                  onInstall={handleInstallClick}
+                  onUninstall={handleUninstallClick}
                 />
               );
             })}

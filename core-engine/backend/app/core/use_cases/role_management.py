@@ -12,8 +12,9 @@ class RoleManagementUseCase:
     Use Case: Quản lý Roles & Permissions.
     """
 
-    def __init__(self, role_repo: RoleRepository):
+    def __init__(self, role_repo: RoleRepository, user_repo=None):
         self.role_repo = role_repo
+        self.user_repo = user_repo
 
     async def create_role(self, tenant_id: uuid.UUID, role_data: dict) -> RoleModel:
         role_data["tenant_id"] = tenant_id
@@ -51,7 +52,13 @@ class RoleManagementUseCase:
         if not role:
             raise ValueError(f"Role {role_id} not found in tenant {tenant_id}")
 
-        return await self.role_repo.assign_role(user_id, role_id, granted_by)
+        admin_internal_id = None
+        if self.user_repo and granted_by:
+            admin_user = await self.user_repo.get_by_keycloak_id(granted_by)
+            if admin_user:
+                admin_internal_id = admin_user.id
+
+        return await self.role_repo.assign_role(user_id, role_id, admin_internal_id)
 
     async def revoke_role_from_user(
         self, user_id: uuid.UUID, role_id: uuid.UUID, tenant_id: uuid.UUID

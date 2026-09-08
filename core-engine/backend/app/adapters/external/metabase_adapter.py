@@ -54,7 +54,9 @@ class MetabaseAdapter(AbstractAnalyticsPort):
     """
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        self._base_url: str = settings.METABASE_SITE_URL.rstrip("/")
+        self._base_url: str = (
+            settings.METABASE_INTERNAL_URL or settings.METABASE_SITE_URL
+        ).rstrip("/")
         self._embedding_key: str | None = settings.METABASE_EMBEDDING_KEY
         self._headers: dict[str, str] = {
             "Content-Type": "application/json",
@@ -172,6 +174,13 @@ class MetabaseAdapter(AbstractAnalyticsPort):
         )
 
         response = await self._request_with_retry("POST", url, json_data=dashboard_json)
+
+        if response.status_code in (401, 403):
+            logger.warning(
+                "Metabase authentication failed (401/403). Dashboard import skipped.",
+                extra={"dashboard_name": dashboard_json.get("name", "unknown")},
+            )
+            return "skipped-metabase-dashboard"
 
         if response.status_code not in (200, 201, 202):
             logger.error(

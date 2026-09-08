@@ -152,7 +152,14 @@ class N8nAdapter(AbstractWorkflowEnginePort):
             extra={"workflow_name": workflow_json.get("name", "unknown")},
         )
 
-        response = await self._request_with_retry("POST", url, json=workflow_json)
+        # n8n API chỉ chấp nhận một số field khi tạo workflow mới (POST /api/v1/workflows).
+        # Dùng allowlist thay vì denylist để tránh bị reject vì field không xác định.
+        ALLOWED_FIELDS = {"name", "nodes", "connections", "settings", "triggerCount"}
+        clean_workflow = {k: v for k, v in workflow_json.items() if k in ALLOWED_FIELDS}
+        if not clean_workflow.get("name"):
+            clean_workflow["name"] = workflow_json.get("name", "Untitled Workflow")
+
+        response = await self._request_with_retry("POST", url, json=clean_workflow)
 
         if response.status_code not in (200, 201):
             logger.error(

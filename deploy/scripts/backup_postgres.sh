@@ -23,8 +23,8 @@ echo "Starting backup of database ${POSTGRES_DB} to ${BACKUP_FILE}..."
 
 export PGPASSWORD=${POSTGRES_PASSWORD}
 
-# Thực thi pg_dump và nén gzip
-if pg_dump -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" | gzip > "${BACKUP_FILE}"; then
+# Thực thi pg_dumpall và nén gzip để sao lưu TOÀN BỘ các CSDL
+if pg_dumpall -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" | gzip > "${BACKUP_FILE}"; then
     echo "Backup completed successfully."
     
     # Xóa các file cũ

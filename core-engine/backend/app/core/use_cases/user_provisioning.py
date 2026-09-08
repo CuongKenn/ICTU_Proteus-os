@@ -34,7 +34,4 @@ class UserProvisioningUseCase:
         user_entity = await self.user_repo.upsert(user_data)
         await self.user_repo.commit()
 
-        # Merge roles from Keycloak JWT into UserEntity response
-        user_entity.roles = tenant_context.roles
-
         return user_entity

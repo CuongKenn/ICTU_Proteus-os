@@ -56,6 +56,37 @@ if (-Not (Test-Path $envFile)) {
         $envContent = $envContent -replace "OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL.*",   "OUTLINE_SECRET_KEY=$outlineSecretKey"
         $envContent = $envContent -replace "OUTLINE_UTILS_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL.*", "OUTLINE_UTILS_SECRET=$outlineUtilsSecret"
 
+        Write-Host "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):" -ForegroundColor Cyan
+        
+        $pgUser = Read-Host "POSTGRES_USER [proteus]"
+        if (-not $pgUser) { $pgUser = "proteus" }
+        
+        $pgPass = Read-Host "POSTGRES_PASSWORD [random]"
+        if (-not $pgPass) { $pgPass = Get-RandomHex 12 }
+        
+        $redisPass = Read-Host "REDIS_PASSWORD [random]"
+        if (-not $redisPass) { $redisPass = Get-RandomHex 12 }
+        
+        $kcUser = Read-Host "KEYCLOAK_ADMIN_USER [admin]"
+        if (-not $kcUser) { $kcUser = "admin" }
+        
+        $kcPass = Read-Host "KEYCLOAK_ADMIN_PASSWORD [random]"
+        if (-not $kcPass) { $kcPass = Get-RandomHex 12 }
+        
+        $mmPass = Read-Host "MATTERMOST_ADMIN_PASSWORD [random]"
+        if (-not $mmPass) { $mmPass = Get-RandomHex 12 }
+        
+        $appsmithPass = Read-Host "APPSMITH_ADMIN_PASSWORD [random]"
+        if (-not $appsmithPass) { $appsmithPass = Get-RandomHex 12 }
+
+        $envContent = $envContent -replace "POSTGRES_USER=proteus", "POSTGRES_USER=$pgUser"
+        $envContent = $envContent -replace "POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "POSTGRES_PASSWORD=$pgPass"
+        $envContent = $envContent -replace "REDIS_PASSWORD=CHANGE_ME_REDIS_PASSWORD_HERE", "REDIS_PASSWORD=$redisPass"
+        $envContent = $envContent -replace "KEYCLOAK_ADMIN_USER=admin", "KEYCLOAK_ADMIN_USER=$kcUser"
+        $envContent = $envContent -replace "KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD_HERE", "KEYCLOAK_ADMIN_PASSWORD=$kcPass"
+        $envContent = $envContent -replace "MATTERMOST_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE_123", "MATTERMOST_ADMIN_PASSWORD=$mmPass"
+        $envContent = $envContent -replace "APPSMITH_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "APPSMITH_ADMIN_PASSWORD=$appsmithPass"
+
         Set-Content -Path $envFile -Value $envContent -Encoding UTF8
 
         Write-Host "[OK] .env created and secret keys generated." -ForegroundColor Green
@@ -107,7 +138,7 @@ if ($domain -eq "proteus.local") {
 
 # 5. Start Docker Compose
 Write-Host "[INFO] Starting services via Docker Compose..." -ForegroundColor Cyan
-docker compose up -d
+docker compose up -d --build
 
 # 6. Wait for backend health
 Write-Host "[INFO] Waiting for services to start (may take 1-2 minutes)..." -ForegroundColor Yellow
@@ -214,6 +245,12 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
                 $mmConfig = Invoke-RestMethod -Uri "$mmUrl/config" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
                 $mmConfig.ServiceSettings.EnableBotAccountCreation = $true
                 $mmConfig.ServiceSettings.EnableUserAccessTokens = $true
+                $mmConfig.GitLabSettings.Enable = $true
+                $mmConfig.GitLabSettings.Secret = "mattermost-secret"
+                $mmConfig.GitLabSettings.Id = "mattermost"
+                $mmConfig.GitLabSettings.AuthEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/auth"
+                $mmConfig.GitLabSettings.TokenEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/token"
+                $mmConfig.GitLabSettings.UserAPIEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/userinfo"
                 Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body ($mmConfig | ConvertTo-Json -Depth 10) -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction Stop | Out-Null 
             } catch {
                 Write-Host "[WARN] Failed to update Mattermost config: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -315,7 +352,7 @@ if ($envContent -match "CHANGE_ME_GET_FROM_KEYCLOAK_UI") {
             }
         }
         Set-Content .env -Value $envContent -Encoding UTF8
-        docker compose restart backend outline
+        docker compose restart backend outline frontend
         Write-Host "[OK] Keycloak Secrets synced successfully." -ForegroundColor Green
     } else {
         Write-Host "[WARN] Failed to sync Keycloak Secrets. Is Keycloak fully running?" -ForegroundColor Yellow

@@ -53,5 +53,6 @@ class TenantIntegrationResponse(BaseModel):
     provider: str
     config: dict[str, Any]
     is_active: bool
+    is_system: bool = False
 
     model_config = {"from_attributes": True}

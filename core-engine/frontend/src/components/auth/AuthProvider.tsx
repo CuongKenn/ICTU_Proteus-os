@@ -6,6 +6,8 @@
 import { SessionProvider, useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
+import api from "@/lib/api";
+import { logger } from "@/lib/logger";
 
 function AuthSync() {
   const { data: session, status } = useSession();
@@ -17,14 +19,29 @@ function AuthSync() {
       return;
     }
     if (status === "authenticated" && session?.user) {
-      setUser({
+      const initialUser = {
         id: session.user.id ?? "",
         email: session.user.email ?? "",
         name: session.user.name ?? "",
         image: session.user.image ?? undefined,
         tenantId: session.user.tenant_id ?? "",
         roles: session.user.roles ?? [],
-      });
+      };
+      setUser(initialUser);
+
+      // Fetch actual roles from Database
+      api.get("/v1/auth/me")
+        .then((res) => {
+          if (res.data && res.data.roles) {
+            setUser({
+              ...initialUser,
+              roles: res.data.roles,
+            });
+          }
+        })
+        .catch((err) => {
+          logger.warn("Could not fetch DB roles, fallback to Keycloak roles", err);
+        });
     } else {
       clearAuth();
     }

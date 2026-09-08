@@ -116,7 +116,7 @@ services:
     image: quay.io/keycloak/keycloak:25.0
     container_name: proteus-keycloak
     restart: unless-stopped
-    command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
+    command: ${KEYCLOAK_START_MODE:-start-dev} --db=postgres --import-realm
     environment:
 
       KC_DB: postgres
@@ -141,6 +141,7 @@ services:
         condition: service_healthy
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
+      - ./keycloak/theme/proteus:/opt/keycloak/themes/proteus:ro
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' 2>/dev/null && exit 0 || exit 1"]
       interval: 30s
@@ -341,6 +342,11 @@ services:
     restart: unless-stopped
     environment:
       APPSMITH_DISABLE_TELEMETRY: "true"
+      APPSMITH_OAUTH2_GITHUB_CLIENT_ID: appsmith
+      APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET}
+      APPSMITH_OAUTH2_GITHUB_AUTH_URL: http://auth.${DOMAIN}/realms/proteus/protocol/openid-connect/auth
+      APPSMITH_OAUTH2_GITHUB_TOKEN_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
+      APPSMITH_OAUTH2_GITHUB_PROFILE_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
     volumes:
       - appsmith-data:/appsmith-stacks
     networks:
@@ -458,6 +464,8 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
+      KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       N8N_URL: http://n8n:5678
       N8N_API_KEY: ${N8N_API_KEY}
       QDRANT_URL: http://qdrant:6333
@@ -466,6 +474,12 @@ services:
       ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: http://localhost:3001
+      METABASE_INTERNAL_URL: http://metabase:3000
+      APPSMITH_URL: ${APPSMITH_URL}
+      APPSMITH_API_KEY: ${APPSMITH_API_KEY}
+      MATTERMOST_URL: ${MATTERMOST_URL}
+      MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN}
+      MATTERMOST_WEBHOOK_SECRET: ${MATTERMOST_WEBHOOK_SECRET}
       PLUGINS_DIR: /plugins
     volumes:
       - ../plugins:/plugins:ro

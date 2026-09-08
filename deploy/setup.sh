@@ -25,6 +25,35 @@ if [ ! -f .env ]; then
     echo "📄 Khởi tạo file .env từ .env.example..."
     cp .env.example .env
     
+    echo "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):"
+    read -p "POSTGRES_USER [proteus]: " pg_user
+    pg_user=${pg_user:-proteus}
+    sed -i.bak "s|POSTGRES_USER=proteus|POSTGRES_USER=$pg_user|g" .env
+
+    read -p "POSTGRES_PASSWORD [random]: " pg_pass
+    pg_pass=${pg_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE|POSTGRES_PASSWORD=$pg_pass|g" .env
+    
+    read -p "REDIS_PASSWORD [random]: " redis_pass
+    redis_pass=${redis_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|REDIS_PASSWORD=CHANGE_ME_REDIS_PASSWORD_HERE|REDIS_PASSWORD=$redis_pass|g" .env
+
+    read -p "KEYCLOAK_ADMIN_USER [admin]: " kc_user
+    kc_user=${kc_user:-admin}
+    sed -i.bak "s|KEYCLOAK_ADMIN_USER=admin|KEYCLOAK_ADMIN_USER=$kc_user|g" .env
+
+    read -p "KEYCLOAK_ADMIN_PASSWORD [random]: " kc_pass
+    kc_pass=${kc_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD_HERE|KEYCLOAK_ADMIN_PASSWORD=$kc_pass|g" .env
+
+    read -p "MATTERMOST_ADMIN_PASSWORD [random]: " mm_pass
+    mm_pass=${mm_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|MATTERMOST_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE_123|MATTERMOST_ADMIN_PASSWORD=$mm_pass|g" .env
+
+    read -p "APPSMITH_ADMIN_PASSWORD [random]: " appsmith_pass
+    appsmith_pass=${appsmith_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|APPSMITH_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE|APPSMITH_ADMIN_PASSWORD=$appsmith_pass|g" .env
+    
     # 3. Auto-generate Secrets
     NEXTAUTH_SECRET=$(openssl rand -base64 32)
     sed -i.bak "s|NEXTAUTH_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL|NEXTAUTH_SECRET=$NEXTAUTH_SECRET|g" .env
@@ -40,6 +69,7 @@ if [ ! -f .env ]; then
     
     rm -f .env.bak
     echo "✅ Đã tạo .env và generate secret keys."
+  else
     echo "❌ Lỗi: Không tìm thấy file .env.example"
     exit 1
   fi
@@ -62,14 +92,14 @@ fi
 
 # 5. Khởi động Docker Compose
 echo "🐳 Khởi động các dịch vụ qua Docker Compose..."
-docker compose up -d
+docker compose up -d --build
 
 # 6. Wait healthchecks
 echo "⏳ Đang chờ các dịch vụ khởi động (có thể mất 1-2 phút)..."
 TIMEOUT=120
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
-  if curl -s http://localhost:8000/api/v1/health | grep -q "status"; then
+  if curl -s -H "Host: $DOMAIN" http://localhost/health | grep -q "status"; then
     echo "✅ Backend đã sẵn sàng!"
     break
   fi
@@ -82,6 +112,11 @@ if [ $ELAPSED -ge $TIMEOUT ]; then
   echo "Vui lòng kiểm tra log: docker compose logs backend"
 fi
 
+# 6.1 Ensure databases exist (Outline, Metabase)
+echo "ℹ️  Ensuring databases exist (outline, metabase)..."
+echo "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec" | docker compose exec -T postgres psql -U proteus -d postgres > /dev/null 2>&1 || true
+echo "SELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec" | docker compose exec -T postgres psql -U proteus -d postgres > /dev/null 2>&1 || true
+docker compose restart outline metabase
 
 # 7. Tự động hóa cấu hình Mattermost
 echo "⚙️  Đang cấu hình Mattermost (Tạo Bot, Webhook Secret)..."
@@ -131,11 +166,20 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
     
   if [ -n "$MM_TOKEN" ]; then
     # 7.5 Enable Personal Access Tokens
+    curl -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
+    jq '.ServiceSettings.EnablePersonalAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true |
+        .GitLabSettings.Enable = true |
+        .GitLabSettings.Secret = "mattermost-secret" |
+        .GitLabSettings.Id = "mattermost" |
+        .GitLabSettings.AuthEndpoint = "http://auth.'"$DOMAIN"'/realms/proteus/protocol/openid-connect/auth" |
+        .GitLabSettings.TokenEndpoint = "http://auth.'"$DOMAIN"'/realms/proteus/protocol/openid-connect/token" |
+        .GitLabSettings.UserAPIEndpoint = "http://auth.'"$DOMAIN"'/realms/proteus/protocol/openid-connect/userinfo"' \
+        /tmp/mm_config.json > /tmp/mm_config_new.json
     curl -sf -X PUT "$MM_URL/config" \
       -H "$MM_HOST_HEADER" \
       -H "Authorization: Bearer $MM_TOKEN" \
       -H "Content-Type: application/json" \
-      -d '{"ServiceSettings":{"EnableUserAccessTokens":true}}' > /dev/null
+      -d @/tmp/mm_config_new.json > /dev/null
 
     # 7.6 Tạo Bot account (hoặc lấy ID nếu đã có)
     BOT_USER_ID=$(curl -s -X POST "$MM_URL/bots" \
@@ -177,7 +221,8 @@ fi
 
 # 8. Tự động hóa cấu hình n8n (Zero-Touch Provisioning)
 echo "⚙️  Đang cấu hình n8n (Tạo Owner Account & API Key)..."
-N8N_URL="http://localhost:5678"
+N8N_URL="http://localhost"
+N8N_HOST_HEADER="Host: workflow.$DOMAIN"
 
 # Lấy thông tin user từ .env (hoặc mặc định)
 N8N_ADMIN_EMAIL="admin@proteus.local"
@@ -187,7 +232,7 @@ N8N_ADMIN_PASSWORD=$(grep -E "^POSTGRES_PASSWORD=" .env | cut -d '=' -f2) # Dùn
 N8N_TIMEOUT=120
 N8N_ELAPSED=0
 while [ $N8N_ELAPSED -lt $N8N_TIMEOUT ]; do
-  if curl -sf $N8N_URL/healthz > /dev/null; then
+  if curl -sf -H "$N8N_HOST_HEADER" http://localhost/healthz > /dev/null; then
     break
   fi
   sleep 5
@@ -196,9 +241,14 @@ done
 
 if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; then
   # 8.1 Tạo tài khoản Owner qua REST API ẩn
-  curl -sf -X POST "$N8N_URL/rest/owner/setup"     -H "Content-Type: application/json"     -d '{
+  # n8n yêu cầu password phải có ít nhất 1 chữ hoa
+  N8N_ADMIN_PASSWORD_COMPLIANT="Admin_${N8N_ADMIN_PASSWORD}!"
+  curl -sf -X POST "$N8N_URL/rest/owner/setup" \
+    -H "$N8N_HOST_HEADER" \
+    -H "Content-Type: application/json" \
+    -d '{
       "email": "'"$N8N_ADMIN_EMAIL"'",
-      "password": "'"$N8N_ADMIN_PASSWORD"'",
+      "password": "'"$N8N_ADMIN_PASSWORD_COMPLIANT"'",
       "firstName": "Admin",
       "lastName": "Proteus"
     }' > /dev/null || true

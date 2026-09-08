@@ -151,9 +151,9 @@ async def test_uninstall_success(
     )
 
     # Verify drop table executed
-    assert mock_session.execute.call_count == 2
+    assert mock_session.execute.call_count == 3
     # Check drop statement
-    sql_arg = mock_session.execute.call_args[0][0].text
+    sql_arg = mock_session.execute.call_args_list[1][0][0].text
     assert 'DROP TABLE IF EXISTS "test_table" CASCADE;' in sql_arg
 
 
@@ -190,6 +190,7 @@ async def test_uninstall_wrong_tenant(use_case, context, mock_plugin_repo):
         status=None,
     )
     mock_plugin_repo.get_by_id.return_value = plugin
+    mock_plugin_repo.get_installation_status.return_value = None
 
     with pytest.raises(PluginUninstallError, match="chưa được cài đặt"):
         await use_case.uninstall_plugin(context, plugin_id, confirm_name="test_plugin")

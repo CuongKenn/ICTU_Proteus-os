@@ -4,6 +4,91 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - Sắp tới
+
+### Added
+- [docs/POF_COMPLIANCE.md] Bổ sung Báo cáo Giải trình Đáp ứng Tiêu chí Nguồn mở (PoF Compliance Report) tự đánh giá đạt 50/50 điểm Tiêu chí PoF của Cuộc thi "Phát triển phần mềm mã nguồn mở tích hợp AI 2026" - Khoa CNTT Trường ĐH CNTT & TT (ICTU).
+- [BUILDING.md] Biên soạn tài liệu Hướng dẫn Biên dịch & Cài đặt từ Mã nguồn (Building from Source) chi tiết cho cả môi trường Docker và Bare-metal, tuân thủ nguyên tắc cấu hình qua biến môi trường (.env) và sử dụng 100% công cụ mã nguồn mở.
+- [DEPENDENCIES.md] Biên soạn tài liệu Quản lý Thư viện & Gói Đính kèm (Dependencies & Bundling Policy) làm rõ danh mục thư viện, giấy phép tương thích và cam kết chính sách "Zero Bundling / No Modified Vendoring".
+- [docs/LICENSE_NOTICE.md] Công bố Thông báo Mục đích Giấy phép GNU AGPLv3 và Ma trận Tương thích Giấy phép (License Compatibility Matrix) với các thư viện bên thứ ba (MIT, Apache 2.0, BSD-3-Clause, PostgreSQL License).
+- [codebase] Rà soát và bổ sung toàn diện header bản quyền chuẩn SPDX (`Copyright (c) 2026 CuongKenn & ICTU Team` và `SPDX-License-Identifier: AGPL-3.0-or-later`) trên 100% các tệp mã nguồn của dự án (Python, TypeScript, SQL, Shell, PowerShell), loại bỏ hoàn toàn nguy cơ bị trừ điểm về cấp phép per-file.
+- [README.md] Cập nhật liên kết trực tiếp tới Hệ thống quản lý lỗi (Bug Tracker), Bản phát hành mã nguồn mở chuẩn POSIX (.tar.gz), Báo cáo PoF Compliance, và các hướng dẫn biên dịch.
+- [core-engine/frontend/src/components/settings/IntegrationsTab.tsx] Hiển thị danh sách các dịch vụ lõi của hệ thống (Keycloak, Mattermost, Appsmith, n8n, Metabase) trong phần "Kết nối & Tích hợp" với trạng thái "Hoạt động" và gắn nhãn "Hệ thống". Giúp Admin dễ dàng nắm bắt được các dịch vụ cốt lõi đang tích hợp sẵn cùng Proteus OS, đồng thời vẫn giữ khả năng thêm các kết nối tùy chỉnh (Third-party) của riêng Tenant.
+- [deploy/setup.sh] Bổ sung bước tạo database cho Outline (`outline`) và Metabase (`metabase`) bằng SQL query (tương tự setup.ps1) để khắc phục lỗi 502/Crash-loop do thiếu CSDL riêng.
+
+### Changed
+- [core-engine/frontend/src/components/settings/IntegrationsTab.tsx] Cải tiến UI/UX màn hình Thêm Kết Nối: Thay thế ô nhập liệu JSON thô kệch bằng giao diện nhập `API Key` hoặc `Secret Key` (dạng password field) cho các dịch vụ cốt lõi (Appsmith, n8n, Metabase), giúp trải nghiệm người dùng thân thiện và bảo mật hơn rất nhiều so với việc bắt ép gõ chuẩn định dạng JSON. Tính năng nhập JSON tùy chỉnh được dời xuống tùy chọn "Khác".
+- [core-engine/backend/app/core/use_cases/tenant_onboarding.py] Cải tiến API `get_integrations` lên "Level 2 Real Check": Backend sử dụng `httpx` + `asyncio.gather` để chủ động "ping" đồng thời tới 5 dịch vụ lõi. Nếu dịch vụ sập mạng hoặc time-out quá 1.5 giây, trạng thái sẽ báo "Vô hiệu". Đồng thời, hỗ trợ cơ chế **Tenant Override**: Nếu Quản trị viên của một Tenant chủ động thêm kết nối (ví dụ `appsmith`) trên giao diện UI, hệ thống sẽ ưu tiên sử dụng cấu hình riêng (API Key riêng) của Tenant đó và ẩn đi cấu hình mặc định toàn cục (`.env`), đáp ứng hoàn hảo kiến trúc Multi-Tenant SaaS.
+- [deploy/setup.sh] Nâng cấp luồng cài đặt: Bổ sung màn hình prompt yêu cầu người dùng nhập cấu hình Username và Password cho các tài khoản Admin hệ thống (Postgres, Redis, Keycloak, Mattermost, Appsmith) thay vì dùng giá trị cứng (hardcoded).
+- [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
+
+### Fixed
+- [core-engine/frontend/src/app/launchpad/LaunchpadClient.tsx] Sửa lỗi không hiển thị danh sách Ứng dụng hệ thống (n8n, Metabase) và Ứng dụng cài đặt (Plugins) trên màn hình Launchpad đối với tài khoản cấp cao nhất (`superadmin`). Trước đây điều kiện phân quyền (`isAdmin`) chỉ check cứng role `tenant_admin` dẫn đến việc Admin hệ thống bị ẩn mất các nút truy cập này.
+- [core-engine/frontend/src/lib/authOptions.ts, core-engine/frontend/src/lib/tokenRefresh.ts] Sửa lỗi thỉnh thoảng bị văng ra màn hình đăng nhập (Logout đột ngột). Nguyên nhân do tính năng Token Refresh của NextAuth gặp lỗi Race Condition khi có nhiều API calls đồng thời khi Access Token vừa hết hạn (sau 5 phút), dẫn đến việc gửi nhiều request dùng chung một `refresh_token` lên Keycloak. Keycloak phát hiện reuse token đã lập tức revoke toàn bộ session. Giải pháp: Thêm cơ chế Lock (Cache Promise) cho hàm `refreshAccessToken` để đảm bảo chỉ 1 request duy nhất được gửi tới Keycloak, các request khác sẽ await kết quả của request đầu tiên.
+- [core-engine/frontend/src/app/launchpad/LaunchpadClient.tsx] Phân quyền (RBAC) hiển thị ứng dụng trên Launchpad: Ẩn hoàn toàn các ứng dụng quản trị Hệ thống (như n8n Workflow, Metabase) và các Plugin (VD: HR Core) đối với nhân viên không có role truy cập (`tenant_admin` hoặc roles yêu cầu của riêng từng Plugin), giúp giao diện không bị rối và nhân viên không bấm nhầm vào các app không được phép.
+- [core-engine/frontend/src/components/ui/AppIcon.tsx, LaunchpadClient.tsx] Sửa lỗi vỡ layout hiển thị danh sách ứng dụng trên trang Launchpad (Icon bị thụt thò, lệch nhãn dán ACTIVE). Đổi thẻ Grid sang Flex wrap và cố định không gian chiều cao text (`h-10`) giúp các icon luôn thẳng hàng đều tắp trên mọi kích thước màn hình.
+- [core-engine/frontend/src/app/marketplace/MarketplaceClient.tsx] Sửa lỗi gửi sai tên xác nhận (Confirm Name) khi gỡ cài đặt Plugin. UI yêu cầu người dùng nhập tên hiển thị (VD: HR Management Module) nhưng Backend lại xác thực dựa trên mã plugin (`code_name`, VD: hr-module) dẫn tới lỗi 400 Bad Request. Đã đổi logic UI yêu cầu nhập đúng `code_name`.
+- [core-engine/backend/app/core/use_cases/plugin_uninstall.py] Sửa lỗi API gỡ cài đặt Plugin luôn báo "Plugin này chưa được cài đặt hoặc không có quyền." do nhầm lẫn logic kiểm tra `status` của plugin từ bảng `plugins` thay vì bảng join `tenant_plugins`.
+- [core-engine/backend/app/core/use_cases/plugin_uninstall.py, plugin_install.py] Khắc phục lỗi rò rỉ (leak) `search_path` ở tầng database. Khi xoá/cài đặt bảng dữ liệu của Plugin, lệnh `SET search_path TO ...` không được reset về `public` trong khối `finally`, dẫn tới Transaction bị treo (`InFailedSQLTransactionError`) nếu có bất kỳ lỗi nào xảy ra trong chuỗi tiến trình. Đã bổ sung `await self.session.rollback()` và reset `search_path`.
+- [deploy/docker-compose.yml] Khắc phục lỗi `Appsmith connection failed: All connection attempts failed` khi cài đặt Plugin bằng cách bổ sung biến môi trường `APPSMITH_URL` và `APPSMITH_API_KEY` vào container `backend`.
+- [deploy/.env, deploy/.env.example] Sửa cổng mặc định của Appsmith từ 8080 thành 80.
+- [deploy/setup.sh] Sửa lỗi script âm thầm tạo database thất bại bằng cách đổi sang dùng cấu trúc pipe `echo "..." | psql` thay cho cờ `-c` kết hợp `\gexec`.
+- [core-engine/backend/app/adapters/repositories/user_repo.py, core-engine/backend/app/adapters/repositories/base.py] Sửa lỗi API `POST /{role_id}/assign` bị crash (500) khi gọi `user_repo.get()` nhưng method này chưa được implement trong `SQLAlchemyUserRepository`.
+- [core-engine/backend, deploy/postgres/init.sql] Sửa lỗi xung đột `UniqueViolationError: duplicate key value violates unique constraint "tenants_keycloak_realm_key"` khi đăng ký Tenant thứ 2 trở lên. Do kiến trúc sử dụng 1 realm chung ("proteus") cho mọi Tenant, cột `keycloak_realm` không thể là `UNIQUE`. Đã xóa bỏ ràng buộc này trong ORM, DB schema và thêm Alembic migration.
+- [deploy/postgres/init.sql] Sửa lỗi thiếu cột `notify_channel_id` trong bảng `tenants` gây lỗi 500 khi người dùng đăng ký tài khoản mới (Tenant Onboarding).
+- [deploy/postgres/init.sql] Đồng bộ toàn bộ các cột bị thiếu so với Alembic models (như `domain`, `plugin_code_name`, `install_task_id`, `deleted_at`,...) để đảm bảo init script hoạt động chuẩn xác 100%.
+- [deploy/setup.sh] Sửa đường dẫn kiểm tra Backend Healthcheck từ `/api/v1/health` sang `/health` thông qua cổng Traefik (`http://localhost/health`) để tránh bị timeout chờ sai 120s.
+- [deploy/setup.sh] Khắc phục lỗi timeout chờ N8N healthcheck và lỗi không sinh được N8N_API_KEY do script gọi nhầm vào cổng nội bộ không được expose (5678). Chuyển sang gọi API trực tiếp qua Traefik (kèm header Host).
+- [deploy/setup.sh] Bổ sung biến jq `.ServiceSettings.EnableBotAccountCreation = true` vào lệnh cập nhật cấu hình Mattermost, sửa lỗi API trả về 403 (Bot creation has been disabled) khiến việc tự động sinh MATTERMOST_BOT_TOKEN bị thất bại.
+
+## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
+
+### Fixed
+- **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi HTTP 400 (Bad Request) khi import workflow n8n do truyền các trường read-only (`active`, `tags`, v.v.). Chuyển sang sử dụng allowlist các trường hợp lệ (`name`, `nodes`, `connections`, `settings`, `triggerCount`) giúp tiến trình cài đặt plugin vượt qua bước cài đặt n8n.
+- **[core-engine/backend/app/core/use_cases/plugin_install.py]** Sửa lỗi kẹt tiến trình cài đặt Plugin ở 85% do transaction lỗi không được rollback và `search_path` không được reset về `public` trước khi cập nhật trạng thái lỗi (`FAILED_DIRTY`). Lỗi này từng làm tiến trình background chạy ngầm bị sập khiến Frontend rơi vào trạng thái polling vô tận (và cuối cùng nhận lỗi 401).
+- **[core-engine/backend]** Sửa lỗi crash ngầm `Unexpected UTF-8 BOM` khi đọc file manifest, SQL, JSON (workflow/dashboard/app) do file được lưu ở định dạng UTF-8 with BOM trên Windows. Chuyển đổi mã hóa từ `encoding="utf-8"` sang `encoding="utf-8-sig"` trong toàn bộ logic đọc file của quá trình cài đặt và nâng cấp plugin.
+- **[core-engine/backend/app/adapters/external/metabase_adapter.py]** Thêm logic `METABASE_INTERNAL_URL` cho phép Backend giao tiếp với Metabase container qua Docker internal network. Bỏ qua lỗi cài đặt Dashboard (trả về 401/403) nếu người dùng chưa thiết lập cấu hình/credentials cho Metabase để không block toàn bộ tiến trình cài đặt Plugin.
+- **[core-engine/backend/app/adapters/external/appsmith_adapter.py]** Bỏ qua lỗi cài đặt UI (trả về 401/403) nếu người dùng chưa thiết lập cấu hình/credentials cho Appsmith để cho phép cài đặt Plugin thành công một phần.
+- **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts]** Thay `getServerSession()` (gây HTTP 500 trong Next.js App Router route handler) bằng `getToken()` + manual refresh — sửa lỗi Users/Roles/Plugins tabs không load được.
+- **[core-engine/frontend/src/lib/tokenRefresh.ts]** Tách `refreshAccessToken` ra file độc lập để tránh circular import khi BFF proxy import `authOptions` (chứa NextAuth Keycloak provider internal).
+- **[core-engine/backend/migrations/versions/a9f01234b567]** Thêm Alembic migration fix schema bảng `roles`: bổ sung cột `plugin_code_name`, `is_system_role`, `updated_at`, `deleted_at`; xóa `plugin_id` FK — đồng bộ ORM model với DB thực tế.
+- **[core-engine/frontend/src/hooks/usePlugins.ts]** Thêm prefix `/v1/` vào tất cả 6 API calls (trước đây gọi `/plugins/...` gây 404 — BFF proxy map sang `/api/plugins/...` thay vì `/api/v1/plugins/...`).
+- **[core-engine/frontend/src/hooks/useMarketplace.ts]** Thêm prefix `/v1/` vào endpoint `GET /plugins` và `GET /plugins/install/{taskId}/status`.
+- **[core-engine/frontend/src/components/settings/TenantTab.tsx]** Thêm prefix `/v1/` vào `GET/PATCH /tenants/me`.
+- **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thêm prefix `/v1/` vào `GET/POST /tenants/me/integrations`.
+- **[core-engine/backend/app/adapters/external/keycloak_adapter.py]** Bổ sung hàm `add_user_to_group` và `get_group_by_name` để thao tác trực tiếp với Keycloak Group.
+- **[core-engine/backend/app/entrypoints/routers/users.py]** Fix lỗi không map user vào Keycloak Group khi gửi email mời nhân viên (`/users/invite`). Bây giờ user sẽ được tự động thêm vào Group `tenant_{slug}` thay vì chỉ được gán attribute.
+- **[core-engine/backend/app/adapters/repositories/user_repo.py]** Sửa lỗi `MissingGreenletError` ngầm trên API `/v1/auth/me` do lazy loading của SQLAlchemy. Chỉnh `upsert` nạp lại entity để luôn lấy được mảng `roles` cho Frontend.
+- **[core-engine/frontend/src/components/auth/AuthProvider.tsx]** Chỉnh sửa luồng xác thực: Buộc gọi `/v1/auth/me` để lấy danh sách Roles thực tế từ DB mỗi khi load lại trang, thay vì chỉ phụ thuộc hoàn toàn vào bản chụp JWT từ Keycloak.
+- **[core-engine/frontend/src/hooks/useRBAC.ts]** Sửa logic so khớp quyền: Kiểm tra cả `role.name` và `role.display_name` để đảm bảo Frontend không bị miss quyền khi user giữ custom role có tên tiếng Việt (như "Giám Đốc").
+- **[core-engine/frontend/src/app/api/proxy/[...path]/route.ts & api.ts]** Fix lỗi văng đăng xuất (Logout) liên tục do mất đồng bộ Token Refresh. Chuyển logic Silent Refresh từ BFF Proxy sang Axios Interceptor trên Frontend (`getSession()`) để NextAuth có thể set lại HTTP-Only Cookie chứa token mới sau mỗi lần Refresh Token Rotation.
+
+### Changed
+- **[core-engine/backend/app/entrypoints/dependencies.py]** Loại bỏ hoàn toàn hardcoded `tenant_id` — thay bằng DB lookup theo `keycloak_sub` từ JWT token.
+- **[core-engine/backend/tests/entrypoints/test_auth_dependency.py]** Rewrite test file để match signature mới của `get_current_tenant_context` (có param `db`).
+
+## [Unreleased] — SaaS Tenant Onboarding (2026-09-07)
+
+
+### Added
+- **[core-engine/backend & frontend]** Hiển thị danh sách vai trò (Roles) hiện tại của người dùng trên UI quản lý Users (`UsersTab.tsx`). Cập nhật `UserModel` để load relationship `roles` qua bảng `user_roles`.
+
+- **[core-engine/frontend]** Bổ sung Landing Page (Trang chủ công khai) tại `src/app/page.tsx` với thiết kế Glassmorphism hiện đại làm mặt tiền hệ thống.
+- **[core-engine/frontend]** Thêm trang đăng ký trực tuyến `src/app/signup/page.tsx` và form `SignupForm` cho tính năng SaaS Onboarding tự động.
+- **[core-engine/frontend]** Thêm API trung gian (BFF) `POST /api/onboarding/signup` để bảo mật proxy sang backend.
+- **[core-engine/backend]** Thêm Use Case `OnboardingUseCase` và API Endpoint `POST /api/v1/onboarding/signup` để xử lý logic cấp phát Tenant và tạo tài khoản Keycloak tự động.
+- **[core-engine/backend]** Bổ sung các hàm xử lý User Account vào `KeycloakAdapter` (`create_user`, `set_user_password`, `assign_role_to_user`).
+- **[deploy/keycloak]** Bổ sung Custom Login Theme `proteus` (CSS override) mang phong cách Glassmorphism và Dark Mode, cập nhật `docker-compose.yml` và `realm-import.json`.
+
+### Changed
+- **[core-engine/frontend]** Cập nhật `middleware.ts` để mở khoá (allow public access) các route `/`, `/signup`, `/api/onboarding/*`, không yêu cầu đăng nhập đối với khách.
+- **[core-engine/backend]** Thay đổi `get_admin_token` trong `KeycloakAdapter` để sử dụng `grant_type="password"` từ biến cấu hình `KEYCLOAK_ADMIN_USER`/`PASSWORD` thay vì `client_credentials`.
+
+### Fixed
+- **[core-engine/backend]** Fix lỗi crash do import thiếu `EmailStr` bằng Regex Pattern trong `onboarding_schemas.py`.
+- **[core-engine/backend]** Fix lỗi circular import `get_db_session` trong Router bằng `get_db_transactional`.
+- **[core-engine/backend]** Cập nhật thủ công Schema Database các bảng `tenants` (thiếu `notify_channel_id`) và `users` (thiếu `keycloak_id`, `joined_at`) do lỗi mất đồng bộ Alembic.
+
 ## [Unreleased] — Local LLM Migration (2026-09-06)
 
 ### Security
@@ -81,6 +166,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[DevOps]** Cấu hình `deploy/grafana/provisioning/dashboards/` với 3 dashboards JSON: Plugin Install Monitoring, AI Command Activity, và System Errors.
 - **[Backend]** Cấu hình `structlog` trong `logging_config.py` để xuất log dưới định dạng JSON với đầy đủ context.
 - **[Backend]** Gắn log chi tiết (có context `tenant_id`, `plugin_code_name`, `ai_command`, `action`, v.v.) vào các tiến trình cài đặt Plugin (`plugin_install.py`) và thực thi lệnh AI (`ai_command.py`).
+
+## [Unreleased] - Sắp tới
+
+### Fixed
+- **[DB/tenant_plugins]** Hotfix: Thêm cột `install_task_id UUID` vào bảng `tenant_plugins` bằng lệnh `ALTER TABLE` trực tiếp (migration tự động bị chặn do lỗi type-cast enum ở migration kế tiếp). Lỗi này gây ra `UndefinedColumnError` khi gọi `POST /plugins/:id/install`.
+- **[core-engine/backend/app/adapters/repositories/user_repo.py]** Fix `MissingGreenlet` triệt để: `_to_entity()` không bao giờ access `model.roles` trực tiếp; luôn nhận `roles` là tham số tường minh được eager-load qua `selectinload`.
+- **[core-engine/backend/app/entrypoints/dependencies.py]** `UserProvisioningUseCase` đổi sang dùng `get_db_transactional` thay vì readonly session.
 
 ## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
 

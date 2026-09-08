@@ -150,13 +150,13 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "INSERT INTO tenant_plugins (tenant_id, plugin_id, status, installed_version, install_error_log, install_task_id) "
-                "VALUES (:tenant_id, :plugin_id, :status, :version, :error_log, :install_task_id) "
+                "VALUES (:tenant_id, :plugin_id, :status, COALESCE(:version, 'unknown'), :error_log, :install_task_id) "
                 "ON CONFLICT (tenant_id, plugin_id) DO UPDATE SET "
                 "status = EXCLUDED.status, "
                 "installed_version = COALESCE(EXCLUDED.installed_version, tenant_plugins.installed_version), "
                 "install_error_log = EXCLUDED.install_error_log, "
                 "install_task_id = COALESCE(EXCLUDED.install_task_id, tenant_plugins.install_task_id), "
-                "last_updated_at = NOW()"
+                "updated_at = NOW()"
             ),
             {
                 "tenant_id": tenant_id,
@@ -186,7 +186,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET status = :status, install_error_log = :error_log, last_updated_at = NOW() "
+                "SET status = :status, install_error_log = :error_log, updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {
@@ -206,7 +206,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         await self._session.execute(
             text(
                 "UPDATE tenant_plugins "
-                "SET config_override = :config, last_updated_at = NOW() "
+                "SET config_override = :config, updated_at = NOW() "
                 "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
             ),
             {

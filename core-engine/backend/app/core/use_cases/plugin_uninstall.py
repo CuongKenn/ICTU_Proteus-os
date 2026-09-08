@@ -74,7 +74,10 @@ class PluginUninstallUseCase:
         if getattr(self, "tenant_repo", None):
             tenant = await self.tenant_repo.get_by_id(context.tenant_id)
 
-        if plugin.status is None:
+        status = await self.plugin_repo.get_installation_status(
+            context.tenant_id, plugin_id
+        )
+        if status is None:
             raise PluginUninstallError(
                 "Plugin này chưa được cài đặt hoặc không có quyền."
             )
@@ -183,6 +186,8 @@ class PluginUninstallUseCase:
                 e,
                 exc_info=True,
             )
+
+            await self.session.rollback()
 
             # Nếu lỗi, ta mark là FAILED_DIRTY để admin hoặc job cleanup xử lý
             await self.plugin_repo.update_status(
@@ -335,16 +340,19 @@ class PluginUninstallUseCase:
                     schema_name,
                 )
                 return
-            await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
-            for table_name in manifest.database.tables:
-                if not re.match(r"^[a-zA-Z0-9_]+$", table_name):
-                    logger.warning(
-                        "Bỏ qua DROP TABLE vì tên bảng không hợp lệ: %s", table_name
-                    )
-                    continue
-                drop_sql = f'DROP TABLE IF EXISTS "{table_name}" CASCADE;'
-                try:
-                    await self.session.execute(text(drop_sql))
-                except Exception as e:
-                    logger.error("Lỗi khi drop table %s: %s", table_name, e)
-                    raise
+            try:
+                await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
+                for table_name in manifest.database.tables:
+                    if not re.match(r"^[a-zA-Z0-9_]+$", table_name):
+                        logger.warning(
+                            "Bỏ qua DROP TABLE vì tên bảng không hợp lệ: %s", table_name
+                        )
+                        continue
+                    drop_sql = f'DROP TABLE IF EXISTS "{table_name}" CASCADE;'
+                    try:
+                        await self.session.execute(text(drop_sql))
+                    except Exception as e:
+                        logger.error("Lỗi khi drop table %s: %s", table_name, e)
+                        raise
+            finally:
+                await self.session.execute(text("SET search_path TO public"))
