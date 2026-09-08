@@ -1,95 +1,138 @@
-/* Custom CSS for Proteus OS Keycloak Theme (Glassmorphism + Dark Mode) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* Global Body Styling */
-body, .pf-v5-c-login {
+body {
     background-color: #05050a !important;
     background-image: 
-        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.2) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.2) 0%, transparent 40%) !important;
+        radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(147, 51, 234, 0.15) 0%, transparent 50%) !important;
     color: white !important;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
 }
 
-/* Make headers text white */
-.pf-v5-c-title, .pf-v5-c-content h1, #kc-header-wrapper {
-    color: white !important;
-    font-weight: 700 !important;
-    text-transform: uppercase;
+.pf-v5-c-login {
+    background: transparent !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
 }
 
-/* Login Card Container (Glassmorphism) */
-.pf-v5-c-login__main, .kc-login-card, #kc-form {
+/* Typography */
+h1, h2, h3, .pf-v5-c-title {
+    color: white !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+/* The Main Card */
+.pf-v5-c-login__main {
     background: rgba(255, 255, 255, 0.03) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
     border-radius: 24px !important;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5) !important;
-    color: white !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+    padding: 2rem !important;
 }
 
-/* Hide some default backgrounds */
-.pf-v5-c-login__container {
-    background: transparent !important;
+/* Header inside card */
+.pf-v5-c-login__main-header {
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    padding-bottom: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
 }
-.pf-v5-c-login__main-header, .pf-v5-c-login__main-body, .pf-v5-c-login__main-footer {
-    background: transparent !important;
+.pf-v5-c-login__main-header .pf-v5-c-title {
+    font-weight: 700 !important;
+    font-size: 1.5rem !important;
+}
+
+/* Form labels */
+.pf-v5-c-form__label-text {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
 }
 
 /* Inputs */
-.pf-v5-c-form-control input, input[type="text"], input[type="password"] {
-    background: rgba(255, 255, 255, 0.05) !important;
+.pf-v5-c-form-control {
+    background-color: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
     border-radius: 12px !important;
-    padding: 0.75rem 1rem !important;
-}
-.pf-v5-c-form-control input:focus, input[type="text"]:focus, input[type="password"]:focus {
-    border-color: rgba(59, 130, 246, 0.8) !important;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3) !important;
-    outline: none !important;
-}
-.pf-v5-c-form__label-text, label {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: white !important;
+    padding: 1rem !important;
+    font-size: 1rem !important;
+    height: auto !important;
 }
 
-/* Buttons */
-.pf-v5-c-button.pf-m-primary, input[type="submit"] {
+/* Remove PF bottom border pseudo elements */
+.pf-v5-c-form-control::after,
+.pf-v5-c-form-control::before {
+    display: none !important;
+}
+
+.pf-v5-c-form-control:hover {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.pf-v5-c-form-control:focus, .pf-v5-c-form-control:focus-within {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    outline: none !important;
+}
+
+/* Primary Button */
+.pf-v5-c-button.pf-m-primary {
     background: linear-gradient(135deg, #3b82f6, #9333ea) !important;
     border-radius: 12px !important;
     border: none !important;
     font-weight: 600 !important;
+    font-size: 1rem !important;
     padding: 1rem !important;
-    transition: all 0.3s ease !important;
     color: white !important;
-    cursor: pointer !important;
-    width: 100%;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+    transition: all 0.2s ease-in-out !important;
 }
-.pf-v5-c-button.pf-m-primary:hover, input[type="submit"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
+
+.pf-v5-c-button.pf-m-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5) !important;
+    background: linear-gradient(135deg, #4f8ff7, #a14bf0) !important;
+}
+.pf-v5-c-button.pf-m-primary::after {
+    display: none !important; /* PF button pseudo border */
+}
+
+/* Checkbox */
+.pf-v5-c-check__input {
+    accent-color: #9333ea !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Links */
-a, .pf-v5-c-login__main-footer-links a {
+.pf-v5-c-login a, .pf-v5-c-form__helper-text a {
     color: #93c5fd !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
     transition: color 0.2s !important;
 }
-a:hover {
+
+.pf-v5-c-login a:hover, .pf-v5-c-form__helper-text a:hover {
     color: #bfdbfe !important;
-    text-decoration: none !important;
+    text-decoration: underline !important;
 }
 
-/* Divider */
-.pf-v5-c-divider {
-    border-top-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* Fix Alert Messages */
+/* Alert / Error Messages */
 .pf-v5-c-alert {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(239, 68, 68, 0.1) !important;
     backdrop-filter: blur(10px) !important;
-    color: white !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
     border-radius: 12px !important;
+    padding: 1rem !important;
+}
+.pf-v5-c-alert__title, .pf-v5-c-alert__icon {
+    color: #fca5a5 !important;
 }
