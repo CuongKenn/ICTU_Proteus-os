@@ -16,46 +16,8 @@ interface IntegrationData {
   provider: string;
   config: Record<string, any>;
   is_active: boolean;
-  isSystem?: boolean;
+  is_system?: boolean;
 }
-
-const SYSTEM_INTEGRATIONS: IntegrationData[] = [
-  {
-    id: "sys-keycloak",
-    provider: "keycloak",
-    config: { role: "Quản lý Định danh & SSO", type: "Core Component" },
-    is_active: true,
-    isSystem: true,
-  },
-  {
-    id: "sys-mattermost",
-    provider: "mattermost",
-    config: { role: "Nền tảng Chat & Webhook", type: "Core Component" },
-    is_active: true,
-    isSystem: true,
-  },
-  {
-    id: "sys-appsmith",
-    provider: "appsmith",
-    config: { role: "Low-code UI Engine", type: "Core Component" },
-    is_active: true,
-    isSystem: true,
-  },
-  {
-    id: "sys-n8n",
-    provider: "n8n",
-    config: { role: "Workflow Automation", type: "Core Component" },
-    is_active: true,
-    isSystem: true,
-  },
-  {
-    id: "sys-metabase",
-    provider: "metabase",
-    config: { role: "Data Analytics & BI", type: "Core Component" },
-    is_active: true,
-    isSystem: true,
-  },
-];
 
 export const IntegrationsTab: React.FC = () => {
   const { data: session } = useSession();
@@ -208,14 +170,14 @@ export const IntegrationsTab: React.FC = () => {
         </div>
       )}
 
-      {integrations.length === 0 && SYSTEM_INTEGRATIONS.length === 0 && !isAdding ? (
+      {integrations.length === 0 && !isAdding ? (
         <div className="flex flex-col items-center justify-center h-48 bg-bg-surface/30 rounded-xl border border-border border-dashed">
           <Plug className="w-12 h-12 text-text-muted mb-3" />
           <p className="text-text-secondary">Chưa có kết nối nào được cấu hình.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {[...SYSTEM_INTEGRATIONS, ...integrations].map((integration) => (
+          {integrations.map((integration) => (
             <div key={integration.id} className="p-5 bg-bg-surface border border-border rounded-xl shadow-sm hover:border-primary/50 transition-colors flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -223,7 +185,7 @@ export const IntegrationsTab: React.FC = () => {
                     <Link2 className="w-5 h-5 text-primary" />
                     <span className="font-semibold text-text-primary capitalize">
                       {integration.provider}
-                      {integration.isSystem && (
+                      {integration.is_system && (
                         <span className="ml-2 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded uppercase">
                           Hệ thống
                         </span>

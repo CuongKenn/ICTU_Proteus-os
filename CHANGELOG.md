@@ -11,6 +11,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Bổ sung bước tạo database cho Outline (`outline`) và Metabase (`metabase`) bằng SQL query (tương tự setup.ps1) để khắc phục lỗi 502/Crash-loop do thiếu CSDL riêng.
 
 ### Changed
+- [core-engine/backend/app/core/use_cases/tenant_onboarding.py] Cải tiến API `get_integrations`: Backend tự động tiêm (inject) danh sách các dịch vụ lõi (Keycloak, Mattermost, Appsmith, n8n, Metabase) vào payload trả về để Frontend hiển thị thay vì mock data tĩnh ở Frontend, giúp dữ liệu đồng bộ và thống nhất hơn.
 - [deploy/setup.sh] Nâng cấp luồng cài đặt: Bổ sung màn hình prompt yêu cầu người dùng nhập cấu hình Username và Password cho các tài khoản Admin hệ thống (Postgres, Redis, Keycloak, Mattermost, Appsmith) thay vì dùng giá trị cứng (hardcoded).
 - [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
 

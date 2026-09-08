@@ -150,7 +150,54 @@ class TenantOnboardingUseCase:
             raise TenantPermissionError(
                 "Chỉ tenant_admin mới có quyền xem integrations."
             )
-        return await self.tenant_repo.get_integrations(context.tenant_id)
+        integrations = await self.tenant_repo.get_integrations(context.tenant_id)
+        
+        import uuid
+        
+        sys_integrations = [
+            TenantIntegrationEntity(
+                id=uuid.uuid4(),
+                tenant_id=context.tenant_id,
+                provider="keycloak",
+                config={"role": "Quản lý Định danh & SSO", "type": "Core Component"},
+                is_active=True,
+                is_system=True
+            ),
+            TenantIntegrationEntity(
+                id=uuid.uuid4(),
+                tenant_id=context.tenant_id,
+                provider="mattermost",
+                config={"role": "Nền tảng Chat & Webhook", "type": "Core Component"},
+                is_active=True,
+                is_system=True
+            ),
+            TenantIntegrationEntity(
+                id=uuid.uuid4(),
+                tenant_id=context.tenant_id,
+                provider="appsmith",
+                config={"role": "Low-code UI Engine", "type": "Core Component"},
+                is_active=True,
+                is_system=True
+            ),
+            TenantIntegrationEntity(
+                id=uuid.uuid4(),
+                tenant_id=context.tenant_id,
+                provider="n8n",
+                config={"role": "Workflow Automation", "type": "Core Component"},
+                is_active=True,
+                is_system=True
+            ),
+            TenantIntegrationEntity(
+                id=uuid.uuid4(),
+                tenant_id=context.tenant_id,
+                provider="metabase",
+                config={"role": "Data Analytics & BI", "type": "Core Component"},
+                is_active=True,
+                is_system=True
+            ),
+        ]
+        
+        return sys_integrations + integrations
 
     async def add_integration(
         self, context: TenantContext, provider: str, config: dict[str, Any]

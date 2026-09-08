@@ -167,6 +167,7 @@ class TenantIntegrationEntity(BaseModel):
     provider: str
     config: dict[str, Any]
     is_active: bool = True
+    is_system: bool = False
 
 
 class UserEntity(BaseModel):
