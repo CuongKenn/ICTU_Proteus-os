@@ -62,6 +62,7 @@ async def submit_ai_command(
         action=body.action,
         effect=body.effect,
         parameters=body.parameters,
+        approval_message=body.approval_message,
     )
     status_code, message, result = await use_case.execute(dto, ctx)
 

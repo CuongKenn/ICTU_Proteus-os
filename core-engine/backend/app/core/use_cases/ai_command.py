@@ -34,6 +34,7 @@ class AICommandDTO:
     action: str
     effect: str
     parameters: dict[str, Any]
+    approval_message: str | None = None
 
 
 logger = structlog.get_logger(__name__)
@@ -193,7 +194,7 @@ class AICommandUseCase:
         )
 
         # Gửi thông báo phê duyệt qua Mattermost
-        msg_text = (
+        msg_text = body.approval_message or (
             f"**[AI Command Approval Required]**\n"
             f"- **Action:** `{body.action}`\n"
             f"- **Effect:** {body.effect.upper()}\n"
@@ -202,8 +203,10 @@ class AICommandUseCase:
             f"Vui lòng phê duyệt hoặc từ chối tại Dashboard."
         )
         try:
-            await self.mattermost_adapter.send_message(
-                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, text=msg_text
+            await self.mattermost_adapter.send_interactive_message(
+                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, 
+                text=msg_text,
+                action_id=str(body.command_id)
             )
         except Exception as e:
             logger.warning(
