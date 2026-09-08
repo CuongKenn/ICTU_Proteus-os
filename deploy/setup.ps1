@@ -245,6 +245,12 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
                 $mmConfig = Invoke-RestMethod -Uri "$mmUrl/config" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
                 $mmConfig.ServiceSettings.EnableBotAccountCreation = $true
                 $mmConfig.ServiceSettings.EnableUserAccessTokens = $true
+                $mmConfig.GitLabSettings.Enable = $true
+                $mmConfig.GitLabSettings.Secret = "mattermost-secret"
+                $mmConfig.GitLabSettings.Id = "mattermost"
+                $mmConfig.GitLabSettings.AuthEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/auth"
+                $mmConfig.GitLabSettings.TokenEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/token"
+                $mmConfig.GitLabSettings.UserAPIEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/userinfo"
                 Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body ($mmConfig | ConvertTo-Json -Depth 10) -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction Stop | Out-Null 
             } catch {
                 Write-Host "[WARN] Failed to update Mattermost config: $($_.Exception.Message)" -ForegroundColor Yellow
