@@ -14,6 +14,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Cập nhật logic cấu hình Mattermost: Thay thế lệnh PUT ghi đè toàn bộ cấu hình bằng chuỗi lệnh GET config -> jq cập nhật trường `EnablePersonalAccessTokens` -> PUT config, sửa triệt để lỗi 400 Bad Request gây thoát script ngang (Exit code 22).
 
 ### Fixed
+- [deploy/docker-compose.yml] Khắc phục lỗi `Appsmith connection failed: All connection attempts failed` khi cài đặt Plugin bằng cách bổ sung biến môi trường `APPSMITH_URL` và `APPSMITH_API_KEY` vào container `backend`.
+- [deploy/.env, deploy/.env.example] Sửa cổng mặc định của Appsmith từ 8080 thành 80.
+- [deploy/setup.sh] Sửa lỗi script âm thầm tạo database thất bại bằng cách đổi sang dùng cấu trúc pipe `echo "..." | psql` thay cho cờ `-c` kết hợp `\gexec`.
 - [core-engine/backend/app/adapters/repositories/user_repo.py, core-engine/backend/app/adapters/repositories/base.py] Sửa lỗi API `POST /{role_id}/assign` bị crash (500) khi gọi `user_repo.get()` nhưng method này chưa được implement trong `SQLAlchemyUserRepository`.
 - [core-engine/backend, deploy/postgres/init.sql] Sửa lỗi xung đột `UniqueViolationError: duplicate key value violates unique constraint "tenants_keycloak_realm_key"` khi đăng ký Tenant thứ 2 trở lên. Do kiến trúc sử dụng 1 realm chung ("proteus") cho mọi Tenant, cột `keycloak_realm` không thể là `UNIQUE`. Đã xóa bỏ ràng buộc này trong ORM, DB schema và thêm Alembic migration.
 - [deploy/postgres/init.sql] Sửa lỗi thiếu cột `notify_channel_id` trong bảng `tenants` gây lỗi 500 khi người dùng đăng ký tài khoản mới (Tenant Onboarding).
