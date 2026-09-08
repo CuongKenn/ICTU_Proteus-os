@@ -4,7 +4,7 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - Sắp tới
+## [v1.0.3] - 2026-09-08
 
 ### Added
 - [docs/POF_COMPLIANCE.md] Bổ sung Báo cáo Giải trình Đáp ứng Tiêu chí Nguồn mở (PoF Compliance Report) tự đánh giá đạt 50/50 điểm Tiêu chí PoF của Cuộc thi "Phát triển phần mềm mã nguồn mở tích hợp AI 2026" - Khoa CNTT Trường ĐH CNTT & TT (ICTU).
@@ -41,7 +41,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [deploy/setup.sh] Khắc phục lỗi timeout chờ N8N healthcheck và lỗi không sinh được N8N_API_KEY do script gọi nhầm vào cổng nội bộ không được expose (5678). Chuyển sang gọi API trực tiếp qua Traefik (kèm header Host).
 - [deploy/setup.sh] Bổ sung biến jq `.ServiceSettings.EnableBotAccountCreation = true` vào lệnh cập nhật cấu hình Mattermost, sửa lỗi API trả về 403 (Bot creation has been disabled) khiến việc tự động sinh MATTERMOST_BOT_TOKEN bị thất bại.
 
-## [Unreleased] — BFF Proxy & Database Schema Fixes (2026-09-07)
+### BFF Proxy & Database Schema Fixes (2026-09-07)
 
 ### Fixed
 - **[core-engine/backend/app/adapters/external/n8n_adapter.py]** Sửa lỗi HTTP 400 (Bad Request) khi import workflow n8n do truyền các trường read-only (`active`, `tags`, v.v.). Chuyển sang sử dụng allowlist các trường hợp lệ (`name`, `nodes`, `connections`, `settings`, `triggerCount`) giúp tiến trình cài đặt plugin vượt qua bước cài đặt n8n.
@@ -67,7 +67,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/entrypoints/dependencies.py]** Loại bỏ hoàn toàn hardcoded `tenant_id` — thay bằng DB lookup theo `keycloak_sub` từ JWT token.
 - **[core-engine/backend/tests/entrypoints/test_auth_dependency.py]** Rewrite test file để match signature mới của `get_current_tenant_context` (có param `db`).
 
-## [Unreleased] — SaaS Tenant Onboarding (2026-09-07)
+### SaaS Tenant Onboarding (2026-09-07)
 
 
 ### Added
@@ -89,7 +89,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend]** Fix lỗi circular import `get_db_session` trong Router bằng `get_db_transactional`.
 - **[core-engine/backend]** Cập nhật thủ công Schema Database các bảng `tenants` (thiếu `notify_channel_id`) và `users` (thiếu `keycloak_id`, `joined_at`) do lỗi mất đồng bộ Alembic.
 
-## [Unreleased] — Local LLM Migration (2026-09-06)
+## [v1.0.2] - 2026-09-06
+
+### Local LLM Migration
 
 ### Security
 - **[Backend]** Xóa bỏ các hardcode rủi ro tại `dependencies.py` bao gồm fallback mặc định về default Tenant (chỉ cho phép ở môi trường dev) và lỗ hổng bypass RBAC với tài khoản admin (Issue #598).
@@ -138,7 +140,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Backend]** Chỉnh sửa `PluginSynthesizer` và `config.py` để sử dụng chuẩn API OpenAI `/v1/chat/completions` trỏ tới `LLM_BASE_URL` cho phép kết nối vLLM/Ollama dễ dàng.
 - **[DevOps]** Thay thế cấu hình `OPENAI_API_KEY` trong `.env.example` bằng cấu hình `LLM_BASE_URL` và `LLM_MODEL_NAME`. Cập nhật tài liệu triển khai `docs/deployment.md`.
 
-## [Unreleased] — Automated Backup & Recovery (2026-09-06)
+### Automated Backup & Recovery
 
 ### Added
 - **[DevOps]** Implement cơ chế tự động sao lưu PostgreSQL thông qua service `postgres-backup` (sử dụng cron chạy ngầm trên nền Alpine Linux) đáp ứng NFR6.
@@ -146,7 +148,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[DevOps]** Tích hợp cảnh báo Webhook sang Mattermost: Gửi notification kèm tên file khi backup thành công và cảnh báo khẩn cấp khi thất bại.
 - **[DevOps]** Thêm script phục hồi `deploy/scripts/restore_backup.sh` giúp Disaster Recovery dễ dàng.
 
-## [Unreleased] — Appsmith API Key UI Migration (2026-09-06)
+### Appsmith API Key UI Migration
 
 ### Added
 - **[core-engine/backend/app/adapters/repositories/base.py]** Thêm phương thức `get_integration_by_provider` vào `AbstractTenantRepository` interface.
@@ -158,7 +160,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Cập nhật quá trình install để fetch và truyền cấu hình Appsmith cho adapter.
 - **[core-engine/backend/app/core/use_cases/plugin_uninstall.py]** Cập nhật quá trình uninstall để fetch và truyền cấu hình Appsmith cho adapter.
 - **[core-engine/frontend/src/components/settings/IntegrationsTab.tsx]** Thiết kế lại trang "Kết nối & Tích hợp" với Dropdown chọn Provider có sẵn (Appsmith, n8n, Metabase) thay vì phải tự gõ JSON.
-## [Unreleased] — DevOps Centralized Logging (2026-09-06)
+### DevOps Centralized Logging
 
 ### Added
 - **[DevOps]** Tích hợp Grafana, Loki và Promtail vào `deploy/docker-compose.yml` để thu thập log tập trung (Centralized Logging) đáp ứng NFR5.
@@ -167,14 +169,14 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[Backend]** Cấu hình `structlog` trong `logging_config.py` để xuất log dưới định dạng JSON với đầy đủ context.
 - **[Backend]** Gắn log chi tiết (có context `tenant_id`, `plugin_code_name`, `ai_command`, `action`, v.v.) vào các tiến trình cài đặt Plugin (`plugin_install.py`) và thực thi lệnh AI (`ai_command.py`).
 
-## [Unreleased] - Sắp tới
+## [v1.0.1] - 2026-09-05
 
 ### Fixed
 - **[DB/tenant_plugins]** Hotfix: Thêm cột `install_task_id UUID` vào bảng `tenant_plugins` bằng lệnh `ALTER TABLE` trực tiếp (migration tự động bị chặn do lỗi type-cast enum ở migration kế tiếp). Lỗi này gây ra `UndefinedColumnError` khi gọi `POST /plugins/:id/install`.
 - **[core-engine/backend/app/adapters/repositories/user_repo.py]** Fix `MissingGreenlet` triệt để: `_to_entity()` không bao giờ access `model.roles` trực tiếp; luôn nhận `roles` là tham số tường minh được eager-load qua `selectinload`.
 - **[core-engine/backend/app/entrypoints/dependencies.py]** `UserProvisioningUseCase` đổi sang dùng `get_db_transactional` thay vì readonly session.
 
-## [Unreleased] — Plugin JSON Files Implementation (2026-09-05)
+### Plugin JSON Files Implementation
 
 ### Changed
 - **[Backend]** Fix schema mismatch by adding `domain` and `slug` columns properly to `TenantModel` and database migrations.
@@ -209,7 +211,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[tất cả 65 plugin JSON files]** Thêm `_license` header (`Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later`) vào tất cả JSON files. JSON không hỗ trợ comment nên license được đặt trong field `_license` ở đầu object.
 - **[tất cả plugin JSON files]** Không còn file stub trống (0 nodes) — 65/65 files được implement đầy đủ với nodes, connections, và business logic thực tế.
 
-## [Unreleased] — Plugin Architecture Overhaul (2026-09-05)
+### Plugin Architecture Overhaul
 
 
 ### Added
@@ -239,7 +241,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[core-engine/backend/app/infrastructure/models.py]** Thêm import `ARRAY` từ SQLAlchemy dialects. Thêm `category`, `tags`, `screenshots`, `long_description`, `credentials_schema`, `homepage_url` vào `PluginModel`. Thêm `install_steps_log`, `credential_ids` vào `TenantPluginModel`.
 - **[core-engine/backend/app/core/use_cases/plugin_install.py]** Fix thứ tự credentials ↔ install: credentials được tạo TRONG saga (bước 7), không phải trước install. Nếu credentials fail → saga rollback toàn bộ.
 
-## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-09-05)
+### Foundation Scaffolding v0.1.0
 
 ### Fixed
 - **[core-engine/backend/app/adapters/repositories/plugin_repo.py]** Khắc phục lỗi sai tên cột (`updated_at` thành `last_updated_at`) khi tương tác với bảng `tenant_plugins` trong Database, gây ra `UndefinedColumnError` làm Crash tiến trình Background Plugin Installation.
@@ -262,7 +264,8 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[deploy/setup.ps1, deploy/setup.sh]** Nâng cấp Zero-Touch Provisioning (ZTP): tự động sinh `OUTLINE_SECRET_KEY` và `OUTLINE_UTILS_SECRET` (32-byte HEX) ngay khi khởi tạo `.env`, không cần can thiệp thủ công.
 - **[deploy/setup.ps1, deploy/setup.sh]** Tự động đồng bộ toàn bộ Keycloak OIDC client secrets (`outline`, `n8n`, `appsmith`, `proteus-bff`) từ PostgreSQL vào `.env` — loại bỏ bước thủ công "Copy từ Keycloak UI".
 
-## [Unreleased] — Foundation Scaffolding v0.1.0 (2026-08-06)
+## [beta] - 2026-08-20
+### Foundation Scaffolding v0.1.0
 ### Added
 - **[core-engine/backend]** Bổ sung trường `notify_channel_id` vào `TenantModel` và luồng cài đặt Plugin để hỗ trợ Data Isolation, cho phép cấu hình kênh thông báo riêng biệt cho từng Tenant thay vì dùng chung System Channel (Issue #560).
 ### Security
