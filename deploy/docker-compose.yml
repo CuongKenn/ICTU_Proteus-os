@@ -342,6 +342,11 @@ services:
     restart: unless-stopped
     environment:
       APPSMITH_DISABLE_TELEMETRY: "true"
+      APPSMITH_OAUTH2_GITHUB_CLIENT_ID: appsmith
+      APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET}
+      APPSMITH_OAUTH2_GITHUB_AUTH_URL: http://auth.${DOMAIN}/realms/proteus/protocol/openid-connect/auth
+      APPSMITH_OAUTH2_GITHUB_TOKEN_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
+      APPSMITH_OAUTH2_GITHUB_PROFILE_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
     volumes:
       - appsmith-data:/appsmith-stacks
     networks:

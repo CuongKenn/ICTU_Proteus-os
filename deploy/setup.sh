@@ -167,7 +167,14 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
   if [ -n "$MM_TOKEN" ]; then
     # 7.5 Enable Personal Access Tokens
     curl -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
-    jq '.ServiceSettings.EnablePersonalAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true' /tmp/mm_config.json > /tmp/mm_config_new.json
+    jq '.ServiceSettings.EnablePersonalAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true |
+        .GitLabSettings.Enable = true |
+        .GitLabSettings.Secret = "mattermost-secret" |
+        .GitLabSettings.Id = "mattermost" |
+        .GitLabSettings.AuthEndpoint = "http://auth.'"$DOMAIN"'/realms/proteus/protocol/openid-connect/auth" |
+        .GitLabSettings.TokenEndpoint = "http://auth.'"$DOMAIN"'/realms/proteus/protocol/openid-connect/token" |
+        .GitLabSettings.UserAPIEndpoint = "http://auth.'"$DOMAIN"'/realms/proteus/protocol/openid-connect/userinfo"' \
+        /tmp/mm_config.json > /tmp/mm_config_new.json
     curl -sf -X PUT "$MM_URL/config" \
       -H "$MM_HOST_HEADER" \
       -H "Authorization: Bearer $MM_TOKEN" \
