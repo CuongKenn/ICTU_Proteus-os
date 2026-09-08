@@ -153,6 +153,8 @@ class TenantOnboardingUseCase:
         integrations = await self.tenant_repo.get_integrations(context.tenant_id)
         
         import uuid
+        import asyncio
+        import httpx
         from app.infrastructure.config import settings
         
         def is_configured(secret: str | None) -> bool:
@@ -161,6 +163,34 @@ class TenantOnboardingUseCase:
             if secret.startswith("CHANGE_ME"):
                 return False
             return True
+
+        async def check_service(url: str, is_configured_bool: bool) -> bool:
+            if not is_configured_bool:
+                return False
+            if not url:
+                return False
+            try:
+                async with httpx.AsyncClient(verify=False) as client:
+                    await client.get(url, timeout=1.5)
+                return True
+            except Exception:
+                return False
+
+        # Prepare config booleans
+        kc_config = is_configured(settings.KEYCLOAK_URL)
+        mm_config = is_configured(settings.MATTERMOST_BOT_TOKEN) or is_configured(settings.MATTERMOST_WEBHOOK_SECRET)
+        appsmith_config = is_configured(settings.APPSMITH_API_KEY)
+        n8n_config = is_configured(settings.N8N_API_KEY)
+        mb_config = is_configured(settings.METABASE_SECRET_KEY)
+
+        # Run pings concurrently
+        kc_active, mm_active, appsmith_active, n8n_active, mb_active = await asyncio.gather(
+            check_service(settings.KEYCLOAK_URL, kc_config),
+            check_service(settings.MATTERMOST_URL, mm_config),
+            check_service(settings.APPSMITH_URL, appsmith_config),
+            check_service(settings.N8N_URL, n8n_config),
+            check_service(settings.METABASE_INTERNAL_URL or settings.METABASE_SITE_URL, mb_config)
+        )
         
         sys_integrations = [
             TenantIntegrationEntity(
@@ -168,7 +198,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="keycloak",
                 config={"role": "Quản lý Định danh & SSO", "type": "Core Component"},
-                is_active=is_configured(settings.KEYCLOAK_URL),
+                is_active=kc_active,
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -176,7 +206,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="mattermost",
                 config={"role": "Nền tảng Chat & Webhook", "type": "Core Component"},
-                is_active=is_configured(settings.MATTERMOST_BOT_TOKEN) or is_configured(settings.MATTERMOST_WEBHOOK_SECRET),
+                is_active=mm_active,
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -184,7 +214,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="appsmith",
                 config={"role": "Low-code UI Engine", "type": "Core Component"},
-                is_active=is_configured(settings.APPSMITH_API_KEY),
+                is_active=appsmith_active,
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -192,7 +222,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="n8n",
                 config={"role": "Workflow Automation", "type": "Core Component"},
-                is_active=is_configured(settings.N8N_API_KEY),
+                is_active=n8n_active,
                 is_system=True
             ),
             TenantIntegrationEntity(
@@ -200,7 +230,7 @@ class TenantOnboardingUseCase:
                 tenant_id=context.tenant_id,
                 provider="metabase",
                 config={"role": "Data Analytics & BI", "type": "Core Component"},
-                is_active=is_configured(settings.METABASE_SECRET_KEY),
+                is_active=mb_active,
                 is_system=True
             ),
         ]
