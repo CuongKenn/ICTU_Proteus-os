@@ -134,7 +134,7 @@ export const MarketplaceClient: React.FC = () => {
     if (!canInstall) return;
     const plugin = allPlugins.find(p => p.data.id === id)?.data;
     if (plugin) {
-      setUninstallPluginData({ id: plugin.id, name: plugin.name });
+      setUninstallPluginData({ id: plugin.id, name: plugin.codeName });
       setIsUninstallConfirmOpen(true);
     }
   };
