@@ -124,6 +124,7 @@ CREATE TYPE plugin_status AS ENUM (
 );
 
 CREATE TABLE IF NOT EXISTS tenant_plugins (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id           UUID NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
     plugin_id           UUID NOT NULL REFERENCES plugins(id) ON DELETE RESTRICT,
     status              plugin_status NOT NULL DEFAULT 'INSTALLING',
@@ -135,8 +136,10 @@ CREATE TABLE IF NOT EXISTS tenant_plugins (
     credential_ids      JSONB DEFAULT '[]',
     install_task_id     UUID,
     installed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (tenant_id, plugin_id)
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at          TIMESTAMPTZ,
+    UNIQUE (tenant_id, plugin_id)
 );
 
 COMMENT ON TABLE tenant_plugins IS 'Quan hệ M-N giữa Tenant và Plugin. Ghi nhận trạng thái cài đặt và cấu hình.';
@@ -169,6 +172,7 @@ CREATE INDEX IF NOT EXISTS idx_roles_tenant_id ON roles(tenant_id);
 -- Quan hệ nhiều-nhiều giữa User và Role
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_roles (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id             UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     granted_by_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -176,7 +180,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ,
-    PRIMARY KEY (user_id, role_id)
+    UNIQUE (user_id, role_id)
 );
 
 COMMENT ON TABLE user_roles IS 'Phân quyền cụ thể của người dùng trong Tenant.';
@@ -259,15 +263,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Hàm riêng cho bảng tenant_plugins dùng cột "last_updated_at" (khác với updated_at)
-CREATE OR REPLACE FUNCTION update_last_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.last_updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 CREATE TRIGGER set_tenants_updated_at
     BEFORE UPDATE ON tenants
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -280,10 +275,9 @@ CREATE TRIGGER set_plugins_updated_at
     BEFORE UPDATE ON plugins
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Dùng hàm riêng vì cột là last_updated_at, không phải updated_at
 CREATE TRIGGER set_tenant_plugins_updated_at
     BEFORE UPDATE ON tenant_plugins
-    FOR EACH ROW EXECUTE FUNCTION update_last_updated_at_column();
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ─────────────────────────────────────────────────────────────
 -- ROW-LEVEL SECURITY (RLS) CHO CORE TABLES

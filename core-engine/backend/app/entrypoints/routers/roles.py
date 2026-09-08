@@ -145,7 +145,7 @@ async def assign_role_to_user(
 
         return {"detail": "Role assigned successfully"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/{role_id}/revoke")
