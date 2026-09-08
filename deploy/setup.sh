@@ -114,8 +114,8 @@ fi
 
 # 6.1 Ensure databases exist (Outline, Metabase)
 echo "ℹ️  Ensuring databases exist (outline, metabase)..."
-docker compose exec -T postgres psql -U proteus -d postgres -c "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec" > /dev/null 2>&1 || true
-docker compose exec -T postgres psql -U proteus -d postgres -c "SELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec" > /dev/null 2>&1 || true
+echo "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec" | docker compose exec -T postgres psql -U proteus -d postgres > /dev/null 2>&1 || true
+echo "SELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec" | docker compose exec -T postgres psql -U proteus -d postgres > /dev/null 2>&1 || true
 docker compose restart outline metabase
 
 # 7. Tự động hóa cấu hình Mattermost
