@@ -14,9 +14,12 @@ const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://workflow.proteus.loca
 import { useNotificationStore } from "@/store/notificationStore";
 import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
 
 export function LaunchpadClient() {
   const { data: session } = useSession();
+  const hasRole = useAuthStore((state) => state.hasRole);
+  const isAdmin = hasRole("tenant_admin");
   const { plugins, isLoading } = usePlugins();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
@@ -101,18 +104,22 @@ export function LaunchpadClient() {
             onClick={() => router.push("/wiki")}
             isActive
           />
-          <AppIcon
-            appName="n8n Workflow"
-            icon={<Network className="w-8 h-8 text-orange-500" />}
-            onClick={() => openIframe("n8n", N8N_URL)}
-            isActive
-          />
-          <AppIcon
-            appName="Metabase"
-            icon={<Box className="w-8 h-8 text-brand-primary" />}
-            onClick={handleOpenMetabase}
-            isActive
-          />
+          {isAdmin && (
+            <AppIcon
+              appName="n8n Workflow"
+              icon={<Network className="w-8 h-8 text-orange-500" />}
+              onClick={() => openIframe("n8n", N8N_URL)}
+              isActive
+            />
+          )}
+          {isAdmin && (
+            <AppIcon
+              appName="Metabase"
+              icon={<Box className="w-8 h-8 text-brand-primary" />}
+              onClick={handleOpenMetabase}
+              isActive
+            />
+          )}
         </div>
       </section>
 
@@ -134,7 +141,11 @@ export function LaunchpadClient() {
             ))}
 
           {/* Plugins */}
-          {!isLoading && plugins.map((plugin) => {
+          {!isLoading && plugins.filter((plugin) => {
+            if (isAdmin) return true;
+            if (!plugin.roles || plugin.roles.length === 0) return true;
+            return plugin.roles.some((r) => hasRole(r));
+          }).map((plugin) => {
             // Generate a color based on the plugin's code_name
             const colors = ['text-blue-400', 'text-green-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400', 'text-indigo-400'];
             const colorClass = colors[plugin.code_name.length % colors.length];
