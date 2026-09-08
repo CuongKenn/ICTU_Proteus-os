@@ -234,12 +234,14 @@ done
 
 if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; then
   # 8.1 Tạo tài khoản Owner qua REST API ẩn
+  # n8n yêu cầu password phải có ít nhất 1 chữ hoa
+  N8N_ADMIN_PASSWORD_COMPLIANT="Admin_${N8N_ADMIN_PASSWORD}!"
   curl -sf -X POST "$N8N_URL/rest/owner/setup" \
     -H "$N8N_HOST_HEADER" \
     -H "Content-Type: application/json" \
     -d '{
       "email": "'"$N8N_ADMIN_EMAIL"'",
-      "password": "'"$N8N_ADMIN_PASSWORD"'",
+      "password": "'"$N8N_ADMIN_PASSWORD_COMPLIANT"'",
       "firstName": "Admin",
       "lastName": "Proteus"
     }' > /dev/null || true
