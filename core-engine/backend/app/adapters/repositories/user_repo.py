@@ -38,6 +38,24 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get(self, user_id: uuid.UUID) -> UserEntity | None:
+        """Lấy User bằng ID trong DB."""
+        stmt = (
+            select(UserModel)
+            .where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
+            .options(selectinload(UserModel.roles))
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalars().first()
+        if not model:
+            return None
+            
+        loaded_roles = [
+            role.display_name or role.name
+            for role in model.__dict__.get('roles', [])
+        ]
+        return _to_entity(model, roles=loaded_roles)
+
     async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> UserEntity | None:
         """
         Lấy thông tin User dựa vào keycloak_id.
