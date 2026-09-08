@@ -235,7 +235,13 @@ class TenantOnboardingUseCase:
             ),
         ]
         
-        return sys_integrations + integrations
+        # Override system integrations if the tenant has provided their own
+        db_providers = {integration.provider for integration in integrations}
+        filtered_sys_integrations = [
+            si for si in sys_integrations if si.provider not in db_providers
+        ]
+        
+        return filtered_sys_integrations + integrations
 
     async def add_integration(
         self, context: TenantContext, provider: str, config: dict[str, Any]
