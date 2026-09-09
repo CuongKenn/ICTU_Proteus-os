@@ -3,11 +3,11 @@
 
 import uuid
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.domain.exceptions import NotFoundError
-from app.infrastructure.models import RoleModel, UserRoleModel
+from app.infrastructure.models import RoleModel, UserModel, UserRoleModel
 
 
 class RoleRepository:
@@ -64,12 +64,13 @@ class RoleRepository:
     async def get_user_permissions(self, user_id: uuid.UUID) -> list[str]:
         """
         Lấy danh sách các permission strings (ví dụ: ["plugins:read", "users:write"])
-        thuộc các roles mà user đang nắm giữ.
+        thuộc các roles mà user đang nắm giữ, hỗ trợ cả internal id và keycloak_id.
         """
         stmt = (
             select(RoleModel.permissions)
             .join(UserRoleModel, UserRoleModel.role_id == RoleModel.id)
-            .where(UserRoleModel.user_id == user_id)
+            .join(UserModel, UserModel.id == UserRoleModel.user_id)
+            .where(or_(UserModel.id == user_id, UserModel.keycloak_id == user_id))
         )
         result = await self.session.execute(stmt)
 
@@ -86,9 +87,11 @@ class RoleRepository:
                 ):
                     all_permissions.update(str(p) for p in permissions_data["allowed"])
                 else:
-                    all_permissions.update(
-                        k for k, v in permissions_data.items() if v is True
-                    )
+                    for module, actions in permissions_data.items():
+                        if isinstance(actions, list):
+                            all_permissions.update(f"{module}:{action}" for action in actions)
+                        elif actions is True:
+                            all_permissions.add(str(module))
 
         return list(all_permissions)
 

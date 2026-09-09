@@ -55,6 +55,7 @@ def verify_mattermost_signature(raw_body: bytes, signature: str) -> bool:
 @router.post("/callback", status_code=status.HTTP_200_OK)
 async def mattermost_interactive_callback(
     request: Request,
+    token: str = None,
     mattermost_signature: str = Header(None, alias="Mattermost-Signature"),
     ai_command_use_case: AICommandUseCase = Depends(
         get_ai_command_use_case
@@ -71,13 +72,14 @@ async def mattermost_interactive_callback(
 
     # 1. Verify Signature
     if settings.MATTERMOST_WEBHOOK_SECRET:
-        if not mattermost_signature or not verify_mattermost_signature(
-            raw_body, mattermost_signature
-        ):
-            logger.warning("Invalid Mattermost signature")
+        is_valid_hmac = mattermost_signature and verify_mattermost_signature(raw_body, mattermost_signature)
+        is_valid_token = token and token == settings.MATTERMOST_WEBHOOK_SECRET
+        
+        if not (is_valid_hmac or is_valid_token):
+            logger.warning("Invalid Mattermost signature or token")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chữ ký HMAC không hợp lệ",
+                detail="Chữ ký HMAC hoặc Token không hợp lệ",
             )
 
     # 2. Parse payload
@@ -128,7 +130,13 @@ async def mattermost_interactive_callback(
             )
             await db.commit()
 
-        return {"ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}."}
+        return {
+            "ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}.",
+            "update": {
+                "message": f"✅ Lệnh đã ĐƯỢC PHÊ DUYỆT bởi <@{user_id}>",
+                "props": {}
+            }
+        }
     elif action == "reject":
         logger.info("Yêu cầu %s BỊ TỪ CHỐI bởi user %s.", action_id, user_id)
         cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
@@ -158,7 +166,13 @@ async def mattermost_interactive_callback(
             )
             await db.commit()
 
-        return {"ephemeral_text": f"Bạn đã từ chối hành động {action_id}."}
+        return {
+            "ephemeral_text": f"Bạn đã từ chối hành động {action_id}.",
+            "update": {
+                "message": f"❌ Lệnh đã BỊ TỪ CHỐI bởi <@{user_id}>",
+                "props": {}
+            }
+        }
     else:
         logger.warning("Unknown action %s from mattermost", action)
         raise HTTPException(

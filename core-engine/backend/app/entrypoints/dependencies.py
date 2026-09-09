@@ -444,3 +444,15 @@ async def get_llm_port() -> AbstractLLMPort | None:
         model_name=model_name,
         api_key=getattr(settings, "LLM_API_KEY", "dummy"),
     )
+
+from app.core.use_cases.ai_chat import AIChatUseCase
+
+async def get_ai_chat_use_case(
+    llm_port: AbstractLLMPort = Depends(get_llm_port),
+    ai_command_use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+) -> AIChatUseCase:
+    """Inject AIChatUseCase."""
+    return AIChatUseCase(
+        llm_port=llm_port,
+        ai_command_use_case=ai_command_use_case,
+    )

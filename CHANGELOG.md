@@ -10,6 +10,23 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [docs/demo-guide.md] Bổ sung tài liệu Hướng dẫn Demo chi tiết các kịch bản cốt lõi (Multi-tenancy, Micro-kernel, AI Human-in-the-loop) để trình diễn trước hội đồng.
 - [core-engine/backend] Hoàn thiện tích hợp luồng Human-in-the-loop: Chuyển đổi thông báo phê duyệt AI Command sang dạng Interactive Message trên Mattermost (gắn nút Phê duyệt/Từ chối thay vì chỉ gửi text thông báo thông thường). Hỗ trợ truyền tùy chỉnh `approval_message` từ Frontend xuống tận Mattermost Adapter.
 
+
+### Fixed
+- **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Nới lỏng schema kiểm duyệt cho action `hr.leave_requests.batch_approve`: loại bỏ bắt buộc trường `request_ids` và cho phép `raw_input`, giải quyết lỗi AI Orchestrator bị block bởi schema cứng nhắc khi dịch từ ngôn ngữ tự nhiên.
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi Crash/500 khi lưu AI Command: bọc logic validation vào `try...except DSLValidationError` để trả về lỗi 202 thân thiện (Graceful Degradation); cập nhật logic lưu DB để dump object thành `dsl_payload` thay vì chèn vào các cột không tồn tại (`dsl_version`, `parameters`).
+- **[core-engine/backend/app/adapters/repositories/ai_command_repo.py]** Bỏ logic pop `session_id` khi insert, đảm bảo đồng bộ với schema CSDL.
+- **[core-engine/frontend/src/hooks/useAICommand.ts]** Sửa lỗi Frontend luôn hiển thị "System Command" khi đang chờ duyệt: lấy đúng field `data.result` từ API thay vì bắt cứng vào `dry_run_result`.
+- **[deploy/.env]** Thêm biến `MATTERMOST_SYSTEM_CHANNEL_ID` vào `.env` và `docker-compose.yml` (map vào channel Town Square) và thêm bot vào channel, sửa lỗi 403 Forbidden khi Backend gửi Interactive Message xin duyệt lên Mattermost.
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi Frontend luôn hiển thị "System Command": bổ sung `action` và `effect` vào kết quả `dry_run_res` trả về cho Frontend hiển thị.
+- **[core-engine/backend/app/core/use_cases/ai_timeout_worker.py]** Sửa lỗi crash background worker khi hủy lệnh quá hạn (do cập nhật cột `updated_at` không tồn tại trong CSDL).
+- **[Mattermost Config]** Cấu hình `ServiceSettings.AllowedUntrustedInternalConnections` cho phép Mattermost gọi Webhook nội bộ tới `proteus-backend`, sửa lỗi bấm nút Phê duyệt/Từ chối không có tác dụng.
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Sửa lỗi nút bấm Phê duyệt/Từ chối trên Mattermost bị vô hiệu hóa (silently failed). Cập nhật API để chấp nhận xác thực qua tham số `token` trên URL thay vì yêu cầu bắt buộc `Mattermost-Signature` (do Mattermost Interactive Messages không tự động sinh HMAC).
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Cập nhật logic để thay thế thông báo gốc thành "✅ ĐƯỢC PHÊ DUYỆT" hoặc "❌ BỊ TỪ CHỐI" (ẩn các nút bấm) sau khi tương tác.
+- **[core-engine/backend/app/adapters/external/mattermost_adapter.py]** Tự động nhúng `token` vào URL callback của Interactive Buttons.
+- **[core-engine/backend/app/adapters/repositories/ai_command_repo.py]** Loại bỏ trường `updated_at` trong hàm `update_command_approval` do bảng `ai_commands` không tồn tại cột này, gây lỗi 500 khi phê duyệt lệnh nghỉ phép.
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Ngăn việc lưu Mattermost User ID (chuỗi 26 ký tự) vào cột `approved_by` (kiểu UUID) của lệnh AI Command (VD: phê duyệt nghỉ phép) vì nó gây lỗi SQL `invalid input syntax for type uuid` dẫn đến lỗi 500 khi webhook callback chạy.
+
+
 ## [v1.0.3] - 2026-09-08
 
 ### Added

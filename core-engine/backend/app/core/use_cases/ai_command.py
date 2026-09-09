@@ -22,7 +22,7 @@ from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.domain.ports import AbstractChatOpsPort, AbstractWorkflowEnginePort
 from app.core.use_cases.dsl_dry_run import DSLDryRunEngine
-from app.core.use_cases.dsl_validator import DSLValidator
+from app.core.use_cases.dsl_validator import DSLValidator, DSLValidationError
 from app.infrastructure.config import settings
 
 
@@ -76,7 +76,31 @@ class AICommandUseCase:
             tenant_id=str(ctx.tenant_id),
             user_id=str(ctx.user_id),
         )
-        await dsl_validator.validate(dsl_payload=asdict(body))
+
+        try:
+            await dsl_validator.validate(dsl_payload=asdict(body))
+        except DSLValidationError as e:
+            # Lưu lỗi vào log và trả về user-friendly message
+            logger.warning(f"AI Command Validation Failed: {e}")
+
+            # Ghi lịch sử lệnh bị fail do validation
+            now = datetime.now(UTC)
+            await self.ai_command_repo.create_command(
+                {
+                    "id": body.command_id,
+                    "tenant_id": ctx.tenant_id,
+                    "issued_by_user_id": ctx.user_id,
+                    "session_id": body.session_id,
+                    "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
+                    "action": body.action,
+                    "effect": body.effect,
+                    "status": AICommandStatus.FAILED.value,
+                    "execution_result": json.dumps({"error": str(e)}),
+                    "executed_at": now,
+                    "created_at": now,
+                }
+            )
+            return AICommandStatus.FAILED, f"Từ chối thực hiện: {str(e)}", None
 
         now = datetime.now(UTC)
 
@@ -96,12 +120,10 @@ class AICommandUseCase:
                         "id": body.command_id,
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
-                        "dsl_version": body.dsl_version,
+                        "session_id": body.session_id,
+                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": (
-                            json.dumps(body.parameters) if body.parameters else "{}"
-                        ),
                         "status": AICommandStatus.COMPLETED.value,
                         "execution_result": (
                             json.dumps(response) if response is not None else None
@@ -138,12 +160,10 @@ class AICommandUseCase:
                         "id": body.command_id,
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
-                        "dsl_version": body.dsl_version,
+                        "session_id": body.session_id,
+                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
                         "action": body.action,
                         "effect": body.effect,
-                        "parameters": (
-                            json.dumps(body.parameters) if body.parameters else "{}"
-                        ),
                         "status": AICommandStatus.FAILED.value,
                         "execution_result": json.dumps({"error": str(e)}),
                         "executed_at": now,
@@ -165,6 +185,9 @@ class AICommandUseCase:
             )
         except Exception:
             dry_run_res = {"preview": "Không thể thực hiện dry run"}
+            
+        dry_run_res["action"] = body.action
+        dry_run_res["effect"] = body.effect
 
         # Lưu DB
         await self.ai_command_repo.create_command(
@@ -172,10 +195,10 @@ class AICommandUseCase:
                 "id": body.command_id,
                 "tenant_id": ctx.tenant_id,
                 "issued_by_user_id": ctx.user_id,
-                "dsl_version": body.dsl_version,
+                "session_id": body.session_id,
+                "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
                 "action": body.action,
                 "effect": body.effect,
-                "parameters": json.dumps(body.parameters) if body.parameters else "{}",
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
                 "dry_run_result": (
@@ -194,13 +217,13 @@ class AICommandUseCase:
         )
 
         # Gửi thông báo phê duyệt qua Mattermost
-        msg_text = body.approval_message or (
+        action_code = f"`{body.action}`"
+        msg_text = (
             f"**[AI Command Approval Required]**\n"
-            f"- **Action:** `{body.action}`\n"
-            f"- **Effect:** {body.effect.upper()}\n"
+            f"- **Action:** {action_code}\n"
+            f"- **Mô tả:** {body.approval_message or 'Không có mô tả'}\n"
             f"- **User:** {ctx.user_id}\n"
             f"- **Deadline:** {deadline_minutes} phút\n"
-            f"Vui lòng phê duyệt hoặc từ chối tại Dashboard."
         )
         try:
             await self.mattermost_adapter.send_interactive_message(
@@ -254,23 +277,23 @@ class AICommandUseCase:
             return True
 
         if cmd["effect"] == "critical":
-            if not cmd.get("approved_by_user_id"):
+            if not cmd.get("approved_by"):
+                # Ghi nhận lần duyệt 1 (Mattermost user ID không insert vào UUID column được)
                 await self.ai_command_repo.update_command_approval(
-                    cmd_id=cmd_id, approved_by=approver_id
+                    cmd_id=cmd_id
                 )
                 await self.ai_command_repo.commit()
                 return True
-            elif str(cmd.get("approved_by_user_id")) != str(approver_id):
+            else:
+                # Ghi nhận lần duyệt 2
                 await self.ai_command_repo.update_command_approval(
-                    cmd_id=cmd_id, second_approver=approver_id, status="APPROVED"
+                    cmd_id=cmd_id, status="APPROVED"
                 )
                 await self.ai_command_repo.commit()
                 is_approved = True
-            else:
-                return False
         else:
             await self.ai_command_repo.update_command_approval(
-                cmd_id=cmd_id, approved_by=approver_id, status="APPROVED"
+                cmd_id=cmd_id, status="APPROVED"
             )
             await self.ai_command_repo.commit()
             is_approved = True

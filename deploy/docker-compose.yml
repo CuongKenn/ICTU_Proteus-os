@@ -185,7 +185,7 @@ services:
     networks:
       - proteus-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -458,6 +458,8 @@ services:
       target: backend
     container_name: proteus-backend
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
@@ -472,6 +474,8 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-llama3}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: http://localhost:3001
       METABASE_INTERNAL_URL: http://metabase:3000
@@ -480,6 +484,7 @@ services:
       MATTERMOST_URL: ${MATTERMOST_URL}
       MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN}
       MATTERMOST_WEBHOOK_SECRET: ${MATTERMOST_WEBHOOK_SECRET}
+      MATTERMOST_SYSTEM_CHANNEL_ID: ${MATTERMOST_SYSTEM_CHANNEL_ID}
       PLUGINS_DIR: /plugins
     volumes:
       - ../plugins:/plugins:ro

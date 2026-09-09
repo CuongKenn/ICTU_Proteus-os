@@ -77,16 +77,15 @@ class MattermostAdapter(AbstractChatOpsPort):
         # qua biến môi trường ở thực tế,
         # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
         # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
-        # Ta sẽ dùng một relative path hoặc absolute URL. Ở đây giả định
-        # Mattermost có thể phân giải được URL backend.
-        backend_url = getattr(
-            settings, "BACKEND_URL", "http://proteus-backend:8000"
-        ).rstrip("/")
+        # Phải dùng internal URL để Mattermost server gọi sang Backend server
+        backend_url = "http://proteus-backend:8000"
+        secret = getattr(settings, "MATTERMOST_WEBHOOK_SECRET", "")
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
+        if secret:
+            webhook_url += f"?token={secret}"
 
         payload = {
             "channel_id": channel_id,
-            "message": text,
             "props": {
                 "attachments": [
                     {
