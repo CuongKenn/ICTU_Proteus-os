@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Added
+- **[core-engine/frontend]** Bổ sung UI Modal theo dõi log cài đặt Plugin theo thời gian thực (`InstallProgressModal`). Người dùng nay có thể xem chi tiết từng bước (Tạo DB, Gắn Credentials, Import Workflow n8n, v.v) cùng với trạng thái tương ứng.
+
 ### Fixed
 - **[core-engine/backend]** Sửa lỗi logic trình tự cài đặt Workflow n8n (`plugin_install.py`). Đảo bước tạo External Credentials lên trước bước Import Workflow (Bước 1.5).
 - **[core-engine/backend]** Sửa lỗi tạo Credentials đa trường (Composite Credentials như OAuth2 cần `clientId` và `clientSecret`). Hệ thống nay đã gộp chung (group_by) các `CredentialInput` có cùng `credential_type_name` thành một Credential duy nhất trên n8n thay vì tách rời từng trường gây lỗi.
