@@ -649,8 +649,19 @@ class PluginInstallUseCase:
         status: str,
         message: str | None = None,
     ) -> None:
-        """Ghi một bước vào _steps_log (in-memory)."""
+        """Ghi một bước vào _steps_log (in-memory) và in ra console."""
         now_iso = datetime.now(UTC).isoformat()
+        
+        # In log rõ ràng ra console
+        emoji = "⏳"
+        if status == "DONE":
+            emoji = "✅"
+        elif status == "FAILED":
+            emoji = "❌"
+        
+        msg_suffix = f" - {message}" if message else ""
+        logger.info(f"{emoji} [INSTALL] Bước {step_name.upper()}: {status}{msg_suffix}")
+
         # Cập nhật entry nếu cùng step_name
         for entry in self._steps_log:
             if entry["step"] == step_name:
@@ -668,6 +679,15 @@ class PluginInstallUseCase:
                 "message": message,
             }
         )
+        # In log rõ ràng ra console
+        emoji = "⏳"
+        if status == "DONE":
+            emoji = "✅"
+        elif status == "FAILED":
+            emoji = "❌"
+        
+        msg_suffix = f" - {message}" if message else ""
+        logger.info(f"{emoji} [INSTALL] Bước {step_name.upper()}: {status}{msg_suffix}")
 
     async def _persist_steps(
         self,
