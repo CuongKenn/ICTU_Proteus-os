@@ -91,11 +91,11 @@ class AICommandUseCase:
                     "tenant_id": ctx.tenant_id,
                     "issued_by_user_id": ctx.user_id,
                     "session_id": body.session_id,
-                    "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
+                    "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
                     "action": body.action,
                     "effect": body.effect,
                     "status": AICommandStatus.FAILED.value,
-                    "execution_result": json.dumps({"error": str(e)}),
+                    "execution_result": json.dumps({"error": str(e)}, default=str),
                     "executed_at": now,
                     "created_at": now,
                 }
@@ -111,7 +111,7 @@ class AICommandUseCase:
                 webhook_url = self.n8n_adapter.build_webhook_url(body.action)
                 response = await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url,
-                    payload=asdict(body),
+                    payload=json.loads(json.dumps(asdict(body), default=str)),
                 )
 
                 # Lưu DB ngay
@@ -121,12 +121,12 @@ class AICommandUseCase:
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
                         "session_id": body.session_id,
-                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
+                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
                         "action": body.action,
                         "effect": body.effect,
                         "status": AICommandStatus.COMPLETED.value,
                         "execution_result": (
-                            json.dumps(response) if response is not None else None
+                            json.dumps(response, default=str) if response is not None else None
                         ),
                         "executed_at": now,
                         "created_at": now,
@@ -140,10 +140,12 @@ class AICommandUseCase:
                     effect=body.effect,
                     tenant_id=ctx.tenant_id,
                 )
+                # Hỗ trợ hiển thị Markdown đẹp trên giao diện nếu Plugin trả về
+                result_data = response.get("markdown") if isinstance(response, dict) and "markdown" in response else response
                 return (
                     AICommandStatus.COMPLETED,
                     "Lệnh đọc dữ liệu đã thực thi thành công.",
-                    response,
+                    result_data,
                 )
             except Exception as e:
                 logger.error(
@@ -161,11 +163,11 @@ class AICommandUseCase:
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
                         "session_id": body.session_id,
-                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
+                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
                         "action": body.action,
                         "effect": body.effect,
                         "status": AICommandStatus.FAILED.value,
-                        "execution_result": json.dumps({"error": str(e)}),
+                        "execution_result": json.dumps({"error": str(e)}, default=str),
                         "executed_at": now,
                         "created_at": now,
                     }
@@ -196,13 +198,13 @@ class AICommandUseCase:
                 "tenant_id": ctx.tenant_id,
                 "issued_by_user_id": ctx.user_id,
                 "session_id": body.session_id,
-                "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}),
+                "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
                 "action": body.action,
                 "effect": body.effect,
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
                 "dry_run_result": (
-                    json.dumps(dry_run_res) if dry_run_res is not None else None
+                    json.dumps(dry_run_res, default=str) if dry_run_res is not None else None
                 ),
                 "created_at": now,
             }

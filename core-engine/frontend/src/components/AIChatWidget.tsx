@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Clock,
   Zap,
+  Trash2,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAICommand, ChatMessage, DslPreview } from "@/hooks/useAICommand";
@@ -206,6 +207,7 @@ const AIChatWidgetInner: React.FC = () => {
     openWidget,
     minimizeWidget,
     resetAndClose,
+    clearHistory,
     sendCommand,
     openMattermostApproval,
     cancelApproval,
@@ -220,14 +222,13 @@ const AIChatWidgetInner: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, widgetState]);
 
-  // Focus input khi mở widget
+  // Focus input khi mở
   useEffect(() => {
-    if (widgetState === "expanded") {
-      setTimeout(() => inputRef.current?.focus(), 250);
+    if (isExpanded) {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [widgetState]);
+  }, [isExpanded]);
 
-  // Gửi khi bấm Enter (Shift+Enter = xuống dòng)
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -269,7 +270,7 @@ const AIChatWidgetInner: React.FC = () => {
         id="ai-chat-panel"
         aria-hidden={!isExpanded}
         className={clsx(
-          "w-[360px] rounded-2xl border border-border overflow-hidden",
+          "w-[420px] sm:w-[480px] rounded-2xl border border-border overflow-hidden",
           "bg-bg-glass backdrop-blur-[16px]",
           "shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(108,99,255,0.1)]",
           "transition-all duration-300 ease-out origin-bottom-right",
@@ -278,7 +279,7 @@ const AIChatWidgetInner: React.FC = () => {
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 translate-y-4 pointer-events-none"
         )}
-        style={{ height: isExpanded ? "480px" : "0px" }}
+        style={{ height: isExpanded ? "600px" : "0px" }}
       >
         {/* Header */}
         <div className="h-[52px] flex items-center justify-between px-4 border-b border-border bg-bg-surface/50 shrink-0">
@@ -307,6 +308,15 @@ const AIChatWidgetInner: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1">
+            <button
+              id="ai-widget-clear-btn"
+              aria-label="Xóa lịch sử trò chuyện"
+              onClick={clearHistory}
+              className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
+              title="Xóa lịch sử trò chuyện"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
             <button
               id="ai-widget-minimize-btn"
               aria-label="Thu nhỏ widget"

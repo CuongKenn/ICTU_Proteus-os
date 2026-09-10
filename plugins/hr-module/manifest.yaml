@@ -73,6 +73,11 @@ database:
 # PHẦN 4: WORKFLOWS
 # ════════════════════════════════════════════════
 workflows:
+  - file: "workflows/hr_employees_read.json"
+    name: "HR Employees Read Workflow"
+    description: "Workflow trả về danh sách nhân viên từ CSDL"
+    trigger: "webhook"
+
   - file: "workflows/leave_request.json"
     name: "HR Leave Request Workflow"
     description: "Xử lý luồng duyệt/từ chối đơn nghỉ phép"

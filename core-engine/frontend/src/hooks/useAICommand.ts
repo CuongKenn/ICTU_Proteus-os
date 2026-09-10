@@ -6,7 +6,7 @@
 // Giao tiếp qua BFF /api/ai/command (không gọi FastAPI trực tiếp)
 // Tham chiếu: docs/architecture.md §2.1 (BFF Pattern), docs/dsl-spec.md
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNotificationStore } from "@/store/notificationStore";
 
 // Helper: dùng fallback khi chạy trên HTTP không có crypto.randomUUID
@@ -60,6 +60,7 @@ export interface DslPreview {
     openWidget: () => void;
     minimizeWidget: () => void;
     resetAndClose: () => void;
+    clearHistory: () => void;
     sendCommand: () => Promise<void>;
     openMattermostApproval: () => void;
     cancelApproval: () => void;
@@ -82,6 +83,40 @@ export interface DslPreview {
     const [sessionId, setSessionId] = useState<string>(() => uuid());
   
     const { addToast } = useNotificationStore();
+
+    // ─── Lịch sử Chat (LocalStorage) ─────────────────────────────────────────────
+
+    useEffect(() => {
+      try {
+        const savedMessages = localStorage.getItem("proteus_ai_chat_history");
+        const savedSession = localStorage.getItem("proteus_ai_session_id");
+        if (savedMessages) {
+          const parsed = JSON.parse(savedMessages);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(
+              parsed.map((m: any) => ({
+                ...m,
+                timestamp: new Date(m.timestamp),
+              }))
+            );
+          }
+        }
+        if (savedSession) {
+          setSessionId(savedSession);
+        }
+      } catch (e) {
+        console.error("Failed to load AI chat history", e);
+      }
+    }, []);
+
+    useEffect(() => {
+      try {
+        localStorage.setItem("proteus_ai_chat_history", JSON.stringify(messages));
+        localStorage.setItem("proteus_ai_session_id", sessionId);
+      } catch (e) {
+        console.error("Failed to save AI chat history", e);
+      }
+    }, [messages, sessionId]);
   
     // ─── Actions ─────────────────────────────────────────────────────────────────
   
@@ -92,10 +127,8 @@ export interface DslPreview {
     const minimizeWidget = useCallback(() => {
       setWidgetState("collapsed");
     }, []);
-  
-    const resetAndClose = useCallback(() => {
-      setWidgetState("collapsed");
-      setDslPreview(null);
+
+    const clearHistory = useCallback(() => {
       setMessages([
         {
           id: uuid(),
@@ -105,6 +138,13 @@ export interface DslPreview {
         },
       ]);
       setSessionId(uuid());
+      setDslPreview(null);
+    }, []);
+  
+    const resetAndClose = useCallback(() => {
+      setWidgetState("collapsed");
+      setDslPreview(null);
+      // Không clear lịch sử chat khi đóng Widget nữa
     }, []);
   
     const appendMessage = useCallback((role: MessageRole, content: string) => {

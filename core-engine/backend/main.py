@@ -22,6 +22,7 @@ from app import __version__
 from app.adapters.external.appsmith_adapter import AppsmithAdapter
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
 from app.adapters.external.local_manifest_parser import LocalManifestParser
+import asyncio
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
@@ -33,6 +34,7 @@ from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.core.domain import exceptions as domain_exc
 from app.core.use_cases.ai_timeout_worker import AITimeoutWorker
 from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
+from app.core.use_cases.event_subscriber_worker import EventSubscriberWorker
 from app.core.use_cases.proactive_monitor import ProactiveMonitorAgent
 from app.entrypoints.routers import (
     ai,
@@ -237,10 +239,20 @@ async def lifespan(app: FastAPI):
         id="proactive_monitor_morning",
     )
     scheduler.start()
+        # Khởi động Event Subscriber Worker (Redis Pub/Sub)
+    manifest_parser = LocalManifestParser()
+    n8n_adapter = N8nAdapter(client=app.state.http_client)
+    event_worker = EventSubscriberWorker(manifest_parser=manifest_parser, n8n_adapter=n8n_adapter)
+    
+    event_bus_task = asyncio.create_task(
+        app.state.redis_event_bus.subscribe_and_listen(event_worker.handle_event)
+    )
+
     logger.info(
         "Đã khởi động APScheduler, Plugin Cleanup Agent, AI Timeout Worker "
         "và Proactive Monitor Agent."
     )
+    logger.info("Đã khởi động Event Subscriber Worker lắng nghe cross-plugin events.")
 
     # Load Python extensions for plugins
     from app.core.dynamic_loader import DynamicPluginLoader
@@ -253,6 +265,12 @@ async def lifespan(app: FastAPI):
 
     # Đóng kết nối
     scheduler.shutdown()
+    event_bus_task.cancel()
+    try:
+        await event_bus_task
+    except asyncio.CancelledError:
+        pass
+    
     await app.state.http_client.aclose()
     await app.state.qdrant_client.close()
     await app.state.redis_event_bus.aclose()

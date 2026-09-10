@@ -40,7 +40,7 @@ Bạn CHỈ ĐƯỢC PHÉP trả về một object JSON hợp lệ với cấu t
 Danh sách các hành động (action) được hỗ trợ hiện tại:
 1. "hr.leave_requests.batch_approve": (effect: write) Duyệt nghỉ phép, phê duyệt đơn.
 2. "core.users.delete": (effect: critical) Xóa người dùng, xoá nhân viên.
-3. "hr.employees.search": (effect: read) Tìm kiếm thông tin nhân viên, đọc thông tin.
+3. "hr.employees.read": (effect: read) Tìm kiếm thông tin nhân viên, đọc thông tin.
 
 Nếu câu lệnh không nằm trong các hành động trên, hãy mặc định trả về hành động tìm kiếm với parameters={"raw_input": "<câu lệnh gốc>"}."""
 
@@ -56,12 +56,11 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
             
             # Parse the JSON response
             content = llm_response.content.strip()
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.startswith("```"):
-                content = content[3:]
-            if content.endswith("```"):
-                content = content[:-3]
+            
+            import re
+            match = re.search(r'\{.*\}', content, re.DOTALL)
+            if match:
+                content = match.group(0)
                 
             parsed = json.loads(content.strip())
             
@@ -69,7 +68,7 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
                 command_id=uuid.uuid4(),
                 session_id=dto.session_id,
                 dsl_version="1.0",
-                action=parsed.get("action", "hr.employees.search"),
+                action=parsed.get("action", "hr.employees.read"),
                 effect=parsed.get("effect", "read"),
                 parameters=parsed.get("parameters", {"raw_input": dto.natural_language_input}),
                 approval_message=parsed.get("approval_message", None)

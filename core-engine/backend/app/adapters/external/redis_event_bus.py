@@ -17,7 +17,7 @@ import logging
 import uuid
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from typing import Any, TypeVar
+from typing import Any, Callable, Coroutine, TypeVar
 
 import redis.asyncio as aioredis
 
@@ -310,3 +310,34 @@ class RedisEventBusPublisher(AbstractEventBusPort):
             plugin_source=plugin_name,
             payload=payload,
         )
+
+    async def subscribe_and_listen(
+        self,
+        handler: Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
+    ) -> None:
+        """
+        Lắng nghe tất cả các sự kiện trên hệ thống Pub/Sub và đẩy vào handler.
+        Chạy vô hạn trong một background task.
+        """
+        conn = await self._get_connection()
+        pubsub = conn.pubsub()
+        pattern = f"{_CHANNEL_PREFIX}:*"
+        await pubsub.psubscribe(pattern)
+        logger.info(f"Event Bus Worker started listening on {pattern}")
+
+        try:
+            async for message in pubsub.listen():
+                if message["type"] == "pmessage":
+                    try:
+                        data = message["data"]
+                        if isinstance(data, bytes):
+                            data = data.decode("utf-8")
+                        envelope = json.loads(data)
+                        
+                        # Không block main loop của redis listener, spawn task để xử lý
+                        asyncio.create_task(handler(envelope))
+                    except Exception as e:
+                        logger.error("Error processing PubSub message", exc_info=True)
+        except asyncio.CancelledError:
+            await pubsub.punsubscribe(pattern)
+            logger.info("Event Bus Worker stopped")

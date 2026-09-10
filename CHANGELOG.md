@@ -7,6 +7,20 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Added
+- **[core-engine/backend]** Triển khai hoàn thiện `EventSubscriberWorker`: Backend nay đã liên tục lắng nghe các sự kiện qua Redis Pub/Sub và tự động kích hoạt chéo (trigger) n8n workflows của các Plugins khác thông qua định dạng `event_subscriptions` trong file `manifest.yaml`. Hệ sinh thái Event-Driven Architecture (EDA) chính thức hoạt động 100%.
+
+### Changed
+- **[core-engine/backend]** Cập nhật `main.py` để thêm `EventSubscriberWorker` chạy ngầm bằng `asyncio.create_task` gắn với vòng đời `lifespan` của FastAPI.
+- **[core-engine/backend]** Cập nhật `redis_event_bus.py` bổ sung hàm `subscribe_and_listen` cho luồng worker.
+### Fixed
+- **[core-engine/backend]** Sửa lỗi không nhận code mới do Docker container backend không mount volume code. Đã rebuild container để apply logic `ai_command_use_case.py` tách `markdown`.
+- **[plugins/hr-module]** Cập nhật logic Javascript trong `hr_employees_read.json` n8n để fetch chuẩn xác `raw_input` nằm sâu bên trong payload của AI Orchestrator gửi đến (`body.parameters.raw_input`), khắc phục lỗi trả về sai full 3 nhân viên do không lọc được điều kiện.
+### Changed
+- **[core-engine/backend]** Cập nhật `ai_command_use_case.py` để hỗ trợ bóc tách trường `markdown` từ n8n webhook response. Điều này cho phép các Plugin tự do định dạng output trả về cho AI Chat UI một cách đẹp mắt.
+- **[plugins/hr-module]** Cập nhật workflow `hr_employees_read.json` (Node Format Data) để sinh ra giao diện dạng Markdown string đẹp mắt thay vì trả về raw JSON thô.
+
+
+### Added
 - [docs/demo-guide.md] Bổ sung tài liệu Hướng dẫn Demo chi tiết các kịch bản cốt lõi (Multi-tenancy, Micro-kernel, AI Human-in-the-loop) để trình diễn trước hội đồng.
 - [core-engine/backend] Hoàn thiện tích hợp luồng Human-in-the-loop: Chuyển đổi thông báo phê duyệt AI Command sang dạng Interactive Message trên Mattermost (gắn nút Phê duyệt/Từ chối thay vì chỉ gửi text thông báo thông thường). Hỗ trợ truyền tùy chỉnh `approval_message` từ Frontend xuống tận Mattermost Adapter.
 
@@ -549,6 +563,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[CHANGELOG.md]** Tái cấu trúc: gộp 2 section `## [Unreleased]` thành 1, xóa `### Changed (tiếp theo)` không chuẩn, sắp xếp lại theo đúng format Keep a Changelog. Thêm link [Keep a Changelog](https://keepachangelog.com/) vào header.
 - **[docs/BRD.md FR1]** Chuẩn hóa Wiki/CMS: "Outline/BookStack" → "Outline" (nhất quán với `architecture.md`, `deployment.md`).
 - **[docs/deployment.md §3]** Cập nhật lệnh `docker-compose ps` → `docker compose ps` (Docker Compose v2 chuẩn), giữ ghi chú tương thích v1.
+
+## [Unreleased] - Sắp tới
+
+### Changed
+- **[plugins/hr-module]** Cập nhật workflow `hr_employees_read.json` để lấy danh sách nhân viên từ CSDL thật (PostgreSQL) thay vì trả về mock data. Cập nhật `manifest.yaml` tương ứng.
 
 ### Fixed
 - **[README.md]** Xóa thẻ `</div>` thừa và badge Docker bị duplicate trong phần header badges.
