@@ -4,6 +4,8 @@
 # Core Domain — Plugin Uninstall Use Case (6-step reverse)
 
 import logging
+import random
+import asyncio
 import re
 import uuid
 
@@ -116,6 +118,7 @@ class PluginUninstallUseCase:
         try:
             # BƯỚC 1: Xóa Event Subscriptions
             logger.info("🗑️  [UNINSTALL] Bước 1 (EVENTS): RUNNING")
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_1_events(
                 context, plugin_code_name, manifest, config_override.get("events", [])
             )
@@ -124,6 +127,7 @@ class PluginUninstallUseCase:
             # BƯỚC 2: Xóa Keycloak Roles
             logger.info("✅ [UNINSTALL] Bước 1 (EVENTS): DONE")
             logger.info("🗑️  [UNINSTALL] Bước 2 (KEYCLOAK): RUNNING")
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_2_keycloak(
                 context, plugin_code_name, manifest, config_override.get("keycloak", [])
             )
@@ -132,6 +136,7 @@ class PluginUninstallUseCase:
             # BƯỚC 3: Xóa Appsmith Apps
             logger.info("✅ [UNINSTALL] Bước 2 (KEYCLOAK): DONE")
             logger.info("🗑️  [UNINSTALL] Bước 3 (APPSMITH): RUNNING")
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_3_appsmith(
                 context, plugin_code_name, manifest, config_override.get("appsmith", [])
             )
@@ -140,6 +145,7 @@ class PluginUninstallUseCase:
             # BƯỚC 4: Xóa Metabase Dashboards
             logger.info("✅ [UNINSTALL] Bước 3 (APPSMITH): DONE")
             logger.info("🗑️  [UNINSTALL] Bước 4 (METABASE): RUNNING")
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_4_metabase(
                 context, plugin_code_name, manifest, config_override.get("metabase", [])
             )
@@ -148,6 +154,7 @@ class PluginUninstallUseCase:
             # BƯỚC 5: Xóa n8n Workflows
             logger.info("✅ [UNINSTALL] Bước 4 (METABASE): DONE")
             logger.info("🗑️  [UNINSTALL] Bước 5 (N8N): RUNNING")
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_5_n8n(
                 context, plugin_code_name, manifest, config_override.get("n8n", [])
             )
@@ -156,6 +163,7 @@ class PluginUninstallUseCase:
             # BƯỚC 6: Drop Database Tables
             logger.info("✅ [UNINSTALL] Bước 5 (N8N): DONE")
             logger.info("🗑️  [UNINSTALL] Bước 6 (DATABASE): RUNNING")
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_6_database(context, plugin_code_name, manifest)
             logger.info("✅ [UNINSTALL] Bước 6 (DATABASE): DONE")
             completed_steps.append("db")

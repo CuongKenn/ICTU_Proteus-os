@@ -149,6 +149,7 @@ class PluginInstallUseCase:
             )
             completed_steps.append("database")
             await self._persist_steps(context, plugin.id)
+            await asyncio.sleep(random.uniform(1.0, 3.0))
 
 
             # BƯỚC 1.5: External Credentials (n8n)
@@ -173,6 +174,7 @@ class PluginInstallUseCase:
             self._log_step("n8n", "DONE")
             completed_steps.append("n8n")
             await self._persist_steps(context, plugin.id)
+            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 3: Metabase Import
             self._log_step("metabase", "RUNNING")
@@ -181,6 +183,7 @@ class PluginInstallUseCase:
             self._log_step("metabase", "DONE")
             completed_steps.append("metabase")
             await self._persist_steps(context, plugin.id)
+            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 4: Appsmith Import
             self._log_step("appsmith", "RUNNING")
@@ -189,6 +192,7 @@ class PluginInstallUseCase:
             self._log_step("appsmith", "DONE")
             completed_steps.append("appsmith")
             await self._persist_steps(context, plugin.id)
+            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 5: Keycloak Roles
             self._log_step("keycloak", "RUNNING")
@@ -197,6 +201,7 @@ class PluginInstallUseCase:
             self._log_step("keycloak", "DONE")
             completed_steps.append("keycloak")
             await self._persist_steps(context, plugin.id)
+            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 6: Event Subscriptions
             self._log_step("events", "RUNNING")
@@ -205,6 +210,7 @@ class PluginInstallUseCase:
             self._log_step("events", "DONE")
             completed_steps.append("events")
             await self._persist_steps(context, plugin.id)
+            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # SUCCESS
             await self.plugin_repo.update_config(
