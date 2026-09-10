@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- **[core-engine/backend]** Sửa lỗi logic trình tự cài đặt Workflow n8n (`plugin_install.py`). Đảo bước tạo External Credentials lên trước bước Import Workflow (Bước 1.5).
+- **[core-engine/backend]** Sửa lỗi tạo Credentials đa trường (Composite Credentials như OAuth2 cần `clientId` và `clientSecret`). Hệ thống nay đã gộp chung (group_by) các `CredentialInput` có cùng `credential_type_name` thành một Credential duy nhất trên n8n thay vì tách rời từng trường gây lỗi.
 ### Added
 - **[core-engine/backend]** Bổ sung tính năng **Dynamic Workflow Injection** trong `plugin_install.py` (Bước 2 - Import n8n). Hệ thống nay đã tự động fetch Credential ID của ProteusDB trên server để ghi đè vào các kết nối n8n, đồng thời tự động replace placeholder `{{TENANT_SCHEMA}}` thành Schema thực tế của Tenant đang cài đặt.
 
