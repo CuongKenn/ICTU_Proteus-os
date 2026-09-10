@@ -447,13 +447,38 @@ class PluginInstallUseCase:
     async def _step_2_n8n(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
     ) -> list[str]:
-        """Import workflows vào n8n."""
+        """Import workflows vào n8n kèm Dynamic Workflow Injection."""
         workflow_ids = []
+        
+        # 1. Lấy Credential ID của ProteusDB_Real (Internal DB)
+        proteus_db_cred_id = None
+        if self.session:
+            res = await self.session.execute(text("SELECT id FROM n8n.credentials_entity WHERE name = 'ProteusDB_Real' LIMIT 1"))
+            row = res.fetchone()
+            if row:
+                proteus_db_cred_id = row[0]
+                
+        tenant_schema = f"tenant_{str(context.tenant_id).replace('-', '_')}"
+
         for wf in manifest.workflows:
             wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
             if wf_path.exists():
                 with open(wf_path, encoding="utf-8-sig") as f:
                     wf_json = json.load(f)
+
+                # Dynamic Workflow Injection
+                for node in wf_json.get("nodes", []):
+                    # Inject Tenant Schema
+                    if "parameters" in node and "query" in node["parameters"]:
+                        query = node["parameters"]["query"]
+                        if "{{TENANT_SCHEMA}}" in query:
+                            node["parameters"]["query"] = query.replace("{{TENANT_SCHEMA}}", tenant_schema)
+                    
+                    # Auto-bind Internal Proteus DB Credential
+                    if node.get("type") == "n8n-nodes-base.postgres" and proteus_db_cred_id:
+                        if "credentials" in node and "postgres" in node["credentials"]:
+                            node["credentials"]["postgres"]["id"] = proteus_db_cred_id
+                            node["credentials"]["postgres"]["name"] = "ProteusDB_Real"
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
                 workflow_ids.append(wid)

@@ -7,6 +7,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Added
+- **[core-engine/backend]** Bổ sung tính năng **Dynamic Workflow Injection** trong `plugin_install.py` (Bước 2 - Import n8n). Hệ thống nay đã tự động fetch Credential ID của ProteusDB trên server để ghi đè vào các kết nối n8n, đồng thời tự động replace placeholder `{{TENANT_SCHEMA}}` thành Schema thực tế của Tenant đang cài đặt.
+
+### Changed
+- **[plugins/hr-module]** Cập nhật `hr_employees_read.json` loại bỏ hardcode Tenant Schema và thay bằng biến động `{{TENANT_SCHEMA}}`.
+### Added
 - **[core-engine/backend]** Triển khai hoàn thiện `EventSubscriberWorker`: Backend nay đã liên tục lắng nghe các sự kiện qua Redis Pub/Sub và tự động kích hoạt chéo (trigger) n8n workflows của các Plugins khác thông qua định dạng `event_subscriptions` trong file `manifest.yaml`. Hệ sinh thái Event-Driven Architecture (EDA) chính thức hoạt động 100%.
 
 ### Changed

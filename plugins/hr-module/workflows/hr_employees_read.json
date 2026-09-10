@@ -21,7 +21,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SET search_path TO \"tenant_d5c2f6ec_9dbf_49b3_ab8d_c431043972f6\";\nSELECT e.id, e.employee_code, e.full_name, d.name as department_name, e.position, e.status FROM hr_employees e LEFT JOIN hr_departments d ON e.department_id = d.id;",
+        "query": "SET search_path TO \"{{TENANT_SCHEMA}}\";\nSELECT e.id, e.employee_code, e.full_name, d.name as department_name, e.position, e.status FROM hr_employees e LEFT JOIN hr_departments d ON e.department_id = d.id;",
         "additionalFields": {}
       },
       "name": "Query Employees",
