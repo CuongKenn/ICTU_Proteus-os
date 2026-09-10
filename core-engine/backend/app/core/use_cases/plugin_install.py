@@ -150,9 +150,25 @@ class PluginInstallUseCase:
             completed_steps.append("database")
             await self._persist_steps(context, plugin.id)
 
+
+            # BƯỚC 1.5: External Credentials (n8n)
+            credential_mapping: dict[str, str] = {}
+            if credentials:
+                self._log_step("credentials", "RUNNING")
+                cred_mapping, cred_assets = await self._step_1_5_credentials(
+                    context, plugin_code_name, manifest, credentials
+                )
+                credential_mapping = cred_mapping
+                created_assets["credentials"] = cred_assets
+                self._log_step("credentials", "DONE")
+                completed_steps.append("credentials")
+                await self.plugin_repo.update_credential_ids(
+                    context.tenant_id, plugin.id, created_assets["credentials"]
+                )
+                
             # BƯỚC 2: n8n Import
             self._log_step("n8n", "RUNNING")
-            n8n_ids = await self._step_2_n8n(context, plugin_code_name, manifest)
+            n8n_ids = await self._step_2_n8n(context, plugin_code_name, manifest, credential_mapping)
             created_assets["n8n"] = n8n_ids
             self._log_step("n8n", "DONE")
             completed_steps.append("n8n")
@@ -189,23 +205,6 @@ class PluginInstallUseCase:
             self._log_step("events", "DONE")
             completed_steps.append("events")
             await self._persist_steps(context, plugin.id)
-
-            # BƯỚC 7: Credentials (n8n) — sau cùng trước SUCCESS
-            if credentials:
-                self._log_step("credentials", "RUNNING")
-                cred_ids = await self._step_7_credentials(
-                    context, plugin_code_name, manifest, credentials
-                )
-                created_assets["credentials"] = [c["id"] for c in cred_ids]
-                self._log_step("credentials", "DONE")
-                completed_steps.append("credentials")
-                # Lưu credential IDs để rollback khi uninstall
-                await self.plugin_repo.update_credential_ids(
-                    tenant_id=context.tenant_id,
-                    plugin_id=plugin.id,
-                    credential_ids=cred_ids,
-                )
-                await self._persist_steps(context, plugin.id)
 
             # SUCCESS
             await self.plugin_repo.update_config(
@@ -445,7 +444,8 @@ class PluginInstallUseCase:
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
     async def _step_2_n8n(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest,
+        credential_mapping: dict[str, str] = None
     ) -> list[str]:
         """Import workflows vào n8n kèm Dynamic Workflow Injection."""
         workflow_ids = []
@@ -474,11 +474,17 @@ class PluginInstallUseCase:
                         if "{{TENANT_SCHEMA}}" in query:
                             node["parameters"]["query"] = query.replace("{{TENANT_SCHEMA}}", tenant_schema)
                     
-                    # Auto-bind Internal Proteus DB Credential
-                    if node.get("type") == "n8n-nodes-base.postgres" and proteus_db_cred_id:
-                        if "credentials" in node and "postgres" in node["credentials"]:
-                            node["credentials"]["postgres"]["id"] = proteus_db_cred_id
-                            node["credentials"]["postgres"]["name"] = "ProteusDB_Real"
+                    # Auto-bind Credentials (Internal & External)
+                    if "credentials" in node:
+                        for cred_key, cred_val in node["credentials"].items():
+                            # Internal DB (Proteus)
+                            if node.get("type") == "n8n-nodes-base.postgres" and cred_key == "postgres" and proteus_db_cred_id:
+                                node["credentials"][cred_key]["id"] = proteus_db_cred_id
+                                node["credentials"][cred_key]["name"] = "ProteusDB_Real"
+                            # External (e.g. gmailOAuth2) from user input
+                            elif credential_mapping and cred_key in credential_mapping:
+                                node["credentials"][cred_key]["id"] = credential_mapping[cred_key]
+                                node["credentials"][cred_key]["name"] = f"tenant_{context.tenant_id}_{plugin_code_name}_{cred_key}"
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
                 workflow_ids.append(wid)
@@ -556,62 +562,61 @@ class PluginInstallUseCase:
             registered_events.append(f"{sub.source_plugin}_{'-'.join(sub.event_types)}")
         return registered_events
 
-    async def _step_7_credentials(
+    async def _step_1_5_credentials(
         self,
         context: TenantContext,
         plugin_code_name: str,
         manifest: PluginManifest,
         credentials: list[CredentialInput],
-    ) -> list[dict[str, str]]:
+    ) -> tuple[dict[str, str], list[str]]:
         """
-        Bước 7: Tạo n8n Credentials từ danh sách được cung cấp bởi người dùng.
-        Credentials được gửi sang n8n; không bao giờ lưu raw value vào DB Proteus.
-        Trả về list của {"id": "n8n-id", "name": "safe_name"} để rollback.
+        Bước 1.5: Tạo n8n Credentials từ danh sách được cung cấp.
+        Nhóm các trường dữ liệu theo credential_type_name.
+        Trả về (credential_mapping, list_of_created_asset_ids).
+        credential_mapping có dạng: {"gmailOAuth2": "n8n_id_123"}
         """
-        # Build lookup map từ credentials_schema
         schema_map = {f.key: f for f in manifest.credentials_schema}
-        created: list[dict[str, str]] = []
-
+        
+        # Group by credential_type_name
+        grouped_creds = {}
         for cred_input in credentials:
             schema_field = schema_map.get(cred_input.key)
-            # Xác định credential_type_name
             cred_type = (
                 cred_input.credential_type_name
                 or (schema_field.credential_type_name if schema_field else None)
                 or cred_input.key
             )
-            safe_name = (
-                f"tenant_{context.tenant_id}_{plugin_code_name}_{cred_input.key}"
-            )
+            if cred_type not in grouped_creds:
+                grouped_creds[cred_type] = {}
+            grouped_creds[cred_type][cred_input.key] = cred_input.value
 
-            if not hasattr(self.n8n_adapter, "create_credential"):
-                logger.warning("n8n_adapter không có create_credential, bỏ qua.")
-                continue
+        if not hasattr(self.n8n_adapter, "create_credential"):
+            logger.warning("n8n_adapter không có create_credential, bỏ qua.")
+            return {}, []
 
+        credential_mapping: dict[str, str] = {}
+        created_asset_ids: list[str] = []
+
+        for cred_type, data in grouped_creds.items():
+            safe_name = f"tenant_{str(context.tenant_id).replace('-', '_')}_{plugin_code_name}_{cred_type}"
             try:
                 result = await self.n8n_adapter.create_credential(
                     credential_type=cred_type,
                     credential_name=safe_name,
-                    data={cred_input.key: cred_input.value},
+                    data=data,
                 )
-                created.append({"id": str(result.get("id", "")), "name": safe_name})
+                new_id = str(result.get("id", ""))
+                if new_id:
+                    credential_mapping[cred_type] = new_id
+                    created_asset_ids.append(new_id)
                 logger.info(
                     "Tạo n8n credential '%s' cho plugin %s tenant %s",
-                    safe_name,
-                    plugin_code_name,
-                    context.tenant_id,
+                    safe_name, plugin_code_name, context.tenant_id
                 )
             except Exception as e:
-                logger.error(
-                    "Không thể tạo credential '%s': %s",
-                    safe_name,
-                    e,
-                )
-                raise PluginInstallError(
-                    f"Tạo credential '{cred_input.key}' thất bại: {e}"
-                ) from e
+                logger.error("Không thể tạo credential '%s': %s", safe_name, e)
 
-        return created
+        return credential_mapping, created_asset_ids
 
     def _check_version_compatibility(self, manifest: PluginManifest) -> None:
         """
