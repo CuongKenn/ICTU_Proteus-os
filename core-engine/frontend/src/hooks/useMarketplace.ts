@@ -10,7 +10,7 @@ import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import { usePlugins } from "@/hooks/usePlugins";
-import type { PluginInfo, InstallTaskStatus, CredentialInput } from "@/types";
+import type { PluginInfo, InstallTaskStatus, CredentialInput, InstallTaskStep } from "@/types";
 import type { PluginStatus } from "@/components/ui/PluginCard";
 
 interface UseMarketplaceReturn {
@@ -22,6 +22,7 @@ interface UseMarketplaceReturn {
   installingId: string | null;
   installProgress: number;
   installStatus: PluginStatus | null;
+  installSteps: InstallTaskStep[];
   installPlugin: (pluginId: string, credentials?: CredentialInput[]) => Promise<void>;
   uninstallPlugin: (pluginId: string, confirmName?: string) => Promise<void>;
 }
@@ -36,6 +37,7 @@ export function useMarketplace(): UseMarketplaceReturn {
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [installProgress, setInstallProgress] = useState(0);
   const [installStatus, setInstallStatus] = useState<PluginStatus | null>(null);
+  const [installSteps, setInstallSteps] = useState<InstallTaskStep[]>([]);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const { install, uninstall } = usePlugins();
@@ -92,6 +94,7 @@ export function useMarketplace(): UseMarketplaceReturn {
       const statusData = response.data;
 
       if (statusData) {
+        if (statusData.steps) setInstallSteps(statusData.steps);
         // Tính progress từ steps thực tế
         if (statusData.steps && statusData.steps.length > 0) {
           const completedSteps = statusData.steps.filter(
@@ -164,6 +167,7 @@ export function useMarketplace(): UseMarketplaceReturn {
 
     setInstallingId(pluginId);
     setInstallProgress(0);
+    setInstallSteps([]);
     setInstallStatus("installing");
 
     try {
@@ -209,6 +213,7 @@ export function useMarketplace(): UseMarketplaceReturn {
     installingId,
     installProgress,
     installStatus,
+    installSteps,
     installPlugin,
     uninstallPlugin: uninstall,
   };

@@ -254,6 +254,21 @@ export const MarketplaceClient: React.FC = () => {
         onConfirm={handleConfirmInstall}
       />
 
+
+      <InstallProgressModal
+        isOpen={!!installingId}
+        pluginName={allPlugins.find(p => p.data.id === installingId)?.data.name}
+        steps={installSteps}
+        overallProgress={installProgress}
+        status={installStatus}
+        onClose={() => {
+           // Will be auto-closed by hook when complete, or user can close if failed
+           if (installStatus === "failed" || installStatus === "active") {
+             // Let the hook timeout handle the reset, or you can force clear installingId if needed
+           }
+        }}
+      />
+
       {/* Uninstall Confirm Modal */}
       <Modal
         isOpen={isUninstallConfirmOpen}
