@@ -6,6 +6,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Added
+- [docs/plugin-manifest-spec.md] Hỗ trợ cấu trúc Hybrid UI (`external_url` cho Micro-Frontend) trong Plugin Manifest (v1.2.0).
+- [core-engine/backend] Bổ sung parser cho trường `ui.external_url` trong `PluginManifest` model thay thế cho `ui_apps` array cũ.
+- [core-engine/frontend] Sửa logic `LaunchpadClient.tsx` ưu tiên render `external_url` (nếu có) trước khi fallback về Appsmith mặc định.
+- [plugins/crm-module] Cập nhật manifest của CRM Module để biểu diễn cách sử dụng `external_url`.
+
+
 ### Fixed
 - **[core-engine/backend]** Sửa lỗi chạy ngầm quá trình gỡ cài đặt Plugin bị chặn bởi Row-Level Security (RLS) do thiếu ContextVar `current_tenant_id` trong Background Task.
 - **[core-engine/backend]** Khắc phục lỗi crash `TypeError` khi gọi `PluginUninstallUseCase` thiếu tham số `session` ở chế độ background.
@@ -581,6 +588,13 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[docs/deployment.md §3]** Cập nhật lệnh `docker-compose ps` → `docker compose ps` (Docker Compose v2 chuẩn), giữ ghi chú tương thích v1.
 
 ## [Unreleased] - Sắp tới
+
+### Added
+- [docs/plugin-manifest-spec.md] Hỗ trợ cấu trúc Hybrid UI (`external_url` cho Micro-Frontend) trong Plugin Manifest (v1.2.0).
+- [core-engine/backend] Bổ sung parser cho trường `ui.external_url` trong `PluginManifest` model thay thế cho `ui_apps` array cũ.
+- [core-engine/frontend] Sửa logic `LaunchpadClient.tsx` ưu tiên render `external_url` (nếu có) trước khi fallback về Appsmith mặc định.
+- [plugins/crm-module] Cập nhật manifest của CRM Module để biểu diễn cách sử dụng `external_url`.
+
 
 ### Fixed
 - **[core-engine/backend]** Sửa lỗi chạy ngầm quá trình gỡ cài đặt Plugin bị chặn bởi Row-Level Security (RLS) do thiếu ContextVar `current_tenant_id` trong Background Task.
