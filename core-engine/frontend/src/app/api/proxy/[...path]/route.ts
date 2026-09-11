@@ -8,8 +8,16 @@
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
 import { getToken } from "next-auth/jwt";
+import { encode } from "next-auth/jwt";
+import type { JWT } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { refreshAccessToken } from "@/lib/tokenRefresh";
+import {
+  SESSION_MAX_AGE,
+  isSecureCookies,
+  sessionCookieDomain,
+  sessionCookieName,
+} from "@/lib/sessionCookie";
 import { logger } from "@/lib/logger";
 
 
@@ -57,6 +65,34 @@ function withCors(response: NextResponse, cors: Record<string, string> | null) {
   return response;
 }
 
+// Ghi JWT đã refresh trở lại session cookie. BẮT BUỘC vì Keycloak bật
+// rotate refresh token (revokeRefreshToken): không persist thì request sau
+// dùng lại refresh token cũ → invalid_grant → session chết sau ~5 phút.
+async function attachRefreshedSession(
+  response: NextResponse,
+  refreshed: JWT | null
+): Promise<NextResponse> {
+  if (!refreshed) return response;
+  try {
+    const sealed = await encode({
+      token: refreshed,
+      secret: process.env.NEXTAUTH_SECRET ?? "",
+      maxAge: SESSION_MAX_AGE,
+    });
+    response.cookies.set(sessionCookieName(), sealed, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: isSecureCookies(),
+      maxAge: SESSION_MAX_AGE,
+      ...(sessionCookieDomain() ? { domain: sessionCookieDomain() } : {}),
+    });
+  } catch (err) {
+    logger.error("[BFF] Không persist được session sau refresh:", err);
+  }
+  return response;
+}
+
 async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
@@ -80,8 +116,11 @@ async function proxyHandler(
     );
   }
 
-  // Kiểm tra token hết hạn — thử refresh inline thay vì trả 401 ngay
+  // Kiểm tra token hết hạn — thử refresh inline thay vì trả 401 ngay.
+  // Nếu refresh thành công, refreshedJwt được persist vào cookie ở response
+  // cuối (xem attachRefreshedSession) để request sau không reuse token cũ.
   let accessToken = token.accessToken as string;
+  let refreshedJwt: JWT | null = null;
   const expires = token.accessTokenExpires as number | undefined;
   if (expires && Date.now() > expires - 10_000) {
     logger.info("[BFF] access_token sắp/đã hết hạn — thử refresh inline");
@@ -92,6 +131,7 @@ async function proxyHandler(
         return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
       }
       accessToken = refreshed.accessToken as string;
+      refreshedJwt = refreshed;
       logger.info("[BFF] Refresh token thành công — tiếp tục proxy với token mới");
     } catch (err) {
       logger.error("[BFF] Lỗi khi refresh token:", err);
@@ -167,17 +207,23 @@ async function proxyHandler(
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     const data = await response.json().catch(() => null);
-    return withCors(NextResponse.json(data, { status: response.status }), cors);
+    return attachRefreshedSession(
+      withCors(NextResponse.json(data, { status: response.status }), cors),
+      refreshedJwt
+    );
   }
 
   // Non-JSON response (ví dụ: file download)
   const blob = await response.blob();
-  return withCors(
-    new NextResponse(blob, {
-      status: response.status,
-      headers: { "Content-Type": contentType },
-    }),
-    cors
+  return attachRefreshedSession(
+    withCors(
+      new NextResponse(blob, {
+        status: response.status,
+        headers: { "Content-Type": contentType },
+      }),
+      cors
+    ),
+    refreshedJwt
   );
 }
 
