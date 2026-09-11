@@ -429,8 +429,8 @@ async def _run_uninstall_plugin_background(
                 keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
                 mattermost_adapter=MattermostAdapter(client=app_state.http_client),
                 event_bus=app_state.redis_event_bus,
+                session=session,
             )
-            use_case.session = session
 
             await use_case.uninstall_plugin(
                 context=ctx,
