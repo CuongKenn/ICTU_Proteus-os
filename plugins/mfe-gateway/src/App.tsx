@@ -4,11 +4,11 @@ const App = () => {
   const [pluginId, setPluginId] = useState<string>('unknown');
 
   useEffect(() => {
-    // Extract plugin name from hostname (e.g. crm-frontend.proteus.local -> crm)
-    const hostname = window.location.hostname;
-    const match = hostname.match(/^(.*?)-frontend\./);
-    if (match && match[1]) {
-      setPluginId(match[1]);
+    // Extract plugin name from URL path (e.g. /crm-module -> crm-module)
+    // Routing: plugins.proteus.local/{plugin-code-name}
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0) {
+      setPluginId(pathParts[0]);
     }
   }, []);
 

@@ -66,7 +66,7 @@ dashboards:
 
 ui:
   # appsmith_app: "ui/appsmith_app.json"
-  external_url: "http://crm-frontend.proteus.local"
+  external_url: "http://plugins.proteus.local/crm-module"
 
 roles:
   - name: "crm_sales"

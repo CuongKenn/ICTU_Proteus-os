@@ -66,7 +66,7 @@ dashboards:
 
 ui:
   # appsmith_app: "ui/appsmith_app.json"
-  external_url: "http://asset-frontend.proteus.local"
+  external_url: "http://plugins.proteus.local/asset-module"
 
 roles:
   - name: "asset_admin"

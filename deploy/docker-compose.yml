@@ -550,8 +550,9 @@ services:
       - proteus-net
     labels:
       - "traefik.enable=true"
-      # Catch-all cho các subdomain dạng *-frontend.proteus.local
-      - "traefik.http.routers.plugins-mfe.rule=HostRegexp(`{subdomain:.*}-frontend.${DOMAIN}`)"
+      # Path-based routing: plugins.proteus.local/{plugin-code-name}
+      # Không cần thêm wildcard subdomain vào /etc/hosts
+      - "traefik.http.routers.plugins-mfe.rule=Host(`plugins.${DOMAIN}`)"
       - "traefik.http.routers.plugins-mfe.entrypoints=web"
       - "traefik.http.services.plugins-mfe.loadbalancer.server.port=3001"
       # Cho phép Iframe
