@@ -65,7 +65,7 @@ export function LaunchpadClient() {
   };
 
   const handleOpenPlugin = (code_name: string) => {
-    const appsmithUrl = process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true" ? `/mock-appsmith?plugin=${code_name}` : `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
+    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
     openIframe(code_name, appsmithUrl);
   };
 
