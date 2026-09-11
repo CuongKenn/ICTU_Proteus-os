@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 
 export function LaunchpadClient() {
   const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user); // Bắt buộc subscribe vào user để component re-render khi roles được cập nhật
   const hasRole = useAuthStore((state) => state.hasRole);
   const isAdmin = hasRole("tenant_admin") || hasRole("superadmin");
   const { plugins, isLoading } = usePlugins();
