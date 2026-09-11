@@ -49,7 +49,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             return None
 
         loaded_roles = [
-            role.display_name or role.name for role in model.__dict__.get("roles", [])
+            role.name for role in model.__dict__.get("roles", [])
         ]
         return _to_entity(model, roles=loaded_roles)
 
@@ -73,7 +73,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             return None
         # Roles đã được eager-load, lấy an toàn từ model.__dict__
         loaded_roles = [
-            role.display_name or role.name for role in model.__dict__.get("roles", [])
+            role.name for role in model.__dict__.get("roles", [])
         ]
         return _to_entity(model, roles=loaded_roles)
 
@@ -146,7 +146,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         entities = []
         for model in models:
             loaded_roles = [
-                role.display_name or role.name
+                role.name
                 for role in model.__dict__.get("roles", [])
             ]
             entities.append(_to_entity(model, roles=loaded_roles))
