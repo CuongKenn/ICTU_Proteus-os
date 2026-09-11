@@ -17,9 +17,12 @@ from app.entrypoints.dependencies import (
     get_keycloak_adapter,
 )
 from app.entrypoints.schemas.role import (
+    ApplyTemplateRequest,
+    ApplyTemplateResponse,
     RoleAssign,
     RoleCreate,
     RoleResponse,
+    RoleTemplateInfo,
     RoleUpdate,
 )
 
@@ -59,6 +62,35 @@ async def list_roles(
     """
     roles = await use_case.list_roles(tenant_context.tenant_id)
     return roles
+
+
+@router.get("/templates", response_model=list[RoleTemplateInfo])
+async def list_role_templates(
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    use_case: RoleManagementUseCase = Depends(get_role_use_case),
+):
+    """
+    Liệt kê template role theo loại tổ chức (SME / trường học / hành chính).
+    """
+    return use_case.list_role_templates()
+
+
+@router.post("/apply-template", response_model=ApplyTemplateResponse)
+async def apply_role_template(
+    data: ApplyTemplateRequest,
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    use_case: RoleManagementUseCase = Depends(get_role_use_case),
+):
+    """
+    Áp 1 template: tạo các role còn thiếu (idempotent, trùng tên thì bỏ qua).
+    """
+    try:
+        result = await use_case.apply_role_template(
+            tenant_context.tenant_id, data.template_key
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return ApplyTemplateResponse(template_key=data.template_key, **result)
 
 
 @router.get("/{role_id}", response_model=RoleResponse)

@@ -1,11 +1,12 @@
 // HR Core — root component. Gateway render <HrModuleApp subPath navigate />.
-// subPath: phần sau /hr-module ('' | 'employees' | 'leaves' | 'departments').
+// subPath: phần sau /hr-module ('' | 'employees' | 'leaves' | 'departments' | 'recruitment').
 import React from 'react';
 import { hrMeta } from './meta';
 import { Dashboard } from './pages/Dashboard';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { LeavesPage } from './pages/LeavesPage';
 import { DepartmentsPage } from './pages/DepartmentsPage';
+import { RecruitmentPage } from './pages/RecruitmentPage';
 import { resetStoreCache } from './lib/repo';
 import { useStore } from './lib/useStore';
 
@@ -58,7 +59,8 @@ export function HrModuleApp(props: { subPath: string; navigate: (sub: string) =>
       {route === 'employees' && <EmployeesPage />}
       {route === 'leaves' && <LeavesPage />}
       {route === 'departments' && <DepartmentsPage />}
-      {!['', 'employees', 'leaves', 'departments'].includes(route) && (
+      {route === 'recruitment' && <RecruitmentPage />}
+      {!['', 'employees', 'leaves', 'departments', 'recruitment'].includes(route) && (
         <p style={{ color: '#94a3b8' }}>Trang không tồn tại: /{route}</p>
       )}
     </div>

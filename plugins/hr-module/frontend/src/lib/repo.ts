@@ -9,24 +9,33 @@
 // { payload: {...} } — browser chỉ gọi BFF /api/proxy, KHÔNG fetch trực tiếp
 // n8n/backend. Client KHÔNG BAO GIỜ gửi tenant_id — server tự inject.
 import type {
+  Application,
+  AppStage,
   AttendanceLog,
   Department,
   Employee,
+  Interview,
+  JobPosting,
   LeaveBalance,
   LeaveRequest,
   LeaveStatus,
+  Offer,
   OnboardingTask,
   PayrollRecord,
 } from '../types';
 import { isPendingLeave } from '../types';
 import {
+  seedApplications,
   seedAttendance,
   seedDepartments,
   seedEmployees,
+  seedInterviews,
   seedLeaveBalances,
   seedLeaveRequests,
+  seedOffers,
   seedOnboarding,
   seedPayroll,
+  seedPostings,
 } from '../data/seed';
 
 const LS_KEY = 'proteus:hr-module:v1';
@@ -39,6 +48,10 @@ interface Persisted {
   attendance: AttendanceLog[];
   payroll: PayrollRecord[];
   onboarding: OnboardingTask[];
+  postings: JobPosting[];
+  applications: Application[];
+  interviews: Interview[];
+  offers: Offer[];
 }
 
 function load(): Persisted {
@@ -50,6 +63,10 @@ function load(): Persisted {
     attendance: seedAttendance,
     payroll: seedPayroll,
     onboarding: seedOnboarding,
+    postings: seedPostings,
+    applications: seedApplications,
+    interviews: seedInterviews,
+    offers: seedOffers,
   };
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -63,6 +80,10 @@ function load(): Persisted {
       attendance: parsed.attendance ?? fallback.attendance,
       payroll: parsed.payroll ?? fallback.payroll,
       onboarding: parsed.onboarding ?? fallback.onboarding,
+      postings: parsed.postings ?? fallback.postings,
+      applications: parsed.applications ?? fallback.applications,
+      interviews: parsed.interviews ?? fallback.interviews,
+      offers: parsed.offers ?? fallback.offers,
     };
   } catch {
     return fallback;
@@ -103,6 +124,18 @@ export interface HrRepo {
   listAttendance(): AttendanceLog[];
   listPayroll(): PayrollRecord[];
   listOnboarding(employee_id?: string): OnboardingTask[];
+  listPostings(): JobPosting[];
+  createPosting(input: Omit<JobPosting, 'id'>): JobPosting;
+  listApplications(): Application[];
+  createApplication(input: Omit<Application, 'id' | 'stage' | 'score' | 'screening_notes'>): Application;
+  moveApplication(id: string, stage: AppStage): void;
+  setApplicationScore(id: string, score: number, notes: string): void;
+  listInterviews(): Interview[];
+  scheduleInterview(input: Omit<Interview, 'id' | 'result'>): Interview;
+  setInterviewResult(id: string, result: 'PASS' | 'FAIL', notes: string): void;
+  listOffers(): Offer[];
+  createOffer(input: Omit<Offer, 'id' | 'status'>): Offer;
+  hireFromOffer(offer_id: string): Employee;
   reset(): void;
 }
 
@@ -190,6 +223,71 @@ export function createMockRepo(): HrRepo {
       const all = load().onboarding;
       return employee_id ? all.filter((t) => t.employee_id === employee_id) : all;
     },
+    listPostings: () => load().postings,
+    createPosting(input) {
+      const s = load();
+      const row = { ...input, id: uid() };
+      s.postings = [row, ...s.postings];
+      save(s);
+      return row;
+    },
+    listApplications: () => load().applications,
+    createApplication(input) {
+      const s = load();
+      const row: Application = { ...input, id: uid(), stage: 'NEW', score: null, screening_notes: '' };
+      s.applications = [row, ...s.applications];
+      save(s);
+      return row;
+    },
+    moveApplication(id, stage) {
+      const s = load();
+      const a = s.applications.find((x) => x.id === id);
+      if (a) { a.stage = stage; save(s); }
+    },
+    setApplicationScore(id, score, notes) {
+      const s = load();
+      const a = s.applications.find((x) => x.id === id);
+      if (a) { a.score = score; a.screening_notes = notes; save(s); }
+    },
+    listInterviews: () => load().interviews,
+    scheduleInterview(input) {
+      const s = load();
+      const row: Interview = { ...input, id: uid(), result: 'PENDING' };
+      s.interviews = [row, ...s.interviews];
+      save(s);
+      return row;
+    },
+    setInterviewResult(id, result, notes) {
+      const s = load();
+      const it = s.interviews.find((x) => x.id === id);
+      if (it) { it.result = result; it.notes = notes; save(s); }
+    },
+    listOffers: () => load().offers,
+    createOffer(input) {
+      const s = load();
+      const row: Offer = { ...input, id: uid(), status: 'DRAFT' };
+      s.offers = [row, ...s.offers];
+      save(s);
+      return row;
+    },
+    hireFromOffer(offer_id) {
+      const s = load();
+      const offer = s.offers.find((o) => o.id === offer_id);
+      if (!offer) throw new Error('Không tìm thấy offer');
+      const app = s.applications.find((a) => a.id === offer.application_id);
+      if (!app) throw new Error('Không tìm thấy hồ sơ');
+      const code = `NV${String(s.employees.length + 1).padStart(3, '0')}`;
+      const emp: Employee = {
+        id: uid(), employee_code: code, full_name: app.full_name, email: app.email,
+        department_id: '', position: '', hire_date: new Date().toISOString().slice(0, 10),
+        status: 'active', annual_leave_balance: 12,
+      };
+      s.employees = [emp, ...s.employees];
+      app.stage = 'HIRED';
+      offer.status = 'ACCEPTED';
+      save(s);
+      return emp;
+    },
     reset() {
       localStorage.removeItem(LS_KEY);
     },
@@ -225,7 +323,74 @@ export interface HrStore {
   listAttendance(): Promise<AttendanceLog[]>;
   listPayroll(): Promise<PayrollRecord[]>;
   listOnboarding(employee_id?: string): Promise<OnboardingTask[]>;
+  listPostings(): Promise<JobPosting[]>;
+  createPosting(input: Omit<JobPosting, 'id'>): Promise<JobPosting>;
+  listApplications(): Promise<Application[]>;
+  createApplication(input: Omit<Application, 'id' | 'stage' | 'score' | 'screening_notes'>): Promise<Application>;
+  moveApplication(id: string, stage: AppStage): Promise<void>;
+  setApplicationScore(id: string, score: number, notes: string): Promise<void>;
+  screenApplication(id: string): Promise<{ score: number | null }>;
+  listInterviews(): Promise<Interview[]>;
+  scheduleInterview(input: Omit<Interview, 'id' | 'result'>): Promise<Interview>;
+  setInterviewResult(id: string, result: 'PASS' | 'FAIL', notes: string): Promise<void>;
+  listOffers(): Promise<Offer[]>;
+  createOffer(input: Omit<Offer, 'id' | 'status'>): Promise<Offer>;
+  hireFromOffer(offer_id: string): Promise<Employee>;
   reset(): Promise<void>;
+}
+
+function toPosting(r: Record<string, unknown>): JobPosting {
+  return {
+    id: String(r.id ?? ''),
+    title: String(r.title ?? ''),
+    department_id: String(r.department_id ?? ''),
+    employment_type: String(r.employment_type ?? 'FULLTIME'),
+    location: String(r.location ?? ''),
+    salary_min: Number(r.salary_min ?? 0),
+    salary_max: Number(r.salary_max ?? 0),
+    description: String(r.description ?? ''),
+    requirements: String(r.requirements ?? ''),
+    status: (r.status as JobPosting['status']) ?? 'OPEN',
+  };
+}
+
+function toApplication(r: Record<string, unknown>): Application {
+  return {
+    id: String(r.id ?? ''),
+    posting_id: String(r.posting_id ?? ''),
+    full_name: String(r.full_name ?? ''),
+    email: String(r.email ?? ''),
+    phone: String(r.phone ?? ''),
+    cv_file_url: String(r.cv_file_url ?? ''),
+    source: String(r.source ?? ''),
+    cover_note: String(r.cover_note ?? ''),
+    stage: (r.stage as AppStage) ?? 'NEW',
+    score: r.score === null || r.score === undefined ? null : Number(r.score),
+    screening_notes: String(r.screening_notes ?? ''),
+  };
+}
+
+function toInterview(r: Record<string, unknown>): Interview {
+  return {
+    id: String(r.id ?? ''),
+    application_id: String(r.application_id ?? ''),
+    interviewers: String(r.interviewers ?? ''),
+    scheduled_at: String(r.scheduled_at ?? ''),
+    location: String(r.location ?? ''),
+    meeting_link: String(r.meeting_link ?? ''),
+    result: (r.result as Interview['result']) ?? 'PENDING',
+    notes: String(r.notes ?? ''),
+  };
+}
+
+function toOffer(r: Record<string, unknown>): Offer {
+  return {
+    id: String(r.id ?? ''),
+    application_id: String(r.application_id ?? ''),
+    salary_offered: Number(r.salary_offered ?? 0),
+    start_date: String(r.start_date ?? '').slice(0, 10),
+    status: (r.status as Offer['status']) ?? 'DRAFT',
+  };
 }
 
 const R = '/v1/plugins/hr-module/records';
@@ -281,6 +446,24 @@ export function createDemoStore(): HrStore {
     async listAttendance() { return m.listAttendance(); },
     async listPayroll() { return m.listPayroll(); },
     async listOnboarding(e) { return m.listOnboarding(e); },
+    async listPostings() { return m.listPostings(); },
+    async createPosting(i) { return m.createPosting(i); },
+    async listApplications() { return m.listApplications(); },
+    async createApplication(i) { return m.createApplication(i); },
+    async moveApplication(id, s) { m.moveApplication(id, s); },
+    async setApplicationScore(id, s, n) { m.setApplicationScore(id, s, n); },
+    async screenApplication(id) {
+      const a = m.listApplications().find((x) => x.id === id);
+      const score = a ? 60 + (a.full_name.length * 7) % 40 : 70;
+      m.setApplicationScore(id, score, 'Điểm demo (chế độ offline, không gọi LLM).');
+      return { score };
+    },
+    async listInterviews() { return m.listInterviews(); },
+    async scheduleInterview(i) { return m.scheduleInterview(i); },
+    async setInterviewResult(id, r, n) { m.setInterviewResult(id, r, n); },
+    async listOffers() { return m.listOffers(); },
+    async createOffer(i) { return m.createOffer(i); },
+    async hireFromOffer(id) { return m.hireFromOffer(id); },
     async reset() { m.reset(); },
   };
 }
@@ -351,6 +534,98 @@ export function createLiveStore(client: BffClient): HrStore {
     async listOnboarding(employee_id) {
       const all = await rows<OnboardingTask>('hr_onboarding_tasks');
       return employee_id ? all.filter((t) => t.employee_id === employee_id) : all;
+    },
+    async listPostings() {
+      return (await rows<Record<string, unknown>>('hr_job_postings')).map(toPosting);
+    },
+    async createPosting(i) {
+      return toPosting(await client.post(`${R}/hr_job_postings`, i));
+    },
+    async listApplications() {
+      return (await rows<Record<string, unknown>>('hr_applications')).map(toApplication);
+    },
+    // P2: tạo hồ sơ đi qua workflow wf_application_received (ghi DB + validate).
+    async createApplication(i) {
+      const res = await client.post<Record<string, unknown>>(
+        `${A}/wf_application_received`,
+        { payload: { ...i } },
+      );
+      if (res && res.application_id) {
+        const all = await this.listApplications();
+        const found = all.find((a) => a.id === String(res.application_id));
+        if (found) return found;
+      }
+      const all = await this.listApplications();
+      const found = all.find((a) => a.email && a.email === i.email);
+      if (found) return found;
+      throw new Error('Tạo hồ sơ xong nhưng chưa thấy trong DB — tải lại sau giây lát.');
+    },
+    async moveApplication(id, stage) {
+      await client.patch(`${R}/hr_applications/${id}`, { stage });
+    },
+    // P3: AI chấm điểm qua workflow wf_application_screen (Ollama local).
+    // LLM CPU ~1 phút — caller tự xử timeout/502 (coi như đang chạy ngầm).
+    async screenApplication(id: string): Promise<{ score: number | null }> {
+      const res = await client.post<Record<string, unknown>>(
+        `${A}/wf_application_screen`,
+        { payload: { application_id: id } },
+      );
+      const score = res && typeof res.score === 'number' ? res.score : null;
+      return { score };
+    },
+    async setApplicationScore(id, score, notes) {
+      await client.patch(`${R}/hr_applications/${id}`, { score, screening_notes: notes });
+    },
+    async listInterviews() {
+      return (await rows<Record<string, unknown>>('hr_interviews')).map(toInterview);
+    },
+    // P2: đặt lịch đi qua workflow wf_interview_schedule
+    // (ghi lịch + chuyển stage INTERVIEW trong 1 gọi).
+    async scheduleInterview(i) {
+      const res = await client.post<Record<string, unknown>>(
+        `${A}/wf_interview_schedule`,
+        { payload: { ...i } },
+      );
+      if (res && res.interview_id) {
+        const all = await this.listInterviews();
+        const found = all.find((x) => x.id === String(res.interview_id));
+        if (found) return found;
+      }
+      const all = await this.listInterviews();
+      const found = all.find((x) => x.application_id === i.application_id);
+      if (found) return found;
+      throw new Error('Đặt lịch xong nhưng chưa thấy trong DB — tải lại sau giây lát.');
+    },
+    async setInterviewResult(id, result, notes) {
+      await client.patch(`${R}/hr_interviews/${id}`, { result, notes });
+    },
+    async listOffers() {
+      return (await rows<Record<string, unknown>>('hr_offers')).map(toOffer);
+    },
+    async createOffer(i) {
+      return toOffer(await client.post(`${R}/hr_offers`, i));
+    },
+    async hireFromOffer(offer_id) {
+      const offers = await this.listOffers();
+      const offer = offers.find((o) => o.id === offer_id);
+      if (!offer) throw new Error('Không tìm thấy offer');
+      const apps = await this.listApplications();
+      const app = apps.find((a) => a.id === offer.application_id);
+      if (!app) throw new Error('Không tìm thấy hồ sơ');
+      const employees = await this.listEmployees();
+      const emp = await this.createEmployee({
+        employee_code: `NV${String(employees.length + 1).padStart(3, '0')}`,
+        full_name: app.full_name,
+        email: app.email,
+        department_id: '',
+        position: '',
+        hire_date: new Date().toISOString().slice(0, 10),
+        status: 'active',
+        annual_leave_balance: 12,
+      });
+      await this.moveApplication(app.id, 'HIRED');
+      await client.patch(`${R}/hr_offers/${offer_id}`, { status: 'ACCEPTED' });
+      return emp;
     },
     async reset() { /* live: không reset DB từ UI */ },
   };

@@ -1,11 +1,15 @@
 // HR Core — seed mở rộng từ db/seed_data.sql (giữ nguyên ID + dòng gốc:
 // 3 phòng ban HR/IT/ACC, NV001 Nguyễn Văn A, NV002 Trần Thị B, NV003 Nguyễn Văn Trung).
 import type {
+  Application,
   AttendanceLog,
   Department,
   Employee,
+  Interview,
+  JobPosting,
   LeaveBalance,
   LeaveRequest,
+  Offer,
   OnboardingTask,
   PayrollRecord,
 } from '../types';
@@ -224,3 +228,74 @@ export const seedOnboarding: OnboardingTask[] = [
   { id: 'f1f1f1f1-4444-4444-4444-444444444444', employee_id: '11111111-aaaa-bbbb-cccc-111111111111', task_name: 'Cấp tài khoản email công ty', is_completed: true },
   { id: 'f1f1f1f1-5555-5555-5555-555555555555', employee_id: '11111111-aaaa-bbbb-cccc-111111111111', task_name: 'Đào tạo quy trình QA', is_completed: true },
 ];
+
+export const seedPostings: JobPosting[] = [
+  {
+    id: 'aaaaaaaa-0000-4000-8000-000000000001',
+    title: 'Backend Developer (Python)',
+    department_id: '22222222-2222-2222-2222-222222222222',
+    employment_type: 'FULLTIME',
+    location: 'Thái Nguyên',
+    salary_min: 15000000,
+    salary_max: 25000000,
+    description: 'Phát triển Core Engine FastAPI cho Proteus OS.',
+    requirements: 'Python 3.12, FastAPI, PostgreSQL, Docker.',
+    status: 'OPEN',
+  },
+  {
+    id: 'aaaaaaaa-0000-4000-8000-000000000002',
+    title: 'Kế toán tổng hợp',
+    department_id: '33333333-3333-3333-3333-333333333333',
+    employment_type: 'FULLTIME',
+    location: 'Thái Nguyên',
+    salary_min: 12000000,
+    salary_max: 18000000,
+    description: 'Theo dõi thu chi, lập báo cáo tài chính.',
+    requirements: 'Tốt nghiệp kế toán, 2 năm kinh nghiệm.',
+    status: 'OPEN',
+  },
+];
+
+export const seedApplications: Application[] = [
+  {
+    id: 'bbbbbbbb-0000-4000-8000-000000000001',
+    posting_id: 'aaaaaaaa-0000-4000-8000-000000000001',
+    full_name: 'Phạm Văn E',
+    email: 'e@example.com',
+    phone: '0911111111',
+    cv_file_url: '',
+    source: 'WEBSITE',
+    cover_note: '3 năm Python backend.',
+    stage: 'NEW',
+    score: null,
+    screening_notes: '',
+  },
+  {
+    id: 'bbbbbbbb-0000-4000-8000-000000000002',
+    posting_id: 'aaaaaaaa-0000-4000-8000-000000000001',
+    full_name: 'Hoàng Thị F',
+    email: 'f@example.com',
+    phone: '0922222222',
+    cv_file_url: '',
+    source: 'REFERRAL',
+    cover_note: '',
+    stage: 'SCREENING',
+    score: 82,
+    screening_notes: 'Khớp 4/5 yêu cầu, hẹn phỏng vấn.',
+  },
+];
+
+export const seedInterviews: Interview[] = [
+  {
+    id: 'cccccccc-0000-4000-8000-000000000001',
+    application_id: 'bbbbbbbb-0000-4000-8000-000000000002',
+    interviewers: 'Nguyễn Văn A, Trần Thị B',
+    scheduled_at: new Date(Date.now() + 2 * 86400000).toISOString(),
+    location: 'Phòng họp Tầng 3',
+    meeting_link: '',
+    result: 'PENDING',
+    notes: 'Vòng kỹ thuật 60 phút.',
+  },
+];
+
+export const seedOffers: Offer[] = [];

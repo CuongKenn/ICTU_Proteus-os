@@ -96,3 +96,77 @@ export function leaveDays(start: string, end: string): number {
   if (Number.isNaN(ms) || ms < 0) return 0;
   return Math.floor(ms / 86400000) + 1;
 }
+
+// ─── ATS (Tuyển dụng, V1.2.0) ─────────────────────────────────
+
+export interface JobPosting {
+  id: string;
+  title: string;
+  department_id: string;
+  employment_type: string;
+  location: string;
+  salary_min: number;
+  salary_max: number;
+  description: string;
+  requirements: string;
+  status: 'OPEN' | 'CLOSED' | 'DRAFT';
+}
+
+export type AppStage =
+  | 'NEW'
+  | 'SCREENING'
+  | 'INTERVIEW'
+  | 'OFFER'
+  | 'HIRED'
+  | 'REJECTED';
+
+export interface Application {
+  id: string;
+  posting_id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  cv_file_url: string;
+  source: string;
+  cover_note: string;
+  stage: AppStage;
+  score: number | null;
+  screening_notes: string;
+}
+
+export interface Interview {
+  id: string;
+  application_id: string;
+  interviewers: string;
+  scheduled_at: string; // ISO
+  location: string;
+  meeting_link: string;
+  result: 'PENDING' | 'PASS' | 'FAIL';
+  notes: string;
+}
+
+export interface Offer {
+  id: string;
+  application_id: string;
+  salary_offered: number;
+  start_date: string; // YYYY-MM-DD
+  status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'DECLINED';
+}
+
+export const APP_STAGES: AppStage[] = [
+  'NEW',
+  'SCREENING',
+  'INTERVIEW',
+  'OFFER',
+  'HIRED',
+  'REJECTED',
+];
+
+export const APP_STAGE_LABEL: Record<AppStage, string> = {
+  NEW: 'Mới',
+  SCREENING: 'Sàng lọc',
+  INTERVIEW: 'Phỏng vấn',
+  OFFER: 'Offer',
+  HIRED: 'Nhận việc',
+  REJECTED: 'Loại',
+};

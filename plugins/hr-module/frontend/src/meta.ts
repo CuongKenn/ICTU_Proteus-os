@@ -14,5 +14,6 @@ export const hrMeta = {
     { path: 'employees', label: 'Nhân viên' },
     { path: 'leaves', label: 'Nghỉ phép' },
     { path: 'departments', label: 'Phòng ban' },
+    { path: 'recruitment', label: 'Tuyển dụng' },
   ] as PluginRoute[],
 };

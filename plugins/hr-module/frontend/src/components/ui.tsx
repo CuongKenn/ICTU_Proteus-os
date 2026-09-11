@@ -78,6 +78,10 @@ export function SimpleBadge(props: { text: string; color: string }) {
   );
 }
 
+export function Pill(props: { text: string; color: string }) {
+  return <SimpleBadge text={props.text} color={props.color} />;
+}
+
 export function Toolbar(props: {
   search: string;
   onSearch: (v: string) => void;

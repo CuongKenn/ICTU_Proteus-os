@@ -1,0 +1,80 @@
+{
+  "name": "HR - Application Received",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hr/application-received",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - New Application",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "hr-application-received-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.hr_applications (posting_id, full_name, email, phone, cv_file_url, source, cover_note, stage, tenant_id) VALUES ($1,$2,$3,$4,$5,$6,$7,'NEW',$8) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.body.posting_id}},={{$json.body.full_name}},={{$json.body.email}},={{$json.body.phone}},={{$json.body.cv_file_url}},={{$json.body.source}},={{$json.body.cover_note}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Insert Application",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"application_id\": \"{{$('Insert Application').item.json.id}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - New Application": {
+      "main": [
+        [
+          {
+            "node": "Insert Application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Application": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

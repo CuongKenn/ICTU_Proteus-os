@@ -36,3 +36,28 @@ class RoleResponse(RoleBase):
 
 class RoleAssign(BaseModel):
     user_id: uuid.UUID
+
+
+class RoleTemplateInfo(BaseModel):
+    """Tóm tắt 1 template role."""
+
+    key: str
+    name: str
+    description: str
+    roles_count: int
+
+
+class ApplyTemplateRequest(BaseModel):
+    """Body cho POST /roles/apply-template."""
+
+    template_key: str = Field(
+        ..., description="Khóa template: sme | school | government"
+    )
+
+
+class ApplyTemplateResponse(BaseModel):
+    """Kết quả áp template (idempotent)."""
+
+    template_key: str
+    created: list[str] = Field(default_factory=list)
+    skipped: list[str] = Field(default_factory=list)

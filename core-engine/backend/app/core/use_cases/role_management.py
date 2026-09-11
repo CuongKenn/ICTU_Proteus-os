@@ -4,6 +4,7 @@
 import uuid
 
 from app.adapters.repositories.role_repo import RoleRepository
+from app.core.domain.role_templates import get_template, list_templates
 from app.infrastructure.models import RoleModel, UserRoleModel
 
 
@@ -39,6 +40,38 @@ class RoleManagementUseCase:
 
     async def list_roles(self, tenant_id: uuid.UUID) -> list[RoleModel]:
         return await self.role_repo.list_by_tenant(tenant_id)
+
+    def list_role_templates(self) -> list[dict]:
+        """Liệt kê template role theo loại tổ chức."""
+        return list_templates()
+
+    async def apply_role_template(
+        self, tenant_id: uuid.UUID, template_key: str
+    ) -> dict[str, list[str]]:
+        """
+        Tạo các role còn thiếu từ template (idempotent theo name).
+        Trả về {created: [...], skipped: [...]}.
+        """
+        template = get_template(template_key)
+        if not template:
+            raise ValueError(f"Template '{template_key}' không tồn tại.")
+        existing = {r.name for r in await self.role_repo.list_by_tenant(tenant_id)}
+        created, skipped = [], []
+        for role in template["roles"]:
+            if role["name"] in existing:
+                skipped.append(role["name"])
+                continue
+            await self.role_repo.create_role(
+                {
+                    "tenant_id": tenant_id,
+                    "name": role["name"],
+                    "display_name": role["display_name"],
+                    "description": role.get("description", ""),
+                    "permissions": role.get("permissions", []),
+                }
+            )
+            created.append(role["name"])
+        return {"created": created, "skipped": skipped}
 
     async def assign_role_to_user(
         self,

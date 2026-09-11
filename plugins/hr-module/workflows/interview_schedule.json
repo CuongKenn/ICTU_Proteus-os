@@ -1,0 +1,113 @@
+{
+  "name": "HR - Interview Schedule",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hr/interview-schedule",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Schedule Interview",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "hr-interview-schedule-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.hr_interviews (application_id, interviewers, scheduled_at, location, meeting_link, notes, result, tenant_id) VALUES ($1,$2,$3,$4,$5,$6,'PENDING',$7) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.body.application_id}},={{$json.body.interviewers}},={{$json.body.scheduled_at}},={{$json.body.location}},={{$json.body.meeting_link}},={{$json.body.notes}},={{$json.body.tenant_id}}"
+        }
+      },
+      "name": "Insert Interview",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE {{TENANT_SCHEMA}}.hr_applications SET stage = 'INTERVIEW', updated_at = NOW() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{$('Webhook - Schedule Interview').item.json.body.application_id}}"
+        }
+      },
+      "name": "Mark Interview Stage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"interview_id\": \"{{$('Insert Interview').item.json.id}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Schedule Interview": {
+      "main": [
+        [
+          {
+            "node": "Insert Interview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Interview": {
+      "main": [
+        [
+          {
+            "node": "Mark Interview Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Interview Stage": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
