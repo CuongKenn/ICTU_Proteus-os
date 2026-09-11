@@ -100,7 +100,8 @@ export function useMarketplace(): UseMarketplaceReturn {
           const completedSteps = statusData.steps.filter(
             (s) => s.status === "DONE"
           ).length;
-          const realProgress = Math.round((completedSteps / statusData.steps.length) * 100);
+          const TOTAL_STEPS = 7;
+          const realProgress = Math.min(95, Math.round((completedSteps / TOTAL_STEPS) * 100));
           setInstallProgress((prev) => Math.max(prev, realProgress));
         } else {
           // Fallback khi steps rỗng — cap at 95 để luôn còn chỗ cho completion
