@@ -54,6 +54,8 @@ class PluginListUseCase:
                 )
                 plugin.workflows_count = len(manifest.workflows)
                 plugin.roles = [r.name for r in manifest.roles]
+                if manifest.ui:
+                    plugin.external_url = manifest.ui.external_url
             except Exception as e:
                 logger.warning(
                     "Failed to load manifest for %s: %s", plugin.code_name, e

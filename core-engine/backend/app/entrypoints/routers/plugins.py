@@ -82,6 +82,7 @@ def _entity_to_response(p) -> PluginResponse:
         tables_count=p.tables_count,
         workflows_count=p.workflows_count,
         roles=p.roles or [],
+        external_url=p.external_url,
         credentials_schema=[
             CredentialFieldSchemaOut(**c.model_dump())
             for c in (p.credentials_schema or [])
@@ -109,6 +110,7 @@ def _entity_to_detail_response(p) -> PluginDetailResponse:
         tables_count=p.tables_count,
         workflows_count=p.workflows_count,
         roles=p.roles or [],
+        external_url=p.external_url,
         credentials_schema=[
             CredentialFieldSchemaOut(**c.model_dump())
             for c in (p.credentials_schema or [])

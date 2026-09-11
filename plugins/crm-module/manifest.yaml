@@ -65,7 +65,8 @@ dashboards:
     file: "dashboards/customer_health.json"
 
 ui:
-  appsmith_app: "ui/appsmith_app.json"
+  # appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://crm-frontend.proteus.local"
 
 roles:
   - name: "crm_sales"

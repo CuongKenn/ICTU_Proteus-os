@@ -112,6 +112,7 @@ class PluginResponse(BaseModel):
     tables_count: int = 0
     workflows_count: int = 0
     roles: list[str] = Field(default_factory=list)
+    external_url: str | None = None
     credentials_schema: list[CredentialFieldSchemaOut] = Field(
         default_factory=list,
         description="Form schema để frontend render credential inputs khi cài đặt",

@@ -65,8 +65,13 @@ export function LaunchpadClient() {
   };
 
   const handleOpenPlugin = (code_name: string) => {
-    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
-    openIframe(code_name, appsmithUrl);
+    const plugin = plugins.find(p => p.code_name === code_name);
+    if (plugin?.external_url) {
+      openIframe(code_name, plugin.external_url);
+    } else {
+      const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
+      openIframe(code_name, appsmithUrl);
+    }
   };
 
   return (

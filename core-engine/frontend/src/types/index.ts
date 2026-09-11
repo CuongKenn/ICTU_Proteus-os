@@ -69,6 +69,7 @@ export interface Plugin {
   workflows_count?: number;
   roles?: string[];
   credentials_schema: CredentialFieldSchema[];
+  external_url?: string | null;
 }
 
 /** Plugin detail (thêm screenshots, long_description, license). */

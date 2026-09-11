@@ -134,6 +134,7 @@ class PluginEntity(BaseModel):
     status: PluginStatus | None = None  # None nếu chưa cài cho Tenant này
     tables_count: int = 0
     workflows_count: int = 0
+    external_url: str | None = None
     roles: list[str] = Field(default_factory=list)
 
     # ─── Credentials schema (từ manifest) ────────────────────

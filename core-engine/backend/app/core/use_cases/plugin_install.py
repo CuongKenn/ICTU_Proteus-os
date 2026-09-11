@@ -527,8 +527,8 @@ class PluginInstallUseCase:
             if integration:
                 integration_config = integration.config
 
-        for app in manifest.ui_apps:
-            app_path = self.manifest_parser.plugins_dir / plugin_code_name / app.file
+        if manifest.ui and manifest.ui.appsmith_app:
+            app_path = self.manifest_parser.plugins_dir / plugin_code_name / manifest.ui.appsmith_app
             if app_path.exists():
                 with open(app_path, encoding="utf-8-sig") as f:
                     app_json = json.load(f)
