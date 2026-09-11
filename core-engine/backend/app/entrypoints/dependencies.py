@@ -318,6 +318,10 @@ async def get_current_tenant_context(
     pref_username = payload.get("preferred_username")
     full_name = name_claim or pref_username or "Unknown"
 
+    # IMPORTANT: Set contextvar cho RLS middleware
+    from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+    tenant_id_ctx.set(str(tenant_id))
+    
     return TenantContext(
         tenant_id=tenant_id,
         user_id=user_id,

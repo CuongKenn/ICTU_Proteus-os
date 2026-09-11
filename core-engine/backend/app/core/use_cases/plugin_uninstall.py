@@ -192,9 +192,10 @@ class PluginUninstallUseCase:
             if self.event_bus:
                 try:
                     await self.event_bus.publish_plugin_lifecycle(
+                        action="plugin.uninstalled",
                         tenant_id=str(context.tenant_id),
-                        plugin_id=str(plugin.id),
-                        event_type="plugin.uninstalled",
+                        plugin_name=plugin.code_name,
+                        plugin_version=manifest.version,
                     )
                 except Exception as ex:
                     logger.warning("Failed to publish plugin.uninstalled event: %s", ex)
@@ -232,9 +233,10 @@ class PluginUninstallUseCase:
             if self.event_bus:
                 try:
                     await self.event_bus.publish_plugin_lifecycle(
+                        action="plugin.failed",
                         tenant_id=str(context.tenant_id),
-                        plugin_id=str(plugin.id),
-                        event_type="plugin.failed",
+                        plugin_name=plugin.code_name,
+                        plugin_version=manifest.version,
                     )
                 except Exception as ex:
                     logger.warning("Failed to publish plugin.failed event: %s", ex)
