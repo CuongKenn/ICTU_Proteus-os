@@ -536,6 +536,29 @@ services:
       - "traefik.http.routers.frontend.priority=1"   # Backend có priority cao hơn
 
 
+
+  # ────────────────────────────────────────────────────────────
+  # PLUGIN MICRO-FRONTEND GATEWAY
+  # ────────────────────────────────────────────────────────────
+  plugins-mfe:
+    image: node:20
+    container_name: proteus-plugins-mfe
+    working_dir: /app
+    volumes:
+      - ../plugins/mfe-gateway:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3001"
+    restart: unless-stopped
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      # Catch-all cho các subdomain dạng *-frontend.proteus.local
+      - "traefik.http.routers.plugins-mfe.rule=HostRegexp(`{subdomain:.*}-frontend.${DOMAIN}`)"
+      - "traefik.http.routers.plugins-mfe.entrypoints=web"
+      - "traefik.http.services.plugins-mfe.loadbalancer.server.port=3001"
+      # Cho phép Iframe
+      - "traefik.http.routers.plugins-mfe.middlewares=iframe-allow"
+
 networks:
   proteus-net:
     name: proteus-net
