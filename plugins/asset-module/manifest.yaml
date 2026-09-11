@@ -65,7 +65,8 @@ dashboards:
     file: "dashboards/maintenance_schedule.json"
 
 ui:
-  appsmith_app: "ui/appsmith_app.json"
+  # appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://asset-frontend.proteus.local"
 
 roles:
   - name: "asset_admin"
