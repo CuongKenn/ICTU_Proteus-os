@@ -105,6 +105,7 @@ export interface DslPreview {
           setSessionId(savedSession);
         }
       } catch (e) {
+        /* eslint-disable-next-line no-console */
         console.error("Failed to load AI chat history", e);
       }
     }, []);
@@ -114,6 +115,7 @@ export interface DslPreview {
         localStorage.setItem("proteus_ai_chat_history", JSON.stringify(messages));
         localStorage.setItem("proteus_ai_session_id", sessionId);
       } catch (e) {
+        /* eslint-disable-next-line no-console */
         console.error("Failed to save AI chat history", e);
       }
     }, [messages, sessionId]);
@@ -288,6 +290,7 @@ export interface DslPreview {
     openWidget,
     minimizeWidget,
     resetAndClose,
+    clearHistory,
     sendCommand,
     openMattermostApproval,
     cancelApproval,

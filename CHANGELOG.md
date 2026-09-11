@@ -6,6 +6,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- **[core-engine/backend]** Sửa lỗi chạy ngầm quá trình gỡ cài đặt Plugin bị chặn bởi Row-Level Security (RLS) do thiếu ContextVar `current_tenant_id` trong Background Task.
+- **[core-engine/backend]** Khắc phục lỗi crash `TypeError` khi gọi `PluginUninstallUseCase` thiếu tham số `session` ở chế độ background.
+- **[core-engine/frontend]** Sửa lỗi Frontend không nhận được tiến trình gỡ cài đặt do gọi sai URL polling (từ `install-status/{taskId}` thành `install/{taskId}/status`).
+
 ### Added
 - **[core-engine/frontend]** Bổ sung UI Modal theo dõi log cài đặt Plugin theo thời gian thực (`InstallProgressModal`). Người dùng nay có thể xem chi tiết từng bước (Tạo DB, Gắn Credentials, Import Workflow n8n, v.v) cùng với trạng thái tương ứng.
 
@@ -576,6 +581,11 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[docs/deployment.md §3]** Cập nhật lệnh `docker-compose ps` → `docker compose ps` (Docker Compose v2 chuẩn), giữ ghi chú tương thích v1.
 
 ## [Unreleased] - Sắp tới
+
+### Fixed
+- **[core-engine/backend]** Sửa lỗi chạy ngầm quá trình gỡ cài đặt Plugin bị chặn bởi Row-Level Security (RLS) do thiếu ContextVar `current_tenant_id` trong Background Task.
+- **[core-engine/backend]** Khắc phục lỗi crash `TypeError` khi gọi `PluginUninstallUseCase` thiếu tham số `session` ở chế độ background.
+- **[core-engine/frontend]** Sửa lỗi Frontend không nhận được tiến trình gỡ cài đặt do gọi sai URL polling (từ `install-status/{taskId}` thành `install/{taskId}/status`).
 
 ### Changed
 - **[plugins/hr-module]** Cập nhật workflow `hr_employees_read.json` để lấy danh sách nhân viên từ CSDL thật (PostgreSQL) thay vì trả về mock data. Cập nhật `manifest.yaml` tương ứng.
