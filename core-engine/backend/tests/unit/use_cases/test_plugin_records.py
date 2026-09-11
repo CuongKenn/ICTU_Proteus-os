@@ -62,7 +62,12 @@ def _make_uc(tables, session_results, installed=PluginStatus.ACTIVE, perms=None)
 
 
 def _col_rows(*names):
-    return _result(all_rows=[(n,) for n in names])
+    types = {
+        "purchase_date": "date",
+        "id": "uuid",
+        "created_at": "timestamp with time zone",
+    }
+    return _result(all_rows=[(n, types.get(n, "character varying")) for n in names])
 
 
 async def test_list_schema_qualified(ctx):
@@ -111,17 +116,30 @@ async def test_list_forbidden(ctx):
 
 
 async def test_create_strips_unknown_cols(ctx):
-    cols = _col_rows("id", "code", "name")
+    cols = _col_rows("id", "code", "name", "purchase_date")
     created = _result(first_row={"id": "n", "code": "X", "name": "Y"})
     uc, session = _make_uc(["asset_items"], [cols, created])
     out = await uc.create_record(
         ctx, "asset-module", "asset_items",
-        {"code": "X", "name": "Y", "hacker": "DROP TABLE"},
+        {"code": "X", "name": "Y", "purchase_date": "2026-09-11", "hacker": "DROP TABLE"},
     )
     assert out["code"] == "X"
     insert_sql = str(session.execute.call_args_list[1].args[0])
     assert "hacker" not in insert_sql
     assert '"asset_items"' in insert_sql
+    params = session.execute.call_args_list[1].args[1]
+    import datetime
+
+    assert params["purchase_date"] == datetime.date(2026, 9, 11)
+
+
+async def test_create_bad_date_400(ctx):
+    cols = _col_rows("id", "purchase_date")
+    uc, _ = _make_uc(["asset_items"], [cols])
+    with pytest.raises(DSLInvalidParametersError):
+        await uc.create_record(
+            ctx, "asset-module", "asset_items", {"purchase_date": "not-a-date"}
+        )
 
 
 async def test_create_empty_body(ctx):

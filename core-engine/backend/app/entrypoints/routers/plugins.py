@@ -18,6 +18,7 @@ from fastapi import (
     Request,
     status,
 )
+from sqlalchemy.exc import IntegrityError
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
@@ -685,10 +686,16 @@ async def create_plugin_record(
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case=Depends(get_plugin_records_use_case),
 ) -> dict[str, Any]:
-    """Chỉ ghi các cột tồn tại thật (information_schema); tự gắn tenant_id."""
-    return await use_case.create_record(
-        ctx=ctx, plugin_code=code, table=table, data=body
-    )
+    """Chỉ ghi các cột tồn tại thật (information_schema); ép kiểu date/uuid."""
+    try:
+        return await use_case.create_record(
+            ctx=ctx, plugin_code=code, table=table, data=body
+        )
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã).",
+        ) from e
 
 
 @router.patch(
@@ -705,9 +712,15 @@ async def update_plugin_record(
     use_case=Depends(get_plugin_records_use_case),
 ) -> dict[str, Any]:
     """Không cho đổi `id`/`tenant_id` qua API."""
-    return await use_case.update_record(
-        ctx=ctx, plugin_code=code, table=table, record_id=record_id, data=body
-    )
+    try:
+        return await use_case.update_record(
+            ctx=ctx, plugin_code=code, table=table, record_id=record_id, data=body
+        )
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã).",
+        ) from e
 
 
 @router.delete(

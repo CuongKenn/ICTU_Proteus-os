@@ -95,6 +95,27 @@ async def test_create_record_201(override_auth):
 
 
 @pytest.mark.asyncio
+async def test_create_conflict_409(override_auth):
+    from sqlalchemy.exc import IntegrityError
+
+    mock_uc = AsyncMock(spec=PluginRecordsUseCase)
+    mock_uc.create_record.side_effect = IntegrityError(
+        "INSERT", {}, Exception("duplicate key")
+    )
+    _override_uc(mock_uc)
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/plugins/asset-module/records/asset_items",
+            json={"code": "LAP-001"},
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert resp.status_code == 409
+    app.dependency_overrides.pop(get_plugin_records_use_case, None)
+
+
+@pytest.mark.asyncio
 async def test_update_and_delete(override_auth):
     mock_uc = AsyncMock(spec=PluginRecordsUseCase)
     rid = "123e4567-e89b-12d3-a456-426614174000"

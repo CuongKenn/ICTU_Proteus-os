@@ -19,9 +19,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import uuid
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from sqlalchemy import text
@@ -120,15 +123,16 @@ class PluginRecordsUseCase:
                 f"Cần quyền nhóm '{prefix}*' để truy cập dữ liệu plugin."
             )
 
-    async def _columns(self, schema: str, table: str) -> list[str]:
+    async def _columns(self, schema: str, table: str) -> dict[str, str]:
+        """Map cột → data_type (dùng để coerce kiểu cho asyncpg)."""
         res = await self.session.execute(
             text(
-                "SELECT column_name FROM information_schema.columns "
+                "SELECT column_name, data_type FROM information_schema.columns "
                 "WHERE table_schema = :s AND table_name = :t"
             ),
             {"s": schema, "t": table},
         )
-        cols = [r[0] for r in res.all()]
+        cols = {r[0]: r[1] for r in res.all()}
         if not cols:
             # Manifest cho phép nhưng bảng chưa tồn tại trong schema tenant
             # (install chưa chạy xong hoặc seed thiếu CREATE TABLE).
@@ -136,6 +140,51 @@ class PluginRecordsUseCase:
                 f"Bảng '{table}' chưa tồn tại — plugin có thể chưa cài xong."
             )
         return cols
+
+    @staticmethod
+    def _coerce(col_type: str, col: str, value: Any) -> Any:
+        """
+        Ép kiểu Python cho asyncpg (nghiêm hơn psycopg2: không nhận str
+        cho cột date/uuid). Sai định dạng → 400 rõ ràng thay vì 500.
+        """
+        if value is None:
+            return None
+        try:
+            if col_type == "date" and isinstance(value, str):
+                return date.fromisoformat(value.strip()[:10])
+            if col_type in (
+                "timestamp with time zone",
+                "timestamp without time zone",
+            ):
+                if isinstance(value, str):
+                    return datetime.fromisoformat(
+                        value.strip().replace("Z", "+00:00")
+                    )
+                return value
+            if col_type == "uuid" and isinstance(value, str):
+                return uuid.UUID(value.strip())
+            if col_type in ("numeric", "decimal") and isinstance(value, str):
+                return Decimal(value.strip())
+            if col_type in ("integer", "bigint", "smallint") and isinstance(
+                value, str
+            ):
+                return int(value.strip())
+            if col_type in ("json", "jsonb") and isinstance(value, (dict, list)):
+                return json.dumps(value, ensure_ascii=False)
+        except (ValueError, InvalidOperation) as exc:
+            raise DSLInvalidParametersError(
+                f"Giá trị cột '{col}' không đúng định dạng ({col_type})."
+            ) from exc
+        return value
+
+    def _coerce_params(
+        self, col_types: dict[str, str], data: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {
+            c: self._coerce(col_types[c], c, data[c])
+            for c in data
+            if c in col_types
+        }
 
     @staticmethod
     def _schema(ctx: TenantContext) -> str:
@@ -195,14 +244,13 @@ class PluginRecordsUseCase:
         if not isinstance(data, dict) or not data:
             raise DSLInvalidParametersError("Body phải là JSON object không rỗng.")
 
-        cols = await self._columns(self._schema(ctx), table)
-        allowed = [c for c in data if c in cols]
-        if not allowed:
+        col_types = await self._columns(self._schema(ctx), table)
+        params = self._coerce_params(col_types, data)
+        if not params:
             raise DSLInvalidParametersError("Không có cột nào hợp lệ để ghi.")
-        params: dict[str, Any] = {c: data[c] for c in allowed}
 
-        col_sql = ", ".join(allowed)
-        val_sql = ", ".join(f":{c}" for c in allowed)
+        col_sql = ", ".join(params)
+        val_sql = ", ".join(f":{c}" for c in params)
         qt = self._qt(self._schema(ctx), table)
         res = await self.session.execute(
             text(f"INSERT INTO {qt} ({col_sql}) VALUES ({val_sql}) RETURNING *"),
@@ -229,13 +277,15 @@ class PluginRecordsUseCase:
         if not isinstance(data, dict) or not data:
             raise DSLInvalidParametersError("Body phải là JSON object không rỗng.")
 
-        cols = await self._columns(self._schema(ctx), table)
-        allowed = [c for c in data if c in cols and c != "id"]
+        col_types = await self._columns(self._schema(ctx), table)
+        body = {c: v for c, v in data.items() if c != "id"}
+        coerced = self._coerce_params(col_types, body)
+        allowed = list(coerced)
         if not allowed:
             raise DSLInvalidParametersError("Không có cột nào hợp lệ để cập nhật.")
         set_sql = ", ".join(f"{c} = :{c}" for c in allowed)
-        params: dict[str, Any] = {c: data[c] for c in allowed}
-        params["rid"] = str(record_id)
+        params: dict[str, Any] = {c: coerced[c] for c in allowed}
+        params["rid"] = self._coerce("uuid", "id", record_id)
 
         qt = self._qt(self._schema(ctx), table)
         res = await self.session.execute(
@@ -265,7 +315,11 @@ class PluginRecordsUseCase:
             raise DSLInvalidParametersError("record id phải là UUID.") from exc
 
         await self._columns(self._schema(ctx), table)  # probe bảng tồn tại
-        params: dict[str, Any] = {"rid": str(record_id)}
+        try:
+            rid = uuid.UUID(str(record_id))
+        except ValueError as exc:
+            raise DSLInvalidParametersError("record id phải là UUID.") from exc
+        params: dict[str, Any] = {"rid": rid}
 
         qt = self._qt(self._schema(ctx), table)
         res = await self.session.execute(
