@@ -6,6 +6,20 @@ import { AssetModuleApp } from '../_plugins/asset-module/App';
 import { assetMeta } from '../_plugins/asset-module/meta';
 import { CrmModuleApp } from '../_plugins/crm-module/App';
 import { crmMeta } from '../_plugins/crm-module/meta';
+import { HrModuleApp } from '../_plugins/hr-module/App';
+import { hrMeta } from '../_plugins/hr-module/meta';
+import { FinanceModuleApp } from '../_plugins/finance-module/App';
+import { financeMeta } from '../_plugins/finance-module/meta';
+import { ProjectModuleApp } from '../_plugins/project-module/App';
+import { projectMeta } from '../_plugins/project-module/meta';
+import { DocumentModuleApp } from '../_plugins/document-module/App';
+import { documentMeta } from '../_plugins/document-module/meta';
+import { MeetingModuleApp } from '../_plugins/meeting-module/App';
+import { meetingMeta } from '../_plugins/meeting-module/meta';
+import { ProcurementModuleApp } from '../_plugins/procurement-module/App';
+import { procurementMeta } from '../_plugins/procurement-module/meta';
+import { ItHelpdeskModuleApp } from '../_plugins/it-helpdesk-module/App';
+import { itHelpdeskMeta } from '../_plugins/it-helpdesk-module/meta';
 
 export interface PluginEntry {
   code: string;
@@ -14,17 +28,6 @@ export interface PluginEntry {
   ready: boolean;
   render: (props: { subPath: string; navigate: (sub: string) => void }) => JSX.Element;
 }
-
-// 7 plugin còn lại chưa có frontend/ → ready: false, hiển thị "Đang phát triển".
-const comingSoon: Array<Omit<PluginEntry, 'render'>> = [
-  { code: 'hr-module', displayName: 'HR Core', description: 'Hồ sơ nhân viên, nghỉ phép, chấm công. UI: ui/appsmith_app.json', ready: false },
-  { code: 'finance-module', displayName: 'Tài chính Kế toán', description: 'Tài khoản, giao dịch, hóa đơn. UI: ui/appsmith_app.json', ready: false },
-  { code: 'project-module', displayName: 'Quản lý Dự án Công việc', description: 'Dự án, milestones. UI: ui/appsmith_app.json', ready: false },
-  { code: 'document-module', displayName: 'Document Management', description: 'Văn bản đến/đi. UI: ui/appsmith_app.json', ready: false },
-  { code: 'meeting-module', displayName: 'Quản lý Cuộc họp & Phòng họp', description: 'Phòng họp, booking. UI: ui/appsmith_app.json', ready: false },
-  { code: 'procurement-module', displayName: 'Procurement & Contracts', description: 'Mua sắm, NCC. UI: ui/appsmith_app.json', ready: false },
-  { code: 'it-helpdesk-module', displayName: 'IT Service Desk', description: 'Ticket nội bộ, SLA. UI: ui/appsmith_app.json', ready: false },
-];
 
 export const registry: PluginEntry[] = [
   {
@@ -41,5 +44,53 @@ export const registry: PluginEntry[] = [
     ready: true,
     render: (p) => <CrmModuleApp {...p} />,
   },
-  ...comingSoon.map((c) => ({ ...c, render: () => <></> as unknown as JSX.Element })),
+  {
+    code: hrMeta.code,
+    displayName: hrMeta.displayName,
+    description: hrMeta.description,
+    ready: true,
+    render: (p) => <HrModuleApp {...p} />,
+  },
+  {
+    code: financeMeta.code,
+    displayName: financeMeta.displayName,
+    description: financeMeta.description,
+    ready: true,
+    render: (p) => <FinanceModuleApp {...p} />,
+  },
+  {
+    code: projectMeta.code,
+    displayName: projectMeta.displayName,
+    description: projectMeta.description,
+    ready: true,
+    render: (p) => <ProjectModuleApp {...p} />,
+  },
+  {
+    code: documentMeta.code,
+    displayName: documentMeta.displayName,
+    description: documentMeta.description,
+    ready: true,
+    render: (p) => <DocumentModuleApp {...p} />,
+  },
+  {
+    code: meetingMeta.code,
+    displayName: meetingMeta.displayName,
+    description: meetingMeta.description,
+    ready: true,
+    render: (p) => <MeetingModuleApp {...p} />,
+  },
+  {
+    code: procurementMeta.code,
+    displayName: procurementMeta.displayName,
+    description: procurementMeta.description,
+    ready: true,
+    render: (p) => <ProcurementModuleApp {...p} />,
+  },
+  {
+    code: itHelpdeskMeta.code,
+    displayName: itHelpdeskMeta.displayName,
+    description: itHelpdeskMeta.description,
+    ready: true,
+    render: (p) => <ItHelpdeskModuleApp {...p} />,
+  },
 ];

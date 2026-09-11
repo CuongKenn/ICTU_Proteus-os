@@ -3,8 +3,8 @@
 // Lý do phải copy thay vì import trực tiếp ../../../:
 //  1. Node resolution: react chỉ tồn tại ở mfe-gateway/node_modules,
 //     file ngoài root không resolve được react.
-//  2. Docker context: compose build chỉ gửi mfe-gateway/, file sibling
-//     không tồn tại trong container nếu import trực tiếp.
+//  2. Docker context là ../plugins nhưng gateway build độc lập — sync giữ
+//     gateway tự chủ, không phụ thuộc đường dẫn sibling lúc bundle.
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,17 @@ const pluginsDir = resolve(gatewayDir, '..');
 const outDir = resolve(gatewayDir, 'src', '_plugins');
 
 // Chỉ sync các plugin đã có frontend/src thật.
-const codes = ['asset-module', 'crm-module'];
+const codes = [
+  'asset-module',
+  'crm-module',
+  'hr-module',
+  'finance-module',
+  'project-module',
+  'document-module',
+  'meeting-module',
+  'procurement-module',
+  'it-helpdesk-module',
+];
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 

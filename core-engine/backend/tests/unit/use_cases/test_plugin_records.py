@@ -65,6 +65,7 @@ def _col_rows(*names):
     types = {
         "purchase_date": "date",
         "id": "uuid",
+        "tenant_id": "uuid",
         "created_at": "timestamp with time zone",
     }
     return _result(all_rows=[(n, types.get(n, "character varying")) for n in names])
@@ -140,6 +141,17 @@ async def test_create_bad_date_400(ctx):
         await uc.create_record(
             ctx, "asset-module", "asset_items", {"purchase_date": "not-a-date"}
         )
+
+
+async def test_create_injects_tenant_id_when_column_exists(ctx):
+    cols = _col_rows("id", "name", "tenant_id")
+    created = _result(first_row={"id": "n", "name": "HR"})
+    uc, session = _make_uc(
+        ["hr_departments"], [cols, created], perms=["hr:employees:read"]
+    )
+    await uc.create_record(ctx, "hr-module", "hr_departments", {"name": "HR"})
+    params = session.execute.call_args_list[1].args[1]
+    assert str(params["tenant_id"]) == str(ctx.tenant_id)
 
 
 async def test_create_empty_body(ctx):

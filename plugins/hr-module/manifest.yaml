@@ -73,22 +73,26 @@ database:
 # PHẦN 4: WORKFLOWS
 # ════════════════════════════════════════════════
 workflows:
-  - file: "workflows/hr_employees_read.json"
+  - id: "wf_hr_employees_read"
+    file: "workflows/hr_employees_read.json"
     name: "HR Employees Read Workflow"
     description: "Workflow trả về danh sách nhân viên từ CSDL"
     trigger: "webhook"
 
-  - file: "workflows/leave_request.json"
+  - id: "wf_leave_request"
+    file: "workflows/leave_request.json"
     name: "HR Leave Request Workflow"
     description: "Xử lý luồng duyệt/từ chối đơn nghỉ phép"
     trigger: "webhook"
 
-  - file: "workflows/employee_onboarding.json"
+  - id: "wf_employee_onboarding"
+    file: "workflows/employee_onboarding.json"
     name: "Employee Onboarding Workflow"
     description: "Tạo tài khoản hệ thống khi nhân viên mới vào"
     trigger: "webhook"
 
-  - file: "workflows/leave_balance_reset.json"
+  - id: "wf_leave_balance_reset"
+    file: "workflows/leave_balance_reset.json"
     name: "Annual Leave Balance Reset"
     description: "Reset số ngày phép còn lại vào đầu năm mới"
     trigger: "cron"
@@ -105,11 +109,10 @@ dashboards:
 # ════════════════════════════════════════════════
 # PHẦN 6: UI APPLICATIONS
 # ════════════════════════════════════════════════
-ui_apps:
-  - file: "ui/appsmith_app.json"
-    name: "HR Management App"
-    path: "/apps/hr"   # BẮT BUỘC prefix /apps/
 
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/hr-module"
 # ════════════════════════════════════════════════
 # PHẦN 7: ROLES
 # ════════════════════════════════════════════════

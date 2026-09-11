@@ -246,6 +246,12 @@ class PluginRecordsUseCase:
 
         col_types = await self._columns(self._schema(ctx), table)
         params = self._coerce_params(col_types, data)
+        # Một số plugin đời đầu (VD hr-module) vẫn giữ cột tenant_id NOT NULL —
+        # server tự gắn, client không được gửi (chống giả mạo tenant).
+        if "tenant_id" in col_types and "tenant_id" not in params:
+            params["tenant_id"] = self._coerce(
+                col_types["tenant_id"], "tenant_id", str(ctx.tenant_id)
+            )
         if not params:
             raise DSLInvalidParametersError("Không có cột nào hợp lệ để ghi.")
 
@@ -278,7 +284,7 @@ class PluginRecordsUseCase:
             raise DSLInvalidParametersError("Body phải là JSON object không rỗng.")
 
         col_types = await self._columns(self._schema(ctx), table)
-        body = {c: v for c, v in data.items() if c != "id"}
+        body = {c: v for c, v in data.items() if c not in ("id", "tenant_id")}
         coerced = self._coerce_params(col_types, body)
         allowed = list(coerced)
         if not allowed:

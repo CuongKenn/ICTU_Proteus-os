@@ -26,23 +26,27 @@ database:
     require_board_approval_threshold: 50000000
 
 workflows:
-  - file: "workflows/purchase_request.json"
+  - id: "wf_purchase_request"
+    file: "workflows/purchase_request.json"
     name: "Purchase Request Workflow"
     description: "Duyệt đề xuất mua hàng"
     trigger: "webhook"
 
-  - file: "workflows/po_approval.json"
+  - id: "wf_po_approval"
+    file: "workflows/po_approval.json"
     name: "Purchase Order Approval Workflow"
     description: "Duyệt Purchase Order"
     trigger: "webhook"
 
-  - file: "workflows/contract_expiry_alert.json"
+  - id: "wf_contract_expiry_alert"
+    file: "workflows/contract_expiry_alert.json"
     name: "Contract Expiry Alert"
     description: "Cảnh báo hợp đồng sắp hết hạn"
     trigger: "cron"
     cron_expression: "0 9 * * 1"
 
-  - file: "workflows/vendor_evaluation.json"
+  - id: "wf_vendor_evaluation"
+    file: "workflows/vendor_evaluation.json"
     name: "Vendor Evaluation"
     description: "Đánh giá nhà cung cấp"
     trigger: "manual"
@@ -56,11 +60,10 @@ dashboards:
     name: "Contract Tracker"
     description: "Theo dõi hợp đồng"
 
-ui_apps:
-  - file: "ui/appsmith_app.json"
-    name: "Procurement App"
-    path: "/apps/procurement"
 
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/procurement-module"
 roles:
   - name: "procurement_staff"
     display_name: "Procurement Staff"

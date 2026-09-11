@@ -65,6 +65,7 @@ dashboards:
 
 ui:
   appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/it-helpdesk-module"
 
 roles:
   - name: "it_staff"
