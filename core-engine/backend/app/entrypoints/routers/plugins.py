@@ -428,10 +428,7 @@ async def _run_uninstall_plugin_background(
                 appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
                 keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
                 mattermost_adapter=MattermostAdapter(client=app_state.http_client),
-                event_bus=RedisEventBusPublisher(
-                    app_state.redis_client,
-                    prefix="proteus",
-                ),
+                event_bus=app_state.redis_event_bus,
             )
             use_case.session = session
 
