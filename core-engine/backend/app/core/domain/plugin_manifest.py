@@ -69,6 +69,11 @@ class ManifestDatabase(BaseModel):
 
 
 class ManifestWorkflow(BaseModel):
+    # Định danh action ổn định để UI/backend gọi qua
+    # POST /plugins/{code}/actions/{id} (VD: "wf_asset_request").
+    # Optional để tương thích manifest cũ — khi thiếu, dispatcher
+    # fallback sang stem của `file` (VD: workflows/foo.json → "foo").
+    id: str | None = None
     file: str
     name: str
     description: str | None = None

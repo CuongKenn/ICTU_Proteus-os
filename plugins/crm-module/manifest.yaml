@@ -29,6 +29,7 @@ database:
     - "crm_activities"
     - "crm_tickets"
     - "crm_ticket_comments"
+    - "crm_surveys"
 
   seed_file: "db/seed_data.sql"
 
@@ -51,8 +52,7 @@ workflows:
 
   - id: "wf_customer_satisfaction"
     name: "Khảo sát NPS Khách hàng"
-    trigger: "cron"
-    cron_expression: "0 10 * * *" # Run daily to check closed contracts instead of webhook+wait
+    trigger: "webhook"
     file: "workflows/customer_satisfaction.json"
 
 dashboards:

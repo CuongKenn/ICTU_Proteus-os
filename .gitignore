@@ -1,5 +1,7 @@
 node_modules/
 .next/
+plugins/mfe-gateway/src/_plugins/
+plugins/mfe-gateway/dist/
 deploy/scratch/
 *.tsbuildinfo
 

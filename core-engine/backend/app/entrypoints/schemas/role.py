@@ -12,7 +12,9 @@ class RoleBase(BaseModel):
     display_name: str = Field(..., max_length=255)
     description: str | None = None
     plugin_code_name: str | None = None
-    permissions: dict[str, Any] | None = None
+    # DB tồn tại 2 format: dict {"mod": [...]} và list ["*"] (legacy).
+    # Giữ union để GET /v1/roles không 500 khi gặp format cũ.
+    permissions: dict[str, Any] | list[Any] | None = None
 
 
 class RoleCreate(RoleBase):

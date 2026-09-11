@@ -71,8 +71,24 @@ database:
 
   # `seed_file` là TÙY CHỌN. File SQL chạy một lần khi cài đặt lần đầu,
   # dùng để tạo cấu trúc bảng (CREATE TABLE) và dữ liệu mẫu (INSERT).
-  # Không cần thêm cột tenant_id trong file này — Plugin Manager tự inject.
+  # KHÔNG dùng cột tenant_id — mỗi tenant có schema riêng (xem quy ước runtime dưới).
   seed_file: "db/seed_data.sql"
+
+  # QUY ƯỚC RUNTIME (bắt buộc để workflow chạy được):
+  # - seed_file CHẠY TRONG schema riêng của tenant (tenant_<uuid>), nên CREATE/INSERT
+  #   không ghi schema prefix; validator của install cấm DROP/DELETE/UPDATE/ALTER...
+  #   (kể cả trong comment và ON DELETE clause) và splitter cắt theo ';' nên comment
+  #   không được chứa dấu ';'.
+  # - Isolation giữa tenant = schema riêng, không dùng cột tenant_id.
+  # - Mọi query n8n phải qualify {{TENANT_SCHEMA}}.<bảng> (install inject schema thật
+  #   lúc import, xem _step_2_n8n) và chỉ dùng bảng/cột tồn tại trong seed.
+  # - Node postgres (typeVersion 2.x): params để ở options.queryReplacement
+  #   (KHÔNG dùng additionalFields.queryParams của v1); mỗi node 1 câu SQL duy nhất
+  #   (parameterized query không chạy multi-statement) — tách chuỗi ghi thành nhiều node.
+  # - Node postgres phải có skeleton "credentials": {"postgres": {...}} để install
+  #   auto-bind credential ProteusDB_Real; node webhook phải có "httpMethod": "POST".
+  # - Node schedule cron viết dạng rule.interval: [{field: "cronExpression",
+  #   expression: "0 8 * * 1"}] (5 trường, đúng chuẩn n8n hiện tại).
 
   # `default_config` là TÙY CHỌN. Cấu hình mặc định của Plugin.
   # tenant_admin có thể override các giá trị này qua TENANT_PLUGIN.config_override.
@@ -86,10 +102,15 @@ database:
 # ============================================================
 # Tất cả đường dẫn trong workflows[] là đường dẫn TƯƠNG ĐỐI từ thư mục gốc plugin.
 workflows:
-  - file: "workflows/leave_request.json"   # BẮT BUỘC. Đường dẫn tương đối từ thư mục gốc plugin
+  - id: "wf_leave_request"                # KHUYẾN NGHỊ. Định danh action ổn định cho generic dispatcher
+                                          # POST /plugins/{code}/actions/{id}. Chỉ gồm [a-z0-9_-], duy nhất
+                                          # trong plugin. Thiếu → fallback sang stem của `file`.
+    file: "workflows/leave_request.json"   # BẮT BUỘC. Đường dẫn tương đối từ thư mục gốc plugin
     name: "HR Leave Request Workflow"      # BẮT BUỘC. Tên hiển thị trong n8n
     description: "Xử lý luồng duyệt đơn nghỉ phép"
     trigger: "webhook"                     # BẮT BUỘC. Loại trigger: webhook | cron | manual
+                                           # Chỉ workflow webhook mới gọi được qua API
+                                           # (GET /plugins/{code}/actions chỉ liệt kê nhóm này).
 
   - file: "workflows/employee_onboarding.json"
     name: "Employee Onboarding Workflow"
@@ -439,6 +460,7 @@ Plugin Manager so sánh `installed_version` trong `TENANT_PLUGIN` với `version
 
 | Phiên bản | Ngày | Thay đổi |
 |---|---|---|
+| 1.3.0 | 2026-09-11 | Thêm `workflows[].id` (định danh action cho generic dispatcher `POST /plugins/{code}/actions/{id}`; xem `docs/api-swagger.yaml`). |
 | 1.2.0 | 2026-09-11 | Hỗ trợ Hybrid UI (Thêm `ui.external_url` cho Micro-Frontend, thay thế `ui_apps` array). |
 | 1.1.0 | 2026-08-06 | Thêm `default_config`, `cron_expression` cho cron trigger, quy tắc `ui_apps.path`, giải thích `permissions[]` format, phân tách `tables` vs `seed_file`, thêm wrapper Event Schema, thêm Uninstall Lifecycle (§5), thêm mô tả §3 cho tất cả các phần, thêm `min_version` trong `dependencies`. |
 | 1.0.0 | 2026-08-06 | Phiên bản đầu tiên. 10 phần cơ bản: metadata, compatibility, database, workflows, dashboards, ui_apps, roles, event_subscriptions, event_publications, dependencies. |

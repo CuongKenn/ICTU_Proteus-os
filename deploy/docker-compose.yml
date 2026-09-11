@@ -542,8 +542,10 @@ services:
   # ────────────────────────────────────────────────────────────
   plugins-mfe:
     build:
-      context: ../plugins/mfe-gateway
-      dockerfile: Dockerfile
+      # Context là toàn bộ ../plugins để Dockerfile COPY được
+      # source of truth plugins/<code>/frontend vào gateway.
+      context: ../plugins
+      dockerfile: mfe-gateway/Dockerfile
     container_name: proteus-plugins-mfe
     restart: unless-stopped
     networks:
@@ -551,7 +553,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Path-based routing: plugins.proteus.local/{plugin-code-name}
-      # Không cần thêm wildcard subdomain vào /etc/hosts
+      # BẮT BUỘC thêm plugins.${DOMAIN} vào /etc/hosts (xem setup.sh)
       - "traefik.http.routers.plugins-mfe.rule=Host(`plugins.${DOMAIN}`)"
       - "traefik.http.routers.plugins-mfe.entrypoints=web"
       - "traefik.http.services.plugins-mfe.loadbalancer.server.port=3001"

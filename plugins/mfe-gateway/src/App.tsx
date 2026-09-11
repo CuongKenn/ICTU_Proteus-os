@@ -1,57 +1,121 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { registry } from './plugins/registry';
+
+function parsePath(): { pluginId: string; subPath: string } {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts.length === 0) return { pluginId: '', subPath: '' };
+  const [pluginId, ...rest] = parts;
+  return { pluginId, subPath: rest.length ? `/${rest.join('/')}` : '' };
+}
 
 const App = () => {
-  const [pluginId, setPluginId] = useState<string>('unknown');
+  const [route, setRoute] = useState(parsePath);
 
   useEffect(() => {
-    // Extract plugin name from URL path (e.g. /crm-module -> crm-module)
-    // Routing: plugins.proteus.local/{plugin-code-name}
-    const pathParts = window.location.pathname.split('/').filter(Boolean);
-    if (pathParts.length > 0) {
-      setPluginId(pathParts[0]);
-    }
+    const onNav = () => setRoute(parsePath());
+    window.addEventListener('popstate', onNav);
+    return () => window.removeEventListener('popstate', onNav);
   }, []);
 
+  const navigate = useCallback((to: string) => {
+    window.history.pushState(null, '', to);
+    setRoute(parsePath());
+  }, []);
+
+  const navigateSub = useCallback(
+    (sub: string) => {
+      navigate(`/${route.pluginId}${sub}`);
+    },
+    [navigate, route.pluginId],
+  );
+
+  // / → catalog
+  if (!route.pluginId) return <Catalog navigate={navigate} />;
+
+  const entry = registry.find((p) => p.code === route.pluginId);
+  if (!entry) return <NotFound pluginId={route.pluginId} navigate={navigate} />;
+  if (!entry.ready) return <ComingSoon code={entry.code} name={entry.displayName} desc={entry.description} navigate={navigate} />;
+
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ maxWidth: '800px', width: '100%' }}>
-        <h1 style={{ color: '#0ea5e9', fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>
-          Micro-Frontend Gateway
-        </h1>
-        <p style={{ textAlign: 'center', color: '#94a3b8', marginBottom: '2rem' }}>
-          Rendered by a single React Vite instance.
+    <div style={{ background: '#0f172a', minHeight: '100vh', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ borderBottom: '1px solid #1e293b', padding: '.5rem 1.5rem' }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '.82rem' }}
+        >
+          ← Tất cả plugins
+        </button>
+      </div>
+      {entry.render({ subPath: route.subPath, navigate: navigateSub })}
+    </div>
+  );
+};
+
+function Catalog(props: { navigate: (to: string) => void }) {
+  return (
+    <div style={{ background: '#0f172a', minHeight: '100vh', color: 'white', padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <h1 style={{ color: '#0ea5e9' }}>Micro-Frontend Gateway</h1>
+        <p style={{ color: '#94a3b8' }}>
+          Mỗi plugin có code thật ở <code>plugins/&lt;tên&gt;/frontend/src</code>. Gateway chỉ là host định tuyến.
         </p>
-        
-        <div style={{ padding: '2rem', backgroundColor: '#1e293b', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem' }}>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#3b82f6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.25rem' }}>
-              {pluginId.substring(0, 2).toUpperCase()}
-            </div>
-            <h2 style={{ margin: 0, fontSize: '1.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {pluginId} MODULE
-            </h2>
-          </div>
-          
-          <p style={{ color: '#cbd5e1', lineHeight: '1.6', marginBottom: '2rem' }}>
-            Bạn đang xem giao diện Micro-Frontend tùy chỉnh (Custom UI) của Plugin <strong>{pluginId}</strong>. Giao diện này được code hoàn toàn bằng React và chạy độc lập với App Shell chính của Proteus OS.
-          </p>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px', border: '1px solid #334155' }}>
-               <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8', fontSize: '1rem' }}>Thống kê</h3>
-               <p style={{ margin: 0, color: '#94a3b8' }}>Dữ liệu demo</p>
-            </div>
-            <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px', border: '1px solid #334155' }}>
-               <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8', fontSize: '1rem' }}>Hành động</h3>
-               <button style={{ padding: '0.5rem 1rem', background: '#3b82f6', border: 'none', color: 'white', borderRadius: '6px', cursor: 'pointer', fontWeight: '500', width: '100%' }}>
-                 Gửi Request
-               </button>
-            </div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+          {registry.map((p) => (
+            <button
+              key={p.code}
+              onClick={() => p.ready && props.navigate(`/${p.code}`)}
+              disabled={!p.ready}
+              style={{
+                textAlign: 'left',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                borderRadius: 12,
+                padding: '1rem',
+                cursor: p.ready ? 'pointer' : 'not-allowed',
+                opacity: p.ready ? 1 : 0.55,
+                color: 'white',
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>{p.displayName}</div>
+              <div style={{ color: '#94a3b8', fontSize: '.8rem', margin: '.4rem 0' }}>{p.code}</div>
+              <div style={{ color: p.ready ? '#22c55e' : '#f59e0b', fontSize: '.78rem', fontWeight: 700 }}>
+                {p.ready ? '● REAL UI' : '○ ĐANG PHÁT TRIỂN'}
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
   );
-};
+}
+
+function ComingSoon(props: { code: string; name: string; desc: string; navigate: (to: string) => void }) {
+  return (
+    <div style={{ background: '#0f172a', minHeight: '100vh', color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: '2rem', maxWidth: 560 }}>
+        <button onClick={() => props.navigate('/')} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>← Tất cả plugins</button>
+        <h2>{props.name}</h2>
+        <p style={{ color: '#94a3b8' }}>{props.desc}</p>
+        <p style={{ color: '#f59e0b' }}>
+          Plugin <code>{props.code}</code> chưa có <code>frontend/src</code>. Làm theo mẫu{' '}
+          <code>plugins/asset-module/frontend</code> để triển khai.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NotFound(props: { pluginId: string; navigate: (to: string) => void }) {
+  return (
+    <div style={{ background: '#0f172a', minHeight: '100vh', color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div>
+        <h2>Không tìm thấy plugin: {props.pluginId}</h2>
+        <button onClick={() => props.navigate('/')} style={{ color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer' }}>
+          ← Về catalog
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default App;

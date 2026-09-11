@@ -106,8 +106,10 @@ bash setup.sh
 ### Bước 3: Cấu hình Local DNS (Dành cho Development)
 Nếu chạy ở môi trường Local (chưa có tên miền thật), bạn cần trỏ tên miền ảo về `localhost` bằng cách sửa file `/etc/hosts` (trên Linux/Mac) hoặc `C:\Windows\System32\drivers\etc\hosts` (trên Windows):
 ```text
-127.0.0.1 proteus.local
+127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local grafana.proteus.local traefik.proteus.local plugins.proteus.local
 ```
+> [!IMPORTANT]
+> Thiếu `plugins.proteus.local` sẽ gây lỗi `plugins.proteus.local’s server IP address could not be found` khi mở Plugin (ví dụ Asset Module) trong Launchpad, vì `plugins-mfe` dùng Host-based routing (`Host(`plugins.${DOMAIN}`)` trong `deploy/docker-compose.yml`).
 
 ### Bước 4: Kiểm tra trạng thái
 Kiểm tra xem tất cả các container đã `Up` và trạng thái `Healthy` chưa:

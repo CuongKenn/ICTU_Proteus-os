@@ -370,12 +370,15 @@ class PluginInstallUseCase:
                             "Seed file chứa các lệnh SQL không được phép."
                         )
 
-                    # Set search_path để sandbox SQL execution trong schema của Tenant
+                    # Set search_path để sandbox SQL execution trong schema của Tenant.
+                    # Giữ "public" thứ 2 để seed dùng được shared extensions
+                    # (VD: public.uuid_generate_v4()) — unqualified CREATE vẫn
+                    # rơi vào schema tenant vì nó đứng đầu.
                     await self.session.execute(
                         text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                     )
                     await self.session.execute(
-                        text(f'SET search_path TO "{schema_name}"')
+                        text(f'SET search_path TO "{schema_name}", public')
                     )
                     has_schema = True
 
@@ -483,6 +486,12 @@ class PluginInstallUseCase:
                             node["parameters"]["query"] = query.replace("{{TENANT_SCHEMA}}", tenant_schema)
                     
                     # Auto-bind Credentials (Internal & External)
+                    # Postgres nodes thiếu skeleton credentials vẫn được gắn
+                    # ProteusDB_Real để workflow import xong chạy được ngay.
+                    if node.get("type") == "n8n-nodes-base.postgres":
+                        node.setdefault("credentials", {}).setdefault(
+                            "postgres", {}
+                        )
                     if "credentials" in node:
                         for cred_key, cred_val in node["credentials"].items():
                             # Internal DB (Proteus)
@@ -496,6 +505,19 @@ class PluginInstallUseCase:
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
                 workflow_ids.append(wid)
+
+                # Webhook/cron chỉ chạy khi workflow ACTIVE — bật ngay sau import.
+                # Best-effort: activation fail thì warn (không fail cả install),
+                # admin bật tay trong n8n UI (workflow.proteus.local) sau.
+                try:
+                    await self.n8n_adapter.activate_workflow(wid)
+                except Exception as act_err:  # noqa: BLE001
+                    logger.warning(
+                        "Không activate được workflow %s (%s): %s",
+                        wid,
+                        wf.file,
+                        act_err,
+                    )
         return workflow_ids
 
     async def _step_3_metabase(

@@ -15,17 +15,69 @@ import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
+// ─── CORS cho Micro-Frontend gateway (plugins.<parent-domain>) ──
+// MFE chạy origin khác (plugins.proteus.local) nhưng cùng site nên được gửi
+// session cookie (SameSite=Lax) khi fetch với credentials:"include".
+// Chỉ allow origin plugins.* cùng parent domain với host đang serve.
+function mfeCorsHeaders(request: NextRequest): Record<string, string> | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+  let originUrl: URL;
+  try {
+    originUrl = new URL(origin);
+  } catch {
+    return null;
+  }
+  // Chạy sau Traefik nên Host mà Next thấy là container ID —
+  // phải đọc host gốc từ X-Forwarded-Host do Traefik gắn.
+  const rawHost =
+    request.headers.get("x-forwarded-host")?.split(",")[0].trim() ||
+    request.nextUrl.hostname;
+  const hostParts = rawHost.split(".");
+  const parentDomain =
+    hostParts.length >= 2 ? hostParts.slice(-2).join(".") : request.nextUrl.hostname;
+  const allowed = new Set([
+    `http://plugins.${parentDomain}`,
+    `https://plugins.${parentDomain}`,
+  ]);
+  if (!allowed.has(originUrl.origin)) return null;
+  return {
+    "Access-Control-Allow-Origin": originUrl.origin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Accept,Authorization",
+    Vary: "Origin",
+  };
+}
+
+function withCors(response: NextResponse, cors: Record<string, string> | null) {
+  if (cors) {
+    for (const [k, v] of Object.entries(cors)) response.headers.set(k, v);
+  }
+  return response;
+}
+
 async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
+  const cors = mfeCorsHeaders(request);
+
+  // Preflight từ MFE (không kèm cookie) — trả 204 ngay, chưa cần auth.
+  if (request.method === "OPTIONS") {
+    return withCors(new NextResponse(null, { status: 204 }), cors);
+  }
+
   // getToken() đọc JWT từ session cookie — nhẹ hơn getServerSession() và không gây 500.
   // Nếu access_token hết hạn, tự refresh bằng refreshAccessToken() trước khi forward.
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
     logger.error("[BFF] Proxy 401: no session token found");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return withCors(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      cors
+    );
   }
 
   // Kiểm tra token hết hạn — thử refresh inline thay vì trả 401 ngay
@@ -49,7 +101,10 @@ async function proxyHandler(
 
   if (!accessToken) {
     logger.error("[BFF] Proxy 401: accessToken null");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return withCors(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      cors
+    );
   }
 
   const targetPath = params.path.join("/");
@@ -88,7 +143,10 @@ async function proxyHandler(
     });
   } catch (err: any) {
     logger.error(`[BFF] Fetch to backend failed: ${err.message}`);
-    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
+    return withCors(
+      NextResponse.json({ error: "Backend unavailable" }, { status: 502 }),
+      cors
+    );
   }
 
   logger.info(`[BFF] ${request.method} ${targetUrl} → ${response.status}`);
@@ -96,22 +154,31 @@ async function proxyHandler(
   if (response.status === 401) {
     const txt = await response.text();
     logger.error(`[BFF] Backend returned 401 for ${targetUrl}: ${txt}`);
-    return NextResponse.json({ error: "Unauthorized from backend", detail: txt }, { status: 401 });
+    return withCors(
+      NextResponse.json(
+        { error: "Unauthorized from backend", detail: txt },
+        { status: 401 }
+      ),
+      cors
+    );
   }
 
   // Proxy status code và response body nguyên vẹn
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     const data = await response.json().catch(() => null);
-    return NextResponse.json(data, { status: response.status });
+    return withCors(NextResponse.json(data, { status: response.status }), cors);
   }
 
   // Non-JSON response (ví dụ: file download)
   const blob = await response.blob();
-  return new NextResponse(blob, {
-    status: response.status,
-    headers: { "Content-Type": contentType },
-  });
+  return withCors(
+    new NextResponse(blob, {
+      status: response.status,
+      headers: { "Content-Type": contentType },
+    }),
+    cors
+  );
 }
 
 export const GET = proxyHandler;
@@ -119,3 +186,4 @@ export const POST = proxyHandler;
 export const PUT = proxyHandler;
 export const PATCH = proxyHandler;
 export const DELETE = proxyHandler;
+export const OPTIONS = proxyHandler;

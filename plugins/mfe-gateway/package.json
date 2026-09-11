@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "sync": "node scripts/sync-plugins.mjs",
+    "predev": "node scripts/sync-plugins.mjs",
+    "prebuild": "node scripts/sync-plugins.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

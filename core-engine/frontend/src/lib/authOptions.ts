@@ -68,6 +68,25 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 return refreshPromise;
 }
 
+// ─── Shared session cookie domain (*.proteus.local) ─────────────
+// Tính 1 lần lúc import: localhost → undefined (host-only, không gãy dev).
+function resolveSharedCookieDomain(): string | undefined {
+  try {
+    const host = new URL(process.env.NEXTAUTH_URL ?? "").hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+      return undefined;
+    }
+    const parts = host.split(".");
+    if (parts.length < 2) return undefined;
+    return "." + parts.slice(-2).join(".");
+  } catch {
+    return undefined;
+  }
+}
+
+const useSecureCookies = (process.env.NEXTAUTH_URL ?? "").startsWith("https://");
+const sharedCookieDomain = resolveSharedCookieDomain();
+
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
@@ -186,6 +205,26 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 8 * 60 * 60, // 8 giờ (session tối đa, kể cả refresh)
+  },
+
+  // Cookie domain chia sẻ cho cả *.proteus.local để Micro-Frontend gateway
+  // (plugins.proteus.local) gọi BFF proxy kèm session cookie (credentials:include).
+  // Cùng eTLD+1 nên SameSite=Lax vẫn được gửi — browser JS KHÔNG bao giờ thấy JWT.
+  // Localhost dev: giữ host-only (không set domain) để không gãy login.
+  // Lưu ý: session cũ (host-only) sẽ hết hiệu lực, user login lại 1 lần.
+  cookies: {
+    sessionToken: {
+      name: useSecureCookies
+        ? "__Secure-next-auth.session-token"
+        : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+        ...(sharedCookieDomain ? { domain: sharedCookieDomain } : {}),
+      },
+    },
   },
 
   pages: {

@@ -135,6 +135,62 @@ class PluginListResponse(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────
+# PLUGIN ACTION DISPATCHER SCHEMAS (generic UI → n8n)
+# ─────────────────────────────────────────────────────────────
+
+
+class PluginActionRequest(BaseModel):
+    """Body cho POST /plugins/{code}/actions/{action}."""
+
+    payload: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Dữ liệu nghiệp vụ (opaque) forward sang n8n webhook.",
+    )
+    idempotency_key: str | None = Field(
+        None,
+        description="Khóa chống trùng khi UI retry. Tự sinh UUID nếu bỏ trống.",
+    )
+
+
+class PluginActionResponse(BaseModel):
+    """Response cho POST /plugins/{code}/actions/{action}."""
+
+    task_id: str = Field(description="Idempotency key của lần dispatch.")
+    action: str
+    result: dict[str, Any] = Field(
+        default_factory=dict, description="Response JSON từ n8n workflow."
+    )
+
+
+class PluginActionInfo(BaseModel):
+    """Một webhook action UI có thể gọi (để render nút động)."""
+
+    action: str = Field(description="Định danh gọi API (workflows[].id).")
+    name: str
+    description: str | None = None
+    trigger: str = "webhook"
+
+
+class PluginActionListResponse(BaseModel):
+    """Response cho GET /plugins/{code}/actions."""
+
+    plugin: str
+    actions: list[PluginActionInfo]
+
+
+# ─────────────────────────────────────────────────────────────
+# PLUGIN RECORDS CRUD SCHEMAS (generic, allowlist từ manifest)
+# ─────────────────────────────────────────────────────────────
+
+
+class RecordListResponse(BaseModel):
+    """Response cho GET /plugins/{code}/records/{table}."""
+
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    total: int = 0
+
+
+# ─────────────────────────────────────────────────────────────
 # OTHER REQUEST SCHEMAS
 # ─────────────────────────────────────────────────────────────
 

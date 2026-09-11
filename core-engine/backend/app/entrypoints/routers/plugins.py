@@ -35,8 +35,10 @@ from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeU
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_llm_port,
+    get_plugin_action_use_case,
     get_plugin_credentials_use_case,
     get_plugin_list_use_case,
+    get_plugin_records_use_case,
     get_plugin_repo,
     get_plugin_repo_write,
     get_plugin_toggle_use_case,
@@ -49,12 +51,16 @@ from app.entrypoints.schemas.plugin import (
     InstallPluginRequest,
     InstallStatusResponse,
     InstallStepLog,
+    PluginActionListResponse,
+    PluginActionRequest,
+    PluginActionResponse,
     PluginCredentialPayload,
     PluginDetailResponse,
     PluginListResponse,
     PluginResponse,
     PluginSynthesizeRequest,
     PluginUninstallRequest,
+    RecordListResponse,
 )
 from app.infrastructure.rate_limiter import limiter
 
@@ -570,6 +576,156 @@ async def upgrade_plugin(
             detail=str(e),
         ) from e
     return {"message": "Nâng cấp Plugin thành công."}
+
+
+# ─────────────────────────────────────────────────────────────
+# GENERIC ACTION DISPATCHER (UI → n8n, giữ isolation plugin)
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{code}/actions",
+    response_model=PluginActionListResponse,
+    summary="Liệt kê webhook actions của Plugin",
+)
+async def list_plugin_actions(
+    code: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_action_use_case),
+) -> PluginActionListResponse:
+    """
+    Trả về các workflow `trigger='webhook'` trong manifest để Micro-UI
+    render nút động — plugin có N workflow cũng không cần thêm endpoint.
+    Cron/manual không xuất hiện ở đây (chạy theo lịch hoặc bởi admin/AI).
+    """
+    actions = await use_case.list_actions(ctx=ctx, plugin_code=code)
+    return PluginActionListResponse(plugin=code, actions=actions)
+
+
+@router.post(
+    "/{code}/actions/{action}",
+    response_model=PluginActionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Dispatch 1 plugin action tới n8n webhook",
+)
+async def dispatch_plugin_action(
+    code: str,
+    action: str,
+    body: PluginActionRequest = Body(default_factory=PluginActionRequest),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_action_use_case),
+) -> PluginActionResponse:
+    """
+    Dispatcher generic: UI chỉ biết tên logic `{action}` (workflows[].id
+    trong manifest), backend tự resolve webhook URL và forward sang n8n.
+    Body gửi sang n8n là phẳng: {**payload, tenant_id, user_id, plugin,
+    action, idempotency_key} để khớp expression workflow ($json.body.*).
+
+    - 404: plugin/action không tồn tại.
+    - 400: action là cron/manual, payload quá lớn hoặc sai định dạng.
+    - 403: thiếu quyền nhóm `{prefix}:*`.
+    - 502: n8n down/timeout/lỗi 5xx (UI nên hiển thị "đang xử lý" + retry
+      với cùng idempotency_key thay vì báo lỗi cứng).
+    """
+    try:
+        result = await use_case.execute(
+            ctx=ctx,
+            plugin_code=code,
+            action=action,
+            payload=body.payload,
+            idempotency_key=body.idempotency_key,
+        )
+    except N8nAdapterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Workflow engine tạm thời không khả dụng: {e}",
+        ) from e
+    return PluginActionResponse(**result)
+
+
+# ─────────────────────────────────────────────────────────────
+# GENERIC RECORDS CRUD (đọc/ghi bảng plugin, allowlist từ manifest)
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{code}/records/{table}",
+    response_model=RecordListResponse,
+    summary="Liệt kê bản ghi của 1 bảng plugin",
+)
+async def list_plugin_records(
+    code: str,
+    table: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> RecordListResponse:
+    """
+    Đọc thật từ Postgres (RLS + lọc tenant_id). Tên bảng phải nằm trong
+    `database.tables` của manifest — plugin có thêm bảng mới cũng không
+    cần thêm endpoint.
+    """
+    result = await use_case.list_records(
+        ctx=ctx, plugin_code=code, table=table, limit=limit, offset=offset
+    )
+    return RecordListResponse(**result)
+
+
+@router.post(
+    "/{code}/records/{table}",
+    response_model=dict[str, Any],
+    status_code=status.HTTP_201_CREATED,
+    summary="Tạo 1 bản ghi trong bảng plugin",
+)
+async def create_plugin_record(
+    code: str,
+    table: str,
+    body: dict[str, Any] = Body(default_factory=dict),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> dict[str, Any]:
+    """Chỉ ghi các cột tồn tại thật (information_schema); tự gắn tenant_id."""
+    return await use_case.create_record(
+        ctx=ctx, plugin_code=code, table=table, data=body
+    )
+
+
+@router.patch(
+    "/{code}/records/{table}/{record_id}",
+    response_model=dict[str, Any],
+    summary="Cập nhật 1 bản ghi trong bảng plugin",
+)
+async def update_plugin_record(
+    code: str,
+    table: str,
+    record_id: str,
+    body: dict[str, Any] = Body(default_factory=dict),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> dict[str, Any]:
+    """Không cho đổi `id`/`tenant_id` qua API."""
+    return await use_case.update_record(
+        ctx=ctx, plugin_code=code, table=table, record_id=record_id, data=body
+    )
+
+
+@router.delete(
+    "/{code}/records/{table}/{record_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xóa 1 bản ghi trong bảng plugin",
+)
+async def delete_plugin_record(
+    code: str,
+    table: str,
+    record_id: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> None:
+    await use_case.delete_record(
+        ctx=ctx, plugin_code=code, table=table, record_id=record_id
+    )
+    return None
 
 
 # ─────────────────────────────────────────────────────────────

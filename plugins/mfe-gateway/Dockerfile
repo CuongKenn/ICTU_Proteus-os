@@ -2,20 +2,24 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Build Stage
+# NOTE: docker-compose build context là ../plugins (toàn bộ thư mục plugins),
+# để COPY được source of truth plugins/<code>/frontend vào gateway.
 FROM node:20-alpine AS builder
 
-WORKDIR /app
-COPY package*.json ./
+WORKDIR /build/plugins/mfe-gateway
+COPY mfe-gateway/package*.json ./
 RUN npm ci
 
-COPY . .
+COPY mfe-gateway/ ./
+COPY asset-module/frontend ../asset-module/frontend
+COPY crm-module/frontend ../crm-module/frontend
 RUN npm run build
 
 # Production Stage (Nginx)
 FROM nginx:alpine
 
 # Copy built assets
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /build/plugins/mfe-gateway/dist /usr/share/nginx/html
 
 # Custom Nginx config for SPA routing
 RUN echo 'server { \

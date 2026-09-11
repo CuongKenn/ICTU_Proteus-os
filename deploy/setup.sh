@@ -86,7 +86,7 @@ if [ "$DOMAIN" = "proteus.local" ]; then
   echo ""
   echo "⚠️  LƯU Ý: Bạn đang dùng domain local ($DOMAIN)."
   echo "Hãy đảm bảo file hosts (/etc/hosts hoặc C:\\Windows\\System32\\drivers\\etc\\hosts) có dòng sau:"
-  echo "127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local"
+  echo "127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local grafana.proteus.local traefik.proteus.local plugins.proteus.local"
   echo ""
 fi
 

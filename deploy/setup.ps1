@@ -110,7 +110,7 @@ if (Test-Path $envFile) {
 # 4. Configure hosts file
 if ($domain -eq "proteus.local") {
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
-    $hostsEntry = "127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local grafana.proteus.local traefik.proteus.local"
+    $hostsEntry = "127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local grafana.proteus.local traefik.proteus.local plugins.proteus.local"
 
     $hostsContent = Get-Content -Path $hostsPath -Raw
     if ($hostsContent -notmatch "proteus\.local") {

@@ -28,6 +28,8 @@ database:
     - "asset_maintenance_logs"
     - "asset_depreciation"
     - "asset_disposal_requests"
+    - "asset_requests"
+    - "asset_inventory_snapshots"
 
   seed_file: "db/seed_data.sql"
 

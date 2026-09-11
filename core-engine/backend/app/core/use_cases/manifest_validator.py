@@ -72,6 +72,9 @@ _REQUIRED_METADATA_FIELDS: tuple[str, ...] = (
 class WorkflowEntry(BaseModel):
     """Mô tả một workflow trong manifest."""
 
+    # Định danh action cho generic dispatcher
+    # POST /plugins/{code}/actions/{id}. Optional (fallback = stem của file).
+    id: str | None = None
     file: str
     name: str
     description: str = ""
@@ -358,6 +361,7 @@ class ManifestValidator:
 
         # ─── 6. Validate workflow cron trigger ───
         workflows_raw = raw.get("workflows", []) or []
+        seen_wf_ids: set[str] = set()
         for idx, wf in enumerate(workflows_raw):
             if not isinstance(wf, dict):
                 errors.append(f"workflows[{idx}]: phải là một object (dictionary)")
@@ -372,6 +376,24 @@ class ManifestValidator:
                     f"workflows[{idx}]: trigger '{trigger}' không hợp lệ "
                     f"(phải là webhook, cron hoặc manual)"
                 )
+            # Validate workflow action id (dùng cho generic dispatcher
+            # POST /plugins/{code}/actions/{id})
+            wf_id = wf.get("id")
+            if wf_id is not None:
+                if not isinstance(wf_id, str) or not re.match(
+                    r"^[a-z0-9_-]+$", wf_id
+                ):
+                    errors.append(
+                        f"workflows[{idx}].id '{wf_id}' không hợp lệ "
+                        f"(chỉ gồm chữ thường, số, '-' và '_')"
+                    )
+                elif wf_id in seen_wf_ids:
+                    errors.append(
+                        f"workflows[{idx}].id '{wf_id}' bị trùng "
+                        f"(mỗi workflow cần id duy nhất trong plugin)"
+                    )
+                else:
+                    seen_wf_ids.add(wf_id)
 
         # ─── 7. Validate credentials_schema ───
         creds_raw = raw.get("credentials_schema", []) or []
