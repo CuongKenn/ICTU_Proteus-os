@@ -394,10 +394,10 @@ class PluginUninstallUseCase:
 
     async def _persist_steps(self, context: TenantContext, plugin_id: uuid.UUID) -> None:
         import json
-        await self.plugin_repo.update_install_steps(
+        await self.plugin_repo.update_install_steps_log(
             tenant_id=context.tenant_id,
             plugin_id=plugin_id,
-            steps_log=json.dumps(self._steps_log),
+            steps_log=self._steps_log,
         )
         await self.session.commit()
 

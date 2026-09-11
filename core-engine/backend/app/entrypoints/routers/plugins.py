@@ -486,10 +486,10 @@ async def uninstall_plugin(
         PluginStatus.UNINSTALLING,
         install_task_id=task_id,
     )
-    await repo.update_install_steps(
+    await repo.update_install_steps_log(
         ctx.tenant_id,
         plugin_id,
-        steps_log="[]",
+        steps_log=[],
     )
     await repo._session.commit()
 
