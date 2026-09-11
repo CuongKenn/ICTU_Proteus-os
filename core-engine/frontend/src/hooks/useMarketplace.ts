@@ -233,7 +233,7 @@ export function useMarketplace(): UseMarketplaceReturn {
           
           pollingRef.current = setInterval(async () => {
             try {
-              const statusRes = await api.get(`/v1/plugins/install-status/${taskId}`);
+              const statusRes = await api.get(`/v1/plugins/install/${taskId}/status`);
               const statusData = statusRes.data;
 
               if (statusData.steps && statusData.steps.length > 0) {
