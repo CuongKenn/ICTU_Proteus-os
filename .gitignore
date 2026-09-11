@@ -8,3 +8,7 @@ deploy/scratch/
 .env.*
 !.env.example
 !.env.local.example
+
+
+# Ignore backups
+deploy/backups/
