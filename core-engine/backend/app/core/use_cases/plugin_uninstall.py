@@ -63,6 +63,7 @@ class PluginUninstallUseCase:
         self.session = session
         self.event_bus = event_bus
         self.tenant_repo = tenant_repo
+        self._steps_log: list[dict[str, Any]] = []
 
     async def uninstall_plugin(
         self, context: TenantContext, plugin_id: uuid.UUID, confirm_name: str
@@ -117,7 +118,8 @@ class PluginUninstallUseCase:
 
         try:
             # BƯỚC 1: Xóa Event Subscriptions
-            logger.info("🗑️  [UNINSTALL] Bước 1 (EVENTS): RUNNING")
+            self._log_step("events", "RUNNING")
+            await self._persist_steps(context, plugin_id)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_1_events(
                 context, plugin_code_name, manifest, config_override.get("events", [])
@@ -125,8 +127,10 @@ class PluginUninstallUseCase:
             completed_steps.append("subscriptions")
 
             # BƯỚC 2: Xóa Keycloak Roles
-            logger.info("✅ [UNINSTALL] Bước 1 (EVENTS): DONE")
-            logger.info("🗑️  [UNINSTALL] Bước 2 (KEYCLOAK): RUNNING")
+            self._log_step("events", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("keycloak", "RUNNING")
+            await self._persist_steps(context, plugin_id)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_2_keycloak(
                 context, plugin_code_name, manifest, config_override.get("keycloak", [])
@@ -134,8 +138,10 @@ class PluginUninstallUseCase:
             completed_steps.append("keycloak")
 
             # BƯỚC 3: Xóa Appsmith Apps
-            logger.info("✅ [UNINSTALL] Bước 2 (KEYCLOAK): DONE")
-            logger.info("🗑️  [UNINSTALL] Bước 3 (APPSMITH): RUNNING")
+            self._log_step("keycloak", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("appsmith", "RUNNING")
+            await self._persist_steps(context, plugin_id)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_3_appsmith(
                 context, plugin_code_name, manifest, config_override.get("appsmith", [])
@@ -143,8 +149,10 @@ class PluginUninstallUseCase:
             completed_steps.append("appsmith")
 
             # BƯỚC 4: Xóa Metabase Dashboards
-            logger.info("✅ [UNINSTALL] Bước 3 (APPSMITH): DONE")
-            logger.info("🗑️  [UNINSTALL] Bước 4 (METABASE): RUNNING")
+            self._log_step("appsmith", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("metabase", "RUNNING")
+            await self._persist_steps(context, plugin_id)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_4_metabase(
                 context, plugin_code_name, manifest, config_override.get("metabase", [])
@@ -152,8 +160,10 @@ class PluginUninstallUseCase:
             completed_steps.append("metabase")
 
             # BƯỚC 5: Xóa n8n Workflows
-            logger.info("✅ [UNINSTALL] Bước 4 (METABASE): DONE")
-            logger.info("🗑️  [UNINSTALL] Bước 5 (N8N): RUNNING")
+            self._log_step("metabase", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("n8n", "RUNNING")
+            await self._persist_steps(context, plugin_id)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_5_n8n(
                 context, plugin_code_name, manifest, config_override.get("n8n", [])
@@ -161,11 +171,14 @@ class PluginUninstallUseCase:
             completed_steps.append("n8n")
 
             # BƯỚC 6: Drop Database Tables
-            logger.info("✅ [UNINSTALL] Bước 5 (N8N): DONE")
-            logger.info("🗑️  [UNINSTALL] Bước 6 (DATABASE): RUNNING")
+            self._log_step("n8n", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("database", "RUNNING")
+            await self._persist_steps(context, plugin_id)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_6_database(context, plugin_code_name, manifest)
-            logger.info("✅ [UNINSTALL] Bước 6 (DATABASE): DONE")
+            self._log_step("database", "DONE")
+            await self._persist_steps(context, plugin_id)
             completed_steps.append("db")
 
             # Xóa hẳn (hoặc soft-delete / update status DELETED)
@@ -378,3 +391,45 @@ class PluginUninstallUseCase:
                         raise
             finally:
                 await self.session.execute(text("SET search_path TO public"))
+
+    async def _persist_steps(self, context: TenantContext, plugin_id: uuid.UUID) -> None:
+        import json
+        await self.plugin_repo.update_install_steps(
+            tenant_id=context.tenant_id,
+            plugin_id=plugin_id,
+            steps_log=json.dumps(self._steps_log),
+        )
+        await self.session.commit()
+
+    def _log_step(
+        self,
+        step_name: str,
+        status: str,
+        message: str | None = None,
+    ) -> None:
+        from datetime import UTC, datetime
+        now_iso = datetime.now(UTC).isoformat()
+        
+        emoji = "⏳"
+        if status == "DONE":
+            emoji = "✅"
+        elif status == "FAILED":
+            emoji = "❌"
+        
+        msg_suffix = f" - {message}" if message else ""
+        logger.info(f"{emoji} [UNINSTALL] Bước {step_name.upper()}: {status}{msg_suffix}")
+
+        for entry in self._steps_log:
+            if entry["step"] == step_name:
+                entry["status"] = status
+                entry["at"] = now_iso
+                if message:
+                    entry["message"] = message
+                return
+        
+        self._steps_log.append({
+            "step": step_name,
+            "status": status,
+            "at": now_iso,
+            "message": message,
+        })

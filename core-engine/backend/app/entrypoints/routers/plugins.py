@@ -386,34 +386,129 @@ async def get_install_status(
 # ─────────────────────────────────────────────────────────────
 
 
+
+async def _run_uninstall_plugin_background(
+    ctx: TenantContext,
+    plugin_id: uuid.UUID,
+    confirm_name: str,
+    app_state,
+):
+    import sys
+    from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+    
+    tenant_id_ctx.set(str(ctx.tenant_id))
+    print(
+        f"[BG_TASK] _run_uninstall_plugin_background STARTED: {plugin_id}",
+        flush=True,
+        file=sys.stderr,
+    )
+    
+    from app.adapters.external.appsmith_adapter import AppsmithAdapter
+    from app.adapters.external.keycloak_adapter import KeycloakAdapter
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+    from app.adapters.external.metabase_adapter import MetabaseAdapter
+    from app.adapters.external.n8n_adapter import N8nAdapter
+    from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
+    from app.infrastructure.database import AsyncSessionLocal
+    from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
+
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = SQLAlchemyPluginRepository(session=session)
+            tenant_repo = SQLAlchemyTenantRepository(session=session)
+            use_case = PluginUninstallUseCase(
+                plugin_repo=repo,
+                tenant_repo=tenant_repo,
+                manifest_parser=LocalManifestParser(),
+                n8n_adapter=N8nAdapter(client=app_state.http_client),
+                metabase_adapter=MetabaseAdapter(client=app_state.http_client),
+                appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
+                keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
+                mattermost_adapter=MattermostAdapter(client=app_state.http_client),
+                event_bus=RedisEventBusPublisher(
+                    app_state.redis_client,
+                    prefix="proteus",
+                ),
+            )
+            use_case.session = session
+
+            await use_case.uninstall_plugin(
+                context=ctx,
+                plugin_id=plugin_id,
+                confirm_name=confirm_name,
+            )
+            
+            print(f"[BG_TASK] SUCCESS: {plugin_id}", flush=True, file=sys.stderr)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[BG_TASK] FAILED: {plugin_id} — {repr(e)}", flush=True, file=sys.stderr)
+
+
 @router.delete(
     "/{plugin_id}/uninstall",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Gỡ cài đặt Plugin",
 )
 async def uninstall_plugin(
+    request: Request,
     plugin_id: uuid.UUID,
     body: PluginUninstallRequest,
     ctx: TenantContext = Depends(require_permission("plugins.uninstall")),
-    use_case: PluginUninstallUseCase = Depends(get_plugin_uninstall_use_case),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
 ) -> dict[str, str]:
     """
     Gỡ cài đặt Plugin. Xóa các Workflow, Dashboard, DB Table liên quan.
     Yêu cầu xác nhận tên Plugin bằng `confirm_name`.
     """
-    try:
-        await use_case.uninstall_plugin(
-            context=ctx,
-            plugin_id=plugin_id,
-            confirm_name=body.confirm_name,
+    plugin = await repo.get_by_id(plugin_id)
+    if not plugin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plugin không tồn tại.",
         )
-    except PluginUninstallError as e:
+        
+    if body.confirm_name != plugin.code_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
+            detail="Tên xác nhận không khớp với mã plugin (code_name).",
+        )
 
-    return {"message": "Gỡ cài đặt Plugin thành công."}
+    task_id = uuid.uuid4()
+    
+    await repo.upsert_installation(
+        ctx.tenant_id,
+        plugin_id,
+        PluginStatus.UNINSTALLING,
+        install_task_id=task_id,
+    )
+    await repo.update_install_steps(
+        ctx.tenant_id,
+        plugin_id,
+        steps_log="[]",
+    )
+    await repo._session.commit()
+
+    import asyncio
+    asyncio.get_event_loop().create_task(
+        _run_uninstall_plugin_background(
+            ctx=ctx,
+            plugin_id=plugin_id,
+            confirm_name=body.confirm_name,
+            app_state=request.app.state,
+        )
+    )
+
+    return {
+        "message": "Plugin uninstallation queued.",
+        "plugin_id": str(plugin_id),
+        "task_id": str(task_id),
+        "status": "UNINSTALLING"
+    }
 
 
 @router.post(

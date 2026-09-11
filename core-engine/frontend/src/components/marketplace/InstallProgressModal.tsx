@@ -6,6 +6,7 @@
 import React from "react";
 import { Modal } from "@/components/ui/Modal";
 import { InstallTaskStep } from "@/types";
+import { PluginStatus } from "./PluginCard";
 import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
 
 interface InstallProgressModalProps {
@@ -13,7 +14,7 @@ interface InstallProgressModalProps {
   pluginName?: string;
   steps: InstallTaskStep[];
   overallProgress: number;
-  status: "installing" | "active" | "failed" | null;
+  status: PluginStatus | null;
   onClose: () => void;
 }
 
@@ -42,9 +43,10 @@ export const InstallProgressModal: React.FC<InstallProgressModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Đang cài đặt ${pluginName || "Plugin"}...`}
-      hideFooter={status === "installing"} // Hide footer while installing
-      confirmLabel={status === "active" ? "Hoàn tất" : "Đóng"}
+      title={status === "uninstalling" ? `Đang gỡ cài đặt ${pluginName || "Plugin"}...` : `Đang cài đặt ${pluginName || "Plugin"}...`}
+      
+      confirmLabel={status === "installing" ? "Đang cài đặt..." : status === "uninstalling" ? "Đang gỡ cài đặt..." : status === "active" ? "Hoàn tất" : "Đóng"}
+      isConfirmLoading={status === "installing" || status === "uninstalling"}
       onConfirm={onClose}
     >
       <div className="flex flex-col gap-6">
@@ -67,7 +69,7 @@ export const InstallProgressModal: React.FC<InstallProgressModalProps> = ({
           {steps.length === 0 && (
             <div className="flex items-center gap-3 text-text-secondary text-sm p-2">
               <Loader2 className="w-4 h-4 animate-spin text-brand-primary" />
-              Đang khởi tạo tác vụ cài đặt...
+              {status === "uninstalling" ? "Đang khởi tạo tác vụ gỡ cài đặt..." : "Đang khởi tạo tác vụ cài đặt..."}
             </div>
           )}
           

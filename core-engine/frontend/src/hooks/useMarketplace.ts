@@ -216,6 +216,79 @@ export function useMarketplace(): UseMarketplaceReturn {
     installStatus,
     installSteps,
     installPlugin,
-    uninstallPlugin: uninstall,
+    uninstallPlugin: useCallback(async (pluginId: string, confirmName: string = '') => {
+      setInstallingId(pluginId);
+      setInstallProgress(0);
+      setInstallSteps([]);
+      setInstallStatus("uninstalling" as PluginStatus);
+
+      try {
+        const { api } = await import("@/lib/api");
+        const res = await api.default.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
+        const data = res.data;
+        const taskId = data.task_id;
+        
+        if (taskId) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          
+          pollingRef.current = setInterval(async () => {
+            try {
+              const statusRes = await api.default.get(`/v1/plugins/install-status/${taskId}`);
+              const statusData = statusRes.data;
+
+              if (statusData.steps && statusData.steps.length > 0) {
+                setInstallSteps(statusData.steps);
+                const completedSteps = statusData.steps.filter((s: any) => s.status === "DONE").length;
+                const TOTAL_STEPS = 6;
+                const realProgress = Math.min(95, Math.round((completedSteps / TOTAL_STEPS) * 100));
+                setInstallProgress((prev) => Math.max(prev, realProgress));
+              } else {
+                setInstallProgress((prev) => Math.min(prev + 5, 95));
+              }
+
+              const overallStatus = statusData.overall_status;
+              if (overallStatus === "DELETED" || overallStatus === "COMPLETED") {
+                setInstallProgress(100);
+                setInstallStatus("active");
+                useNotificationStore.getState().addToast("success", "Gỡ cài đặt Plugin thành công!");
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                setTimeout(() => {
+                  setInstallingId(null);
+                  setInstallStatus(null);
+                  setInstallProgress(0);
+                  setTrigger(t => t + 1);
+                }, 2000);
+              } else if (overallStatus === "FAILED" || overallStatus === "FAILED_DIRTY") {
+                setInstallStatus("failed");
+                useNotificationStore.getState().addToast("error", "Gỡ cài đặt Plugin thất bại.");
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                setTimeout(() => {
+                  setInstallingId(null);
+                  setInstallStatus(null);
+                  setInstallProgress(0);
+                }, 2000);
+              }
+            } catch (err) {
+              // console.error("Polling error", err);
+            }
+          }, 3000);
+        } else {
+          // Fallback if backend doesn't return task_id (e.g., still old code)
+          useNotificationStore.getState().addToast("success", "Gỡ cài đặt Plugin thành công!");
+          setInstallingId(null);
+          setInstallStatus(null);
+          setTrigger(t => t + 1);
+        }
+      } catch (err: any) {
+        setInstallStatus("failed");
+        useNotificationStore.getState().addToast("error", "Không thể gỡ cài đặt Plugin.");
+        setTimeout(() => {
+          setInstallingId(null);
+          setInstallStatus(null);
+          setInstallProgress(0);
+        }, 2000);
+        throw err;
+      }
+    }, []),
   };
 }
