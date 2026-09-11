@@ -223,8 +223,8 @@ export function useMarketplace(): UseMarketplaceReturn {
       setInstallStatus("uninstalling" as PluginStatus);
 
       try {
-        const { api } = await import("@/lib/api");
-        const res = await api.default.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
+        const { default: api } = await import("@/lib/api");
+        const res = await api.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
         const data = res.data;
         const taskId = data.task_id;
         
@@ -233,7 +233,7 @@ export function useMarketplace(): UseMarketplaceReturn {
           
           pollingRef.current = setInterval(async () => {
             try {
-              const statusRes = await api.default.get(`/v1/plugins/install-status/${taskId}`);
+              const statusRes = await api.get(`/v1/plugins/install-status/${taskId}`);
               const statusData = statusRes.data;
 
               if (statusData.steps && statusData.steps.length > 0) {
