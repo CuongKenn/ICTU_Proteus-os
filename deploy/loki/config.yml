@@ -34,4 +34,4 @@ compactor:
   retention_delete_worker_count: 150
 
 limits_config:
-  retention_period: 720h  # 30 days retention
+  retention_period: 168h  # 7 ngày (giảm từ 30 ngày để nhẹ disk)
