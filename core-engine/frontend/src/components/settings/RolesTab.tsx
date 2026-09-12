@@ -14,8 +14,29 @@ export interface Role {
   name: string;
   display_name: string;
   description: string | null;
-  permissions: Record<string, string[]>;
+  // DB tồn tại 2 format: object {"mod": [...]} và list legacy ["*"].
+  permissions: Record<string, string[]> | string[] | null;
 }
+
+export interface RoleTemplate {
+  key: string;
+  name: string;
+  description: string;
+  roles_count: number;
+}
+
+/** Chuẩn hóa permissions về entries [module, actions] để render + toggle. */
+export const normalizePermissions = (
+  permissions: Role["permissions"]
+): Array<[string, string[]]> => {
+  if (!permissions) return [];
+  if (Array.isArray(permissions)) {
+    return permissions.includes("*") || permissions.includes("*:*")
+      ? [["*", ["*"]]]
+      : [];
+  }
+  return Object.entries(permissions);
+};
 
 const AVAILABLE_MODULES = [
   { id: "plugins", name: "Plugins", actions: ["read", "write", "install", "delete"] },
@@ -28,6 +49,9 @@ export const RolesTab = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [templates, setTemplates] = useState<RoleTemplate[]>([]);
+  const [applyingKey, setApplyingKey] = useState<string | null>(null);
+  const [templateMsg, setTemplateMsg] = useState("");
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -36,7 +60,36 @@ export const RolesTab = () => {
 
   useEffect(() => {
     fetchRoles();
+    fetchTemplates();
   }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await api.get("/v1/roles/templates");
+      setTemplates(res.data);
+    } catch {
+      // Backend cũ chưa có endpoint — bỏ qua im lặng.
+    }
+  };
+
+  const handleApplyTemplate = async (key: string) => {
+    if (!confirm("Áp template? Các role đã tồn tại sẽ được giữ nguyên.")) return;
+    try {
+      setApplyingKey(key);
+      setTemplateMsg("");
+      const res = await api.post("/v1/roles/apply-template", { template_key: key });
+      const { created, skipped } = res.data;
+      setTemplateMsg(
+        `Xong: tạo ${created.length} role mới` +
+          (skipped.length ? `, bỏ qua ${skipped.length} role đã có.` : ".")
+      );
+      fetchRoles();
+    } catch (err: any) {
+      setTemplateMsg("Áp template thất bại: " + (err.message || ""));
+    } finally {
+      setApplyingKey(null);
+    }
+  };
 
   const fetchRoles = async () => {
     try {
@@ -54,7 +107,11 @@ export const RolesTab = () => {
     if (role) {
       setSelectedRole(role);
       setFormData({ name: role.name, display_name: role.display_name || role.name, description: role.description || "" });
-      setFormPermissions(role.permissions || {});
+      const asRecord: Record<string, string[]> = {};
+      normalizePermissions(role.permissions).forEach(([mod, acts]) => {
+        if (mod !== "*") asRecord[mod] = acts;
+      });
+      setFormPermissions(asRecord);
     } else {
       setSelectedRole(null);
       setFormData({ name: "", display_name: "", description: "" });
@@ -116,6 +173,34 @@ export const RolesTab = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {templates.length > 0 && (
+        <div className="bg-bg-surface/50 border border-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-1">Mẫu vai trò theo loại tổ chức</h2>
+          <p className="text-sm text-text-secondary mb-4">
+            Áp 1 lần lúc setup — role nào đã có sẽ được giữ nguyên.
+          </p>
+          {templateMsg && (
+            <p className="text-sm text-text-primary mb-4">{templateMsg}</p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {templates.map((t) => (
+              <div key={t.key} className="border border-border rounded-lg p-4 flex flex-col gap-2">
+                <div className="font-semibold text-text-primary">{t.name}</div>
+                <div className="text-sm text-text-secondary flex-1">{t.description}</div>
+                <div className="text-xs text-text-muted">{t.roles_count} roles</div>
+                <Button
+                  onClick={() => handleApplyTemplate(t.key)}
+                  disabled={applyingKey !== null}
+                  className="mt-2"
+                >
+                  {applyingKey === t.key ? "Đang áp..." : "Áp dụng mẫu"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-semibold text-text-primary">Roles & Permissions</h2>
@@ -158,10 +243,10 @@ export const RolesTab = () => {
             <div className="mt-auto">
               <h4 className="text-xs font-medium text-text-secondary mb-2 uppercase tracking-wider">Phân quyền</h4>
               <div className="flex flex-wrap gap-1.5">
-                {Object.entries(role.permissions || {}).length === 0 ? (
+                {normalizePermissions(role.permissions).length === 0 ? (
                   <span className="text-xs text-text-muted italic">Chưa có quyền nào</span>
                 ) : (
-                  Object.entries(role.permissions).map(([mod, actions]) => (
+                  normalizePermissions(role.permissions).map(([mod, actions]) => (
                     actions.map(act => (
                       <span key={`${mod}-${act}`} className="px-2 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-primary border border-border">
                         {mod}:{act}

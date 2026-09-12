@@ -12,7 +12,9 @@ class RoleBase(BaseModel):
     display_name: str = Field(..., max_length=255)
     description: str | None = None
     plugin_code_name: str | None = None
-    permissions: dict[str, Any] | None = None
+    # DB tồn tại 2 format: dict {"mod": [...]} và list ["*"] (legacy).
+    # Giữ union để GET /v1/roles không 500 khi gặp format cũ.
+    permissions: dict[str, Any] | list[Any] | None = None
 
 
 class RoleCreate(RoleBase):
@@ -34,3 +36,28 @@ class RoleResponse(RoleBase):
 
 class RoleAssign(BaseModel):
     user_id: uuid.UUID
+
+
+class RoleTemplateInfo(BaseModel):
+    """Tóm tắt 1 template role."""
+
+    key: str
+    name: str
+    description: str
+    roles_count: int
+
+
+class ApplyTemplateRequest(BaseModel):
+    """Body cho POST /roles/apply-template."""
+
+    template_key: str = Field(
+        ..., description="Khóa template: sme | school | government"
+    )
+
+
+class ApplyTemplateResponse(BaseModel):
+    """Kết quả áp template (idempotent)."""
+
+    template_key: str
+    created: list[str] = Field(default_factory=list)
+    skipped: list[str] = Field(default_factory=list)

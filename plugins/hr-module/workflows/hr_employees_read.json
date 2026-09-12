@@ -1,0 +1,80 @@
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "HR - Employees Read",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hr-employees-read",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "hr-employees-read-webhook-uuid"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET search_path TO \"{{TENANT_SCHEMA}}\";\nSELECT e.id, e.employee_code, e.full_name, d.name as department_name, e.position, e.status FROM hr_employees e LEFT JOIN hr_departments d ON e.department_id = d.id;",
+        "additionalFields": {}
+      },
+      "name": "Query Employees",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "K8J4oK4mHyHkDP5C",
+          "name": "ProteusDB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').first()?.json?.body || {};\nconst rawInput = body.parameters?.raw_input || body.raw_input || '';\nconst employees = $input.all().map(item => ({\n  id: item.json.employee_code || item.json.id,\n  name: item.json.full_name,\n  department: item.json.department_name,\n  position: item.json.position,\n  status: item.json.status\n}));\n\nlet result = employees;\nif (rawInput) {\n    const input = rawInput.toLowerCase();\n    \n    // Determine if it's a search for a specific name\n    let nameSearch = null;\n    const nameMatch = input.match(/(?:tên|tên là|là)\\s+([a-záàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ\\s]+)/i);\n    if (nameMatch && nameMatch[1]) {\n        nameSearch = nameMatch[1].trim(); \n    }\n\n    if (nameSearch) {\n        result = employees.filter(emp => nameSearch.includes(emp.name.toLowerCase()) || emp.name.toLowerCase().includes(nameSearch));\n        if (result.length === 0) {\n            // fallback to parts\n            const parts = nameSearch.split(' ');\n            result = employees.filter(emp => parts.some(p => p.length > 2 && emp.name.toLowerCase().includes(p)));\n        }\n    } else {\n        // Fallback for department / direct name mention\n        if (input.includes('it') || input.includes('công nghệ')) {\n            result = employees.filter(emp => emp.department && emp.department.toLowerCase().includes('công nghệ'));\n        } else if (input.includes('nhân sự') || input.includes('hr')) {\n            result = employees.filter(emp => emp.department && emp.department.toLowerCase().includes('nhân sự'));\n        } else {\n            // naive fallback\n            const matched = employees.filter(emp => {\n                const parts = emp.name.toLowerCase().split(' ');\n                return parts.some(p => p.length > 2 && input.includes(p));\n            });\n            if (matched.length > 0 && matched.length < employees.length) {\n                result = matched;\n            }\n        }\n    }\n}\n\n// Generate Markdown table\nlet md = \"\";\nif (result.length > 0) {\n    if (result.length === 1) {\n        md += `**Đã tìm thấy thông tin nhân viên:**\\n`;\n    } else {\n        md += `**Đã lấy danh sách ${result.length} nhân viên:**\\n`;\n    }\n    \n    // Using simple list instead of table for better mobile view, but we can use table or simple bullet points\n    result.forEach(emp => {\n        md += `- **${emp.name}** (${emp.id})\\n`;\n        md += `  Phòng ban: ${emp.department || 'N/A'} | Vị trí: ${emp.position || 'N/A'} | Trạng thái: ${emp.status === 'active' ? 'Hoạt động' : 'Nghỉ việc'}\\n`;\n    });\n} else {\n    md = \"❌ *Không tìm thấy nhân viên nào phù hợp với yêu cầu của bạn.*\";\n}\n\nreturn [\n  {\n    \"markdown\": md,\n    \"data\": result,\n    \"message\": result.length > 0 ? \"Đã lấy danh sách nhân viên từ CSDL thành công!\" : \"Không tìm thấy nhân viên nào phù hợp!\"\n  }\n];"
+      },
+      "name": "Format Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Query Employees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Employees": {
+      "main": [
+        [
+          {
+            "node": "Format Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

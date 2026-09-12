@@ -66,6 +66,7 @@ dashboards:
 
 ui:
   appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/meeting-module"
 
 roles:
   - name: "meeting_organizer"

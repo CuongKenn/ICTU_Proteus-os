@@ -64,6 +64,7 @@ dashboards:
 
 ui:
   appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/finance-module"
 
 roles:
   - name: "finance_accountant"

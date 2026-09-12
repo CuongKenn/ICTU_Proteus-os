@@ -18,6 +18,7 @@ from fastapi import (
     Request,
     status,
 )
+from sqlalchemy.exc import IntegrityError
 
 from app.adapters.external.n8n_adapter import N8nAdapter, N8nAdapterError
 from app.adapters.repositories.base import AbstractPluginRepository
@@ -35,8 +36,10 @@ from app.core.use_cases.plugin_upgrade import PluginUpgradeError, PluginUpgradeU
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_llm_port,
+    get_plugin_action_use_case,
     get_plugin_credentials_use_case,
     get_plugin_list_use_case,
+    get_plugin_records_use_case,
     get_plugin_repo,
     get_plugin_repo_write,
     get_plugin_toggle_use_case,
@@ -49,12 +52,16 @@ from app.entrypoints.schemas.plugin import (
     InstallPluginRequest,
     InstallStatusResponse,
     InstallStepLog,
+    PluginActionListResponse,
+    PluginActionRequest,
+    PluginActionResponse,
     PluginCredentialPayload,
     PluginDetailResponse,
     PluginListResponse,
     PluginResponse,
     PluginSynthesizeRequest,
     PluginUninstallRequest,
+    RecordListResponse,
 )
 from app.infrastructure.rate_limiter import limiter
 
@@ -82,6 +89,7 @@ def _entity_to_response(p) -> PluginResponse:
         tables_count=p.tables_count,
         workflows_count=p.workflows_count,
         roles=p.roles or [],
+        external_url=p.external_url,
         credentials_schema=[
             CredentialFieldSchemaOut(**c.model_dump())
             for c in (p.credentials_schema or [])
@@ -109,6 +117,7 @@ def _entity_to_detail_response(p) -> PluginDetailResponse:
         tables_count=p.tables_count,
         workflows_count=p.workflows_count,
         roles=p.roles or [],
+        external_url=p.external_url,
         credentials_schema=[
             CredentialFieldSchemaOut(**c.model_dump())
             for c in (p.credentials_schema or [])
@@ -386,34 +395,128 @@ async def get_install_status(
 # ─────────────────────────────────────────────────────────────
 
 
+async def _run_uninstall_plugin_background(
+    ctx: TenantContext,
+    plugin_id: uuid.UUID,
+    confirm_name: str,
+    app_state,
+):
+    import sys
+
+    from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+
+    tenant_id_ctx.set(str(ctx.tenant_id))
+    print(
+        f"[BG_TASK] _run_uninstall_plugin_background STARTED: {plugin_id}",
+        flush=True,
+        file=sys.stderr,
+    )
+
+    from app.adapters.external.appsmith_adapter import AppsmithAdapter
+    from app.adapters.external.keycloak_adapter import KeycloakAdapter
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+    from app.adapters.external.metabase_adapter import MetabaseAdapter
+    from app.adapters.external.n8n_adapter import N8nAdapter
+    from app.adapters.external.redis_event_bus import RedisEventBusPublisher
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
+    from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
+    from app.infrastructure.database import AsyncSessionLocal
+
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = SQLAlchemyPluginRepository(session=session)
+            tenant_repo = SQLAlchemyTenantRepository(session=session)
+            use_case = PluginUninstallUseCase(
+                plugin_repo=repo,
+                tenant_repo=tenant_repo,
+                manifest_parser=LocalManifestParser(),
+                n8n_adapter=N8nAdapter(client=app_state.http_client),
+                metabase_adapter=MetabaseAdapter(client=app_state.http_client),
+                appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
+                keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
+                mattermost_adapter=MattermostAdapter(client=app_state.http_client),
+                event_bus=app_state.redis_event_bus,
+                session=session,
+            )
+
+            await use_case.uninstall_plugin(
+                context=ctx,
+                plugin_id=plugin_id,
+                confirm_name=confirm_name,
+            )
+
+            print(f"[BG_TASK] SUCCESS: {plugin_id}", flush=True, file=sys.stderr)
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        print(f"[BG_TASK] FAILED: {plugin_id} — {repr(e)}", flush=True, file=sys.stderr)
+
+
 @router.delete(
     "/{plugin_id}/uninstall",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Gỡ cài đặt Plugin",
 )
 async def uninstall_plugin(
+    request: Request,
     plugin_id: uuid.UUID,
     body: PluginUninstallRequest,
     ctx: TenantContext = Depends(require_permission("plugins.uninstall")),
-    use_case: PluginUninstallUseCase = Depends(get_plugin_uninstall_use_case),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
 ) -> dict[str, str]:
     """
     Gỡ cài đặt Plugin. Xóa các Workflow, Dashboard, DB Table liên quan.
     Yêu cầu xác nhận tên Plugin bằng `confirm_name`.
     """
-    try:
-        await use_case.uninstall_plugin(
-            context=ctx,
-            plugin_id=plugin_id,
-            confirm_name=body.confirm_name,
+    plugin = await repo.get_by_id(plugin_id)
+    if not plugin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plugin không tồn tại.",
         )
-    except PluginUninstallError as e:
+
+    if body.confirm_name != plugin.code_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
+            detail="Tên xác nhận không khớp với mã plugin (code_name).",
+        )
 
-    return {"message": "Gỡ cài đặt Plugin thành công."}
+    task_id = uuid.uuid4()
+
+    await repo.upsert_installation(
+        ctx.tenant_id,
+        plugin_id,
+        PluginStatus.UNINSTALLING,
+        install_task_id=task_id,
+    )
+    await repo.update_install_steps_log(
+        ctx.tenant_id,
+        plugin_id,
+        steps_log=[],
+    )
+    await repo._session.commit()
+
+    import asyncio
+
+    asyncio.get_event_loop().create_task(
+        _run_uninstall_plugin_background(
+            ctx=ctx,
+            plugin_id=plugin_id,
+            confirm_name=body.confirm_name,
+            app_state=request.app.state,
+        )
+    )
+
+    return {
+        "message": "Plugin uninstallation queued.",
+        "plugin_id": str(plugin_id),
+        "task_id": str(task_id),
+        "status": "UNINSTALLING",
+    }
 
 
 @router.post(
@@ -476,6 +579,168 @@ async def upgrade_plugin(
             detail=str(e),
         ) from e
     return {"message": "Nâng cấp Plugin thành công."}
+
+
+# ─────────────────────────────────────────────────────────────
+# GENERIC ACTION DISPATCHER (UI → n8n, giữ isolation plugin)
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{code}/actions",
+    response_model=PluginActionListResponse,
+    summary="Liệt kê webhook actions của Plugin",
+)
+async def list_plugin_actions(
+    code: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_action_use_case),
+) -> PluginActionListResponse:
+    """
+    Trả về các workflow `trigger='webhook'` trong manifest để Micro-UI
+    render nút động — plugin có N workflow cũng không cần thêm endpoint.
+    Cron/manual không xuất hiện ở đây (chạy theo lịch hoặc bởi admin/AI).
+    """
+    actions = await use_case.list_actions(ctx=ctx, plugin_code=code)
+    return PluginActionListResponse(plugin=code, actions=actions)
+
+
+@router.post(
+    "/{code}/actions/{action}",
+    response_model=PluginActionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Dispatch 1 plugin action tới n8n webhook",
+)
+async def dispatch_plugin_action(
+    code: str,
+    action: str,
+    body: PluginActionRequest = Body(default_factory=PluginActionRequest),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_action_use_case),
+) -> PluginActionResponse:
+    """
+    Dispatcher generic: UI chỉ biết tên logic `{action}` (workflows[].id
+    trong manifest), backend tự resolve webhook URL và forward sang n8n.
+    Body gửi sang n8n là phẳng: {**payload, tenant_id, user_id, plugin,
+    action, idempotency_key} để khớp expression workflow ($json.body.*).
+
+    - 404: plugin/action không tồn tại.
+    - 400: action là cron/manual, payload quá lớn hoặc sai định dạng.
+    - 403: thiếu quyền nhóm `{prefix}:*`.
+    - 502: n8n down/timeout/lỗi 5xx (UI nên hiển thị "đang xử lý" + retry
+      với cùng idempotency_key thay vì báo lỗi cứng).
+    """
+    try:
+        result = await use_case.execute(
+            ctx=ctx,
+            plugin_code=code,
+            action=action,
+            payload=body.payload,
+            idempotency_key=body.idempotency_key,
+        )
+    except N8nAdapterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Workflow engine tạm thời không khả dụng: {e}",
+        ) from e
+    return PluginActionResponse(**result)
+
+
+# ─────────────────────────────────────────────────────────────
+# GENERIC RECORDS CRUD (đọc/ghi bảng plugin, allowlist từ manifest)
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{code}/records/{table}",
+    response_model=RecordListResponse,
+    summary="Liệt kê bản ghi của 1 bảng plugin",
+)
+async def list_plugin_records(
+    code: str,
+    table: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> RecordListResponse:
+    """
+    Đọc thật từ Postgres (RLS + lọc tenant_id). Tên bảng phải nằm trong
+    `database.tables` của manifest — plugin có thêm bảng mới cũng không
+    cần thêm endpoint.
+    """
+    result = await use_case.list_records(
+        ctx=ctx, plugin_code=code, table=table, limit=limit, offset=offset
+    )
+    return RecordListResponse(**result)
+
+
+@router.post(
+    "/{code}/records/{table}",
+    response_model=dict[str, Any],
+    status_code=status.HTTP_201_CREATED,
+    summary="Tạo 1 bản ghi trong bảng plugin",
+)
+async def create_plugin_record(
+    code: str,
+    table: str,
+    body: dict[str, Any] = Body(default_factory=dict),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> dict[str, Any]:
+    """Chỉ ghi các cột tồn tại thật (information_schema); ép kiểu date/uuid."""
+    try:
+        return await use_case.create_record(
+            ctx=ctx, plugin_code=code, table=table, data=body
+        )
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã).",
+        ) from e
+
+
+@router.patch(
+    "/{code}/records/{table}/{record_id}",
+    response_model=dict[str, Any],
+    summary="Cập nhật 1 bản ghi trong bảng plugin",
+)
+async def update_plugin_record(
+    code: str,
+    table: str,
+    record_id: str,
+    body: dict[str, Any] = Body(default_factory=dict),
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> dict[str, Any]:
+    """Không cho đổi `id`/`tenant_id` qua API."""
+    try:
+        return await use_case.update_record(
+            ctx=ctx, plugin_code=code, table=table, record_id=record_id, data=body
+        )
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã).",
+        ) from e
+
+
+@router.delete(
+    "/{code}/records/{table}/{record_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xóa 1 bản ghi trong bảng plugin",
+)
+async def delete_plugin_record(
+    code: str,
+    table: str,
+    record_id: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case=Depends(get_plugin_records_use_case),
+) -> None:
+    await use_case.delete_record(
+        ctx=ctx, plugin_code=code, table=table, record_id=record_id
+    )
+    return None
 
 
 # ─────────────────────────────────────────────────────────────

@@ -1,12 +1,16 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Traefik Static Configuration
+# Traefik Static Configuration (file đang dùng — được mount vào container)
 # Tham chiếu: docs/deployment.md §2
+#
+# LƯU Ý: file này do setup.sh / setup.ps1 TỰ SINH theo mode đã chọn
+# (copy từ traefik.dev.yml hoặc render từ traefik.prod.yml).
+# Muốn sửa static config: sửa 2 file template, rồi chạy lại setup script.
 
 api:
   dashboard: true
-  insecure: true   # Dashboard không cần auth (dev only — xóa khi production)
+  insecure: true   # Dev only. Production: insecure: false + TLS (xem traefik.prod.yml)
 
 entryPoints:
   web:
@@ -35,12 +39,3 @@ accessLog:
       defaultMode: drop
       names:
         Authorization: redact   # Ẩn JWT trong access log
-
-# Uncomment khi production (cần domain thực):
-# certificatesResolvers:
-#   letsencrypt:
-#     acme:
-#       email: admin@yourdomain.com
-#       storage: /letsencrypt/acme.json
-#       httpChallenge:
-#         entryPoint: web

@@ -6,7 +6,7 @@
 // Giao tiếp qua BFF /api/ai/command (không gọi FastAPI trực tiếp)
 // Tham chiếu: docs/architecture.md §2.1 (BFF Pattern), docs/dsl-spec.md
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNotificationStore } from "@/store/notificationStore";
 
 // Helper: dùng fallback khi chạy trên HTTP không có crypto.randomUUID
@@ -40,63 +40,37 @@ export interface DslPreview {
   approval_deadline: string;
 }
 
-interface AICommandBFFResponse {
-  /** effect=read: trả kết quả trực tiếp */
-  result?: string;
-  /** effect=write/critical: DSL preview để hiển thị awaiting_approval */
-  dsl_preview?: DslPreview;
-  /** Trạng thái xử lý */
-  status: "completed" | "pending_approval" | "error";
-  message: string;
-}
-
-interface UseAICommandReturn {
-  widgetState: WidgetState;
-  messages: ChatMessage[];
-  inputValue: string;
-  dslPreview: DslPreview | null;
-  sessionId: string;
-  setInputValue: (value: string) => void;
-  openWidget: () => void;
-  minimizeWidget: () => void;
-  resetAndClose: () => void;
-  sendCommand: () => Promise<void>;
-  openMattermostApproval: () => void;
-  cancelApproval: () => void;
-}
-
-// ─── Hook Implementation ───────────────────────────────────────────────────────
-
-export function useAICommand(): UseAICommandReturn {
-  const [widgetState, setWidgetState] = useState<WidgetState>("collapsed");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: uuid(),
-      role: "assistant",
-      content: "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn truy vấn dữ liệu hoặc thực hiện các tác vụ quản trị. Hãy nhập lệnh bằng tiếng Việt tự nhiên.",
-      timestamp: new Date(),
-    },
-  ]);
-  const [inputValue, setInputValue] = useState("");
-  const [dslPreview, setDslPreview] = useState<DslPreview | null>(null);
-  const [sessionId, setSessionId] = useState<string>(() => uuid());
-
-  const { addToast } = useNotificationStore();
-
-  // ─── Actions ─────────────────────────────────────────────────────────────────
-
-  const openWidget = useCallback(() => {
-    setWidgetState("expanded");
-  }, []);
-
-  const minimizeWidget = useCallback(() => {
-    setWidgetState("collapsed");
-  }, []);
-
-  const resetAndClose = useCallback(() => {
-    setWidgetState("collapsed");
-    setDslPreview(null);
-    setMessages([
+  interface AICommandBFFResponse {
+    /** effect=read: trả kết quả trực tiếp */
+    result?: any;
+    /** effect=write/critical: kết quả dry run */
+    dry_run_result?: DslPreview;
+    /** Trạng thái xử lý */
+    status: "COMPLETED" | "PENDING_APPROVAL" | "FAILED" | "TIMEOUT" | "EXECUTING" | "error" | "completed" | "pending_approval";
+    message: string;
+  }
+  
+  interface UseAICommandReturn {
+    widgetState: WidgetState;
+    messages: ChatMessage[];
+    inputValue: string;
+    dslPreview: DslPreview | null;
+    sessionId: string;
+    setInputValue: (value: string) => void;
+    openWidget: () => void;
+    minimizeWidget: () => void;
+    resetAndClose: () => void;
+    clearHistory: () => void;
+    sendCommand: () => Promise<void>;
+    openMattermostApproval: () => void;
+    cancelApproval: () => void;
+  }
+  
+  // ─── Hook Implementation ───────────────────────────────────────────────────────
+  
+  export function useAICommand(): UseAICommandReturn {
+    const [widgetState, setWidgetState] = useState<WidgetState>("collapsed");
+    const [messages, setMessages] = useState<ChatMessage[]>([
       {
         id: uuid(),
         role: "assistant",
@@ -104,94 +78,182 @@ export function useAICommand(): UseAICommandReturn {
         timestamp: new Date(),
       },
     ]);
-    setSessionId(uuid());
-  }, []);
+    const [inputValue, setInputValue] = useState("");
+    const [dslPreview, setDslPreview] = useState<DslPreview | null>(null);
+    const [sessionId, setSessionId] = useState<string>(() => uuid());
+  
+    const { addToast } = useNotificationStore();
 
-  const appendMessage = useCallback((role: MessageRole, content: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: uuid(), role, content, timestamp: new Date() },
-    ]);
-  }, []);
+    // ─── Lịch sử Chat (LocalStorage) ─────────────────────────────────────────────
 
-  /**
-   * sendCommand — Gửi lệnh tới BFF /api/ai/command
-   * BFF sẽ inject JWT Token từ HttpOnly Cookie và forward tới FastAPI.
-   * effect=read → hiển thị kết quả ngay.
-   * effect=write/critical → chuyển sang state awaiting_approval + hiện DSL preview.
-   */
-  const sendCommand = useCallback(async () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || widgetState === "thinking") return;
-
-    // Thêm tin nhắn người dùng
-    appendMessage("user", trimmed);
-    setInputValue("");
-    setWidgetState("thinking");
-
-    try {
-      const response = await fetch("/api/ai/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          natural_language_input: trimmed,
-          session_id: sessionId,
-        }),
-      });
-
-      let data: AICommandBFFResponse;
-
-      if (!response.ok && process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
-        // Dev fallback: mock response khi API chưa có
-        const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
-        const detectedEffect = detectEffectFromInput(trimmed);
-        data = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
-      } else if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      } else {
-        data = await response.json();
+    useEffect(() => {
+      try {
+        const savedMessages = localStorage.getItem("proteus_ai_chat_history");
+        const savedSession = localStorage.getItem("proteus_ai_session_id");
+        if (savedMessages) {
+          const parsed = JSON.parse(savedMessages);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(
+              parsed.map((m: any) => ({
+                ...m,
+                timestamp: new Date(m.timestamp),
+              }))
+            );
+          }
+        }
+        if (savedSession) {
+          setSessionId(savedSession);
+        }
+      } catch (e) {
+        /* eslint-disable-next-line no-console */
+        console.error("Failed to load AI chat history", e);
       }
+    }, []);
 
-      if (data.status === "completed" && data.result) {
-        // effect=read: hiển thị kết quả ngay
-        appendMessage("assistant", data.result);
-        setWidgetState("expanded");
-      } else if (data.status === "pending_approval" && data.dsl_preview) {
-        // effect=write/critical: chờ phê duyệt
-        setDslPreview(data.dsl_preview);
-        appendMessage(
-          "assistant",
-          `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${data.dsl_preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
-        );
-        setWidgetState("awaiting_approval");
-      } else {
-        appendMessage("assistant", data.message || "Đã xảy ra lỗi không xác định.");
-        setWidgetState("expanded");
+    useEffect(() => {
+      try {
+        localStorage.setItem("proteus_ai_chat_history", JSON.stringify(messages));
+        localStorage.setItem("proteus_ai_session_id", sessionId);
+      } catch (e) {
+        /* eslint-disable-next-line no-console */
+        console.error("Failed to save AI chat history", e);
       }
-    } catch (error) {
-      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
-        // Dev fallback
-        const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
-        const detectedEffect = detectEffectFromInput(trimmed);
-        const mockData = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
-        if (mockData.status === "pending_approval" && mockData.dsl_preview) {
-          setDslPreview({ ...mockData.dsl_preview, command_id: uuid() });
+    }, [messages, sessionId]);
+  
+    // ─── Actions ─────────────────────────────────────────────────────────────────
+  
+    const openWidget = useCallback(() => {
+      setWidgetState("expanded");
+    }, []);
+  
+    const minimizeWidget = useCallback(() => {
+      setWidgetState("collapsed");
+    }, []);
+
+    const clearHistory = useCallback(() => {
+      setMessages([
+        {
+          id: uuid(),
+          role: "assistant",
+          content: "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn truy vấn dữ liệu hoặc thực hiện các tác vụ quản trị. Hãy nhập lệnh bằng tiếng Việt tự nhiên.",
+          timestamp: new Date(),
+        },
+      ]);
+      setSessionId(uuid());
+      setDslPreview(null);
+    }, []);
+  
+    const resetAndClose = useCallback(() => {
+      setWidgetState("collapsed");
+      setDslPreview(null);
+      // Không clear lịch sử chat khi đóng Widget nữa
+    }, []);
+  
+    const appendMessage = useCallback((role: MessageRole, content: string) => {
+      setMessages((prev) => [
+        ...prev,
+        { id: uuid(), role, content, timestamp: new Date() },
+      ]);
+    }, []);
+  
+    /**
+     * sendCommand — Gửi lệnh tới BFF /api/ai/command
+     * BFF sẽ inject JWT Token từ HttpOnly Cookie và forward tới FastAPI.
+     * effect=read → hiển thị kết quả ngay.
+     * effect=write/critical → chuyển sang state awaiting_approval + hiện DSL preview.
+     */
+    const sendCommand = useCallback(async () => {
+      const trimmed = inputValue.trim();
+      if (!trimmed || widgetState === "thinking") return;
+  
+      // Thêm tin nhắn người dùng
+      appendMessage("user", trimmed);
+      setInputValue("");
+      setWidgetState("thinking");
+  
+      try {
+        const response = await fetch("/api/ai/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            natural_language_input: trimmed,
+            session_id: sessionId,
+          }),
+        });
+  
+        let data: AICommandBFFResponse;
+  
+        if (!response.ok && process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+          // Dev fallback: mock response khi API chưa có
+          const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
+          const detectedEffect = detectEffectFromInput(trimmed);
+          data = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
+        } else if (!response.ok) {
+          if (response.status === 401) {
+              throw new Error("UNAUTHORIZED");
+          }
+          throw new Error(`API Error: ${response.status}`);
+        } else {
+          data = await response.json();
+        }
+  
+        // Xử lý status phân biệt hoa/thường để match Enum từ Python
+        const statusUpper = typeof data.status === "string" ? data.status.toUpperCase() : "ERROR";
+  
+        if (statusUpper === "COMPLETED" && data.result) {
+          // effect=read: hiển thị kết quả ngay
+          // Backend trả về dict, cần stringify hoặc extract text hợp lý
+          const resultText = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
+          appendMessage("assistant", resultText);
+          setWidgetState("expanded");
+        } else if (statusUpper === "PENDING_APPROVAL") {
+          // effect=write/critical: chờ phê duyệt
+          // Nếu backend không trả về dsl_preview, fallback mock data hoặc parse info từ result/message
+          const preview = data.dry_run_result || (data as any).dsl_preview || data.result || {
+            action: "System Command", effect: "write"
+          };
+          setDslPreview(preview);
           appendMessage(
             "assistant",
-            `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${mockData.dsl_preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
+            `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${preview.action || "Execute"}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
           );
           setWidgetState("awaiting_approval");
-        } else if (mockData.status === "completed" && mockData.result) {
-          appendMessage("assistant", mockData.result);
+        } else {
+          appendMessage("assistant", data.message || "Đã xảy ra lỗi không xác định.");
           setWidgetState("expanded");
         }
-      } else {
-        appendMessage("assistant", "❌ Không thể kết nối tới AI Service. Vui lòng thử lại sau.");
-        addToast("error", "Lỗi kết nối AI Service");
-        setWidgetState("expanded");
+      } catch (error) {
+        if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+          // Dev fallback
+          const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
+          const detectedEffect = detectEffectFromInput(trimmed);
+          const mockData = MOCK_RESPONSES[detectedEffect] as AICommandBFFResponse;
+          const mockUpper = typeof mockData.status === "string" ? mockData.status.toUpperCase() : "ERROR";
+  
+          if (mockUpper === "PENDING_APPROVAL" && (mockData as any).dsl_preview) {
+            setDslPreview({ ...(mockData as any).dsl_preview, command_id: uuid() });
+            appendMessage(
+              "assistant",
+              `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${(mockData as any).dsl_preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
+            );
+            setWidgetState("awaiting_approval");
+          } else if (mockUpper === "COMPLETED" && mockData.result) {
+            const resultText = typeof mockData.result === "string" ? mockData.result : JSON.stringify(mockData.result, null, 2);
+            appendMessage("assistant", resultText);
+            setWidgetState("expanded");
+          }
+        } else {
+          if (error instanceof Error && error.message === "UNAUTHORIZED") {
+            appendMessage("assistant", "⚠️ Phiên làm việc của bạn đã hết hạn. Vui lòng tải lại trang (F5) và đăng nhập lại để tiếp tục sử dụng Proteus AI.");
+            addToast("warning", "Phiên làm việc hết hạn");
+          } else {
+            appendMessage("assistant", "❌ Không thể kết nối tới AI Service. Vui lòng thử lại sau.");
+            addToast("error", "Lỗi kết nối AI Service");
+          }
+          setWidgetState("expanded");
+        }
       }
-    }
-  }, [inputValue, widgetState, appendMessage, addToast, sessionId]);
+    }, [inputValue, widgetState, appendMessage, addToast, sessionId]);
 
   /**
    * openMattermostApproval — Mở Mattermost để phê duyệt.
@@ -228,6 +290,7 @@ export function useAICommand(): UseAICommandReturn {
     openWidget,
     minimizeWidget,
     resetAndClose,
+    clearHistory,
     sendCommand,
     openMattermostApproval,
     cancelApproval,

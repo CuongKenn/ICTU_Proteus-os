@@ -1,0 +1,50 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Traefik Static Configuration — PRODUCTION template
+# File này được setup.sh / setup.ps1 render thành traefik.yml khi chọn mode
+# "production" (placeholder __LETSENCRYPT_EMAIL__ thay bằng email người dùng).
+# Tham chiếu: docs/deployment.md §2
+#
+# Production: HTTPS qua Let's Encrypt (HTTP challenge, cần port 80 mở),
+# dashboard TẮT insecure (xem qua router traefik.<domain> đã bọc TLS).
+
+api:
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false   # Service phải có label traefik.enable=true
+    network: proteus-net
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  fields:
+    defaultMode: keep
+    headers:
+      defaultMode: drop
+      names:
+        Authorization: redact   # Ẩn JWT trong access log
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: __LETSENCRYPT_EMAIL__
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web

@@ -3,9 +3,12 @@
 #
 # Core Domain — Plugin Uninstall Use Case (6-step reverse)
 
+import asyncio
 import logging
+import random
 import re
 import uuid
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,6 +64,7 @@ class PluginUninstallUseCase:
         self.session = session
         self.event_bus = event_bus
         self.tenant_repo = tenant_repo
+        self._steps_log: list[dict[str, Any]] = []
 
     async def uninstall_plugin(
         self, context: TenantContext, plugin_id: uuid.UUID, confirm_name: str
@@ -115,37 +119,67 @@ class PluginUninstallUseCase:
 
         try:
             # BƯỚC 1: Xóa Event Subscriptions
+            self._log_step("events", "RUNNING")
+            await self._persist_steps(context, plugin_id)
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_1_events(
                 context, plugin_code_name, manifest, config_override.get("events", [])
             )
             completed_steps.append("subscriptions")
 
             # BƯỚC 2: Xóa Keycloak Roles
+            self._log_step("events", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("keycloak", "RUNNING")
+            await self._persist_steps(context, plugin_id)
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_2_keycloak(
                 context, plugin_code_name, manifest, config_override.get("keycloak", [])
             )
             completed_steps.append("keycloak")
 
             # BƯỚC 3: Xóa Appsmith Apps
+            self._log_step("keycloak", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("appsmith", "RUNNING")
+            await self._persist_steps(context, plugin_id)
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_3_appsmith(
                 context, plugin_code_name, manifest, config_override.get("appsmith", [])
             )
             completed_steps.append("appsmith")
 
             # BƯỚC 4: Xóa Metabase Dashboards
+            self._log_step("appsmith", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("metabase", "RUNNING")
+            await self._persist_steps(context, plugin_id)
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_4_metabase(
                 context, plugin_code_name, manifest, config_override.get("metabase", [])
             )
             completed_steps.append("metabase")
 
             # BƯỚC 5: Xóa n8n Workflows
+            self._log_step("metabase", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("n8n", "RUNNING")
+            await self._persist_steps(context, plugin_id)
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_5_n8n(
                 context, plugin_code_name, manifest, config_override.get("n8n", [])
             )
             completed_steps.append("n8n")
 
             # BƯỚC 6: Drop Database Tables
+            self._log_step("n8n", "DONE")
+            await self._persist_steps(context, plugin_id)
+            self._log_step("database", "RUNNING")
+            await self._persist_steps(context, plugin_id)
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await self._step_6_database(context, plugin_code_name, manifest)
+            self._log_step("database", "DONE")
+            await self._persist_steps(context, plugin_id)
             completed_steps.append("db")
 
             # Xóa hẳn (hoặc soft-delete / update status DELETED)
@@ -172,9 +206,10 @@ class PluginUninstallUseCase:
             if self.event_bus:
                 try:
                     await self.event_bus.publish_plugin_lifecycle(
+                        action="plugin.uninstalled",
                         tenant_id=str(context.tenant_id),
-                        plugin_id=str(plugin.id),
-                        event_type="plugin.uninstalled",
+                        plugin_name=plugin.code_name,
+                        plugin_version=manifest.version,
                     )
                 except Exception as ex:
                     logger.warning("Failed to publish plugin.uninstalled event: %s", ex)
@@ -212,9 +247,10 @@ class PluginUninstallUseCase:
             if self.event_bus:
                 try:
                     await self.event_bus.publish_plugin_lifecycle(
+                        action="plugin.failed",
                         tenant_id=str(context.tenant_id),
-                        plugin_id=str(plugin.id),
-                        event_type="plugin.failed",
+                        plugin_name=plugin.code_name,
+                        plugin_version=manifest.version,
                     )
                 except Exception as ex:
                     logger.warning("Failed to publish plugin.failed event: %s", ex)
@@ -356,3 +392,53 @@ class PluginUninstallUseCase:
                         raise
             finally:
                 await self.session.execute(text("SET search_path TO public"))
+
+    async def _persist_steps(
+        self, context: TenantContext, plugin_id: uuid.UUID
+    ) -> None:
+        import json
+
+        await self.plugin_repo.update_install_steps_log(
+            tenant_id=context.tenant_id,
+            plugin_id=plugin_id,
+            steps_log=self._steps_log,
+        )
+        await self.session.commit()
+
+    def _log_step(
+        self,
+        step_name: str,
+        status: str,
+        message: str | None = None,
+    ) -> None:
+        from datetime import UTC, datetime
+
+        now_iso = datetime.now(UTC).isoformat()
+
+        emoji = "⏳"
+        if status == "DONE":
+            emoji = "✅"
+        elif status == "FAILED":
+            emoji = "❌"
+
+        msg_suffix = f" - {message}" if message else ""
+        logger.info(
+            f"{emoji} [UNINSTALL] Bước {step_name.upper()}: {status}{msg_suffix}"
+        )
+
+        for entry in self._steps_log:
+            if entry["step"] == step_name:
+                entry["status"] = status
+                entry["at"] = now_iso
+                if message:
+                    entry["message"] = message
+                return
+
+        self._steps_log.append(
+            {
+                "step": step_name,
+                "status": status,
+                "at": now_iso,
+                "message": message,
+            }
+        )

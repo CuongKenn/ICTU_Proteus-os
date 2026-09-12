@@ -58,6 +58,10 @@ database:
     - "hr_attendance_logs"
     - "hr_payroll_records"
     - "hr_onboarding_tasks"
+    - "hr_job_postings"
+    - "hr_applications"
+    - "hr_interviews"
+    - "hr_offers"
 
   # Chạy một lần khi cài đặt lần đầu
   seed_file: "db/seed_data.sql"
@@ -73,21 +77,48 @@ database:
 # PHẦN 4: WORKFLOWS
 # ════════════════════════════════════════════════
 workflows:
-  - file: "workflows/leave_request.json"
+  - id: "wf_hr_employees_read"
+    file: "workflows/hr_employees_read.json"
+    name: "HR Employees Read Workflow"
+    description: "Workflow trả về danh sách nhân viên từ CSDL"
+    trigger: "webhook"
+
+  - id: "wf_leave_request"
+    file: "workflows/leave_request.json"
     name: "HR Leave Request Workflow"
     description: "Xử lý luồng duyệt/từ chối đơn nghỉ phép"
     trigger: "webhook"
 
-  - file: "workflows/employee_onboarding.json"
+  - id: "wf_employee_onboarding"
+    file: "workflows/employee_onboarding.json"
     name: "Employee Onboarding Workflow"
     description: "Tạo tài khoản hệ thống khi nhân viên mới vào"
     trigger: "webhook"
 
-  - file: "workflows/leave_balance_reset.json"
+  - id: "wf_leave_balance_reset"
+    file: "workflows/leave_balance_reset.json"
     name: "Annual Leave Balance Reset"
     description: "Reset số ngày phép còn lại vào đầu năm mới"
     trigger: "cron"
     cron_expression: "0 1 1 1 *"   # 1h sáng, ngày 1 tháng 1
+
+  - id: "wf_application_received"
+    file: "workflows/application_received.json"
+    name: "Tiếp nhận hồ sơ ứng viên"
+    description: "Ghi hồ sơ mới từ web form vào pipeline tuyển dụng"
+    trigger: "webhook"
+
+  - id: "wf_interview_schedule"
+    file: "workflows/interview_schedule.json"
+    name: "Đặt lịch phỏng vấn"
+    description: "Tạo lịch phỏng vấn và chuyển hồ sơ sang stage INTERVIEW"
+    trigger: "webhook"
+
+  - id: "wf_application_screen"
+    file: "workflows/application_screen.json"
+    name: "AI chấm điểm hồ sơ"
+    description: "LLM địa phương chấm CV theo tin tuyển dụng (human duyệt sau)"
+    trigger: "webhook"
 
 # ════════════════════════════════════════════════
 # PHẦN 5: DASHBOARDS
@@ -100,11 +131,10 @@ dashboards:
 # ════════════════════════════════════════════════
 # PHẦN 6: UI APPLICATIONS
 # ════════════════════════════════════════════════
-ui_apps:
-  - file: "ui/appsmith_app.json"
-    name: "HR Management App"
-    path: "/apps/hr"   # BẮT BUỘC prefix /apps/
 
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/hr-module"
 # ════════════════════════════════════════════════
 # PHẦN 7: ROLES
 # ════════════════════════════════════════════════

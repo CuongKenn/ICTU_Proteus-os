@@ -1,0 +1,190 @@
+{
+  "name": "HR - Application Screening (AI)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hr/application-screen",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Screen Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "hr-application-screen-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.full_name, a.cover_note, p.title, p.requirements FROM {{TENANT_SCHEMA}}.hr_applications a LEFT JOIN {{TENANT_SCHEMA}}.hr_job_postings p ON p.id = a.posting_id WHERE a.id = $1;",
+        "options": {
+          "queryReplacement": "={{$json.body.application_id}}"
+        }
+      },
+      "name": "Fetch Application",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3",
+        "options": {}
+      },
+      "name": "Ollama llama3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        450,
+        550
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "uFKsNYmOauOi9E3J",
+          "name": "OllamaLocal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "prompt": "=B\u1ea1n l\u00e0 chuy\u00ean gia tuy\u1ec3n d\u1ee5ng. Ch\u1ea5m \u1ee9ng vi\u00ean cho v\u1ecb tr\u00ed sau theo thang 0-100 (kinh nghi\u1ec7m, k\u1ef9 n\u0103ng kh\u1edbp y\u00eau c\u1ea7u, tr\u00ecnh b\u00e0y h\u1ed3 s\u01a1).\nV\u1eca TR\u00cd: {{ $('Fetch Application').item.json.title }}.\nY\u00caU C\u1ea6U: {{ $('Fetch Application').item.json.requirements }}.\n\u1ee8NG VI\u00caN: {{ $('Fetch Application').item.json.full_name }}. TH\u01af GI\u1edaI THI\u1ec6U: {{ $('Fetch Application').item.json.cover_note }}.\nCh\u1ec9 tr\u1ea3 v\u1ec1 JSON thu\u1ea7n, kh\u00f4ng gi\u1ea3i th\u00edch: {\"score\": <s\u1ed1 0-100>, \"notes\": \"<nh\u1eadn x\u00e9t ng\u1eafn>\"}."
+      },
+      "name": "Score Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const appId = $('Fetch Application').item.json.id;\nconst txt = ($input.first().json.text || '').trim();\nlet score = null, notes = txt.slice(0, 200);\ntry {\n  const m = txt.match(/\\{[\\s\\S]*\\}/);\n  if (m) { const o = JSON.parse(m[0]);\n    if (typeof o.score === 'number') score = Math.max(0, Math.min(100, Math.round(o.score)));\n    if (typeof o.notes === 'string') notes = o.notes.slice(0, 200); }\n} catch (e) {}\nreturn [{json: {application_id: appId, score, notes}}];"
+      },
+      "name": "Parse Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE {{TENANT_SCHEMA}}.hr_applications SET score = $1, screening_notes = $2, stage = 'SCREENING', updated_at = NOW() WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{$json.score}},={{$json.notes}},={{$json.application_id}}"
+        }
+      },
+      "name": "Save Score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        1050,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"score\": \"{{$('Parse Score').item.json.score}}\"}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Screen Request": {
+      "main": [
+        [
+          {
+            "node": "Fetch Application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Application": {
+      "main": [
+        [
+          {
+            "node": "Score Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama llama3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Score Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Score": {
+      "main": [
+        [
+          {
+            "node": "Save Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Score": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

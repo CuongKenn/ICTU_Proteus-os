@@ -44,7 +44,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const targetUrl = `${BACKEND_URL}/api/v1/ai/command`;
+  // Dùng thẳng dữ liệu từ user gửi qua (natural_language_input, session_id)
+  const bodyAny = body as any;
+  const backendPayload = {
+    session_id: (bodyAny.session_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bodyAny.session_id)) 
+                ? bodyAny.session_id 
+                : "11111111-1111-1111-1111-111111111111",
+    natural_language_input: bodyAny.natural_language_input || ""
+  };
+
+  const targetUrl = `${BACKEND_URL}/api/v1/ai/chat`;
 
   try {
     const backendResponse = await fetch(targetUrl, {
@@ -55,14 +64,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         Authorization: `Bearer ${token.accessToken}`,
         Accept: "application/json",
       },
-      body: JSON.stringify(body),
-      // Timeout 30s cho AI inference
-      signal: AbortSignal.timeout(30_000),
+      body: JSON.stringify(backendPayload),
+    // Timeout 120s cho AI inference (vì Llama 3 chạy cục bộ có thể lâu)
+      signal: AbortSignal.timeout(120_000),
     });
+
+    const responseText = await backendResponse.text();
+    // Bỏ qua eslint vì log cần thiết cho debug
+    // eslint-disable-next-line no-console
+    console.log(`[BFF] Backend returned status ${backendResponse.status}`);
+    // eslint-disable-next-line no-console
+    console.log(`[BFF] Backend returned body: ${responseText}`);
 
     const contentType = backendResponse.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      const data = await backendResponse.json();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        data = { error: "JSON Parse Error" };
+      }
       return NextResponse.json(data, { status: backendResponse.status });
     }
 
@@ -72,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 502 }
     );
   } catch (err) {
-    if (err instanceof Error && err.name === "TimeoutError") {
+    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
       return NextResponse.json(
         { error: "Gateway Timeout", message: "AI Service mất quá nhiều thời gian phản hồi." },
         { status: 504 }

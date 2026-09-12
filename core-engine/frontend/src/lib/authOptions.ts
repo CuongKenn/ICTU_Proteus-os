@@ -8,6 +8,12 @@
 
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
+import {
+  SESSION_MAX_AGE,
+  isSecureCookies,
+  sessionCookieDomain,
+  sessionCookieName,
+} from "./sessionCookie";
 
 const publicIssuer = process.env.KEYCLOAK_ISSUER || "";
 const realm = publicIssuer.split("/realms/")[1] || "proteus";
@@ -67,6 +73,8 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 })();
 return refreshPromise;
 }
+
+// (dùng sessionCookie.ts — single source of truth, BFF proxy cũng dùng)
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
@@ -185,7 +193,25 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 giờ (session tối đa, kể cả refresh)
+    maxAge: SESSION_MAX_AGE, // 8 giờ (session tối đa, kể cả refresh)
+  },
+
+  // Cookie domain chia sẻ cho cả *.proteus.local để Micro-Frontend gateway
+  // (plugins.proteus.local) gọi BFF proxy kèm session cookie (credentials:include).
+  // Cùng eTLD+1 nên SameSite=Lax vẫn được gửi — browser JS KHÔNG bao giờ thấy JWT.
+  // Localhost dev: giữ host-only (không set domain) để không gãy login.
+  // Lưu ý: session cũ (host-only) sẽ hết hiệu lực, user login lại 1 lần.
+  cookies: {
+    sessionToken: {
+      name: sessionCookieName(),
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isSecureCookies(),
+        ...(sessionCookieDomain() ? { domain: sessionCookieDomain() } : {}),
+      },
+    },
   },
 
   pages: {

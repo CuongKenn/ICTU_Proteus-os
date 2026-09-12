@@ -14,12 +14,12 @@ services:
   # TRAEFIK — Edge Proxy (Ingress)
   # ────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v2.11
+    image: traefik:latest
     container_name: proteus-traefik
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_HTTPS_PORT:-443}:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -36,13 +36,13 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
       # Middleware allow iframe embedding for apps
       - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.X-Frame-Options="
-      - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.Content-Security-Policy=frame-ancestors 'self' http://${DOMAIN:-proteus.local} https://${DOMAIN:-proteus.local}"
+      - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.Content-Security-Policy=frame-ancestors 'self' http://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX} https://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}"
 
   # ────────────────────────────────────────────────────────────
   # POSTGRESQL — Primary Database
   # ────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:latest
     container_name: proteus-postgres
     restart: unless-stopped
     environment:
@@ -50,7 +50,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-proteus}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # PG18+: mount ở /var/lib/postgresql (cha), data nằm ở subdir theo
+      # major version (pg_ctlcluster layout). Mount trực tiếp .../data bị từ chối.
+      - postgres-data:/var/lib/postgresql
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     networks:
       - proteus-net
@@ -66,7 +68,7 @@ services:
   # POSTGRES-BACKUP — Automated Database Backup
   # ────────────────────────────────────────────────────────────
   postgres-backup:
-    image: postgres:16-alpine
+    image: postgres:latest
     container_name: proteus-postgres-backup
     restart: unless-stopped
     environment:
@@ -93,7 +95,7 @@ services:
   # REDIS — Event Bus (Pub/Sub) + Cache
   # ────────────────────────────────────────────────────────────
   redis:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: proteus-redis
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1
@@ -113,7 +115,7 @@ services:
   # KEYCLOAK — SSO / Identity Provider
   # ────────────────────────────────────────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:25.0
+    image: quay.io/keycloak/keycloak:latest
     container_name: proteus-keycloak
     restart: unless-stopped
     command: ${KEYCLOAK_START_MODE:-start-dev} --db=postgres --import-realm
@@ -126,7 +128,7 @@ services:
       KC_DB_SCHEMA: keycloak
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_HOSTNAME: http://auth.${DOMAIN}
+      KC_HOSTNAME: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}
       KC_HOSTNAME_STRICT: "false"        # Allow HTTP in dev; don't enforce HTTPS-only hostnames
       KC_HOSTNAME_STRICT_HTTPS: "false"  # Don't redirect HTTP -> HTTPS
       KC_PROXY_HEADERS: xforwarded
@@ -161,7 +163,7 @@ services:
   # QDRANT — Vector Database (RAG / AI)
   # ────────────────────────────────────────────────────────────
   qdrant:
-    image: qdrant/qdrant:v1.10.1
+    image: qdrant/qdrant:latest
     container_name: proteus-qdrant
     restart: unless-stopped
     volumes:
@@ -185,7 +187,7 @@ services:
     networks:
       - proteus-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -238,7 +240,7 @@ services:
   # N8N — Workflow Automation Engine
   # ────────────────────────────────────────────────────────────
   n8n:
-    image: n8nio/n8n:1.52.2
+    image: n8nio/n8n:latest
     container_name: proteus-n8n
     restart: unless-stopped
     environment:
@@ -249,11 +251,11 @@ services:
       DB_POSTGRESDB_USER: ${POSTGRES_USER:-proteus}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_POSTGRESDB_SCHEMA: n8n
-      N8N_HOST: workflow.${DOMAIN}
-      N8N_PROTOCOL: http
-      WEBHOOK_URL: http://workflow.${DOMAIN}
+      N8N_HOST: workflow.${DOMAIN}${PUBLIC_URL_SUFFIX}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${PUBLIC_SCHEME:-http}://workflow.${DOMAIN}${PUBLIC_URL_SUFFIX}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-      N8N_SECURE_COOKIE: "false"
+      N8N_SECURE_COOKIE: "${N8N_SECURE_COOKIE:-false}"
       N8N_BASIC_AUTH_ACTIVE: "false"   # Auth qua Keycloak OIDC
       N8N_DISABLE_UI_SECURITY: "true"
     depends_on:
@@ -275,14 +277,14 @@ services:
   # MATTERMOST — Chat & Collaboration
   # ────────────────────────────────────────────────────────────
   mattermost:
-    image: mattermost/mattermost-enterprise-edition:9.11.1
+    image: mattermost/mattermost-enterprise-edition:latest
     container_name: proteus-mattermost
     restart: unless-stopped
     environment:
       - MM_SQLSETTINGS_DRIVERNAME=postgres
       - MM_SQLSETTINGS_DATASOURCE=postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}?sslmode=disable&connect_timeout=10&search_path=mattermost
       - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
-      - MM_SERVICESETTINGS_SITEURL=http://chat.${DOMAIN}
+      - MM_SERVICESETTINGS_SITEURL=${PUBLIC_SCHEME:-http}://chat.${DOMAIN}${PUBLIC_URL_SUFFIX}
       - MM_PLUGINSETTINGS_CLIENTDIRECTORY=/mattermost/client/plugins
     depends_on:
       postgres:
@@ -308,7 +310,7 @@ services:
   # METABASE — Business Intelligence / Dashboard
   # ────────────────────────────────────────────────────────────
   metabase:
-    image: metabase/metabase:v0.50.31
+    image: metabase/metabase:latest
     container_name: proteus-metabase
     restart: unless-stopped
     environment:
@@ -318,7 +320,12 @@ services:
       MB_DB_USER: ${POSTGRES_USER:-proteus}
       MB_DB_PASS: ${POSTGRES_PASSWORD}
       MB_DB_HOST: postgres
-      MB_SITE_URL: http://analytics.${DOMAIN}
+      MB_SITE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN}${PUBLIC_URL_SUFFIX}
+      MB_REDIRECT_ALL_REQUESTS_TO_HTTPS: "false"
+      MB_EMBEDDING_APP_ORIGIN: ${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}
+      # Jetty mặc định chỉ cho header 8KB → browser mang nhiều cookie SSO
+      # (Keycloak/NextAuth JWT) dễ vượt và nhận 431. Nâng lên 32KB.
+      MB_JETTY_REQUEST_HEADER_SIZE: "32768"
     depends_on:
       postgres:
         condition: service_healthy
@@ -332,6 +339,7 @@ services:
       - "traefik.http.routers.metabase.rule=Host(`analytics.${DOMAIN}`)"
       - "traefik.http.routers.metabase.entrypoints=web"
       - "traefik.http.services.metabase.loadbalancer.server.port=3000"
+      - "traefik.http.routers.metabase.middlewares=iframe-allow"
 
   # ────────────────────────────────────────────────────────────
   # APPSMITH — Low-Code UI Builder
@@ -344,7 +352,7 @@ services:
       APPSMITH_DISABLE_TELEMETRY: "true"
       APPSMITH_OAUTH2_GITHUB_CLIENT_ID: appsmith
       APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET}
-      APPSMITH_OAUTH2_GITHUB_AUTH_URL: http://auth.${DOMAIN}/realms/proteus/protocol/openid-connect/auth
+      APPSMITH_OAUTH2_GITHUB_AUTH_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/proteus/protocol/openid-connect/auth
       APPSMITH_OAUTH2_GITHUB_TOKEN_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
       APPSMITH_OAUTH2_GITHUB_PROFILE_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
     volumes:
@@ -363,24 +371,27 @@ services:
   # OUTLINE — Wiki / Knowledge Base
   # ────────────────────────────────────────────────────────────
   outline:
-    image: outlinewiki/outline:0.80.2
+    image: outlinewiki/outline:latest
     container_name: proteus-outline
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/outline
       PGSSLMODE: disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      URL: http://wiki.${DOMAIN}
+      URL: ${PUBLIC_SCHEME:-http}://wiki.${DOMAIN}${PUBLIC_URL_SUFFIX}
       SECRET_KEY: ${OUTLINE_SECRET_KEY}
       UTILS_SECRET: ${OUTLINE_UTILS_SECRET}
       OIDC_CLIENT_ID: outline
       OIDC_CLIENT_SECRET: ${OUTLINE_OIDC_SECRET}
-      OIDC_AUTH_URI: http://auth.${DOMAIN}/realms/proteus/protocol/openid-connect/auth
+      OIDC_AUTH_URI: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/proteus/protocol/openid-connect/auth
       OIDC_TOKEN_URI: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
       OIDC_USERINFO_URI: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
       OIDC_USERNAME_CLAIM: preferred_username
       FILE_STORAGE: local
       FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+      FORCE_HTTPS: "${OUTLINE_FORCE_HTTPS:-false}"
+      OIDC_DISPLAY_NAME: Proteus SSO
+      OIDC_SCOPES: openid profile email
       # NOTE: Outline không hỗ trợ DATABASE_SCHEMA env var.
       # Schema 'outline' được tạo sẵn trong init.sql.
       # Để force Outline dùng schema 'outline', cần cấu hình search_path tại cấp PostgreSQL role.
@@ -403,7 +414,7 @@ services:
   # OBSERVABILITY — Grafana, Loki, Promtail
   # ────────────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:2.9.2
+    image: grafana/loki:latest
     container_name: proteus-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
@@ -414,7 +425,7 @@ services:
       - proteus-net
 
   promtail:
-    image: grafana/promtail:2.9.2
+    image: grafana/promtail:latest
     container_name: proteus-promtail
     restart: unless-stopped
     volumes:
@@ -428,7 +439,7 @@ services:
       - loki
 
   grafana:
-    image: grafana/grafana:10.2.2
+    image: grafana/grafana:latest
     container_name: proteus-grafana
     restart: unless-stopped
     environment:
@@ -458,6 +469,8 @@ services:
       target: backend
     container_name: proteus-backend
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
@@ -471,15 +484,18 @@ services:
       QDRANT_URL: http://qdrant:6333
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      ALLOWED_ORIGINS: '["http://${DOMAIN}","http://localhost:3000"]'
+      ALLOWED_ORIGINS: '["${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}","http://localhost:3000"]'
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-llama3}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
-      METABASE_SITE_URL: http://localhost:3001
+      METABASE_SITE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN}${PUBLIC_URL_SUFFIX}
       METABASE_INTERNAL_URL: http://metabase:3000
       APPSMITH_URL: ${APPSMITH_URL}
       APPSMITH_API_KEY: ${APPSMITH_API_KEY}
       MATTERMOST_URL: ${MATTERMOST_URL}
       MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN}
       MATTERMOST_WEBHOOK_SECRET: ${MATTERMOST_WEBHOOK_SECRET}
+      MATTERMOST_SYSTEM_CHANNEL_ID: ${MATTERMOST_SYSTEM_CHANNEL_ID}
       PLUGINS_DIR: /plugins
     volumes:
       - ../plugins:/plugins:ro
@@ -508,16 +524,27 @@ services:
       context: ../core-engine
       dockerfile: Dockerfile
       target: frontend
+      args:
+        NEXT_PUBLIC_MATTERMOST_URL: ${PUBLIC_SCHEME:-http}://chat.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+        NEXT_PUBLIC_OUTLINE_URL: ${PUBLIC_SCHEME:-http}://wiki.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+        NEXT_PUBLIC_N8N_URL: ${PUBLIC_SCHEME:-http}://workflow.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+        NEXT_PUBLIC_METABASE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+        NEXT_PUBLIC_APPSMITH_URL: ${PUBLIC_SCHEME:-http}://apps.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
     container_name: proteus-frontend
     restart: unless-stopped
     environment:
-      NEXTAUTH_URL: http://${DOMAIN}
+      NEXTAUTH_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_BFF_CLIENT_SECRET}
-      KEYCLOAK_ISSUER: http://auth.${DOMAIN}/realms/${KEYCLOAK_REALM:-proteus}
+      KEYCLOAK_ISSUER: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_INTERNAL_URL: http://keycloak:8080
       BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_MATTERMOST_URL: ${PUBLIC_SCHEME:-http}://chat.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      NEXT_PUBLIC_OUTLINE_URL: ${PUBLIC_SCHEME:-http}://wiki.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      NEXT_PUBLIC_N8N_URL: ${PUBLIC_SCHEME:-http}://workflow.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      NEXT_PUBLIC_METABASE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      NEXT_PUBLIC_APPSMITH_URL: ${PUBLIC_SCHEME:-http}://apps.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
     depends_on:
       - backend
     networks:
@@ -530,6 +557,30 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
       - "traefik.http.routers.frontend.priority=1"   # Backend có priority cao hơn
 
+
+
+  # ────────────────────────────────────────────────────────────
+  # PLUGIN MICRO-FRONTEND GATEWAY
+  # ────────────────────────────────────────────────────────────
+  plugins-mfe:
+    build:
+      # Context là toàn bộ ../plugins để Dockerfile COPY được
+      # source of truth plugins/<code>/frontend vào gateway.
+      context: ../plugins
+      dockerfile: mfe-gateway/Dockerfile
+    container_name: proteus-plugins-mfe
+    restart: unless-stopped
+    networks:
+      - proteus-net
+    labels:
+      - "traefik.enable=true"
+      # Path-based routing: plugins.proteus.local/{plugin-code-name}
+      # BẮT BUỘC thêm plugins.${DOMAIN} vào /etc/hosts (xem setup.sh)
+      - "traefik.http.routers.plugins-mfe.rule=Host(`plugins.${DOMAIN}`)"
+      - "traefik.http.routers.plugins-mfe.entrypoints=web"
+      - "traefik.http.services.plugins-mfe.loadbalancer.server.port=3001"
+      # Cho phép Iframe
+      - "traefik.http.routers.plugins-mfe.middlewares=iframe-allow"
 
 networks:
   proteus-net:

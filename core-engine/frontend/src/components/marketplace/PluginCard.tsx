@@ -10,7 +10,7 @@ import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck, Lo
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 
-export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
+export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled" | "uninstalling";
 
 export interface PluginData {
   id: string;

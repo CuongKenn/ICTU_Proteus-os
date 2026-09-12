@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 
 export function LaunchpadClient() {
   const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user); // Bắt buộc subscribe vào user để component re-render khi roles được cập nhật
   const hasRole = useAuthStore((state) => state.hasRole);
   const isAdmin = hasRole("tenant_admin") || hasRole("superadmin");
   const { plugins, isLoading } = usePlugins();
@@ -65,8 +66,13 @@ export function LaunchpadClient() {
   };
 
   const handleOpenPlugin = (code_name: string) => {
-    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
-    openIframe(code_name, appsmithUrl);
+    const plugin = plugins.find(p => p.code_name === code_name);
+    if (plugin?.external_url) {
+      openIframe(code_name, plugin.external_url);
+    } else {
+      const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
+      openIframe(code_name, appsmithUrl);
+    }
   };
 
   return (

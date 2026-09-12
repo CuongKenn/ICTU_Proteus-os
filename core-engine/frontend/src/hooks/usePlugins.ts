@@ -76,7 +76,7 @@ export function usePlugins(): UsePluginsReturn {
     try {
       await api.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
 
-      useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
+      useNotificationStore.getState().addToast("success", "Gỡ cài đặt Plugin thành công!");
       refetch();
     } catch (err) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {

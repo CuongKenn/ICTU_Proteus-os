@@ -21,14 +21,124 @@ Write-Host "[OK] Prerequisites check passed." -ForegroundColor Green
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location -Path $scriptDir
 
-# 2. Initialize .env
 $envFile = ".env"
 $envExampleFile = ".env.example"
+
+# Helper: set/add KEY=VALUE in .env
+function Set-EnvValue([string]$Key, [string]$Value) {
+    $c = if (Test-Path $envFile) { Get-Content -Path $envFile -Raw -Encoding UTF8 } else { "" }
+    if ($c -match "(?m)^$Key=.*$") { $c = $c -replace "(?m)^$Key=.*$", "$Key=$Value" }
+    else {
+        if ($c -and -not $c.EndsWith("`n")) { $c += "`r`n" }
+        $c += "$Key=$Value`r`n"
+    }
+    Set-Content -Path $envFile -Value $c -Encoding UTF8 -NoNewline
+}
+
+function Set-PublicUrls([string]$Scheme, [string]$Domain, [string]$Suffix) {
+    Set-EnvValue "NEXT_PUBLIC_MATTERMOST_URL" "$Scheme`://chat.$Domain$Suffix"
+    Set-EnvValue "NEXT_PUBLIC_OUTLINE_URL"    "$Scheme`://wiki.$Domain$Suffix"
+    Set-EnvValue "NEXT_PUBLIC_N8N_URL"        "$Scheme`://workflow.$Domain$Suffix"
+    Set-EnvValue "NEXT_PUBLIC_METABASE_URL"   "$Scheme`://analytics.$Domain$Suffix"
+    Set-EnvValue "NEXT_PUBLIC_APPSMITH_URL"   "$Scheme`://apps.$Domain$Suffix"
+}
+
+# 0. Chon che do trien khai: local dev hay production VPS
+Write-Host ""
+Write-Host "Chon che do trien khai:" -ForegroundColor Cyan
+Write-Host "  1) Local dev   - proteus.local, HTTP (may dev/laptop)"
+Write-Host "  2) Production  - domain that, HTTPS + Let's Encrypt (VPS)"
+$existingMode = $null
+if (Test-Path $envFile) {
+    $m = Get-Content -Path $envFile -Encoding UTF8 | Where-Object { $_ -match "^APP_MODE=" }
+    if ($m) { $existingMode = ($m[0] -split '=', 2)[1].Trim('"', "'", " ") }
+}
+$defaultChoice = if ($existingMode -eq "production") { "2" } else { "1" }
+$modeChoice = Read-Host "Lua chon [1/2, mac dinh: $defaultChoice]"
+if (-not $modeChoice) { $modeChoice = $defaultChoice }
+$appMode = if ($modeChoice -eq "2") { "production" } else { "local" }
+
+if ($appMode -eq "production") {
+    $publicScheme = "https"; $scheme = "https"
+    $composeFiles = "docker-compose.yml:docker-compose.prod.yml"
+    $outlineForceHttps = "true"; $n8nProtocol = "https"; $n8nSecureCookie = "true"
+    $kcStartMode = "start --optimized"
+} else {
+    $publicScheme = "http"; $scheme = "http"
+    $composeFiles = "docker-compose.yml"
+    $outlineForceHttps = "false"; $n8nProtocol = "http"; $n8nSecureCookie = "false"
+    $kcStartMode = "start-dev"
+}
+Write-Host "-> Che do: $appMode (scheme: $publicScheme)" -ForegroundColor Green
+
+# DOMAIN: hoi moi lan chay de ho tro doi mode / doi domain
+$currentDomain = $null
+if (Test-Path $envFile) {
+    $d = Get-Content -Path $envFile -Encoding UTF8 | Where-Object { $_ -match "^DOMAIN=" }
+    if ($d) { $currentDomain = ($d[0] -split '=', 2)[1].Trim('"', "'", " ") }
+}
+if ($appMode -eq "production") {
+    $domainDefault = $currentDomain
+    if (-not $domainDefault -or $domainDefault -like "*.local") { $domainDefault = "" }
+    while ($true) {
+        if ($domainDefault) { $domainInput = Read-Host "Domain production (VD: proteus.example.com) [$domainDefault]"; if (-not $domainInput) { $domainInput = $domainDefault } }
+        else { $domainInput = Read-Host "Domain production (VD: proteus.example.com)" }
+        $domainInput = ($domainInput -replace '^https?://', '') -replace '/$', ''
+        if (-not $domainInput) { Write-Host "[ERROR] Domain khong duoc de trong." -ForegroundColor Red; continue }
+        if ($domainInput -like "*.local") { Write-Host "[ERROR] Production khong dung *.local. Nhap domain that." -ForegroundColor Red; continue }
+        $domain = $domainInput; break
+    }
+    $currentLE = $null
+    if (Test-Path $envFile) {
+        $l = Get-Content -Path $envFile -Encoding UTF8 | Where-Object { $_ -match "^LETSENCRYPT_EMAIL=" }
+        if ($l) { $currentLE = ($l[0] -split '=', 2)[1].Trim('"', "'", " ") }
+    }
+    if (-not $currentLE -or $currentLE -like "*@example.com") { $currentLE = "admin@$domain" }
+    $leInput = Read-Host "Email Let's Encrypt [$currentLE]"
+    $letsEncryptEmail = if ($leInput) { $leInput } else { $currentLE }
+    # Host port cho Traefik (doi khi trung app khac tren VPS)
+    $curHttp = $null; $curHttps = $null
+    if (Test-Path $envFile) {
+        $h = Get-Content -Path $envFile -Encoding UTF8 | Where-Object { $_ -match "^TRAEFIK_HTTP_PORT=" }
+        if ($h) { $curHttp = ($h[0] -split '=', 2)[1].Trim() }
+        $s = Get-Content -Path $envFile -Encoding UTF8 | Where-Object { $_ -match "^TRAEFIK_HTTPS_PORT=" }
+        if ($s) { $curHttps = ($s[0] -split '=', 2)[1].Trim() }
+    }
+    $httpPortInput = Read-Host "Host port HTTP (Traefik, Let's Encrypt can 80) [$(if ($curHttp) { $curHttp } else { '80' })]"
+    $httpsPortInput = Read-Host "Host port HTTPS (Traefik) [$(if ($curHttps) { $curHttps } else { '443' })]"
+    $httpPort = if ($httpPortInput) { $httpPortInput } elseif ($curHttp) { $curHttp } else { "80" }
+    $httpsPort = if ($httpsPortInput) { $httpsPortInput } elseif ($curHttps) { $curHttps } else { "443" }
+    $urlSuffix = if ($httpsPort -ne "443") { ":$httpsPort" } else { "" }
+} else {
+    $domainSuggest = if ($currentDomain) { $currentDomain } else { "proteus.local" }
+    $domainInput = Read-Host "DOMAIN [$domainSuggest]"
+    $domain = if ($domainInput) { $domainInput } else { $domainSuggest }
+    $letsEncryptEmail = "admin@example.com"
+    $httpPort = "80"; $httpsPort = "443"; $urlSuffix = ""
+}
+Write-Host "-> Domain: $domain (HTTP :$httpPort, HTTPS :$httpsPort)" -ForegroundColor Green
+
+# 2. Initialize .env
 
 if (-Not (Test-Path $envFile)) {
     if (Test-Path $envExampleFile) {
         Write-Host "[INFO] Initializing .env from .env.example..." -ForegroundColor Yellow
         Copy-Item -Path $envExampleFile -Destination $envFile
+
+        # Ap che do vua chon vao .env moi
+        Set-EnvValue "APP_MODE" $appMode
+        Set-EnvValue "DOMAIN" $domain
+        Set-EnvValue "PUBLIC_SCHEME" $publicScheme
+        Set-EnvValue "COMPOSE_FILE" $composeFiles
+        Set-EnvValue "LETSENCRYPT_EMAIL" $letsEncryptEmail
+        Set-EnvValue "OUTLINE_FORCE_HTTPS" $outlineForceHttps
+        Set-EnvValue "N8N_PROTOCOL" $n8nProtocol
+        Set-EnvValue "N8N_SECURE_COOKIE" $n8nSecureCookie
+        Set-EnvValue "KEYCLOAK_START_MODE" $kcStartMode
+        Set-EnvValue "TRAEFIK_HTTP_PORT" $httpPort
+        Set-EnvValue "TRAEFIK_HTTPS_PORT" $httpsPort
+        Set-EnvValue "PUBLIC_URL_SUFFIX" $urlSuffix
+        Set-PublicUrls $publicScheme $domain $urlSuffix
 
         # 3. Auto-generate Secrets
         $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -49,12 +159,14 @@ if (-Not (Test-Path $envFile)) {
         $n8nEncryptionKey  = Get-RandomHex(32)
         $outlineSecretKey  = Get-RandomHex(32)
         $outlineUtilsSecret = Get-RandomHex(32)
+        $metabaseSecretKey = Get-RandomHex(32)
 
         $envContent = Get-Content -Path $envFile -Raw -Encoding UTF8
         $envContent = $envContent -replace "NEXTAUTH_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL",    "NEXTAUTH_SECRET=$nextAuthSecret"
         $envContent = $envContent -replace "N8N_ENCRYPTION_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL", "N8N_ENCRYPTION_KEY=$n8nEncryptionKey"
         $envContent = $envContent -replace "OUTLINE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL.*",   "OUTLINE_SECRET_KEY=$outlineSecretKey"
         $envContent = $envContent -replace "OUTLINE_UTILS_SECRET=CHANGE_ME_GENERATE_WITH_OPENSSL.*", "OUTLINE_UTILS_SECRET=$outlineUtilsSecret"
+        $envContent = $envContent -replace "METABASE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL",    "METABASE_SECRET_KEY=$metabaseSecretKey"
 
         Write-Host "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):" -ForegroundColor Cyan
         
@@ -95,22 +207,48 @@ if (-Not (Test-Path $envFile)) {
         exit 1
     }
 } else {
-    Write-Host "[INFO] .env already exists, skipping initialization." -ForegroundColor Cyan
-}
-
-# Read DOMAIN from .env
-$domain = "proteus.local"
-if (Test-Path $envFile) {
-    $domainLine = Get-Content -Path $envFile | Where-Object { $_ -match "^DOMAIN=" }
-    if ($domainLine) {
-        $domain = $domainLine.Split('=')[1].Trim('"', "'")
+    Write-Host "[INFO] .env already exists, applying mode '$appMode' to current config." -ForegroundColor Cyan
+    Set-EnvValue "APP_MODE" $appMode
+    Set-EnvValue "DOMAIN" $domain
+    Set-EnvValue "PUBLIC_SCHEME" $publicScheme
+    Set-EnvValue "COMPOSE_FILE" $composeFiles
+    Set-EnvValue "LETSENCRYPT_EMAIL" $letsEncryptEmail
+    Set-EnvValue "OUTLINE_FORCE_HTTPS" $outlineForceHttps
+    Set-EnvValue "N8N_PROTOCOL" $n8nProtocol
+    Set-EnvValue "N8N_SECURE_COOKIE" $n8nSecureCookie
+    Set-EnvValue "KEYCLOAK_START_MODE" $kcStartMode
+    Set-EnvValue "TRAEFIK_HTTP_PORT" $httpPort
+    Set-EnvValue "TRAEFIK_HTTPS_PORT" $httpsPort
+    Set-EnvValue "PUBLIC_URL_SUFFIX" $urlSuffix
+    Set-PublicUrls $publicScheme $domain $urlSuffix
+    # Bu secret cho .env cu tu phien ban truoc (khong dung gia tri that)
+    $envCheck = Get-Content $envFile -Raw -Encoding UTF8
+    if ($envCheck -match "METABASE_SECRET_KEY=CHANGE_ME_GENERATE_WITH_OPENSSL") {
+        $rng2 = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        $b2 = New-Object byte[] 32; $rng2.GetBytes($b2)
+        Set-EnvValue "METABASE_SECRET_KEY" ([BitConverter]::ToString($b2).Replace("-", "").ToLower())
+        Write-Host "[OK] Generated missing METABASE_SECRET_KEY." -ForegroundColor Green
     }
 }
 
-# 4. Configure hosts file
-if ($domain -eq "proteus.local") {
+# Refresh DOMAIN (mode co the vua doi domain)
+$domainLine = Get-Content -Path $envFile -Encoding UTF8 | Where-Object { $_ -match "^DOMAIN=" }
+if ($domainLine) { $domain = ($domainLine[0] -split '=', 2)[1].Trim('"', "'", " ") }
+
+# Render traefik static config theo mode (static config khong doc env).
+if ($appMode -eq "production") {
+    $prodTpl = Get-Content -Path "traefik/traefik.prod.yml" -Raw -Encoding UTF8
+    $prodTpl = $prodTpl -replace "__LETSENCRYPT_EMAIL__", $letsEncryptEmail
+    Set-Content -Path "traefik/traefik.yml" -Value $prodTpl -Encoding UTF8 -NoNewline
+    Write-Host "[OK] Rendered traefik.yml (production, Let's Encrypt: $letsEncryptEmail)." -ForegroundColor Green
+} else {
+    Copy-Item -Path "traefik/traefik.dev.yml" -Destination "traefik/traefik.yml" -Force
+}
+
+# 4. Configure hosts file (local) hoac nhac DNS (production)
+if ($domain -like "*.local") {
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
-    $hostsEntry = "127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local grafana.proteus.local traefik.proteus.local"
+    $hostsEntry = "127.0.0.1 proteus.local auth.proteus.local wiki.proteus.local analytics.proteus.local apps.proteus.local workflow.proteus.local chat.proteus.local grafana.proteus.local traefik.proteus.local plugins.proteus.local"
 
     $hostsContent = Get-Content -Path $hostsPath -Raw
     if ($hostsContent -notmatch "proteus\.local") {
@@ -134,11 +272,19 @@ if ($domain -eq "proteus.local") {
     } else {
         Write-Host "[INFO] Hosts file already configured for proteus.local." -ForegroundColor Cyan
     }
+} else {
+    Write-Host "[INFO] Production mode: point DNS (A record) for $domain and subdomains" -ForegroundColor Yellow
+    Write-Host "       (auth, wiki, analytics, apps, workflow, chat, plugins, traefik) to this VPS IP," -ForegroundColor Yellow
+    Write-Host "       and open firewall ports 80/443. Let's Encrypt needs port 80 reachable." -ForegroundColor Yellow
+    Write-Host "[INFO] No subdomain needed for Grafana (served at $domain/monitoring/)." -ForegroundColor Cyan
 }
 
 # 5. Start Docker Compose
 Write-Host "[INFO] Starting services via Docker Compose..." -ForegroundColor Cyan
 docker compose up -d --build
+# Static config cua Traefik chi nap luc (re)start - restart de nhan
+# traefik.yml vua render (quan trong khi doi mode local <-> production).
+docker compose restart traefik
 
 # 6. Wait for backend health
 Write-Host "[INFO] Waiting for services to start (may take 1-2 minutes)..." -ForegroundColor Yellow
@@ -147,7 +293,7 @@ $elapsed = 0
 
 while ($elapsed -lt $timeout) {
     try {
-        $response = Invoke-WebRequest -Uri "http://$domain/health" -UseBasicParsing -ErrorAction SilentlyContinue
+        $response = Invoke-WebRequest -Uri "${scheme}://$domain$urlSuffix/health" -UseBasicParsing -ErrorAction SilentlyContinue
         if ($response.Content -match "status") {
             Write-Host "[OK] Backend is ready!" -ForegroundColor Green
             break
@@ -209,7 +355,7 @@ $mmAdminPass = ($envContent -split "`n" | Where-Object { $_ -match "^MATTERMOST_
 $mmAdminPass = $mmAdminPass.Trim(" `r")
 
 if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
-    $mmUrl = "http://chat.$domain/api/v4"
+    $mmUrl = "${scheme}://chat.$domain$urlSuffix/api/v4"
     
     # Wait for Mattermost to be ready
     Write-Host "[INFO] Waiting for Mattermost to be ready..." -ForegroundColor Yellow
@@ -248,9 +394,9 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
                 $mmConfig.GitLabSettings.Enable = $true
                 $mmConfig.GitLabSettings.Secret = "mattermost-secret"
                 $mmConfig.GitLabSettings.Id = "mattermost"
-                $mmConfig.GitLabSettings.AuthEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/auth"
-                $mmConfig.GitLabSettings.TokenEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/token"
-                $mmConfig.GitLabSettings.UserAPIEndpoint = "http://auth.$domain/realms/proteus/protocol/openid-connect/userinfo"
+                $mmConfig.GitLabSettings.AuthEndpoint = "${scheme}://auth.$domain$urlSuffix/realms/proteus/protocol/openid-connect/auth"
+                $mmConfig.GitLabSettings.TokenEndpoint = "${scheme}://auth.$domain$urlSuffix/realms/proteus/protocol/openid-connect/token"
+                $mmConfig.GitLabSettings.UserAPIEndpoint = "${scheme}://auth.$domain$urlSuffix/realms/proteus/protocol/openid-connect/userinfo"
                 Invoke-RestMethod -Uri "$mmUrl/config" -Method Put -Body ($mmConfig | ConvertTo-Json -Depth 10) -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction Stop | Out-Null 
             } catch {
                 Write-Host "[WARN] Failed to update Mattermost config: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -277,6 +423,30 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
             } else {
                 Write-Host "[WARN] Failed to find or create Mattermost Bot user." -ForegroundColor Yellow
             }
+
+            # Tự động điền MATTERMOST_SYSTEM_CHANNEL_ID (Town Square của team đầu tiên)
+            $envContent = Get-Content .env -Raw -Encoding UTF8
+            if ($envContent -match "MATTERMOST_SYSTEM_CHANNEL_ID=CHANGE_ME_GET_FROM_MATTERMOST") {
+                try {
+                    $teams = Invoke-RestMethod -Uri "$mmUrl/teams" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
+                    $firstTeamId = $teams[0].id
+                    if ($firstTeamId) {
+                        $town = Invoke-RestMethod -Uri "$mmUrl/teams/$firstTeamId/channels/name/town-square" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
+                        if ($town.id) {
+                            $envContent = $envContent -replace "MATTERMOST_SYSTEM_CHANNEL_ID=CHANGE_ME_GET_FROM_MATTERMOST", "MATTERMOST_SYSTEM_CHANNEL_ID=$($town.id)"
+                            Set-Content .env -Value $envContent -Encoding UTF8
+                            Write-Host "[OK] MATTERMOST_SYSTEM_CHANNEL_ID saved." -ForegroundColor Green
+                            docker compose restart backend
+                        } else {
+                            Write-Host "[WARN] Town Square channel not found, keeping placeholder." -ForegroundColor Yellow
+                        }
+                    } else {
+                        Write-Host "[WARN] No Mattermost team yet, keeping placeholder." -ForegroundColor Yellow
+                    }
+                } catch {
+                    Write-Host "[WARN] Failed to resolve system channel: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
         }
     } else {
         Write-Host "[WARN] Mattermost did not become ready in time." -ForegroundColor Yellow
@@ -287,7 +457,7 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
 Write-Host "[INFO] Configuring n8n (Owner Account + API Key via DB)..." -ForegroundColor Cyan
 $envContent = Get-Content .env -Raw -Encoding UTF8
 if ($envContent -match "N8N_API_KEY=CHANGE_ME") {
-    $n8nRes = Invoke-RestWithRetry -Uri "http://workflow.$domain/rest/owner/setup" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"firstName`":`"Admin`",`"lastName`":`"Proteus`",`"password`":`"$mmAdminPass`"}"
+    $n8nRes = Invoke-RestWithRetry -Uri "${scheme}://workflow.$domain$urlSuffix/rest/owner/setup" -Method Post -Body "{`"email`":`"admin@proteus.local`",`"firstName`":`"Admin`",`"lastName`":`"Proteus`",`"password`":`"$mmAdminPass`"}"
     if ($n8nRes) {
         Write-Host "[OK] n8n Owner account initialized." -ForegroundColor Green
     } else {
@@ -369,16 +539,16 @@ Write-Host ""
 Write-Host "[DONE] Proteus OS deployed successfully!" -ForegroundColor Green
 Write-Host "Access the services at:"
 Write-Host "------------------------------------------------------"
-Write-Host "  Launchpad (Frontend) : http://$domain"
-Write-Host "  Backend API Docs     : http://$domain/api/docs"
-Write-Host "  SSO (Keycloak)       : http://auth.$domain"
-Write-Host "  Workflow (n8n)       : http://workflow.$domain"
-Write-Host "  BI `& Dashboard      : http://analytics.$domain"
-Write-Host "  Low-code UI Apps     : http://apps.$domain"
-Write-Host "  Knowledge Base       : http://wiki.$domain"
-Write-Host "  ChatOps (Mattermost) : http://$domain/chat/"
-Write-Host "  Observability        : http://grafana.$domain"
-Write-Host "  Traefik Dashboard    : http://traefik.$domain"
+Write-Host "  Launchpad (Frontend) : ${scheme}://$domain$urlSuffix"
+Write-Host "  Backend API Docs     : ${scheme}://$domain$urlSuffix/api/docs"
+Write-Host "  SSO (Keycloak)       : ${scheme}://auth.$domain$urlSuffix"
+Write-Host "  Workflow (n8n)       : ${scheme}://workflow.$domain$urlSuffix"
+Write-Host "  BI `& Dashboard      : ${scheme}://analytics.$domain$urlSuffix"
+Write-Host "  Low-code UI Apps     : ${scheme}://apps.$domain$urlSuffix"
+Write-Host "  Knowledge Base       : ${scheme}://wiki.$domain$urlSuffix"
+Write-Host "  ChatOps (Mattermost) : ${scheme}://$domain$urlSuffix/chat/"
+Write-Host "  Observability        : ${scheme}://grafana.$domain$urlSuffix"
+Write-Host "  Traefik Dashboard    : ${scheme}://traefik.$domain$urlSuffix"
 Write-Host "------------------------------------------------------"
 Write-Host "Default account: admin / admin (Keycloak)"
 Write-Host "Enjoy Proteus OS!" -ForegroundColor Cyan

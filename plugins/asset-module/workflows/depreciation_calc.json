@@ -4,23 +4,44 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {"cronExpression": "0 1 1 1 *"}
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 1 1 * *"
+            }
+          ]
+        }
       },
       "name": "Schedule - Annually",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, asset_code, purchase_price, purchase_date, depreciation_years, tenant_id, EXTRACT(YEAR FROM NOW()) - EXTRACT(YEAR FROM purchase_date) as age_years FROM ast_assets WHERE status != 'DISPOSED' AND deleted_at IS NULL AND depreciation_years > 0;",
-        "additionalFields": {}
+        "query": "SELECT a.id, a.purchase_price, a.book_value_remaining, c.depreciation_years FROM {{TENANT_SCHEMA}}.asset_items a JOIN {{TENANT_SCHEMA}}.asset_categories c ON c.id = a.category_id WHERE a.status NOT IN ('DISPOSED','LOST') AND a.book_value_remaining > 0;",
+        "options": {
+          "queryReplacement": ""
+        }
       },
       "name": "Get Depreciable Assets",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
     },
     {
       "parameters": {
@@ -30,46 +51,135 @@
       "name": "Split Assets",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const annual = $json.purchase_price / $json.depreciation_years;\nconst currentValue = Math.max(0, $json.purchase_price - (annual * $json.age_years));\nreturn [{json: {...$json, annual_depreciation: annual, current_value: currentValue}}];"
+        "jsCode": "const annual = $json.purchase_price / ($json.depreciation_years * 12);\nconst nbv = Math.max(0, $json.book_value_remaining - annual);\nreturn [{json: {...$json, depreciation_amount: annual, new_book_value: nbv}}];"
       },
       "name": "Calculate Depreciation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE ast_assets SET current_value = $1, last_depreciation_at = NOW() WHERE id = $2;",
-        "additionalFields": {
-          "queryParams": "={{$json.current_value}},={{$json.id}}"
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.asset_depreciation (asset_id, month, depreciation_amount, book_value_remaining) VALUES ($1, TO_CHAR(NOW(), 'YYYY-MM'), $2, $3) ON CONFLICT DO NOTHING RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.id}},={{$json.depreciation_amount}},={{$json.new_book_value}}"
         }
       },
-      "name": "Update Asset Value",
+      "name": "Record Depreciation",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE {{TENANT_SCHEMA}}.asset_items SET book_value_remaining = $1, updated_at = NOW() WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{$('Calculate Depreciation').item.json.new_book_value}},={{$('Calculate Depreciation').item.json.id}}"
+        }
+      },
+      "name": "Update Book Value",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        1250,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
+        }
+      }
     }
   ],
   "connections": {
     "Schedule - Annually": {
-      "main": [[{"node": "Get Depreciable Assets", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Depreciable Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Depreciable Assets": {
-      "main": [[{"node": "Split Assets", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Split Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Assets": {
-      "main": [[{"node": "Calculate Depreciation", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Calculate Depreciation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Calculate Depreciation": {
-      "main": [[{"node": "Update Asset Value", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Record Depreciation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Depreciation": {
+      "main": [
+        [
+          {
+            "node": "Update Book Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "asset"}, {"name": "depreciation"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "asset"
+    },
+    {
+      "name": "depreciation"
+    }
+  ]
 }

@@ -4,6 +4,7 @@
 # Core Domain — Tenant Onboarding Use Case
 
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -18,6 +19,53 @@ from app.core.domain.entities import (
 from app.core.domain.ports import AbstractIdentityProviderPort
 
 logger = logging.getLogger(__name__)
+
+
+def mattermost_team_name(slug: str) -> str:
+    """Slug hóa tên team MM: chữ thường, số, gạch ngang."""
+    name = re.sub(r"[^a-z0-9-]+", "-", f"tenant-{slug}".lower()).strip("-")
+    if not name or not name[0].isalpha():
+        name = f"t-{name}" if name else "tenant"
+    return name[:64]
+
+
+async def ensure_tenant_mattermost_team(
+    tenant_repo: AbstractTenantRepository,
+    mm_adapter: Any,
+    tenant_id: uuid.UUID,
+) -> dict[str, Any]:
+    """
+    Đảm bảo tenant có Mattermost team riêng + kênh hệ thống.
+    Idempotent: team/kênh tồn tại rồi thì dùng lại. Trả về
+    {team_id, team_name, alerts_channel_id}. Raise MattermostAdapterError
+    khi lỗi — caller quyết định best-effort hay fail cứng.
+    """
+    tenant = await tenant_repo.get_by_id(tenant_id)
+    if not tenant:
+        raise TenantOnboardingError("Tenant không tồn tại.")
+
+    team_name = mattermost_team_name(tenant.slug)
+    team = await mm_adapter.get_team_by_name(team_name)
+    if not team:
+        team = await mm_adapter.create_team(
+            name=team_name, display_name=f"{tenant.name} (Proteus)"
+        )
+    alerts = await mm_adapter.create_channel(
+        team_id=team["id"],
+        name="canh-bao-he-thong",
+        display_name="Cảnh báo hệ thống",
+    )
+    config = {
+        "team_id": team["id"],
+        "team_name": team["name"],
+        "alerts_channel_id": alerts["id"],
+    }
+    await tenant_repo.upsert_integration_config(tenant_id, "mattermost", config)
+    logger.info(
+        "Đảm bảo Mattermost team cho tenant",
+        extra={"tenant_id": str(tenant_id), "team": team["name"]},
+    )
+    return config
 
 
 class TenantOnboardingError(Exception):
@@ -43,10 +91,12 @@ class TenantOnboardingUseCase:
         tenant_repo: AbstractTenantRepository,
         keycloak_adapter: AbstractIdentityProviderPort,
         session: AsyncSession,
+        mattermost_adapter: Any = None,
     ) -> None:
         self.tenant_repo = tenant_repo
         self.keycloak_adapter = keycloak_adapter
         self.session = session
+        self.mattermost_adapter = mattermost_adapter
 
     def _require_superadmin(self, context: TenantContext) -> None:
         if "superadmin" not in context.roles:
@@ -100,6 +150,15 @@ class TenantOnboardingUseCase:
             # Vì AbstractTenantRepository không tự commit, ta có thể không commit.
             msg = f"Lỗi tạo Tenant Group trên Keycloak: {e}"
             raise TenantOnboardingError(msg) from e
+
+        # 3. Tạo Mattermost team riêng (best-effort: chat down không chặn onboarding)
+        if self.mattermost_adapter is not None:
+            try:
+                await ensure_tenant_mattermost_team(
+                    self.tenant_repo, self.mattermost_adapter, tenant_id
+                )
+            except Exception as e:
+                logger.warning("Bỏ qua tạo Mattermost team cho tenant %s: %s", slug, e)
 
         return created_tenant
 

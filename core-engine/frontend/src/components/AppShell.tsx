@@ -5,7 +5,6 @@
 
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
-import { AIChatWidget } from "@/components/AIChatWidget";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 
@@ -42,9 +41,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           {children}
         </main>
       </div>
-      
-      {/* AI Chat Widget (Floating) */}
-      <AIChatWidget />
     </div>
   );
 };

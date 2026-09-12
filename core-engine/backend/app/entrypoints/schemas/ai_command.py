@@ -12,6 +12,13 @@ from pydantic import BaseModel, Field
 from app.core.domain.entities import AICommandStatus
 
 
+class AIChatRequest(BaseModel):
+    """Input schema cho POST /ai/chat. Dành cho câu lệnh ngôn ngữ tự nhiên."""
+
+    session_id: uuid.UUID = Field(..., description="ID phiên chat")
+    natural_language_input: str = Field(..., description="Câu lệnh tiếng Việt tự nhiên")
+
+
 class AICommandRequest(BaseModel):
     """Input schema cho POST /ai/command. Phản ánh cấu trúc DX-DSL."""
 
@@ -47,4 +54,4 @@ class AICommandResponse(BaseModel):
     command_id: uuid.UUID  # Nhất quán với Request — không dùng str
     status: AICommandStatus  # Dùng Enum từ domain — Swagger tự gen đúng
     message: str
-    result: dict[str, Any] | None = None
+    result: dict[str, Any] | str | None = None

@@ -1,5 +1,7 @@
 node_modules/
 .next/
+plugins/mfe-gateway/src/_plugins/
+plugins/mfe-gateway/dist/
 deploy/scratch/
 *.tsbuildinfo
 
@@ -8,3 +10,10 @@ deploy/scratch/
 .env.*
 !.env.example
 !.env.local.example
+
+
+# Ignore backups
+deploy/backups/
+
+# Auto-generated session transcripts (may contain secrets)
+session-*.md

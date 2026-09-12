@@ -28,29 +28,34 @@ database:
     notify_channel: "van-phong"
 
 workflows:
-  - file: "workflows/incoming_document.json"
+  - id: "wf_incoming_document"
+    file: "workflows/incoming_document.json"
     name: "Incoming Document Workflow"
     description: "Tiếp nhận & phân phối công văn đến"
     trigger: "webhook"
 
-  - file: "workflows/document_approval.json"
+  - id: "wf_document_approval"
+    file: "workflows/document_approval.json"
     name: "Document Approval Workflow"
     description: "Luồng ký duyệt văn bản đi (sequential)"
     trigger: "webhook"
 
-  - file: "workflows/document_expiry_check.json"
+  - id: "wf_document_expiry_check"
+    file: "workflows/document_expiry_check.json"
     name: "Document Expiry Check"
     description: "Kiểm tra văn bản sắp hết hiệu lực"
     trigger: "cron"
     cron_expression: "0 7 * * 1"
 
-  - file: "workflows/archive_old_docs.json"
+  - id: "wf_archive_old_docs"
+    file: "workflows/archive_old_docs.json"
     name: "Archive Old Documents"
     description: "Lưu trữ hồ sơ cũ"
     trigger: "cron"
     cron_expression: "0 2 1 * *"
 
-  - file: "workflows/reassign_document.json"
+  - id: "wf_reassign_document"
+    file: "workflows/reassign_document.json"
     name: "Reassign Document Tasks"
     description: "Reassign documents when employee leaves"
     trigger: "webhook"
@@ -64,11 +69,10 @@ dashboards:
     name: "Processing Time"
     description: "Thời gian xử lý trung bình theo phòng ban"
 
-ui_apps:
-  - file: "ui/appsmith_app.json"
-    name: "Document Management App"
-    path: "/apps/document"
 
+ui:
+  appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/document-module"
 roles:
   - name: "document_clerk"
     display_name: "Document Clerk"

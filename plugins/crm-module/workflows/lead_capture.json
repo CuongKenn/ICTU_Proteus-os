@@ -6,49 +6,39 @@
       "parameters": {
         "path": "crm/lead-capture",
         "responseMode": "lastNode",
-        "options": {}
+        "options": {},
+        "httpMethod": "POST"
       },
       "name": "Webhook - New Lead",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "crm-lead-capture-webhook"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO crm_leads (tenant_id, full_name, email, phone, company, source, status, assigned_to, created_at) VALUES ($1,$2,$3,$4,$5,$6,'NEW',$7,NOW()) RETURNING id;",
-        "additionalFields": {
-          "queryParams": "={{$json.body.tenant_id}},={{$json.body.full_name}},={{$json.body.email}},={{$json.body.phone}},={{$json.body.company}},={{$json.body.source}},={{$json.body.assigned_to}}"
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.crm_leads (contact_name, company_name, email, phone, source, estimated_value, stage, assigned_to) VALUES ($1,$2,$3,$4,$5,$6,'NEW',$7) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.body.contact_name || $json.body.full_name}},={{$json.body.company_name || $json.body.company}},={{$json.body.email}},={{$json.body.phone}},={{$json.body.source}},={{$json.body.estimated_value}},={{$json.body.assigned_to}}"
         }
       },
       "name": "Insert Lead to DB",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT channel_id FROM crm_team_config WHERE tenant_id = $1 LIMIT 1;",
-        "additionalFields": {
-          "queryParams": "={{$('Webhook - New Lead').item.json.body.tenant_id}}"
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "ProteusDB_Real"
         }
-      },
-      "name": "Get Notify Channel",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.1,
-      "position": [650, 300]
-    },
-    {
-      "parameters": {
-        "channelId": "={{$json.channel_id}}",
-        "message": "=📥 **Lead mới!**\nTên: {{$('Webhook - New Lead').item.json.body.full_name}}\nCông ty: {{$('Webhook - New Lead').item.json.body.company}}\nEmail: {{$('Webhook - New Lead').item.json.body.email}}\nNguồn: {{$('Webhook - New Lead').item.json.body.source}}\nLead ID: {{$('Insert Lead to DB').item.json.id}}\n\nAssign cho: {{$('Webhook - New Lead').item.json.body.assigned_to}}"
-      },
-      "name": "Notify Sales Channel",
-      "type": "n8n-nodes-base.mattermost",
-      "typeVersion": 1,
-      "position": [850, 300]
+      }
     },
     {
       "parameters": {
@@ -58,24 +48,46 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook - New Lead": {
-      "main": [[{"node": "Insert Lead to DB", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Insert Lead to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Lead to DB": {
-      "main": [[{"node": "Get Notify Channel", "type": "main", "index": 0}]]
-    },
-    "Get Notify Channel": {
-      "main": [[{"node": "Notify Sales Channel", "type": "main", "index": 0}]]
-    },
-    "Notify Sales Channel": {
-      "main": [[{"node": "Respond OK", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "crm"}, {"name": "lead"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "crm"
+    },
+    {
+      "name": "lead"
+    }
+  ]
 }

@@ -1199,6 +1199,291 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /plugins/{code}/actions:
+    get:
+      summary: Liệt kê webhook actions của Plugin (Micro-UI render nút động)
+      description: >
+        Trả về các workflow `trigger='webhook'` trong manifest để Micro-UI
+        render nút động — plugin có N workflow cũng không cần thêm endpoint.
+        Cron/manual không xuất hiện (chạy theo lịch hoặc bởi admin/AI).
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            example: asset-module
+      responses:
+        '200':
+          description: Danh sách actions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plugin:
+                    type: string
+                  actions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        action:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        trigger:
+                          type: string
+        '404':
+          description: Plugin không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /plugins/{code}/actions/{action}:
+    post:
+      summary: Dispatch 1 plugin action tới n8n webhook (generic dispatcher)
+      description: >
+        Dispatcher generic giữ isolation plugin: UI chỉ biết tên logic `{action}`
+        (workflows[].id trong manifest), backend tự resolve webhook URL và
+        forward sang n8n. Body gửi sang n8n là phẳng
+        ({**payload, tenant_id, user_id, plugin, action, idempotency_key})
+        để khớp expression workflow ($json.body.*).
+
+        n8n down/timeout trả 502 — UI nên hiển thị "đang xử lý" và retry với
+        cùng idempotency_key thay vì báo lỗi cứng.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            example: asset-module
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            example: wf_asset_request
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                idempotency_key:
+                  type: string
+      responses:
+        '202':
+          description: Đã dispatch tới workflow
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+                  action:
+                    type: string
+                  result:
+                    type: object
+        '400':
+          description: Action không tồn tại / là cron-manual / payload sai
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Thiếu quyền nhóm '{prefix}:*'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Plugin không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Workflow engine tạm thời không khả dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /plugins/{code}/records/{table}:
+    get:
+      summary: Liệt kê bản ghi của 1 bảng plugin (đọc thật từ Postgres)
+      description: >
+        Tên bảng phải nằm trong `database.tables` của manifest (allowlist).
+        Lọc tenant tường minh + RLS. Micro-UI dùng để hiển thị danh sách thật.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            example: asset-module
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+            example: asset_items
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Danh sách bản ghi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+        '400':
+          description: Bảng không thuộc plugin / plugin chưa ACTIVE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Thiếu quyền nhóm '{prefix}:*'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Tạo 1 bản ghi trong bảng plugin
+      description: >
+        Chỉ ghi các cột tồn tại thật (information_schema), tự gắn tenant_id.
+        Quy trình có orchestration (duyệt → gán → nhắn tin) vẫn phải đi qua
+        dispatcher actions → n8n, không ghi trực tiếp.
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Bản ghi đã tạo
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Body rỗng / không có cột hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /plugins/{code}/records/{table}/{record_id}:
+    patch:
+      summary: Cập nhật 1 bản ghi (không cho đổi id/tenant_id)
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: record_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Bản ghi sau cập nhật
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Bản ghi không tồn tại (hoặc khác tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Xóa 1 bản ghi
+      tags: [Plugin Marketplace]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: record_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Đã xóa
+        '404':
+          description: Bản ghi không tồn tại (hoặc khác tenant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ==============================
   # AGENTIC AI
   # ==============================

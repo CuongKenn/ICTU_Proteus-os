@@ -41,12 +41,15 @@ from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.ai.llm_provider import LocalLLMProvider
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import InsufficientPermissionsError
+from app.core.domain.permissions import has_admin_role, has_wildcard_permission
 from app.core.domain.ports import AbstractLLMPort
 from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
+from app.core.use_cases.plugin_action import PluginActionUseCase
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.plugin_records import PluginRecordsUseCase
 from app.core.use_cases.plugin_toggle import PluginToggleUseCase
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
 from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
@@ -318,6 +321,11 @@ async def get_current_tenant_context(
     pref_username = payload.get("preferred_username")
     full_name = name_claim or pref_username or "Unknown"
 
+    # IMPORTANT: Set contextvar cho RLS middleware
+    from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+
+    tenant_id_ctx.set(str(tenant_id))
+
     return TenantContext(
         tenant_id=tenant_id,
         user_id=user_id,
@@ -329,6 +337,7 @@ async def get_current_tenant_context(
 
 async def get_tenant_onboarding_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
 ) -> TenantOnboardingUseCase:
     """
@@ -338,6 +347,7 @@ async def get_tenant_onboarding_use_case(
     return TenantOnboardingUseCase(
         tenant_repo=SQLAlchemyTenantRepository(session=db),
         keycloak_adapter=keycloak_adapter,
+        mattermost_adapter=mattermost_adapter,
         session=db,
     )
 
@@ -365,6 +375,38 @@ async def get_role_repo(
 ) -> RoleRepository:
     """Inject Role Repository."""
     return RoleRepository(session=db)
+
+
+async def get_plugin_action_use_case(
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    role_repo: RoleRepository = Depends(get_role_repo),
+) -> PluginActionUseCase:
+    """Inject Plugin Action Dispatcher Use Case (generic UI → n8n)."""
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+
+    return PluginActionUseCase(
+        plugin_repo=repo,
+        manifest_parser=LocalManifestParser(),
+        n8n_adapter=n8n_adapter,
+        role_repo=role_repo,
+    )
+
+
+async def get_plugin_records_use_case(
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    role_repo: RoleRepository = Depends(get_role_repo),
+    db: AsyncSession = Depends(get_db_transactional),
+) -> PluginRecordsUseCase:
+    """Inject Plugin Records CRUD Use Case (generic, allowlist từ manifest)."""
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+
+    return PluginRecordsUseCase(
+        plugin_repo=repo,
+        manifest_parser=LocalManifestParser(),
+        role_repo=role_repo,
+        session=db,
+    )
 
 
 async def get_ai_command_repo(
@@ -417,10 +459,12 @@ def require_permission(permission: str):
         context: TenantContext = Depends(get_current_tenant_context),
         role_repo: RoleRepository = Depends(get_role_repo),
     ) -> TenantContext:
-        if any(r in context.roles for r in ["superadmin", "tenant_admin"]):
+        if has_admin_role(context.roles):
             return context
 
         user_permissions = await role_repo.get_user_permissions(context.user_id)
+        if has_wildcard_permission(user_permissions):
+            return context
         if permission not in user_permissions:
             raise InsufficientPermissionsError(
                 f"Cần quyền '{permission}' để thực hiện hành động này."
@@ -443,4 +487,18 @@ async def get_llm_port() -> AbstractLLMPort | None:
         base_url=settings.LLM_BASE_URL,
         model_name=model_name,
         api_key=getattr(settings, "LLM_API_KEY", "dummy"),
+    )
+
+
+from app.core.use_cases.ai_chat import AIChatUseCase
+
+
+async def get_ai_chat_use_case(
+    llm_port: AbstractLLMPort = Depends(get_llm_port),
+    ai_command_use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+) -> AIChatUseCase:
+    """Inject AIChatUseCase."""
+    return AIChatUseCase(
+        llm_port=llm_port,
+        ai_command_use_case=ai_command_use_case,
     )

@@ -28,6 +28,8 @@ database:
     - "asset_maintenance_logs"
     - "asset_depreciation"
     - "asset_disposal_requests"
+    - "asset_requests"
+    - "asset_inventory_snapshots"
 
   seed_file: "db/seed_data.sql"
 
@@ -65,7 +67,8 @@ dashboards:
     file: "dashboards/maintenance_schedule.json"
 
 ui:
-  appsmith_app: "ui/appsmith_app.json"
+  # appsmith_app: "ui/appsmith_app.json"
+  external_url: "http://plugins.proteus.local/asset-module"
 
 roles:
   - name: "asset_admin"

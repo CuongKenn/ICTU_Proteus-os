@@ -4,6 +4,66 @@ Tất cả các thay đổi đáng chú ý của dự án **Proteus OS** sẽ đ
 
 Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org/spec/v2.0.0.html) và định dạng [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - Sắp tới
+
+### Added
+- [docs/plugin-manifest-spec.md] Hỗ trợ cấu trúc Hybrid UI (`external_url` cho Micro-Frontend) trong Plugin Manifest (v1.2.0).
+- [core-engine/backend] Bổ sung parser cho trường `ui.external_url` trong `PluginManifest` model thay thế cho `ui_apps` array cũ.
+- [core-engine/frontend] Sửa logic `LaunchpadClient.tsx` ưu tiên render `external_url` (nếu có) trước khi fallback về Appsmith mặc định.
+- [plugins/crm-module] Cập nhật manifest của CRM Module để biểu diễn cách sử dụng `external_url`.
+
+
+### Fixed
+- **[core-engine/backend]** Sửa lỗi chạy ngầm quá trình gỡ cài đặt Plugin bị chặn bởi Row-Level Security (RLS) do thiếu ContextVar `current_tenant_id` trong Background Task.
+- **[core-engine/backend]** Khắc phục lỗi crash `TypeError` khi gọi `PluginUninstallUseCase` thiếu tham số `session` ở chế độ background.
+- **[core-engine/frontend]** Sửa lỗi Frontend không nhận được tiến trình gỡ cài đặt do gọi sai URL polling (từ `install-status/{taskId}` thành `install/{taskId}/status`).
+
+### Added
+- **[core-engine/frontend]** Bổ sung UI Modal theo dõi log cài đặt Plugin theo thời gian thực (`InstallProgressModal`). Người dùng nay có thể xem chi tiết từng bước (Tạo DB, Gắn Credentials, Import Workflow n8n, v.v) cùng với trạng thái tương ứng.
+
+### Fixed
+- **[core-engine/backend]** Sửa lỗi logic trình tự cài đặt Workflow n8n (`plugin_install.py`). Đảo bước tạo External Credentials lên trước bước Import Workflow (Bước 1.5).
+- **[core-engine/backend]** Sửa lỗi tạo Credentials đa trường (Composite Credentials như OAuth2 cần `clientId` và `clientSecret`). Hệ thống nay đã gộp chung (group_by) các `CredentialInput` có cùng `credential_type_name` thành một Credential duy nhất trên n8n thay vì tách rời từng trường gây lỗi.
+### Added
+- **[core-engine/backend]** Bổ sung tính năng **Dynamic Workflow Injection** trong `plugin_install.py` (Bước 2 - Import n8n). Hệ thống nay đã tự động fetch Credential ID của ProteusDB trên server để ghi đè vào các kết nối n8n, đồng thời tự động replace placeholder `{{TENANT_SCHEMA}}` thành Schema thực tế của Tenant đang cài đặt.
+
+### Changed
+- **[plugins/hr-module]** Cập nhật `hr_employees_read.json` loại bỏ hardcode Tenant Schema và thay bằng biến động `{{TENANT_SCHEMA}}`.
+### Added
+- **[core-engine/backend]** Triển khai hoàn thiện `EventSubscriberWorker`: Backend nay đã liên tục lắng nghe các sự kiện qua Redis Pub/Sub và tự động kích hoạt chéo (trigger) n8n workflows của các Plugins khác thông qua định dạng `event_subscriptions` trong file `manifest.yaml`. Hệ sinh thái Event-Driven Architecture (EDA) chính thức hoạt động 100%.
+
+### Changed
+- **[core-engine/backend]** Cập nhật `main.py` để thêm `EventSubscriberWorker` chạy ngầm bằng `asyncio.create_task` gắn với vòng đời `lifespan` của FastAPI.
+- **[core-engine/backend]** Cập nhật `redis_event_bus.py` bổ sung hàm `subscribe_and_listen` cho luồng worker.
+### Fixed
+- **[core-engine/backend]** Sửa lỗi không nhận code mới do Docker container backend không mount volume code. Đã rebuild container để apply logic `ai_command_use_case.py` tách `markdown`.
+- **[plugins/hr-module]** Cập nhật logic Javascript trong `hr_employees_read.json` n8n để fetch chuẩn xác `raw_input` nằm sâu bên trong payload của AI Orchestrator gửi đến (`body.parameters.raw_input`), khắc phục lỗi trả về sai full 3 nhân viên do không lọc được điều kiện.
+### Changed
+- **[core-engine/backend]** Cập nhật `ai_command_use_case.py` để hỗ trợ bóc tách trường `markdown` từ n8n webhook response. Điều này cho phép các Plugin tự do định dạng output trả về cho AI Chat UI một cách đẹp mắt.
+- **[plugins/hr-module]** Cập nhật workflow `hr_employees_read.json` (Node Format Data) để sinh ra giao diện dạng Markdown string đẹp mắt thay vì trả về raw JSON thô.
+
+
+### Added
+- [docs/demo-guide.md] Bổ sung tài liệu Hướng dẫn Demo chi tiết các kịch bản cốt lõi (Multi-tenancy, Micro-kernel, AI Human-in-the-loop) để trình diễn trước hội đồng.
+- [core-engine/backend] Hoàn thiện tích hợp luồng Human-in-the-loop: Chuyển đổi thông báo phê duyệt AI Command sang dạng Interactive Message trên Mattermost (gắn nút Phê duyệt/Từ chối thay vì chỉ gửi text thông báo thông thường). Hỗ trợ truyền tùy chỉnh `approval_message` từ Frontend xuống tận Mattermost Adapter.
+
+
+### Fixed
+- **[core-engine/backend/app/core/use_cases/dsl_validator.py]** Nới lỏng schema kiểm duyệt cho action `hr.leave_requests.batch_approve`: loại bỏ bắt buộc trường `request_ids` và cho phép `raw_input`, giải quyết lỗi AI Orchestrator bị block bởi schema cứng nhắc khi dịch từ ngôn ngữ tự nhiên.
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi Crash/500 khi lưu AI Command: bọc logic validation vào `try...except DSLValidationError` để trả về lỗi 202 thân thiện (Graceful Degradation); cập nhật logic lưu DB để dump object thành `dsl_payload` thay vì chèn vào các cột không tồn tại (`dsl_version`, `parameters`).
+- **[core-engine/backend/app/adapters/repositories/ai_command_repo.py]** Bỏ logic pop `session_id` khi insert, đảm bảo đồng bộ với schema CSDL.
+- **[core-engine/frontend/src/hooks/useAICommand.ts]** Sửa lỗi Frontend luôn hiển thị "System Command" khi đang chờ duyệt: lấy đúng field `data.result` từ API thay vì bắt cứng vào `dry_run_result`.
+- **[deploy/.env]** Thêm biến `MATTERMOST_SYSTEM_CHANNEL_ID` vào `.env` và `docker-compose.yml` (map vào channel Town Square) và thêm bot vào channel, sửa lỗi 403 Forbidden khi Backend gửi Interactive Message xin duyệt lên Mattermost.
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Sửa lỗi Frontend luôn hiển thị "System Command": bổ sung `action` và `effect` vào kết quả `dry_run_res` trả về cho Frontend hiển thị.
+- **[core-engine/backend/app/core/use_cases/ai_timeout_worker.py]** Sửa lỗi crash background worker khi hủy lệnh quá hạn (do cập nhật cột `updated_at` không tồn tại trong CSDL).
+- **[Mattermost Config]** Cấu hình `ServiceSettings.AllowedUntrustedInternalConnections` cho phép Mattermost gọi Webhook nội bộ tới `proteus-backend`, sửa lỗi bấm nút Phê duyệt/Từ chối không có tác dụng.
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Sửa lỗi nút bấm Phê duyệt/Từ chối trên Mattermost bị vô hiệu hóa (silently failed). Cập nhật API để chấp nhận xác thực qua tham số `token` trên URL thay vì yêu cầu bắt buộc `Mattermost-Signature` (do Mattermost Interactive Messages không tự động sinh HMAC).
+- **[core-engine/backend/app/entrypoints/routers/mattermost_webhook.py]** Cập nhật logic để thay thế thông báo gốc thành "✅ ĐƯỢC PHÊ DUYỆT" hoặc "❌ BỊ TỪ CHỐI" (ẩn các nút bấm) sau khi tương tác.
+- **[core-engine/backend/app/adapters/external/mattermost_adapter.py]** Tự động nhúng `token` vào URL callback của Interactive Buttons.
+- **[core-engine/backend/app/adapters/repositories/ai_command_repo.py]** Loại bỏ trường `updated_at` trong hàm `update_command_approval` do bảng `ai_commands` không tồn tại cột này, gây lỗi 500 khi phê duyệt lệnh nghỉ phép.
+- **[core-engine/backend/app/core/use_cases/ai_command.py]** Ngăn việc lưu Mattermost User ID (chuỗi 26 ký tự) vào cột `approved_by` (kiểu UUID) của lệnh AI Command (VD: phê duyệt nghỉ phép) vì nó gây lỗi SQL `invalid input syntax for type uuid` dẫn đến lỗi 500 khi webhook callback chạy.
+
+
 ## [v1.0.3] - 2026-09-08
 
 ### Added
@@ -526,6 +586,23 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - **[CHANGELOG.md]** Tái cấu trúc: gộp 2 section `## [Unreleased]` thành 1, xóa `### Changed (tiếp theo)` không chuẩn, sắp xếp lại theo đúng format Keep a Changelog. Thêm link [Keep a Changelog](https://keepachangelog.com/) vào header.
 - **[docs/BRD.md FR1]** Chuẩn hóa Wiki/CMS: "Outline/BookStack" → "Outline" (nhất quán với `architecture.md`, `deployment.md`).
 - **[docs/deployment.md §3]** Cập nhật lệnh `docker-compose ps` → `docker compose ps` (Docker Compose v2 chuẩn), giữ ghi chú tương thích v1.
+
+## [Unreleased] - Sắp tới
+
+### Added
+- [docs/plugin-manifest-spec.md] Hỗ trợ cấu trúc Hybrid UI (`external_url` cho Micro-Frontend) trong Plugin Manifest (v1.2.0).
+- [core-engine/backend] Bổ sung parser cho trường `ui.external_url` trong `PluginManifest` model thay thế cho `ui_apps` array cũ.
+- [core-engine/frontend] Sửa logic `LaunchpadClient.tsx` ưu tiên render `external_url` (nếu có) trước khi fallback về Appsmith mặc định.
+- [plugins/crm-module] Cập nhật manifest của CRM Module để biểu diễn cách sử dụng `external_url`.
+
+
+### Fixed
+- **[core-engine/backend]** Sửa lỗi chạy ngầm quá trình gỡ cài đặt Plugin bị chặn bởi Row-Level Security (RLS) do thiếu ContextVar `current_tenant_id` trong Background Task.
+- **[core-engine/backend]** Khắc phục lỗi crash `TypeError` khi gọi `PluginUninstallUseCase` thiếu tham số `session` ở chế độ background.
+- **[core-engine/frontend]** Sửa lỗi Frontend không nhận được tiến trình gỡ cài đặt do gọi sai URL polling (từ `install-status/{taskId}` thành `install/{taskId}/status`).
+
+### Changed
+- **[plugins/hr-module]** Cập nhật workflow `hr_employees_read.json` để lấy danh sách nhân viên từ CSDL thật (PostgreSQL) thay vì trả về mock data. Cập nhật `manifest.yaml` tương ứng.
 
 ### Fixed
 - **[README.md]** Xóa thẻ `</div>` thừa và badge Docker bị duplicate trong phần header badges.

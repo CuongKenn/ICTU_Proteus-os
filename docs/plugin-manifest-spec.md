@@ -71,8 +71,24 @@ database:
 
   # `seed_file` là TÙY CHỌN. File SQL chạy một lần khi cài đặt lần đầu,
   # dùng để tạo cấu trúc bảng (CREATE TABLE) và dữ liệu mẫu (INSERT).
-  # Không cần thêm cột tenant_id trong file này — Plugin Manager tự inject.
+  # KHÔNG dùng cột tenant_id — mỗi tenant có schema riêng (xem quy ước runtime dưới).
   seed_file: "db/seed_data.sql"
+
+  # QUY ƯỚC RUNTIME (bắt buộc để workflow chạy được):
+  # - seed_file CHẠY TRONG schema riêng của tenant (tenant_<uuid>), nên CREATE/INSERT
+  #   không ghi schema prefix; validator của install cấm DROP/DELETE/UPDATE/ALTER...
+  #   (kể cả trong comment và ON DELETE clause) và splitter cắt theo ';' nên comment
+  #   không được chứa dấu ';'.
+  # - Isolation giữa tenant = schema riêng, không dùng cột tenant_id.
+  # - Mọi query n8n phải qualify {{TENANT_SCHEMA}}.<bảng> (install inject schema thật
+  #   lúc import, xem _step_2_n8n) và chỉ dùng bảng/cột tồn tại trong seed.
+  # - Node postgres (typeVersion 2.x): params để ở options.queryReplacement
+  #   (KHÔNG dùng additionalFields.queryParams của v1); mỗi node 1 câu SQL duy nhất
+  #   (parameterized query không chạy multi-statement) — tách chuỗi ghi thành nhiều node.
+  # - Node postgres phải có skeleton "credentials": {"postgres": {...}} để install
+  #   auto-bind credential ProteusDB_Real; node webhook phải có "httpMethod": "POST".
+  # - Node schedule cron viết dạng rule.interval: [{field: "cronExpression",
+  #   expression: "0 8 * * 1"}] (5 trường, đúng chuẩn n8n hiện tại).
 
   # `default_config` là TÙY CHỌN. Cấu hình mặc định của Plugin.
   # tenant_admin có thể override các giá trị này qua TENANT_PLUGIN.config_override.
@@ -86,10 +102,15 @@ database:
 # ============================================================
 # Tất cả đường dẫn trong workflows[] là đường dẫn TƯƠNG ĐỐI từ thư mục gốc plugin.
 workflows:
-  - file: "workflows/leave_request.json"   # BẮT BUỘC. Đường dẫn tương đối từ thư mục gốc plugin
+  - id: "wf_leave_request"                # KHUYẾN NGHỊ. Định danh action ổn định cho generic dispatcher
+                                          # POST /plugins/{code}/actions/{id}. Chỉ gồm [a-z0-9_-], duy nhất
+                                          # trong plugin. Thiếu → fallback sang stem của `file`.
+    file: "workflows/leave_request.json"   # BẮT BUỘC. Đường dẫn tương đối từ thư mục gốc plugin
     name: "HR Leave Request Workflow"      # BẮT BUỘC. Tên hiển thị trong n8n
     description: "Xử lý luồng duyệt đơn nghỉ phép"
     trigger: "webhook"                     # BẮT BUỘC. Loại trigger: webhook | cron | manual
+                                           # Chỉ workflow webhook mới gọi được qua API
+                                           # (GET /plugins/{code}/actions chỉ liệt kê nhóm này).
 
   - file: "workflows/employee_onboarding.json"
     name: "Employee Onboarding Workflow"
@@ -115,19 +136,15 @@ dashboards:
     description: "Tổng quan nhân sự: headcount, nghỉ phép, chấm công"
 
 # ============================================================
-# PHẦN 6: UI APPLICATIONS — Giao diện Appsmith
+# PHẦN 6: UI — Giao diện Hybrid (Appsmith hoặc Micro-Frontend)
 # ============================================================
-ui_apps:
-  - file: "ui/appsmith_app.json"    # Đường dẫn tương đối từ thư mục gốc plugin
-    name: "HR Management App"
-    # `path` là đường dẫn hiển thị trên Proteus OS Launchpad.
-    # QUY TẮC:
-    #   - BẮT BUỘC bắt đầu bằng /apps/ để tránh xung đột với path hệ thống
-    #   - Không được trùng với path hệ thống: /auth, /api, /chat, /files,
-    #     /wiki, /workflow, /analytics, /monitoring
-    #   - Phải là duy nhất trong toàn bộ Tenant (Plugin Manager kiểm tra trước khi cài)
-    #   - Nếu xung đột, Plugin Manager từ chối cài và báo lỗi PATH_CONFLICT
-    path: "/apps/hr"
+ui:
+  # Lựa chọn 1: Dùng nền tảng Low-code Appsmith (Khuyến nghị cho tác vụ CRUD nhanh)
+  appsmith_app: "ui/appsmith_app.json"
+  
+  # Lựa chọn 2: Dùng giao diện ngoài tự code bằng React/Next.js/Vue (Micro-Frontend)
+  # Nếu được cung cấp, App Shell sẽ ưu tiên nhúng Iframe vào external_url này thay vì gọi Appsmith.
+  external_url: "http://hr-frontend.proteus.local"
 
 # ============================================================
 # PHẦN 7: ROLES — Phân quyền tự động
@@ -289,14 +306,13 @@ Khi `trigger: cron`, **bắt buộc** cung cấp thêm trường `cron_expressio
 
 Mỗi Dashboard trong Metabase phải được export ra file JSON từ Metabase UI. Plugin Manager dùng Metabase API để import. Metabase sẽ tự động áp filter `tenant_id` theo cấu hình Locked Parameter.
 
-### 3.5. PHẦN 6: UI Apps
+### 3.5. PHẦN 6: UI (Giao diện Hybrid)
 
-| Quy tắc | Mô tả |
+| Lựa chọn | Mô tả |
 |---|---|
-| **Prefix bắt buộc** | `path` phải bắt đầu bằng `/apps/` |
-| **Path duy nhất** | Plugin Manager kiểm tra conflict trước khi cài. Nếu trùng → lỗi `PATH_CONFLICT` |
-| **Path bị cấm** | Không được trùng với path hệ thống: `/auth`, `/api`, `/chat`, `/files`, `/wiki`, `/workflow`, `/analytics`, `/monitoring` |
-| **Format** | Chỉ chứa chữ thường, số, dấu `-` và `/`. VD: `/apps/hr`, `/apps/finance-dashboard` |
+| **`appsmith_app`** | Đường dẫn tới file JSON export từ Appsmith. Thích hợp cho các module nội bộ cần làm nhanh. |
+| **`external_url`** | (Mới v1.2.0) Đường dẫn (URL) tới một Micro-Frontend tự build (React/Vue). Nếu có trường này, App Shell sẽ ưu tiên nhúng Iframe vào URL này. |
+| **Bảo mật (Iframe)** | Nếu dùng `external_url`, frontend container của plugin đó phải cấu hình cho phép iframe embedding từ domain của App Shell (`X-Frame-Options` hoặc `Content-Security-Policy`). |
 
 ### 3.6. PHẦN 7: Roles
 
@@ -444,5 +460,7 @@ Plugin Manager so sánh `installed_version` trong `TENANT_PLUGIN` với `version
 
 | Phiên bản | Ngày | Thay đổi |
 |---|---|---|
+| 1.3.0 | 2026-09-11 | Thêm `workflows[].id` (định danh action cho generic dispatcher `POST /plugins/{code}/actions/{id}`; xem `docs/api-swagger.yaml`). |
+| 1.2.0 | 2026-09-11 | Hỗ trợ Hybrid UI (Thêm `ui.external_url` cho Micro-Frontend, thay thế `ui_apps` array). |
 | 1.1.0 | 2026-08-06 | Thêm `default_config`, `cron_expression` cho cron trigger, quy tắc `ui_apps.path`, giải thích `permissions[]` format, phân tách `tables` vs `seed_file`, thêm wrapper Event Schema, thêm Uninstall Lifecycle (§5), thêm mô tả §3 cho tất cả các phần, thêm `min_version` trong `dependencies`. |
 | 1.0.0 | 2026-08-06 | Phiên bản đầu tiên. 10 phần cơ bản: metadata, compatibility, database, workflows, dashboards, ui_apps, roles, event_subscriptions, event_publications, dependencies. |

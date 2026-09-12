@@ -77,17 +77,28 @@ class DSLValidator:
         resource = parts[1]
         method = parts[2]
 
-        # Rule 1: Action whitelist (Removed to follow Open/Closed Principle)
-        # We rely on Rule 2 (Permission) and Rule 3 (Plugin status) to secure the action.
         # Rule 3: Plugin installed + ACTIVE
         if plugin_code != "core":
+            # Auto append -module to match DB code_name if missing
+            db_plugin_code = (
+                plugin_code
+                if plugin_code.endswith("-module")
+                else f"{plugin_code}-module"
+            )
+
             status = await self.plugin_repo.get_tenant_plugin_status_by_code(
-                tenant_id=self.tenant_id, plugin_code=plugin_code
+                tenant_id=self.tenant_id, plugin_code=db_plugin_code
             )
             if not status or status.value != "ACTIVE":
-                raise DSLPluginNotActiveError(
-                    f"Plugin {plugin_code} is not installed or not ACTIVE."
+                # Fallback to the original plugin code just in case
+                status = await self.plugin_repo.get_tenant_plugin_status_by_code(
+                    tenant_id=self.tenant_id, plugin_code=plugin_code
                 )
+
+                if not status or status.value != "ACTIVE":
+                    raise DSLPluginNotActiveError(
+                        f"Plugin {db_plugin_code} is not installed or not ACTIVE."
+                    )
 
         # Rule 2: Permission check
         req_permission = f"{plugin_code}:{resource}:{method}"
@@ -111,8 +122,9 @@ class DSLValidator:
                 "properties": {
                     "request_ids": {"type": "array", "items": {"type": "string"}},
                     "reason": {"type": "string"},
+                    "raw_input": {"type": "string"},
                 },
-                "required": ["request_ids"],
+                # Bỏ qua yêu cầu bắt buộc "request_ids" vì AI thường chỉ trả về "raw_input"
             }
 
         try:

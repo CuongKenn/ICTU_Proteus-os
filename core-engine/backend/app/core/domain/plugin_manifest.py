@@ -69,6 +69,11 @@ class ManifestDatabase(BaseModel):
 
 
 class ManifestWorkflow(BaseModel):
+    # Định danh action ổn định để UI/backend gọi qua
+    # POST /plugins/{code}/actions/{id} (VD: "wf_asset_request").
+    # Optional để tương thích manifest cũ — khi thiếu, dispatcher
+    # fallback sang stem của `file` (VD: workflows/foo.json → "foo").
+    id: str | None = None
     file: str
     name: str
     description: str | None = None
@@ -82,10 +87,9 @@ class ManifestDashboard(BaseModel):
     description: str | None = None
 
 
-class ManifestUIApp(BaseModel):
-    file: str
-    name: str
-    path: str
+class ManifestUI(BaseModel):
+    appsmith_app: str | None = None
+    external_url: str | None = None
 
 
 class ManifestRole(BaseModel):
@@ -192,7 +196,7 @@ class PluginManifest(BaseModel):
     # ─── Extensions ───────────────────────────────────────────
     workflows: list[ManifestWorkflow] = Field(default_factory=list)
     dashboards: list[ManifestDashboard] = Field(default_factory=list)
-    ui_apps: list[ManifestUIApp] = Field(default_factory=list)
+    ui: ManifestUI | None = None
     roles: list[ManifestRole] = Field(default_factory=list)
     event_subscriptions: list[ManifestEventSubscription] = Field(default_factory=list)
     event_publications: list[ManifestEventPublication] = Field(default_factory=list)

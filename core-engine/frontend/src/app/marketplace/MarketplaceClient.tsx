@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSession } from "@/hooks/useSession";
 import { useRBAC } from "@/hooks/useRBAC";
 import { PluginCard, type PluginData, type PluginStatus } from "@/components/marketplace/PluginCard";
@@ -11,6 +11,7 @@ import { CategoryFilter } from "@/components/marketplace/CategoryFilter";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { Modal } from "@/components/ui/Modal";
 import { InstallPreviewDialog } from "./InstallPreviewDialog";
+import { InstallProgressModal } from "@/components/marketplace/InstallProgressModal";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePlugins } from "@/hooks/usePlugins";
 import { PackageOpen, Sparkles } from "lucide-react";
@@ -23,12 +24,18 @@ export const MarketplaceClient: React.FC = () => {
   const { hasPermission, isLoading: isRBACLoading } = useRBAC();
   const canInstall = hasPermission("plugins:install");
 
-  const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
+  const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installSteps, installPlugin, uninstallPlugin } = useMarketplace();
   const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
   const [previewCredSchema, setPreviewCredSchema] = useState<CredentialFieldSchema[]>([]);
   const [isInstallPreviewOpen, setIsInstallPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (installStatus === null && !installingId) {
+      refetchInstalled();
+    }
+  }, [installStatus, installingId, refetchInstalled]);
 
   const [uninstallPluginData, setUninstallPluginData] = useState<{ id: string; name: string } | null>(null);
   const [isUninstallConfirmOpen, setIsUninstallConfirmOpen] = useState(false);
@@ -46,6 +53,7 @@ export const MarketplaceClient: React.FC = () => {
       if (p.status === "FAILED_DIRTY") uiStatus = "failed";
       else if (p.status === "DISABLED") uiStatus = "disabled";
       else if (p.status === "INSTALLING") uiStatus = "installing";
+      else if (p.status === "UNINSTALLING" as any) uiStatus = "uninstalling" as any;
       else if (p.status === "PENDING_CREDENTIALS") uiStatus = "failed"; // show as warning
 
       list.push({
@@ -252,6 +260,21 @@ export const MarketplaceClient: React.FC = () => {
         credentialsSchema={previewCredSchema}
         onClose={() => setIsInstallPreviewOpen(false)}
         onConfirm={handleConfirmInstall}
+      />
+
+
+      <InstallProgressModal
+        isOpen={!!installingId}
+        pluginName={allPlugins.find(p => p.data.id === installingId)?.data.name}
+        steps={installSteps}
+        overallProgress={installProgress}
+        status={installStatus}
+        onClose={() => {
+           // Will be auto-closed by hook when complete, or user can close if failed
+           if (installStatus === "failed" || installStatus === "active") {
+             // Let the hook timeout handle the reset, or you can force clear installingId if needed
+           }
+        }}
       />
 
       {/* Uninstall Confirm Modal */}

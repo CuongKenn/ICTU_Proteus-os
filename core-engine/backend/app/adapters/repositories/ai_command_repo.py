@@ -45,22 +45,33 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         return [dict(row) for row in rows]
 
     async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
-        now = datetime.now(UTC)
         sql_update = text("""
             UPDATE ai_commands
-            SET status = :status, updated_at = :now
+            SET status = :status
             WHERE id = :cmd_id
         """)
         await self._session.execute(
-            sql_update, {"status": status.value, "now": now, "cmd_id": cmd_id}
+            sql_update, {"status": status.value, "cmd_id": cmd_id}
         )
 
     async def create_command(self, command_data: dict) -> uuid.UUID:
         data = dict(command_data)
-        data.pop("session_id", None)
         now = datetime.now(UTC)
         if "created_at" not in data:
             data["created_at"] = now
+
+        # Map Keycloak ID to Internal ID if needed to prevent FK violation
+        if "issued_by_user_id" in data:
+            uid = data["issued_by_user_id"]
+            res = await self._session.execute(
+                text(
+                    "SELECT id FROM users WHERE id = :uid OR keycloak_id = :uid LIMIT 1"
+                ),
+                {"uid": uid},
+            )
+            real_id = res.scalar()
+            if real_id:
+                data["issued_by_user_id"] = real_id
 
         columns = ", ".join(data.keys())
         placeholders = ", ".join(f":{k}" for k in data.keys())
@@ -88,24 +99,26 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         approved_by: str | None = None,
         second_approver: str | None = None,
     ) -> None:
-        now = datetime.now(UTC)
-        updates = ["updated_at = :now"]
-        params = {"now": now, "cmd_id": str(cmd_id)}
+        updates = []
+        params = {"cmd_id": str(cmd_id)}
 
         if status is not None:
             updates.append("status = :status")
             params["status"] = status
         if approved_by is not None:
-            updates.append("approved_by_user_id = :approved_by")
+            updates.append("approved_by = :approved_by")
             params["approved_by"] = approved_by
         if second_approver is not None:
-            updates.append("second_approver_id = :second_approver")
+            updates.append("second_approver = :second_approver")
             params["second_approver"] = second_approver
 
-        sql_update = text(
-            f"UPDATE ai_commands SET {', '.join(updates)} WHERE id = :cmd_id"
-        )
-        await self._session.execute(sql_update, params)
+        if not updates:
+            return
+
+        set_clause = ", ".join(updates)
+        sql = f"UPDATE ai_commands SET {set_clause} WHERE id = :cmd_id"
+
+        await self._session.execute(text(sql), params)
 
     async def commit(self) -> None:
         await self._session.commit()
