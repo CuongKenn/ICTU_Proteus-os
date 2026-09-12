@@ -820,6 +820,10 @@ class PluginUpgradeUseCase:
     ) -> None:
         """Gắn credentials dùng chung vào nodes (giống luồng install)."""
         for node in wf_json.get("nodes", []):
+            if (node.get("type") or "") == "n8n-nodes-base.webhook":
+                params = node.setdefault("parameters", {})
+                if isinstance(params, dict) and not params.get("httpMethod"):
+                    params["httpMethod"] = "POST"
             if "parameters" in node and "query" in node["parameters"]:
                 query = node["parameters"]["query"]
                 if "{{TENANT_SCHEMA}}" in query:

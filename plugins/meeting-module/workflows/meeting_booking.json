@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "meeting/book",
         "responseMode": "lastNode",
         "options": {}

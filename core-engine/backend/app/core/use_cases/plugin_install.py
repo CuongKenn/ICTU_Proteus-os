@@ -624,6 +624,12 @@ class PluginInstallUseCase:
 
                 # Dynamic Workflow Injection
                 for node in wf_json.get("nodes", []):
+                    # Webhook nodes thiếu httpMethod mặc định về GET trong n8n
+                    # trong khi backend trigger POST → 404. Ép POST nếu thiếu.
+                    if (node.get("type") or "") == "n8n-nodes-base.webhook":
+                        params = node.setdefault("parameters", {})
+                        if isinstance(params, dict) and not params.get("httpMethod"):
+                            params["httpMethod"] = "POST"
                     # Inject Tenant Schema
                     if "parameters" in node and "query" in node["parameters"]:
                         query = node["parameters"]["query"]

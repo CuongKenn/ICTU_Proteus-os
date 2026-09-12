@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "document/approval",
         "responseMode": "lastNode",
         "options": {}

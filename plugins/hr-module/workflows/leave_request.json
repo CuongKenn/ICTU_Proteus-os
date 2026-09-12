@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "hr/leave-request",
         "responseMode": "lastNode",
         "options": {}

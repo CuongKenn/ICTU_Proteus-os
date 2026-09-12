@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "document/incoming",
         "responseMode": "lastNode",
         "options": {}
