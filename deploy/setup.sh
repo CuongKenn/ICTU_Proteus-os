@@ -212,6 +212,26 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
         docker compose restart backend
       fi
     fi
+
+    # 7.8 Tự động điền MATTERMOST_SYSTEM_CHANNEL_ID (Town Square của team đầu tiên)
+    if grep -q "MATTERMOST_SYSTEM_CHANNEL_ID=CHANGE_ME_GET_FROM_MATTERMOST" .env; then
+      FIRST_TEAM=$(curl -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" \
+        "$MM_URL/teams" | jq -r '.[0].id // empty')
+      if [ -n "$FIRST_TEAM" ]; then
+        TOWN_ID=$(curl -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" \
+          "$MM_URL/teams/$FIRST_TEAM/channels/name/town-square" | jq -r '.id // empty')
+        if [ -n "$TOWN_ID" ]; then
+          sed -i.bak "s|MATTERMOST_SYSTEM_CHANNEL_ID=CHANGE_ME_GET_FROM_MATTERMOST|MATTERMOST_SYSTEM_CHANNEL_ID=$TOWN_ID|g" .env
+          rm -f .env.bak
+          echo "✅ Đã điền MATTERMOST_SYSTEM_CHANNEL_ID và ghi vào .env"
+          docker compose restart backend
+        else
+          echo "⚠️ Không tìm thấy kênh Town Square — giữ nguyên MATTERMOST_SYSTEM_CHANNEL_ID."
+        fi
+      else
+        echo "⚠️ Chưa có team Mattermost nào — giữ nguyên MATTERMOST_SYSTEM_CHANNEL_ID."
+      fi
+    fi
   else
     echo "⚠️ Không thể đăng nhập Mattermost bằng sysadmin để tạo bot token."
   fi

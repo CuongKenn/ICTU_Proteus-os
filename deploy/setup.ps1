@@ -277,6 +277,30 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
             } else {
                 Write-Host "[WARN] Failed to find or create Mattermost Bot user." -ForegroundColor Yellow
             }
+
+            # Tự động điền MATTERMOST_SYSTEM_CHANNEL_ID (Town Square của team đầu tiên)
+            $envContent = Get-Content .env -Raw -Encoding UTF8
+            if ($envContent -match "MATTERMOST_SYSTEM_CHANNEL_ID=CHANGE_ME_GET_FROM_MATTERMOST") {
+                try {
+                    $teams = Invoke-RestMethod -Uri "$mmUrl/teams" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
+                    $firstTeamId = $teams[0].id
+                    if ($firstTeamId) {
+                        $town = Invoke-RestMethod -Uri "$mmUrl/teams/$firstTeamId/channels/name/town-square" -Method Get -Headers $authHeaders -UseBasicParsing -ErrorAction Stop
+                        if ($town.id) {
+                            $envContent = $envContent -replace "MATTERMOST_SYSTEM_CHANNEL_ID=CHANGE_ME_GET_FROM_MATTERMOST", "MATTERMOST_SYSTEM_CHANNEL_ID=$($town.id)"
+                            Set-Content .env -Value $envContent -Encoding UTF8
+                            Write-Host "[OK] MATTERMOST_SYSTEM_CHANNEL_ID saved." -ForegroundColor Green
+                            docker compose restart backend
+                        } else {
+                            Write-Host "[WARN] Town Square channel not found, keeping placeholder." -ForegroundColor Yellow
+                        }
+                    } else {
+                        Write-Host "[WARN] No Mattermost team yet, keeping placeholder." -ForegroundColor Yellow
+                    }
+                } catch {
+                    Write-Host "[WARN] Failed to resolve system channel: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
         }
     } else {
         Write-Host "[WARN] Mattermost did not become ready in time." -ForegroundColor Yellow
