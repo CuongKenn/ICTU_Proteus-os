@@ -216,16 +216,30 @@ async def get_plugin_toggle_use_case(
 
 
 async def get_plugin_upgrade_use_case(
+    request: Request,
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
+    appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
+    keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
+    tenant_repo: AbstractTenantRepository = Depends(get_tenant_repo),
 ) -> PluginUpgradeUseCase:
-    """Inject Plugin Upgrade Use Case."""
+    """Inject Plugin Upgrade Use Case (full adapters như install)."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
 
     return PluginUpgradeUseCase(
         plugin_repo=repo,
         manifest_parser=LocalManifestParser(),
+        n8n_adapter=n8n_adapter,
+        metabase_adapter=metabase_adapter,
+        appsmith_adapter=appsmith_adapter,
+        keycloak_adapter=keycloak_adapter,
+        mattermost_adapter=mattermost_adapter,
         session=db,
+        event_bus=request.app.state.redis_event_bus,
+        tenant_repo=tenant_repo,
     )
 
 

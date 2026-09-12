@@ -81,6 +81,23 @@ class AbstractWorkflowEnginePort(ABC):
         pass
 
     @abstractmethod
+    async def list_workflows(self, limit: int = 200) -> list[dict[str, Any]]:
+        """Liệt kê workflows trên n8n (match theo tên khi upgrade)."""
+        pass
+
+    @abstractmethod
+    async def get_workflow(self, workflow_id: str) -> dict[str, Any] | None:
+        """Lấy full workflow JSON từ n8n. None nếu không tồn tại."""
+        pass
+
+    @abstractmethod
+    async def update_workflow(
+        self, workflow_id: str, workflow_json: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Cập nhật workflow đã tồn tại (dùng khi upgrade version)."""
+        pass
+
+    @abstractmethod
     async def delete_workflow(self, workflow_id: str) -> None:
         """Xóa một workflow khỏi n8n theo ID."""
         pass

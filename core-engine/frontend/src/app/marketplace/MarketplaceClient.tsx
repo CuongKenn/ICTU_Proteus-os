@@ -19,13 +19,26 @@ import type { CredentialFieldSchema, CredentialInput } from "@/types";
 
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
+/** So sánh semver đơn giản: -1 nếu a<b, 0 nếu bằng, 1 nếu a>b. */
+const compareVersions = (a?: string | null, b?: string | null): number => {
+  const pa = (a ?? "").split(".").map((x) => parseInt(x, 10) || 0);
+  const pb = (b ?? "").split(".").map((x) => parseInt(x, 10) || 0);
+  const n = Math.max(pa.length, pb.length, 1);
+  for (let i = 0; i < n; i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d > 0 ? 1 : -1;
+  }
+  return 0;
+};
+
 export const MarketplaceClient: React.FC = () => {
   useSession();
   const { hasPermission, isLoading: isRBACLoading } = useRBAC();
   const canInstall = hasPermission("plugins:install");
 
   const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installSteps, installPlugin, uninstallPlugin } = useMarketplace();
-  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
+  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled, upgrade: upgradePlugin, upgradingId, upgradeProgress, upgradeStatus, upgradeSteps } = usePlugins();
+  const canUpgrade = hasPermission("plugins:upgrade");
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
   const [previewCredSchema, setPreviewCredSchema] = useState<CredentialFieldSchema[]>([]);
@@ -55,6 +68,14 @@ export const MarketplaceClient: React.FC = () => {
       else if (p.status === "INSTALLING") uiStatus = "installing";
       else if (p.status === "UNINSTALLING" as any) uiStatus = "uninstalling" as any;
       else if (p.status === "PENDING_CREDENTIALS") uiStatus = "failed"; // show as warning
+      else if (p.status === "UPGRADING" as any) uiStatus = "upgrading";
+      else {
+        // So sánh installed_version (DB) với version mới nhất trên Marketplace
+        const twin = availablePlugins.find(ap => ap.code_name === p.code_name);
+        if (canUpgrade && twin && p.installed_version && compareVersions(p.installed_version, twin.version) < 0) {
+          uiStatus = "update_available";
+        }
+      }
 
       list.push({
         data: {
@@ -103,7 +124,7 @@ export const MarketplaceClient: React.FC = () => {
     });
 
     return list;
-  }, [availablePlugins, installedPlugins]);
+  }, [availablePlugins, installedPlugins, canUpgrade]);
 
   // Filter plugins based on search and category
   const filteredPlugins = useMemo(() => {
@@ -135,6 +156,15 @@ export const MarketplaceClient: React.FC = () => {
       setIsInstallPreviewOpen(false);
       // Pass credentials vào install — backend sẽ xử lý n8n credential creation
       await installPlugin(previewPlugin.id || "", credentials);
+    }
+  };
+
+  const handleUpdateClick = async (id: string) => {
+    if (!canUpgrade) return;
+    try {
+      await upgradePlugin(id);
+    } catch {
+      // toast đã xử lý trong hook
     }
   };
 
@@ -234,18 +264,20 @@ export const MarketplaceClient: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-fr">
             {filteredPlugins.map(({ data, status }) => {
-              // Override status if this plugin is currently installing
-              const currentStatus = installingId === data.id ? (installStatus || status) : status;
-              
+              // Override status if this plugin is currently installing/upgrading
+              let currentStatus = installingId === data.id ? (installStatus || status) : status;
+              if (upgradingId === data.id) currentStatus = (upgradeStatus || "upgrading") as PluginStatus;
+
               return (
                 <PluginCard
                   key={data.id}
                   plugin={data}
                   status={currentStatus as PluginStatus}
-                  installProgress={installingId === data.id ? installProgress : 0}
+                  installProgress={installingId === data.id ? installProgress : upgradingId === data.id ? upgradeProgress : 0}
                   canInstall={canInstall}
                   onInstall={handleInstallClick}
                   onUninstall={handleUninstallClick}
+                  onUpdate={handleUpdateClick}
                 />
               );
             })}
@@ -275,6 +307,15 @@ export const MarketplaceClient: React.FC = () => {
              // Let the hook timeout handle the reset, or you can force clear installingId if needed
            }
         }}
+      />
+
+      <InstallProgressModal
+        isOpen={!!upgradingId}
+        pluginName={allPlugins.find(p => p.data.id === upgradingId)?.data.name}
+        steps={upgradeSteps}
+        overallProgress={upgradeProgress}
+        status={upgradeStatus}
+        onClose={() => {}}
       />
 
       {/* Uninstall Confirm Modal */}

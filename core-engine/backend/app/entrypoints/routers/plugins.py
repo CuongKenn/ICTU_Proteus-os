@@ -7,6 +7,7 @@
 import asyncio
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import (
@@ -86,6 +87,7 @@ def _entity_to_response(p) -> PluginResponse:
         download_count=p.download_count,
         published_at=p.published_at,
         status=p.status,
+        installed_version=getattr(p, "installed_version", None),
         tables_count=p.tables_count,
         workflows_count=p.workflows_count,
         roles=p.roles or [],
@@ -114,6 +116,7 @@ def _entity_to_detail_response(p) -> PluginDetailResponse:
         download_count=p.download_count,
         published_at=p.published_at,
         status=p.status,
+        installed_version=getattr(p, "installed_version", None),
         tables_count=p.tables_count,
         workflows_count=p.workflows_count,
         roles=p.roles or [],
@@ -561,23 +564,187 @@ async def enable_plugin(
     return {"message": "Plugin đã được bật lại."}
 
 
+async def _run_upgrade_plugin_background(
+    ctx,
+    plugin_code_name: str,
+    task_id,
+    app_state,
+):
+    """Chạy pipeline upgrade trong background (mirror install)."""
+    import sys
+
+    from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+
+    tenant_id_ctx.set(str(ctx.tenant_id))
+    print(
+        f"[BG_TASK] _run_upgrade_plugin_background STARTED: {plugin_code_name}",
+        flush=True,
+        file=sys.stderr,
+    )
+
+    from app.adapters.external.appsmith_adapter import AppsmithAdapter
+    from app.adapters.external.keycloak_adapter import KeycloakAdapter
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+    from app.adapters.external.metabase_adapter import MetabaseAdapter
+    from app.adapters.external.n8n_adapter import N8nAdapter
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
+    from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
+    from app.infrastructure.database import AsyncSessionLocal
+
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = SQLAlchemyPluginRepository(session=session)
+            tenant_repo = SQLAlchemyTenantRepository(session=session)
+            use_case = PluginUpgradeUseCase(
+                plugin_repo=repo,
+                manifest_parser=LocalManifestParser(),
+                n8n_adapter=N8nAdapter(client=app_state.http_client),
+                metabase_adapter=MetabaseAdapter(client=app_state.http_client),
+                appsmith_adapter=AppsmithAdapter(client=app_state.http_client),
+                keycloak_adapter=KeycloakAdapter(client=app_state.http_client),
+                mattermost_adapter=MattermostAdapter(client=app_state.http_client),
+                session=session,
+                event_bus=app_state.redis_event_bus,
+                tenant_repo=tenant_repo,
+            )
+            await use_case.run_upgrade(
+                context=ctx,
+                plugin_code_name=plugin_code_name,
+                task_id=task_id,
+            )
+        print(f"[BG_TASK] UPGRADE COMPLETED: {plugin_code_name}", flush=True, file=sys.stderr)
+    except BaseException as e:
+        print(
+            f"[BG_TASK] UPGRADE FAILED: {plugin_code_name} — {type(e).__name__}: {e}",
+            flush=True,
+            file=sys.stderr,
+        )
+        logger.error("Background task plugin upgrade failed: %s", e, exc_info=True)
+
+
 @router.post(
     "/{plugin_id}/upgrade",
-    status_code=status.HTTP_200_OK,
-    summary="Nâng cấp Plugin",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Nâng cấp Plugin (async)",
 )
 async def upgrade_plugin(
+    request: Request,
     plugin_id: uuid.UUID,
     ctx: TenantContext = Depends(require_permission("plugins.upgrade")),
     use_case: PluginUpgradeUseCase = Depends(get_plugin_upgrade_use_case),
-) -> dict[str, str]:
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+) -> dict[str, Any]:
+    """
+    Validate + đánh dấu UPGRADING rồi chạy pipeline nền (202 Accepted).
+    Poll tiến trình qua GET /plugins/upgrade/{task_id}/status.
+    """
+    from app.core.domain.entities import PluginStatus as _PluginStatus
+
     try:
-        await use_case.upgrade_plugin(context=ctx, plugin_id=plugin_id)
+        plugin, from_version, to_version = await use_case.prepare_upgrade(
+            context=ctx, plugin_id=plugin_id
+        )
     except PluginUpgradeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+
+    task_id = uuid.uuid4()
+    await use_case.plugin_repo.upsert_installation(
+        tenant_id=ctx.tenant_id,
+        plugin_id=plugin_id,
+        status=_PluginStatus.UPGRADING,
+        installed_version=from_version,
+    )
+    await use_case.plugin_repo.set_upgrade_task_id(
+        ctx.tenant_id, plugin_id, task_id
+    )
+    await use_case.plugin_repo.update_install_steps_log(
+        ctx.tenant_id,
+        plugin_id,
+        [
+            {
+                "step": "queued",
+                "status": "DONE",
+                "at": datetime.now(UTC).isoformat(),
+                "message": f"Upgrade {from_version} → {to_version}",
+            }
+        ],
+    )
+    # Commit ngay để background task thấy state mới (giống install).
+    await repo._session.commit()
+
+    asyncio.get_event_loop().create_task(
+        _run_upgrade_plugin_background(
+            ctx=ctx,
+            plugin_code_name=plugin.code_name,
+            task_id=task_id,
+            app_state=request.app.state,
+        )
+    )
+
+    return {
+        "message": "Plugin upgrade queued.",
+        "plugin_id": str(plugin_id),
+        "task_id": str(task_id),
+        "status": "UPGRADING",
+        "from_version": from_version,
+        "to_version": to_version,
+    }
+
+
+@router.get(
+    "/upgrade/{task_id}/status",
+    response_model=InstallStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Lấy trạng thái nâng cấp Plugin",
+)
+async def get_upgrade_status(
+    task_id: str,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo),
+) -> InstallStatusResponse:
+    """
+    Trả về trạng thái upgrade thực tế từ DB. Frontend poll endpoint này
+    (giống install status) cho tới khi UPGRADING → ACTIVE/FAILED_DIRTY.
+    """
+    try:
+        task_uuid = uuid.UUID(task_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400, detail="Invalid task_id (must be a valid UUID)"
+        ) from e
+
+    result = await repo.get_upgrade_status_by_task_id(ctx.tenant_id, task_uuid)
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail="Plugin upgrade task not found for this tenant"
+        )
+    status_val, plugin_uuid = result
+
+    steps: list[InstallStepLog] = []
+    if hasattr(repo, "get_install_steps_log"):
+        raw_steps = await repo.get_install_steps_log(  # type: ignore
+            ctx.tenant_id, plugin_uuid
+        )
+        steps = [
+            InstallStepLog(
+                step=s.get("step", ""),
+                status=s.get("status", "PENDING"),
+                at=s.get("at"),
+                message=s.get("message"),
+            )
+            for s in (raw_steps or [])
+        ]
+
+    return InstallStatusResponse(
+        overall_status=status_val.value,
+        steps=steps,
+        plugin_id=str(plugin_uuid),
+    )
     return {"message": "Nâng cấp Plugin thành công."}
 
 

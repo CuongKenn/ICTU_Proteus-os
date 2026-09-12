@@ -5,11 +5,11 @@
 // Fetch và quản lý state cho danh sách Plugin.
 // Cung cấp các hành động: install, uninstall, disable, upgrade.
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
-import type { Plugin, PluginListResponse, CredentialInput } from "@/types";
+import type { Plugin, PluginListResponse, CredentialInput, InstallTaskStatus, InstallTaskStep } from "@/types";
 
 interface UsePluginsReturn {
   plugins: Plugin[];
@@ -18,8 +18,12 @@ interface UsePluginsReturn {
   refetch: () => void;
   install: (pluginId: string, credentials?: CredentialInput[]) => Promise<{ task_id: string }>;
   uninstall: (pluginId: string, confirmName?: string) => Promise<void>;
-  disable: (pluginId: string) => Promise<void>;
+  disable: (pluginId: string, confirmName?: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
+  upgradingId: string | null;
+  upgradeProgress: number;
+  upgradeStatus: "upgrading" | "active" | "failed" | null;
+  upgradeSteps: InstallTaskStep[];
   configureCredentials: (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => Promise<unknown>;
 }
 
@@ -110,12 +114,75 @@ export function usePlugins(): UsePluginsReturn {
     }
   }, [refetch]);
 
+  // ─── Upgrade (async + polling, mirror install flow) ──────────────
+  const [upgradingId, setUpgradingId] = useState<string | null>(null);
+  const [upgradeProgress, setUpgradeProgress] = useState(0);
+  const [upgradeStatus, setUpgradeStatus] = useState<"upgrading" | "active" | "failed" | null>(null);
+  const [upgradeSteps, setUpgradeSteps] = useState<InstallTaskStep[]>([]);
+  const upgradingRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopUpgradePolling = useCallback(() => {
+    if (upgradingRef.current) {
+      clearInterval(upgradingRef.current);
+      upgradingRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => stopUpgradePolling(), [stopUpgradePolling]);
+
+  const pollUpgrade = useCallback(async (taskId: string) => {
+    try {
+      const response = await api.get<InstallTaskStatus>(`/v1/plugins/upgrade/${taskId}/status`);
+      const data = response.data;
+      if (!data) return;
+      if (data.steps) setUpgradeSteps(data.steps);
+      if (data.steps && data.steps.length > 0) {
+        const done = data.steps.filter((s) => s.status === "DONE").length;
+        const TOTAL_STEPS = 7; // snapshot/database/n8n/metabase/appsmith/keycloak/complete
+        setUpgradeProgress((prev) => Math.max(prev, Math.min(95, Math.round((done / TOTAL_STEPS) * 100))));
+      } else {
+        setUpgradeProgress((prev) => Math.min(prev + 5, 95));
+      }
+      const st = (data as any).overall_status as string | undefined;
+      if (st === "ACTIVE") {
+        setUpgradeProgress(100);
+        setUpgradeStatus("active");
+        useNotificationStore.getState().addToast("success", "Nâng cấp Plugin thành công!");
+        stopUpgradePolling();
+        refetch();
+        setTimeout(() => {
+          setUpgradingId(null);
+          setUpgradeStatus(null);
+          setUpgradeProgress(0);
+        }, 2000);
+      } else if (st === "FAILED_DIRTY" || st === "FAILED") {
+        setUpgradeStatus("failed");
+        useNotificationStore.getState().addToast("error", "Nâng cấp Plugin thất bại. Bấm Thử lại để chạy lại.");
+        stopUpgradePolling();
+        refetch();
+        setTimeout(() => {
+          setUpgradingId(null);
+          setUpgradeStatus(null);
+          setUpgradeProgress(0);
+        }, 4000);
+      }
+    } catch (err) {
+      // 401/transient — giữ polling, thử lại lần sau
+      logger.warn("[usePlugins] upgrade poll failed, retrying", err);
+    }
+  }, [refetch, stopUpgradePolling]);
+
   const upgrade = useCallback(async (pluginId: string) => {
     try {
-      await api.post(`/v1/plugins/${pluginId}/upgrade`, {});
-
-      useNotificationStore.getState().addToast("success", "Đang tiến hành nâng cấp Plugin.");
-      refetch();
+      const response = await api.post<{ task_id: string }>(`/v1/plugins/${pluginId}/upgrade`, {});
+      const taskId = response.data?.task_id;
+      if (!taskId) throw new Error("Missing upgrade task_id");
+      setUpgradingId(pluginId);
+      setUpgradeStatus("upgrading");
+      setUpgradeProgress(0);
+      setUpgradeSteps([]);
+      stopUpgradePolling();
+      upgradingRef.current = setInterval(() => pollUpgrade(taskId), 3000);
     } catch (err) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
@@ -127,7 +194,7 @@ export function usePlugins(): UsePluginsReturn {
         throw err;
       }
     }
-  }, [refetch]);
+  }, [refetch, pollUpgrade, stopUpgradePolling]);
 
   const configureCredentials = useCallback(async (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => {
     try {
@@ -150,6 +217,10 @@ export function usePlugins(): UsePluginsReturn {
     uninstall,
     disable,
     upgrade,
+    upgradingId,
+    upgradeProgress,
+    upgradeStatus,
+    upgradeSteps,
     configureCredentials,
   };
 }

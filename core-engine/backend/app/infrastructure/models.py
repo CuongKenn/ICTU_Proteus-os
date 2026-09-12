@@ -255,6 +255,9 @@ class TenantPluginModel(BaseModel, SoftDeleteMixin):
     install_task_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+    upgrade_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
 
     # ─── Install tracking (migration f1a2b3c4d5e6) ───────────────────────
     install_steps_log: Mapped[list[Any] | None] = mapped_column(

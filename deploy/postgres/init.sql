@@ -120,7 +120,8 @@ CREATE TYPE plugin_status AS ENUM (
     'FAILED_DIRTY',
     'DISABLED',
     'UNINSTALLING',
-    'DELETED'
+    'DELETED',
+    'UPGRADING'
 );
 
 CREATE TABLE IF NOT EXISTS tenant_plugins (
@@ -135,6 +136,7 @@ CREATE TABLE IF NOT EXISTS tenant_plugins (
     install_steps_log   JSONB DEFAULT '[]',
     credential_ids      JSONB DEFAULT '[]',
     install_task_id     UUID,
+    upgrade_task_id     UUID,                       -- Task nâng cấp đang chạy (poll status)
     installed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -144,6 +146,24 @@ CREATE TABLE IF NOT EXISTS tenant_plugins (
 
 COMMENT ON TABLE tenant_plugins IS 'Quan hệ M-N giữa Tenant và Plugin. Ghi nhận trạng thái cài đặt và cấu hình.';
 CREATE INDEX IF NOT EXISTS idx_tenant_plugins_status ON tenant_plugins(status);
+
+-- ─────────────────────────────────────────────────────────────
+-- BẢNG: PLUGIN_SCHEMA_MIGRATIONS
+-- Track migration DB đã chạy theo từng (tenant, plugin, version) + checksum.
+-- Upgrade chỉ chạy file chưa applied; file đã applied mà checksum đổi → từ chối
+-- (chống sửa migration cũ gây lệch schema giữa tenant).
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS plugin_schema_migrations (
+    tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    plugin_id   UUID NOT NULL REFERENCES plugins(id) ON DELETE CASCADE,
+    version     VARCHAR(50) NOT NULL,               -- VD: "1.0.1" (từ tên file)
+    filename    VARCHAR(255) NOT NULL,
+    checksum    CHAR(64) NOT NULL,                  -- sha256 nội dung file
+    applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_plugin_schema_migrations PRIMARY KEY (tenant_id, plugin_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_plugin_schema_migrations_tenant_plugin
+    ON plugin_schema_migrations (tenant_id, plugin_id);
 
 -- ─────────────────────────────────────────────────────────────
 -- BẢNG: ROLES

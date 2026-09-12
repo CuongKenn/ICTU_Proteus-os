@@ -63,6 +63,42 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def set_upgrade_task_id(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        task_id: uuid.UUID | None,
+    ) -> None:
+        """Gán/xóa upgrade_task_id cho polling tiến trình nâng cấp."""
+        ...
+
+    @abstractmethod
+    async def get_upgrade_status_by_task_id(
+        self, tenant_id: uuid.UUID, upgrade_task_id: uuid.UUID
+    ) -> tuple[PluginStatus, uuid.UUID] | None:
+        """Trả về (status, plugin_id) dựa vào upgrade_task_id."""
+        ...
+
+    @abstractmethod
+    async def list_applied_migrations(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> dict[str, dict[str, str]]:
+        """Map version -> {filename, checksum} của migration đã chạy."""
+        ...
+
+    @abstractmethod
+    async def record_applied_migration(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        version: str,
+        filename: str,
+        checksum: str,
+    ) -> None:
+        """Ghi nhận 1 migration đã chạy thành công (idempotent)."""
+        ...
+
+    @abstractmethod
     async def upsert_installation(
         self,
         tenant_id: uuid.UUID,

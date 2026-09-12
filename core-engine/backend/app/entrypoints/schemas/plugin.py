@@ -109,6 +109,9 @@ class PluginResponse(BaseModel):
     download_count: int = 0
     published_at: datetime | None = None
     status: PluginStatus | None = None
+    # Version thực tế đang chạy cho tenant (khác `version` của marketplace) —
+    # frontend so sánh để hiện nút "Cập nhật". None khi chưa cài.
+    installed_version: str | None = None
     tables_count: int = 0
     workflows_count: int = 0
     roles: list[str] = Field(default_factory=list)
