@@ -62,7 +62,10 @@ if ($appMode -eq "production") {
     $publicScheme = "https"; $scheme = "https"
     $composeFiles = "docker-compose.yml:docker-compose.prod.yml"
     $outlineForceHttps = "true"; $n8nProtocol = "https"; $n8nSecureCookie = "true"
-    $kcStartMode = "start --optimized"
+    # Plain `start` (NOT `start --optimized`): --optimized requires a prior
+    # `kc.sh build` and rejects --db on the command line, so it crash-loops
+    # (exit 2) on first boot. TLS is terminated at Traefik in this stack.
+    $kcStartMode = "start"
 } else {
     $publicScheme = "http"; $scheme = "http"
     $composeFiles = "docker-compose.yml"
@@ -109,6 +112,15 @@ if ($appMode -eq "production") {
     $httpPort = if ($httpPortInput) { $httpPortInput } elseif ($curHttp) { $curHttp } else { "80" }
     $httpsPort = if ($httpsPortInput) { $httpsPortInput } elseif ($curHttps) { $curHttps } else { "443" }
     $urlSuffix = if ($httpsPort -ne "443") { ":$httpsPort" } else { "" }
+    # Neu truy cap thuc te qua Cloudflare Tunnel (URL dep, khong port) trong khi
+    # host giu port lech chuan, giu URL_SUFFIX rong. Mac dinh N = giu hanh vi cu.
+    if ($urlSuffix) {
+        $tunnelUrlChoice = Read-Host "Truy cap qua Cloudflare Tunnel (URL khong port, VD: https://$domain)? [y/N]"
+        if ($tunnelUrlChoice -eq "y" -or $tunnelUrlChoice -eq "Y") {
+            $urlSuffix = ""
+            Write-Host "-> Giu URL public khong hau to port (qua tunnel)." -ForegroundColor Green
+        }
+    }
 } else {
     $domainSuggest = if ($currentDomain) { $currentDomain } else { "proteus.local" }
     $domainInput = Read-Host "DOMAIN [$domainSuggest]"
@@ -170,8 +182,12 @@ if (-Not (Test-Path $envFile)) {
 
         Write-Host "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):" -ForegroundColor Cyan
         
-        $pgUser = Read-Host "POSTGRES_USER [proteus]"
-        if (-not $pgUser) { $pgUser = "proteus" }
+        do {
+            $pgUser = Read-Host "POSTGRES_USER [proteus]"
+            if (-not $pgUser) { $pgUser = "proteus" }
+            $pgUser = $pgUser.ToLower()
+            if ($pgUser -notmatch "^[a-z][a-z0-9_]*$") { Write-Host "[ERROR] POSTGRES_USER chi gom chu thuong, so, gach duoi." -ForegroundColor Red; $pgUser = $null }
+        } while (-not $pgUser)
         
         $pgPass = Read-Host "POSTGRES_PASSWORD [random]"
         if (-not $pgPass) { $pgPass = Get-RandomHex 12 }
@@ -286,14 +302,14 @@ docker compose up -d --build
 # traefik.yml vua render (quan trong khi doi mode local <-> production).
 docker compose restart traefik
 
-# 6. Wait for backend health
-Write-Host "[INFO] Waiting for services to start (may take 1-2 minutes)..." -ForegroundColor Yellow
-$timeout = 120
+# 6. Wait for backend health (Keycloak cham -> cho toi 300s, bo qua TLS tu ky)
+Write-Host "[INFO] Waiting for services to start (may take 2-5 minutes)..." -ForegroundColor Yellow
+$timeout = 300
 $elapsed = 0
 
 while ($elapsed -lt $timeout) {
     try {
-        $response = Invoke-WebRequest -Uri "${scheme}://$domain$urlSuffix/health" -UseBasicParsing -ErrorAction SilentlyContinue
+        $response = Invoke-WebRequest -Uri "${scheme}://$domain$urlSuffix/health" -UseBasicParsing -SkipCertificateCheck -ErrorAction SilentlyContinue
         if ($response.Content -match "status") {
             Write-Host "[OK] Backend is ready!" -ForegroundColor Green
             break
@@ -306,19 +322,24 @@ while ($elapsed -lt $timeout) {
 }
 
 if ($elapsed -ge $timeout) {
-    Write-Host "[WARN] Backend startup timed out (120s). Check: docker compose logs backend" -ForegroundColor Yellow
+    Write-Host "[WARN] Backend startup timed out (300s). Check: docker compose logs backend" -ForegroundColor Yellow
 }
 
 # 6.1 Ensure databases exist (Outline, Metabase)
+# Doc POSTGRES_USER/DB thuc te tu .env (fix "role proteus does not exist").
 Write-Host "[INFO] Ensuring databases exist (outline, metabase)..." -ForegroundColor Cyan
-$sqlCreateDbs = "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec`nSELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec"
-$tmpCreateSql = Join-Path $env:TEMP "create_dbs.sql"
-[System.IO.File]::WriteAllText($tmpCreateSql, $sqlCreateDbs, [System.Text.Encoding]::UTF8)
-try {
-    Get-Content $tmpCreateSql | docker compose exec -T postgres psql -v ON_ERROR_STOP=0 -U proteus -d postgres 2>$null
-    docker compose restart outline metabase
-} catch {}
-Remove-Item $tmpCreateSql -ErrorAction SilentlyContinue
+$pgUserLine = Get-Content $envFile -Encoding UTF8 | Where-Object { $_ -match "^POSTGRES_USER=" }
+$pgUser = if ($pgUserLine) { ($pgUserLine[0] -split '=', 2)[1].Trim('"', "'", " ") } else { "proteus" }
+foreach ($db in @("outline", "metabase")) {
+    $exists = (& docker compose exec -T postgres psql -U $pgUser -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" 2>$null) -join ""
+    if ($exists -notmatch "1") {
+        Write-Host "[INFO] Creating missing database: $db (owner: $pgUser)..." -ForegroundColor Yellow
+        & docker compose exec -T postgres psql -U $pgUser -d postgres -c "CREATE DATABASE `"$db`" OWNER `"$pgUser`"" 2>$null | Out-Null
+    } else {
+        Write-Host "[OK] Database '$db' already exists." -ForegroundColor Green
+    }
+}
+docker compose restart outline metabase
 
 # 6.5 Helper: REST with retry
 function Invoke-RestWithRetry {
@@ -470,11 +491,13 @@ if ($envContent -match "N8N_API_KEY=CHANGE_ME") {
     $rng.GetBytes($bytes)
     $newApiKey = [Convert]::ToBase64String($bytes) -replace "[^a-zA-Z0-9]", ""
 
-    # Inject via DB (PowerShell-native temp file â€” no bash/base64 needed)
+    # Inject via DB (doc POSTGRES_USER/DB thuc te tu .env)
+    $pgDbLine = Get-Content .env -Encoding UTF8 | Where-Object { $_ -match "^POSTGRES_DB=" }
+    $pgDb = if ($pgDbLine) { ($pgDbLine[0] -split '=', 2)[1].Trim('"', "'", " ") } else { "proteus" }
     $sql = 'UPDATE n8n."user" SET "apiKey"=''' + $newApiKey + ''' WHERE email=''admin@proteus.local'';'
     $tmpSql = Join-Path $env:TEMP "n8n_key.sql"
     [System.IO.File]::WriteAllText($tmpSql, $sql, [System.Text.Encoding]::UTF8)
-    Get-Content $tmpSql | docker compose exec -T postgres psql -U proteus -d proteus | Out-Null
+    Get-Content $tmpSql | docker compose exec -T postgres psql -U $pgUser -d $pgDb | Out-Null
     Remove-Item $tmpSql -ErrorAction SilentlyContinue
 
     $envContent = Get-Content .env -Raw -Encoding UTF8
@@ -485,54 +508,60 @@ if ($envContent -match "N8N_API_KEY=CHANGE_ME") {
 }
 
 
-# 8.5 Sync Keycloak OIDC Secrets from DB
-Write-Host "[INFO] Syncing Keycloak OIDC Secrets..." -ForegroundColor Cyan
+# 8.5 Sync Keycloak OIDC Secrets — fallback mac dinh tu realm-import.json
+# (Bang keycloak.client KHONG ton tai o Keycloak 26+; dong bo chuan qua Admin API o muc sau.)
+Write-Host "[INFO] Syncing Keycloak OIDC Secrets (defaults)..." -ForegroundColor Cyan
 $envContent = Get-Content .env -Raw -Encoding UTF8
 if ($envContent -match "CHANGE_ME_GET_FROM_KEYCLOAK_UI") {
-    $kSql = "SELECT client_id, secret FROM keycloak.client WHERE client_id IN ('outline', 'n8n', 'appsmith', 'proteus-bff');"
-    $kTmpSql = Join-Path $env:TEMP "kc_secrets.sql"
-    [System.IO.File]::WriteAllText($kTmpSql, $kSql, [System.Text.Encoding]::UTF8)
-    
-    $secretsRaw = @()
-    $kcRetries = 24
-    while ($kcRetries -gt 0) {
-        try {
-            $secretsRaw = Get-Content $kTmpSql | docker compose exec -T postgres psql -U proteus -d proteus -t -A -F ',' 2>$null
-            $secretsStr = $secretsRaw -join "`n"
-            if ($secretsStr -match "outline" -and $secretsStr -match "proteus-bff") {
-                break
-            }
-        } catch {}
-        Start-Sleep -Seconds 5
-        $kcRetries--
+    $defaults = @{ "outline" = "outline-secret"; "n8n" = "n8n-secret"; "appsmith" = "appsmith-secret"; "proteus-bff" = "proteus-bff-secret" }
+    foreach ($cid in $defaults.Keys) {
+        $sec = $defaults[$cid]
+        if ($cid -eq "outline" -and ($envContent -match "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI")) { $envContent = $envContent -replace "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "OUTLINE_OIDC_SECRET=$sec" }
+        if ($cid -eq "n8n" -and ($envContent -match "N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI")) { $envContent = $envContent -replace "N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "N8N_OIDC_SECRET=$sec" }
+        if ($cid -eq "appsmith" -and ($envContent -match "APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI")) { $envContent = $envContent -replace "APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "APPSMITH_OIDC_SECRET=$sec" }
+        if ($cid -eq "proteus-bff" -and ($envContent -match "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI")) { $envContent = $envContent -replace "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "KEYCLOAK_BFF_CLIENT_SECRET=$sec" }
     }
-    Remove-Item $kTmpSql -ErrorAction SilentlyContinue
-
-    if ($secretsStr -match "outline" -and $secretsStr -match "proteus-bff") {
-        $envContent = Get-Content .env -Raw -Encoding UTF8
-        foreach ($line in $secretsRaw) {
-            $parts = $line -split ","
-            if ($parts.Length -eq 2) {
-                $clientId = $parts[0].Trim()
-                $secret   = $parts[1].Trim()
-                if ($clientId -eq "outline")     { $envContent = $envContent -replace "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",      "OUTLINE_OIDC_SECRET=$secret" }
-                if ($clientId -eq "n8n")         { $envContent = $envContent -replace "N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",          "N8N_OIDC_SECRET=$secret" }
-                if ($clientId -eq "appsmith")    { $envContent = $envContent -replace "APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*",     "APPSMITH_OIDC_SECRET=$secret" }
-                if ($clientId -eq "proteus-bff") { $envContent = $envContent -replace "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*", "KEYCLOAK_BFF_CLIENT_SECRET=$secret" }
-            }
-        }
-        Set-Content .env -Value $envContent -Encoding UTF8
-        docker compose restart backend outline frontend
-        Write-Host "[OK] Keycloak Secrets synced successfully." -ForegroundColor Green
-    } else {
-        Write-Host "[WARN] Failed to sync Keycloak Secrets. Is Keycloak fully running?" -ForegroundColor Yellow
-    }
+    # Bu bien moi cho .env cu (fix WARN APPSMITH_OIDC_SECRET is not set)
+    if ($envContent -notmatch "(?m)^APPSMITH_OIDC_SECRET=") { $envContent += "`r`nAPPSMITH_OIDC_SECRET=appsmith-secret`r`n" }
+    if ($envContent -notmatch "(?m)^N8N_OIDC_SECRET=") { $envContent += "`r`nN8N_OIDC_SECRET=n8n-secret`r`n" }
+    Set-Content .env -Value $envContent -Encoding UTF8
+    Write-Host "[INFO] Filled default OIDC secrets; Admin API step will sync real values." -ForegroundColor Yellow
 }
 
 # 9. Appsmith (Manual configuration required)
 Write-Host "[INFO] Appsmith is starting..." -ForegroundColor Cyan
 Write-Host "[!] Note: APPSMITH_API_KEY must be generated manually in Appsmith UI (Developer Settings)." -ForegroundColor Yellow
 
+# 9.5 Configure Keycloak SMTP from .env (fix "invite khong gui duoc mail").
+# Idempotent. Bo qua neu SMTP_PASSWORD con placeholder.
+Write-Host "[INFO] Configuring Keycloak SMTP..." -ForegroundColor Cyan
+function Get-DotEnv([string]$Key, [string]$Default="") {
+    $l = Get-Content $envFile -Encoding UTF8 | Where-Object { $_ -match "^$Key=" }
+    if ($l) { return ($l[0] -split '=', 2)[1] } else { return $Default }
+}
+$smtpPass = Get-DotEnv "SMTP_PASSWORD"
+if (-not $smtpPass -or $smtpPass -like "*CHANGE_ME*") {
+    Write-Host "[INFO] Skipping SMTP (SMTP_PASSWORD is placeholder)." -ForegroundColor Yellow
+} else {
+    $kcRealm = Get-DotEnv "KEYCLOAK_REALM" "proteus"
+    $smtpBody = @{
+        smtpServer = @{
+            host = (Get-DotEnv "SMTP_HOST" "smtp.gmail.com"); port = (Get-DotEnv "SMTP_PORT" "587")
+            from = (Get-DotEnv "SMTP_FROM" "noreply@$domain"); fromDisplayName = (Get-DotEnv "SMTP_FROM_DISPLAY_NAME" "Proteus OS")
+            replyTo = (Get-DotEnv "SMTP_FROM" "noreply@$domain")
+            ssl = ((Get-DotEnv "SMTP_SSL" "false")).ToLower(); starttls = ((Get-DotEnv "SMTP_STARTTLS" "true")).ToLower()
+            auth = "true"; user = (Get-DotEnv "SMTP_USER" ""); password = $smtpPass
+        }
+    } | ConvertTo-Json -Depth 5
+    try {
+        $kcUser = Get-DotEnv "KEYCLOAK_ADMIN_USER" "admin"; $kcPass = Get-DotEnv "KEYCLOAK_ADMIN_PASSWORD"
+        $tokRes = Invoke-RestMethod -Uri "${scheme}://auth.$domain$urlSuffix/realms/master/protocol/openid-connect/token" -Method Post -Body "client_id=admin-cli&grant_type=password&username=$kcUser&password=$kcPass" -ContentType "application/x-www-form-urlencoded" -SkipCertificateCheck -ErrorAction Stop
+        Invoke-RestMethod -Uri "${scheme}://auth.$domain$urlSuffix/admin/realms/$kcRealm" -Method Put -Body $smtpBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $($tokRes.access_token)" } -SkipCertificateCheck -ErrorAction Stop | Out-Null
+        Write-Host "[OK] Keycloak SMTP configured." -ForegroundColor Green
+    } catch {
+        Write-Host "[WARN] Failed to configure Keycloak SMTP: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
 
 # 10. Print summary
 Write-Host ""

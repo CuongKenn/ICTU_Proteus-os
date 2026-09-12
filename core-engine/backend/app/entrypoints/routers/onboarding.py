@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.entrypoints.schemas.onboarding_schemas import SignupRequest, SignupResponse
@@ -35,11 +36,13 @@ async def signup(
     # Lấy http_client từ state
     http_client = request.app.state.http_client
     keycloak_adapter = KeycloakAdapter(client=http_client)
+    mattermost_adapter = MattermostAdapter(client=http_client)
 
     use_case = OnboardingUseCase(
         tenant_repo=tenant_repo,
         user_repo=user_repo,
         keycloak_adapter=keycloak_adapter,
+        mattermost_adapter=mattermost_adapter,
     )
 
     req = OnboardingRequest(

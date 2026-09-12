@@ -183,6 +183,8 @@ class UserEntity(BaseModel):
     full_name: str
     roles: list[str] = Field(default_factory=list)
     is_active: bool = True
+    # None = được mời nhưng chưa từng đăng nhập ("Chờ kích hoạt").
+    last_login_at: datetime | None = None
 
 
 class AICommandEntity(BaseModel):

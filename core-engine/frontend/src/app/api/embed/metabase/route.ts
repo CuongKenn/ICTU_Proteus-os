@@ -30,8 +30,8 @@ function decodeJwtPayload(token: string) {
 }
 
 export async function GET(request: NextRequest) {
-  // 1. Xác thực session từ HttpOnly Cookie
-  const token = await getToken({ req: request });
+  // 1. Xác thực session từ HttpOnly Cookie (BẮT BUỘC secret để giải mã JWE)
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const session = await getServerSession(authOptions);
   if (!token?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

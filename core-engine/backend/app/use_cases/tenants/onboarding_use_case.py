@@ -3,10 +3,15 @@
 
 import logging
 import re
+import secrets
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
-from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.keycloak_adapter import (
+    KeycloakAdapter,
+    mattermost_numeric_id,
+)
 from app.adapters.repositories.base import (
     AbstractTenantRepository,
     AbstractUserRepository,
@@ -34,10 +39,12 @@ class OnboardingUseCase:
         tenant_repo: AbstractTenantRepository,
         user_repo: AbstractUserRepository,
         keycloak_adapter: KeycloakAdapter,
+        mattermost_adapter: Any = None,
     ) -> None:
         self.tenant_repo = tenant_repo
         self.user_repo = user_repo
         self.keycloak_adapter = keycloak_adapter
+        self.mattermost_adapter = mattermost_adapter
 
     def _generate_slug(self, name: str) -> str:
         """Tạo slug đơn giản từ tên công ty."""
@@ -95,6 +102,21 @@ class OnboardingUseCase:
             raise ValueError("Email đã được sử dụng") from e
 
         try:
+            # 2.5 Gán mattermostId để Mattermost SSO hoạt động cho owner mới.
+            await self.keycloak_adapter.set_user_attributes(
+                realm=keycloak_realm,
+                user_id=keycloak_user_id,
+                attributes={
+                    "mattermostId": [str(mattermost_numeric_id(keycloak_user_id))]
+                },
+            )
+        except Exception:
+            logger.warning(
+                "Không thể gán mattermostId cho owner mới",
+                extra={"user_id": keycloak_user_id},
+            )
+
+        try:
             # 3. Đặt mật khẩu cho User
             await self.keycloak_adapter.set_user_password(
                 realm=keycloak_realm,
@@ -143,6 +165,38 @@ class OnboardingUseCase:
         )
 
         await self.user_repo.commit()
+
+        # 7. Tạo Mattermost team riêng cho tenant + đưa owner vào team.
+        # Best-effort: chat lỗi/không cấu hình thì chỉ warning, KHÔNG chặn signup.
+        if self.mattermost_adapter is not None:
+            try:
+                from app.core.use_cases.tenant_onboarding import (
+                    ensure_tenant_mattermost_team,
+                )
+
+                team_cfg = await ensure_tenant_mattermost_team(
+                    self.tenant_repo, self.mattermost_adapter, tenant_id
+                )
+                username = (
+                    req.admin_email.split("@")[0].lower().replace("+", "")
+                )
+                await self.mattermost_adapter.ensure_user_in_team_by_email(
+                    team_id=team_cfg["team_id"],
+                    email=req.admin_email,
+                    username=username,
+                    password=secrets.token_urlsafe(24),
+                )
+                logger.info(
+                    "Đã tạo Mattermost team cho tenant mới",
+                    extra={
+                        "tenant_id": str(tenant_id),
+                        "team": team_cfg["team_name"],
+                    },
+                )
+            except Exception as e:
+                logger.warning(
+                    "Bỏ qua tạo Mattermost team cho tenant %s: %s", slug, e
+                )
 
         logger.info(
             "Đăng ký Tenant thành công",

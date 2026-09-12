@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid as uuid_lib
 from typing import Any, cast
 
 import httpx
@@ -18,6 +19,22 @@ from app.core.domain.ports import AbstractIdentityProviderPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def mattermost_numeric_id(keycloak_user_id: str) -> int:
+    """ID số ổn định cho Mattermost SSO (đòi int64 khác 0).
+
+    Mattermost parse `id` trong userinfo thành int64 và reject id=0, trong khi
+    Keycloak sub là UUID string. Lấy 8 byte đầu UUID → int63 dương (va chạm
+    không đáng kể), fallback 1 nếu bằng 0.
+    """
+    try:
+        n = int.from_bytes(
+            uuid_lib.UUID(str(keycloak_user_id)).bytes[:8], "big"
+        ) & 0x7FFFFFFFFFFFFFFF
+    except ValueError:
+        n = 0
+    return n or 1
 
 
 class KeycloakAdapter(AbstractIdentityProviderPort):
@@ -219,8 +236,13 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         first_name: str,
         last_name: str,
         attributes: dict[str, list[str]],
+        email_verified: bool = True,
     ) -> str:
-        """Tạo User trong Keycloak, trả về user_id (sub)."""
+        """Tạo User trong Keycloak, trả về user_id (sub).
+
+        email_verified=False cho luồng mời nhân viên: giữ user ở trạng thái
+        "chờ kích hoạt" để required action VERIFY_EMAIL có ý nghĩa.
+        """
         admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users"
         user_data = {
@@ -229,7 +251,7 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             "firstName": first_name,
             "lastName": last_name,
             "enabled": True,
-            "emailVerified": True,
+            "emailVerified": email_verified,
             "attributes": attributes,
         }
         response = await self._client.post(
@@ -307,12 +329,19 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         response.raise_for_status()
 
     async def send_invite_email(
-        self, realm: str, user_id: str, redirect_uri: str | None = None
+        self,
+        realm: str,
+        user_id: str,
+        redirect_uri: str | None = None,
+        client_id: str | None = None,
     ) -> None:
         """
         Kích hoạt luồng mời nhân viên qua email.
         Keycloak gửi email chứa link để user tự đặt mật khẩu và xác thực email.
         Yêu cầu SMTP được cấu hình trong Keycloak Realm Settings → Email.
+
+        LƯU Ý: khi truyền redirect_uri BẮT BUỘC kèm client_id, nếu không
+        Keycloak trả 400 "Client id missing" và mail không bao giờ được gửi.
         """
         admin_token = await self.get_admin_token()
         url = (
@@ -322,6 +351,8 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         params: dict[str, str] = {}
         if redirect_uri:
             params["redirect_uri"] = redirect_uri
+            if client_id:
+                params["client_id"] = client_id
 
         response = await self._client.put(
             url,
@@ -343,13 +374,54 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             extra={"user_id": user_id, "realm": realm},
         )
 
-    async def disable_user(self, realm: str, user_id: str) -> None:
-        """Vô hiệu hóa User trên Keycloak (enabled=false)."""
+    async def get_user(self, realm: str, user_id: str) -> dict[str, Any]:
+        """Lấy full UserRepresentation từ Keycloak (cần cho update an toàn)."""
         admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        response = await self._client.get(
+            url,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def set_user_attributes(
+        self, realm: str, user_id: str, attributes: dict[str, list[str]]
+    ) -> None:
+        """Merge attributes vào Keycloak user (giữ nguyên attributes cũ).
+
+        CẢNH BÁO: Keycloak PUT /users/{id} là REPLACE toàn bộ representation —
+        gửi partial body sẽ XÓA email/tên/attributes (đã gây lỗi login thực tế).
+        Luôn GET full → merge → PUT.
+        """
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        user_rep = await self.get_user(realm, user_id)
+        merged = dict(user_rep.get("attributes") or {})
+        merged.update(attributes)
+        user_rep["attributes"] = merged
         response = await self._client.put(
             url,
-            json={"enabled": False},
+            json=user_rep,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info(
+            "User attributes updated on Keycloak",
+            extra={"user_id": user_id, "realm": realm, "keys": sorted(attributes)},
+        )
+
+    async def disable_user(self, realm: str, user_id: str) -> None:
+        """Vô hiệu hóa User trên Keycloak (enabled=false, giữ mọi field khác)."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        user_rep = await self.get_user(realm, user_id)
+        user_rep["enabled"] = False
+        response = await self._client.put(
+            url,
+            json=user_rep,
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=10.0,
         )

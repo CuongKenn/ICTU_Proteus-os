@@ -126,15 +126,23 @@ docker compose ps      # Docker Compose v2 (khuyến nghị)
 - **SSL/TLS:** Mặc định, Traefik được cấu hình sử dụng Let's Encrypt (DNS Challenge) để tự động cấp phát và gia hạn chứng chỉ SSL, đảm bảo mọi giao tiếp đều mã hóa qua HTTPS.
 
 ### 4.1 Keycloak Production Hardening
-Khi triển khai trên môi trường Production, **BẮT BUỘC** phải chuyển Keycloak khỏi chế độ `start-dev`. 
+Khi triển khai trên môi trường Production, **BẮT BUỘC** phải chuyển Keycloak khỏi chế độ `start-dev`.
 Sử dụng file `.env` để cấu hình:
 ```env
-KEYCLOAK_START_MODE=start --optimized
+KEYCLOAK_START_MODE=start
 ```
-Và đảm bảo đã cung cấp đầy đủ chứng chỉ TLS thông qua các biến môi trường:
-- `KC_HTTPS_CERTIFICATE_FILE`
-- `KC_HTTPS_CERTIFICATE_KEY_FILE`
-Các file chứng chỉ này cần được mount thông qua Docker volume vào container Keycloak.
+(TLS terminate tại Traefik; Keycloak phục vụ HTTP nội bộ trên `:8080` với
+`KC_HOSTNAME_STRICT=false`, `KC_HOSTNAME_STRICT_HTTPS=false`,
+`KC_PROXY_HEADERS=xforwarded` đã cấu hình trong `docker-compose.yml`.)
+
+> [!WARNING]
+> Không dùng `KEYCLOAK_START_MODE=start --optimized` với image stock
+> `quay.io/keycloak/keycloak`: flag `--optimized` yêu cầu chạy
+> `kc.sh build` trước và từ chối option `--db` lúc start → container
+> crash-loop exit 2 (`Please ... use 'kc.sh build' to build the server first`).
+> Chỉ dùng `--optimized` khi đã build custom image
+> (`RUN /opt/keycloak/bin/kc.sh build --db=postgres`), lúc đó DB config phải
+> được bake ở build-time (biến `KC_DB*`), không truyền `--db` lúc start.
 
 ---
 

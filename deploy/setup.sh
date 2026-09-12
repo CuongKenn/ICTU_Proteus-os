@@ -65,7 +65,10 @@ if [ "$APP_MODE" = "production" ]; then
   OUTLINE_FORCE_HTTPS="true"
   N8N_PROTOCOL="https"
   N8N_SECURE_COOKIE="true"
-  KEYCLOAK_MODE="start --optimized"
+  # Plain `start` (NOT `start --optimized`): --optimized requires a prior
+  # `kc.sh build` and rejects --db on the command line, so it crash-loops
+  # (exit 2) on first boot. TLS is terminated at Traefik in this stack.
+  KEYCLOAK_MODE="start"
   TRAEFIK_BASE="https://localhost"
   CURL_K="-k"
   SCHEME="https"
@@ -116,6 +119,15 @@ if [ "$APP_MODE" = "production" ]; then
   HTTPS_PORT=${HTTPS_PORT_INPUT:-${CUR_HTTPS_PORT:-443}}
   # Hậu tố port cho URL public (rỗng với port chuẩn 443)
   if [ "$HTTPS_PORT" != "443" ]; then URL_SUFFIX=":$HTTPS_PORT"; else URL_SUFFIX=""; fi
+  # Nếu truy cập thực tế qua Cloudflare Tunnel (URL đẹp, không port) trong khi
+  # host giữ port lệch chuẩn (VD: 443 bận), giữ URL_SUFFIX rỗng để SiteURL và
+  # links public đúng. Mặc định N = giữ hành vi cũ.
+  if [ -n "$URL_SUFFIX" ]; then
+    read -p "Truy cập qua Cloudflare Tunnel (URL không port, VD: https://$DOMAIN)? [y/N]: " TUNNEL_URL_CHOICE
+    case "$TUNNEL_URL_CHOICE" in
+      y|Y) URL_SUFFIX=""; echo "→ Giữ URL public không hậu tố port (qua tunnel).";;
+    esac
+  fi
 else
   DOMAIN_SUGGEST=${CURRENT_DOMAIN:-proteus.local}
   read -p "DOMAIN [$DOMAIN_SUGGEST]: " DOMAIN_INPUT
@@ -126,6 +138,37 @@ else
   URL_SUFFIX=""
 fi
 echo "→ Domain: $DOMAIN (HTTP :$HTTP_PORT, HTTPS :$HTTPS_PORT)"
+# Recompute TRAEFIK_BASE với port thực tế (fix vĩnh viễn lỗi timeout backend
+# khi HTTPS_PORT khác 443: trước đây hardcode https://localhost nên curl
+# không bao giờ tới được Traefik đang map 8443->443).
+if [ "$APP_MODE" = "production" ]; then
+  if [ "$HTTPS_PORT" = "443" ]; then
+    TRAEFIK_BASE="https://localhost"
+  else
+    TRAEFIK_BASE="https://localhost:$HTTPS_PORT"
+  fi
+else
+  if [ "$HTTP_PORT" = "80" ]; then
+    TRAEFIK_BASE="http://localhost"
+  else
+    TRAEFIK_BASE="http://localhost:$HTTP_PORT"
+  fi
+fi
+# Helper đọc POSTGRES_* từ .env (tránh hardcode -U proteus gây
+# "FATAL: role proteus does not exist" khi user đổi POSTGRES_USER).
+pg_env_user() { grep -E "^POSTGRES_USER=" .env 2>/dev/null | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' ' | tr '[:upper:]' '[:lower:]'; }
+pg_env_db() { grep -E "^POSTGRES_DB=" .env 2>/dev/null | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' ' ; }
+ensure_database() {
+  local db="$1" pguser pgdb
+  pguser=$(pg_env_user); pguser=${pguser:-proteus}
+  pgdb=$(pg_env_db); pgdb=${pgdb:-proteus}
+  if [ -z "$(docker compose exec -T postgres psql -U "$pguser" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" 2>/dev/null)" ]; then
+    echo "ℹ️  Tạo database còn thiếu: $db (owner: $pguser)..."
+    docker compose exec -T postgres psql -U "$pguser" -d postgres -c "CREATE DATABASE \"$db\" OWNER \"$pguser\"" > /dev/null
+  else
+    echo "✅ Database '$db' đã tồn tại."
+  fi
+}
 
 # 2. Xử lý file .env
 if [ ! -f .env ]; then
@@ -147,10 +190,19 @@ if [ ! -f .env ]; then
     set_env TRAEFIK_HTTPS_PORT "$HTTPS_PORT"
     set_env PUBLIC_URL_SUFFIX "$URL_SUFFIX"
     apply_public_urls
-    
+
     echo "Thiết lập các thông tin tài khoản (Nhấn Enter để dùng giá trị mặc định/ngẫu nhiên):"
-    read -p "POSTGRES_USER [proteus]: " pg_user
-    pg_user=${pg_user:-proteus}
+    while true; do
+      read -p "POSTGRES_USER [proteus]: " pg_user
+      pg_user=${pg_user:-proteus}
+      # Postgres role nên lowercase (tránh lỗi "role proteus does not exist"
+      # / "database AdminProteus does not exist" do case-sensitive).
+      pg_user=$(printf '%s' "$pg_user" | tr '[:upper:]' '[:lower:]')
+      case "$pg_user" in
+        [a-z][a-z0-9_]* ) break;;
+        *) echo "❌ POSTGRES_USER chỉ gồm chữ thường, số, gạch dưới, bắt đầu bằng chữ. Nhập lại.";;
+      esac
+    done
     sed -i.bak "s|POSTGRES_USER=proteus|POSTGRES_USER=$pg_user|g" .env
 
     read -p "POSTGRES_PASSWORD [random]: " pg_pass
@@ -219,6 +271,15 @@ else
     set_env METABASE_SECRET_KEY "$(openssl rand -hex 32)"
     echo "✅ Đã sinh METABASE_SECRET_KEY còn thiếu."
   fi
+  # Bù các biến OIDC mới cho .env cũ (fix WARN "APPSMITH_OIDC_SECRET is not set")
+  if ! grep -qE "^APPSMITH_OIDC_SECRET=" .env; then
+    set_env APPSMITH_OIDC_SECRET "CHANGE_ME_GET_FROM_KEYCLOAK_UI"
+    echo "✅ Đã thêm APPSMITH_OIDC_SECRET còn thiếu."
+  fi
+  if ! grep -qE "^N8N_OIDC_SECRET=" .env; then
+    set_env N8N_OIDC_SECRET "CHANGE_ME_GET_FROM_KEYCLOAK_UI"
+    echo "✅ Đã thêm N8N_OIDC_SECRET còn thiếu."
+  fi
   rm -f .env.bak
 fi
 
@@ -275,6 +336,14 @@ case "$DOMAIN" in
       echo "⚠️  Host port HTTP khác 80 → Let's Encrypt HTTP challenge KHÔNG chạy được."
       echo "   Lấy chứng chỉ thủ công (DNS challenge) rồi mount vào Traefik, hoặc giải phóng port 80."
     fi
+    if [ "$HTTPS_PORT" != "443" ]; then
+      echo "⚠️  Host port HTTPS khác 443 (hiện tại: $HTTPS_PORT) → Let's Encrypt HTTP-01"
+      echo "   follow-redirect sang https://...:443 sẽ thất bại (port 443 đóng)."
+      echo "   Khuyến nghị: giải phóng port 443 cho Traefik. Nếu bắt buộc dùng :$HTTPS_PORT,"
+      echo "   hãy tắt Cloudflare proxy (orange cloud) khi xin cert lần đầu, hoặc dùng DNS challenge."
+      echo "   Đã loại trừ /.well-known/acme-challenge/ khỏi https-redirect để giảm lỗi 404."
+    fi
+    echo "ℹ️  Nếu domain sau Cloudflare proxy, hãy tắt proxy (DNS only) khi xin cert lần đầu."
     echo "ℹ️  Mở firewall cho $HTTP_PORT/$HTTPS_PORT (VD: ufw allow $HTTP_PORT,$HTTPS_PORT/tcp), giữ các port khác đóng."
     echo ""
     ;;
@@ -288,12 +357,20 @@ docker compose up -d --build
 docker compose restart traefik
 
 # 6. Wait healthchecks
-echo "⏳ Đang chờ các dịch vụ khởi động (có thể mất 1-2 phút)..."
-TIMEOUT=120
+# Backend phụ thuộc Keycloak healthy (start_period 90s + poll 30s), nên chờ
+# tới 300s. Check qua Traefik với Host header + port thực tế (TRAEFIK_BASE đã
+# gồm :8443 khi HTTPS_PORT lệch chuẩn).
+echo "⏳ Đang chờ các dịch vụ khởi động (có thể mất 2-5 phút, Keycloak khởi động chậm)..."
+TIMEOUT=300
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
-  if curl $CURL_K -s -H "Host: $DOMAIN" $TRAEFIK_BASE/health | grep -q "status"; then
+  if curl $CURL_K -s -H "Host: $DOMAIN" "$TRAEFIK_BASE/health" | grep -q "status"; then
     echo "✅ Backend đã sẵn sàng!"
+    break
+  fi
+  # Fallback: kiểm tra trực tiếp trong container backend (bypass Traefik/TLS)
+  if docker compose exec -T backend python -c "import urllib.request,json;print(json.load(urllib.request.urlopen('http://127.0.0.1:8000/health'))['status'])" 2>/dev/null | grep -q "ok"; then
+    echo "✅ Backend đã sẵn sàng (qua kiểm tra trực tiếp)!"
     break
   fi
   sleep 5
@@ -301,14 +378,15 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
 done
 
 if [ $ELAPSED -ge $TIMEOUT ]; then
-  echo "⚠️  Cảnh báo: Hết thời gian chờ backend khởi động (120s)."
+  echo "⚠️  Cảnh báo: Hết thời gian chờ backend khởi động (300s)."
   echo "Vui lòng kiểm tra log: docker compose logs backend"
 fi
 
 # 6.1 Ensure databases exist (Outline, Metabase)
+# Dùng POSTGRES_USER/DB thực tế từ .env (fix "role proteus does not exist").
 echo "ℹ️  Ensuring databases exist (outline, metabase)..."
-echo "SELECT 'CREATE DATABASE outline' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'outline')\gexec" | docker compose exec -T postgres psql -U proteus -d postgres > /dev/null 2>&1 || true
-echo "SELECT 'CREATE DATABASE metabase' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec" | docker compose exec -T postgres psql -U proteus -d postgres > /dev/null 2>&1 || true
+ensure_database outline
+ensure_database metabase
 docker compose restart outline metabase
 
 # 7. Tự động hóa cấu hình Mattermost
@@ -358,9 +436,12 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
     | grep -i "^token:" | awk '{print $2}' | tr -d '\r')
     
   if [ -n "$MM_TOKEN" ]; then
-    # 7.5 Enable Personal Access Tokens
+    # 7.5 Enable Bot + Personal Access Tokens + GitLab SSO (Keycloak).
+    # LƯU Ý: field đúng là EnableUserAccessTokens (EnablePersonalAccessTokens
+    # không tồn tại → token bot không tạo được, SSO vẫn bật nhưng thiếu PAT).
+    # SiteURL lấy từ MM_SERVICESETTINGS_SITEURL trong compose (theo URL_SUFFIX).
     curl $CURL_K -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
-    jq '.ServiceSettings.EnablePersonalAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true |
+    jq '.ServiceSettings.EnableUserAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true |
         .GitLabSettings.Enable = true |
         .GitLabSettings.Secret = "mattermost-secret" |
         .GitLabSettings.Id = "mattermost" |
@@ -470,7 +551,8 @@ if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; th
   
   # 8.2 Inject API Key via Database bypass for n8n 1.52+
   NEW_N8N_API_KEY=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9')
-  echo "UPDATE n8n.\"user\" SET \"apiKey\"='$NEW_N8N_API_KEY' WHERE email='admin@proteus.local';" | docker compose exec -T postgres psql -U proteus -d proteus > /dev/null || true
+  _PGU=$(pg_env_user); _PGU=${_PGU:-proteus}; _PGD=$(pg_env_db); _PGD=${_PGD:-proteus}
+  echo "UPDATE n8n.\"user\" SET \"apiKey\"='$NEW_N8N_API_KEY' WHERE email='admin@proteus.local';" | docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD" > /dev/null || true
   
   sed -i.bak "s|N8N_API_KEY=CHANGE_ME.*|N8N_API_KEY=$NEW_N8N_API_KEY|g" .env
   rm -f .env.bak
@@ -479,25 +561,27 @@ if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; th
 fi
 
 # 8.5 Sync Keycloak OIDC Secrets
-echo "⚙️  Đang đồng bộ Keycloak OIDC Secrets..."
+# NOTE: Keycloak 26+ lưu client ở bảng CLIENT/COMPONENT (Hibernate), KHÔNG có
+# bảng keycloak.client — query SQL cũ luôn rỗng + dùng -U proteus hardcode gây
+# "role proteus does not exist". Đồng bộ chuẩn qua Keycloak Admin API ở mục 10
+# bên dưới (đã mở rộng cho cả 4 clients: proteus-bff, outline, appsmith, n8n).
+# Giữ block này làm fallback đọc secret mặc định từ realm-import.json khi
+# Keycloak chưa sẵn sàng, để compose không cảnh báo thiếu biến.
 if grep -q "CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
-  SECRETS=$(echo "SELECT client_id, secret FROM keycloak.client WHERE client_id IN ('outline', 'n8n', 'appsmith', 'proteus-bff');" | docker compose exec -T postgres psql -U proteus -d proteus -t -A -F ',')
-  
-  while IFS=, read -r client_id secret; do
-    if [ "$client_id" = "outline" ]; then
-      sed -i.bak "s|OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|OUTLINE_OIDC_SECRET=$secret|g" .env
-    elif [ "$client_id" = "n8n" ]; then
-      sed -i.bak "s|N8N_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|N8N_OIDC_SECRET=$secret|g" .env
-    elif [ "$client_id" = "appsmith" ]; then
-      sed -i.bak "s|APPSMITH_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|APPSMITH_OIDC_SECRET=$secret|g" .env
-    elif [ "$client_id" = "proteus-bff" ]; then
-      sed -i.bak "s|KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|KEYCLOAK_BFF_CLIENT_SECRET=$secret|g" .env
+  for _pair in "outline:outline-secret" "n8n:n8n-secret" "appsmith:appsmith-secret" "proteus-bff:proteus-bff-secret"; do
+    _cid="${_pair%%:*}"; _csec="${_pair##*:}"
+    case "$_cid" in
+      outline)     _key=OUTLINE_OIDC_SECRET;;
+      n8n)         _key=N8N_OIDC_SECRET;;
+      appsmith)    _key=APPSMITH_OIDC_SECRET;;
+      proteus-bff) _key=KEYCLOAK_BFF_CLIENT_SECRET;;
+    esac
+    if grep -q "${_key}=CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
+      sed -i.bak "s|${_key}=CHANGE_ME_GET_FROM_KEYCLOAK_UI.*|${_key}=${_csec}|g" .env
     fi
-  done <<< "$SECRETS"
-  
+  done
   rm -f .env.bak
-  docker compose restart backend outline
-  echo "✅ Đã đồng bộ Keycloak Secrets thành công."
+  echo "ℹ️  Đã điền secret mặc định từ realm-import.json; mục 10 sẽ đồng bộ giá trị thực qua Admin API."
 fi
 
 # 9. Tự động hóa cấu hình Appsmith
@@ -592,40 +676,137 @@ if [ $KC_ELAPSED -lt $KC_TIMEOUT ]; then
   KC_TOKEN=$(curl $CURL_K -s -X POST "$KC_URL_TRAEFIK/realms/master/protocol/openid-connect/token"     -H "$HOST_HEADER"     -d "client_id=admin-cli&grant_type=password&username=$KC_ADMIN_USER&password=$KC_ADMIN_PASS"     | jq -r '.access_token // empty')
 
   if [ -n "$KC_TOKEN" ]; then
-    # Lấy BFF Client Secret
-    if grep -q "KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
-      BFF_CLIENT_ID=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=proteus-bff"         -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty')
-      if [ -n "$BFF_CLIENT_ID" ] && [ "$BFF_CLIENT_ID" != "null" ]; then
-        BFF_SECRET=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$BFF_CLIENT_ID/client-secret"           -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.value // empty')
-        if [ -n "$BFF_SECRET" ] && [ "$BFF_SECRET" != "null" ]; then
-          sed -i.bak "s|KEYCLOAK_BFF_CLIENT_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI|KEYCLOAK_BFF_CLIENT_SECRET=$BFF_SECRET|g" .env
-          echo "✅ Đã lấy KEYCLOAK_BFF_CLIENT_SECRET"
+    # Đồng bộ secret cho cả 4 clients qua Admin API (fix thiếu appsmith/n8n).
+    # Hàm dùng chung: _sync_kc_secret <clientId> <ENV_KEY>
+    _sync_kc_secret() {
+      local _cid="$1" _envkey="$2" _uuid _sec
+      grep -q "${_envkey}=CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env || return 0
+      _uuid=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=$_cid" -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty')
+      if [ -n "$_uuid" ] && [ "$_uuid" != "null" ]; then
+        _sec=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$_uuid/client-secret" -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.value // empty')
+        if [ -n "$_sec" ] && [ "$_sec" != "null" ]; then
+          sed -i.bak "s|${_envkey}=CHANGE_ME_GET_FROM_KEYCLOAK_UI|${_envkey}=${_sec}|g" .env
+          echo "✅ Đã lấy ${_envkey} (client: $_cid)"
         fi
       fi
-    fi
+    }
+    _sync_kc_secret "proteus-bff" "KEYCLOAK_BFF_CLIENT_SECRET"
+    _sync_kc_secret "outline" "OUTLINE_OIDC_SECRET"
+    _sync_kc_secret "appsmith" "APPSMITH_OIDC_SECRET"
+    _sync_kc_secret "n8n" "N8N_OIDC_SECRET"
 
-    # Lấy Outline OIDC Secret
-    if grep -q "OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI" .env; then
-      OUTLINE_CLIENT_ID=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=outline"         -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty')
-      if [ -n "$OUTLINE_CLIENT_ID" ] && [ "$OUTLINE_CLIENT_ID" != "null" ]; then
-        OUTLINE_SECRET=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$OUTLINE_CLIENT_ID/client-secret"           -H "$HOST_HEADER" -H "Authorization: Bearer $KC_TOKEN" | jq -r '.value // empty')
-        if [ -n "$OUTLINE_SECRET" ] && [ "$OUTLINE_SECRET" != "null" ]; then
-          sed -i.bak "s|OUTLINE_OIDC_SECRET=CHANGE_ME_GET_FROM_KEYCLOAK_UI|OUTLINE_OIDC_SECRET=$OUTLINE_SECRET|g" .env
-          echo "✅ Đã lấy OUTLINE_OIDC_SECRET"
-        fi
-      fi
-    fi
-    
     rm -f .env.bak
-    
-    # Restart Frontend và Outline
-    docker compose restart frontend outline
+
+    # Restart các service dùng secret vừa đồng bộ
+    docker compose restart frontend outline backend appsmith
   else
     echo "⚠️ Không thể đăng nhập vào Keycloak Admin CLI để lấy Secret. Vui lòng kiểm tra lại KEYCLOAK_ADMIN_PASSWORD."
   fi
 fi
 
+# 10.5 Cấu hình SMTP cho Keycloak Realm (fix vĩnh viễn lỗi "mời nhân viên
+# không gửi được mail": trước đây SMTP_* trong .env không bao giờ được áp vào
+# Keycloak nên execute-actions-email luôn 400 → backend nuốt lỗi).
+# Idempotent: chạy lại bao nhiêu lần cũng an toàn.
+echo "⚙️  Đang cấu hình SMTP cho Keycloak..."
+_SMTP_PASS=$(grep -E "^SMTP_PASSWORD=" .env 2>/dev/null | cut -d '=' -f2-)
+if [ -z "$_SMTP_PASS" ] || case "$_SMTP_PASS" in *CHANGE_ME*) true;; *) false;; esac; then
+  echo "ℹ️  Bỏ qua SMTP (SMTP_PASSWORD còn placeholder — điền App Password vào .env rồi chạy lại setup)."
+else
+  _SMTP_HOST=$(grep -E "^SMTP_HOST=" .env | cut -d '=' -f2-); _SMTP_HOST=${_SMTP_HOST:-smtp.gmail.com}
+  _SMTP_PORT=$(grep -E "^SMTP_PORT=" .env | cut -d '=' -f2-); _SMTP_PORT=${_SMTP_PORT:-587}
+  _SMTP_STARTTLS=$(grep -E "^SMTP_STARTTLS=" .env | cut -d '=' -f2- | tr '[:upper:]' '[:lower:]'); _SMTP_STARTTLS=${_SMTP_STARTTLS:-true}
+  _SMTP_SSL=$(grep -E "^SMTP_SSL=" .env | cut -d '=' -f2- | tr '[:upper:]' '[:lower:]'); _SMTP_SSL=${_SMTP_SSL:-false}
+  _SMTP_FROM=$(grep -E "^SMTP_FROM=" .env | cut -d '=' -f2-); _SMTP_FROM=${_SMTP_FROM:-noreply@$DOMAIN}
+  _SMTP_DISP=$(grep -E "^SMTP_FROM_DISPLAY_NAME=" .env | cut -d '=' -f2-); _SMTP_DISP=${_SMTP_DISP:-Proteus OS}
+  _SMTP_USER=$(grep -E "^SMTP_USER=" .env | cut -d '=' -f2-)
+  _KC_USER=$(grep -E "^KEYCLOAK_ADMIN_USER=" .env | cut -d '=' -f2)
+  _KC_PASS=$(grep -E "^KEYCLOAK_ADMIN_PASSWORD=" .env | cut -d '=' -f2)
+  _KC_REALM=$(grep -E "^KEYCLOAK_REALM=" .env | cut -d '=' -f2); _KC_REALM=${_KC_REALM:-proteus}
+  _KC_TOK=$(curl $CURL_K -s -X POST "$KC_URL_TRAEFIK/realms/master/protocol/openid-connect/token" -H "$HOST_HEADER" -d "client_id=admin-cli&grant_type=password&username=$_KC_USER&password=$_KC_PASS" | jq -r '.access_token // empty')
+  if [ -n "$_KC_TOK" ]; then
+    _SMTP_JSON=$(jq -n --arg h "$_SMTP_HOST" --arg p "$_SMTP_PORT" --arg f "$_SMTP_FROM" --arg d "$_SMTP_DISP" --arg s "$_SMTP_SSL" --arg t "$_SMTP_STARTTLS" --arg u "$_SMTP_USER" --arg w "$_SMTP_PASS" \
+      '{smtpServer: {host: $h, port: $p, from: $f, fromDisplayName: $d, replyTo: $f, ssl: $s, starttls: $t, auth: "true", user: $u, password: $w}}')
+    if curl $CURL_K -sf -X PUT "$KC_URL_TRAEFIK/admin/realms/$_KC_REALM" -H "$HOST_HEADER" -H "Authorization: Bearer $_KC_TOK" -H "Content-Type: application/json" -d "$_SMTP_JSON" > /dev/null; then
+      echo "✅ Đã cấu hình SMTP cho Keycloak realm '$_KC_REALM' ($_SMTP_HOST:$_SMTP_PORT)."
+      echo "   LƯU Ý Gmail: SMTP_FROM nên là chính Gmail user hoặc alias đã xác minh,"
+      echo "   và SMTP_PASSWORD phải là App Password (myaccount.google.com/apppasswords)."
+    else
+      echo "⚠️  Không cấu hình được SMTP Keycloak — kiểm tra lại thông số SMTP trong .env."
+    fi
+  else
+    echo "⚠️  Không đăng nhập được Keycloak Admin nên chưa cấu hình SMTP."
+  fi
+fi
 
+
+
+# 10.6 Đảm bảo Keycloak client "mattermost" cho phép redirect về SiteURL hiện
+# tại (fix SSO gãy sau khi đổi domain/port: realm-import.json chỉ có sẵn
+# http://chat.proteus.local/...). Merge thêm URI hiện tại, giữ URI cũ.
+echo "⚙️  Đang đồng bộ Mattermost redirect URIs..."
+_MM_TOK2=$(curl $CURL_K -s -X POST "$KC_URL_TRAEFIK/realms/master/protocol/openid-connect/token" -H "$HOST_HEADER" -d "client_id=admin-cli&grant_type=password&username=$KC_ADMIN_USER&password=$KC_ADMIN_PASS" | jq -r '.access_token // empty')
+if [ -n "$_MM_TOK2" ]; then
+  _MM_UUID=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=mattermost" -H "$HOST_HEADER" -H "Authorization: Bearer $_MM_TOK2" | jq -r '.[0].id // empty')
+  if [ -n "$_MM_UUID" ] && [ "$_MM_UUID" != "null" ]; then
+    _NEED1="$SCHEME://chat.$DOMAIN$URL_SUFFIX/signup/gitlab/complete"
+    _NEED2="$SCHEME://chat.$DOMAIN/signup/gitlab/complete"
+    _CLI_JSON=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$_MM_UUID" -H "$HOST_HEADER" -H "Authorization: Bearer $_MM_TOK2")
+    _NEW_JSON=$(printf '%s' "$_CLI_JSON" | jq --arg u1 "$_NEED1" --arg u2 "$_NEED2" --arg o1 "$SCHEME://chat.$DOMAIN$URL_SUFFIX" --arg o2 "$SCHEME://chat.$DOMAIN" \
+      '.redirectUris = ((.redirectUris // []) + [$u1, $u2] | unique) | .webOrigins = ((.webOrigins // []) + [$o1, $o2] | unique)')
+    if curl $CURL_K -sf -X PUT "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$_MM_UUID" -H "$HOST_HEADER" -H "Authorization: Bearer $_MM_TOK2" -H "Content-Type: application/json" -d "$_NEW_JSON" > /dev/null; then
+      echo "✅ Đã đồng bộ redirect URIs cho Keycloak client 'mattermost'."
+    else
+      echo "⚠️  Không đồng bộ được redirect URIs của client 'mattermost'."
+    fi
+  fi
+else
+  echo "⚠️  Không đăng nhập được Keycloak Admin nên chưa đồng bộ redirect URIs."
+fi
+
+# 10.7 Đảm bảo User Profile cho phép attributes + mapper Mattermost đúng chuẩn.
+# Fix vĩnh viễn lỗi "Could not parse auth data out of gitlab user object":
+#  - Keycloak 26 strip mọi custom attribute khi ghi user nếu chưa khai báo
+#    managed (tenant_id/mattermostId) → mapper đọc rỗng.
+#  - Claim `id` BẮT BUỘC là long ≠ 0 (Mattermost parse int64); sub UUID string
+#    luôn gãy. Backend tự gán mattermostId (số ổn định) khi invite/onboarding.
+# Idempotent: kiểm tra trước khi sửa.
+echo "⚙️  Đang đồng bộ User Profile + Mattermost mappers..."
+_UP_TOK=$(curl $CURL_K -s -X POST "$KC_URL_TRAEFIK/realms/master/protocol/openid-connect/token" -H "$HOST_HEADER" -d "client_id=admin-cli&grant_type=password&username=$KC_ADMIN_USER&password=$KC_ADMIN_PASS" | jq -r '.access_token // empty')
+if [ -n "$_UP_TOK" ]; then
+  # 10.7a Khai báo managed attributes (admin edit) nếu thiếu.
+  _UP_JSON=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/users/profile" -H "$HOST_HEADER" -H "Authorization: Bearer $_UP_TOK")
+  if ! printf '%s' "$_UP_JSON" | jq -e '.attributes | map(.name) | contains(["tenant_id", "mattermostId"])' > /dev/null 2>&1; then
+    _UP_NEW=$(printf '%s' "$_UP_JSON" | jq '.attributes += [{"name":"tenant_id","displayName":"Tenant ID","permissions":{"view":["admin"],"edit":["admin"]},"multivalued":true},{"name":"mattermostId","displayName":"Mattermost ID","permissions":{"view":["admin"],"edit":["admin"]},"multivalued":true}] | .attributes |= unique_by(.name)')
+    if curl $CURL_K -sf -X PUT "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/users/profile" -H "$HOST_HEADER" -H "Authorization: Bearer $_UP_TOK" -H "Content-Type: application/json" -d "$_UP_NEW" > /dev/null; then
+      echo "✅ Đã khai báo managed attributes (tenant_id, mattermostId)."
+    else
+      echo "⚠️  Không cập nhật được User Profile."
+    fi
+  else
+    echo "✅ User Profile đã có đủ managed attributes."
+  fi
+  # 10.7b Mapper gitlab-id phải là attribute mattermostId kiểu long.
+  _MM_CID=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients?clientId=mattermost" -H "$HOST_HEADER" -H "Authorization: Bearer $_UP_TOK" | jq -r '.[0].id // empty')
+  if [ -n "$_MM_CID" ] && [ "$_MM_CID" != "null" ]; then
+    _IDMAP=$(curl $CURL_K -s "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$_MM_CID/protocol-mappers/models" -H "$HOST_HEADER" -H "Authorization: Bearer $_UP_TOK" | jq -c '.[] | select(.name=="gitlab-id")')
+    _NEED_FIX="no"
+    if [ -z "$_IDMAP" ]; then _NEED_FIX="missing"
+    elif ! printf '%s' "$_IDMAP" | jq -e '.protocolMapper=="oidc-usermodel-attribute-mapper" and .config."user.attribute"=="mattermostId" and .config."jsonType.label"=="long"' > /dev/null 2>&1; then _NEED_FIX="wrongtype"; fi
+    if [ "$_NEED_FIX" != "no" ]; then
+      _OLD_ID=$(printf '%s' "$_IDMAP" | jq -r '.id // empty')
+      [ -n "$_OLD_ID" ] && curl $CURL_K -sf -X DELETE "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$_MM_CID/protocol-mappers/models/$_OLD_ID" -H "$HOST_HEADER" -H "Authorization: Bearer $_UP_TOK" > /dev/null
+      curl $CURL_K -sf -X POST "$KC_URL_TRAEFIK/admin/realms/$KC_REALM/clients/$_MM_CID/protocol-mappers/models" -H "$HOST_HEADER" -H "Authorization: Bearer $_UP_TOK" -H "Content-Type: application/json" \
+        -d '{"name":"gitlab-id","protocol":"openid-connect","protocolMapper":"oidc-usermodel-attribute-mapper","consentRequired":false,"config":{"user.attribute":"mattermostId","claim.name":"id","jsonType.label":"long","id.token.claim":"true","access.token.claim":"true","userinfo.token.claim":"true"}}' > /dev/null \
+        && echo "✅ Đã sửa mapper gitlab-id (mattermostId/long)." \
+        || echo "⚠️  Không sửa được mapper gitlab-id."
+    else
+      echo "✅ Mapper gitlab-id đã đúng chuẩn."
+    fi
+  fi
+else
+  echo "⚠️  Không đăng nhập được Keycloak Admin nên chưa đồng bộ User Profile."
+fi
 
 # 9. Print URLs
 echo ""

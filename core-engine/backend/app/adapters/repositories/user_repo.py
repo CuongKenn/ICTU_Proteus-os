@@ -28,6 +28,7 @@ def _to_entity(model: UserModel, roles: list[str] | None = None) -> UserEntity:
         email=model.email,
         full_name=model.full_name,
         is_active=model.is_active,
+        last_login_at=model.last_login_at,
         roles=roles if roles is not None else [],
     )
 

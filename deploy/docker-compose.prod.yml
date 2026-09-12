@@ -26,10 +26,14 @@ services:
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      # Bắt mọi request HTTP còn lại và redirect sang HTTPS
-      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      # Bắt mọi request HTTP còn lại và redirect sang HTTPS — NHƯNG loại trừ
+      # `/.well-known/acme-challenge/` để Let's Encrypt HTTP-01 không bị
+      # redirect sang https (trước đây challenge bị 404 vì đi nhầm vào
+      # entrypoint websecure + bị rate-limit 429).
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`) && !PathPrefix(`/.well-known/acme-challenge/`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
       - "traefik.http.routers.http-catchall.middlewares=https-redirect"
+      - "traefik.http.routers.http-catchall.priority=1"
       - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
 

@@ -164,12 +164,12 @@
         {
           "name": "gitlab-id",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-property-mapper",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
           "consentRequired": false,
           "config": {
-            "user.attribute": "id",
+            "user.attribute": "mattermostId",
             "claim.name": "id",
-            "jsonType.label": "String",
+            "jsonType.label": "long",
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
@@ -197,20 +197,6 @@
           "config": {
             "user.attribute": "email",
             "claim.name": "email",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true"
-          }
-        },
-        {
-          "name": "gitlab-name",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-property-mapper",
-          "consentRequired": false,
-          "config": {
-            "user.attribute": "username",
-            "claim.name": "name",
             "jsonType.label": "String",
             "id.token.claim": "true",
             "access.token.claim": "true",

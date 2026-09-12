@@ -6,9 +6,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { UserPlus, UserMinus, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { UserPlus, UserMinus, Loader2, AlertTriangle, CheckCircle2, MailPlus } from "lucide-react";
 import api from "@/lib/api";
 import { logger } from "@/lib/logger";
+
+type UserStatus = "active" | "pending" | "disabled";
 
 interface User {
   id: string;
@@ -18,7 +20,16 @@ interface User {
   full_name: string | null;
   roles: string[];
   is_active: boolean;
+  last_login_at: string | null;
 }
+
+/** Suy ra trạng thái hiển thị: chưa từng đăng nhập = "Chờ kích hoạt"
+ *  (kể cả bản ghi invite cũ vẫn còn is_active=true trong DB). */
+const getUserStatus = (user: User): UserStatus => {
+  if (!user.is_active && user.last_login_at) return "disabled";
+  if (!user.last_login_at) return "pending";
+  return "active";
+};
 
 
 interface Role {
@@ -41,6 +52,8 @@ export const UsersTab = () => {
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteWarning, setInviteWarning] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   // Assign role modal state
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -82,24 +95,48 @@ export const UsersTab = () => {
     if (!inviteEmail || !inviteFullName) return;
     setInviting(true);
     setInviteError(null);
+    setInviteWarning(null);
     try {
-      await api.post("/v1/users/invite", {
+      const res = await api.post("/v1/users/invite", {
         email: inviteEmail,
         full_name: inviteFullName,
       });
+      // Backend luôn tạo user (201) kể cả khi mail fail — phải đọc cờ email_sent,
+      // trước đây UI cứ báo "đã gửi" nên admin không biết mail chưa đi.
+      if (res.data && res.data.email_sent === false) {
+        setInviteWarning(res.data.email_warning || "Tài khoản đã tạo nhưng chưa gửi được email mời.");
+      }
       setInviteSuccess(true);
       await fetchData(); // Refresh list
       setTimeout(() => {
         setIsInviteModalOpen(false);
         setInviteSuccess(false);
+        setInviteWarning(null);
         setInviteEmail("");
         setInviteFullName("");
-      }, 2000);
+      }, 4000);
     } catch (err: any) {
       const detail = err.response?.data?.detail || "Có lỗi xảy ra khi gửi lời mời.";
       setInviteError(detail);
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleResendInvite = async (userId: string, email: string) => {
+    clearMessages();
+    setResendingId(userId);
+    try {
+      const res = await api.post(`/v1/users/${userId}/resend-invite`);
+      if (res.data && res.data.email_sent === false) {
+        setActionError(res.data.email_warning || `Chưa gửi được email cho ${email}. Kiểm tra cấu hình SMTP.`);
+      } else {
+        setActionSuccess(`Đã gửi lại email mời cho ${email}!`);
+      }
+    } catch (err: any) {
+      setActionError(err.response?.data?.detail || `Không thể gửi lại lời mời cho ${email}.`);
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -229,34 +266,71 @@ export const UsersTab = () => {
                       )}
                     </td>
                     <td className="py-3 px-4">
-
-                      <span className={`px-2 py-1 text-xs rounded-md font-medium ${
-                        user.is_active
-                          ? "bg-green-500/10 text-green-400"
-                          : "bg-red-500/10 text-red-400"
-                      }`}>
-                        {user.is_active ? "Đang hoạt động" : "Vô hiệu hóa"}
-                      </span>
+                      {(() => {
+                        const st = getUserStatus(user);
+                        return (
+                          <span className={`px-2 py-1 text-xs rounded-md font-medium ${
+                            st === "active"
+                              ? "bg-green-500/10 text-green-400"
+                              : st === "pending"
+                                ? "bg-amber-500/10 text-amber-400"
+                                : "bg-red-500/10 text-red-400"
+                          }`}>
+                            {st === "active" ? "Đang hoạt động" : st === "pending" ? "Chờ kích hoạt" : "Vô hiệu hóa"}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-4 text-right space-x-2">
-                      {user.is_active && (
-                        <>
-                          <Button
-                            variant="secondary"
-                            className="px-3 py-1.5 text-sm"
-                            onClick={() => openRoleModal(user)}
-                          >
-                            Gán Role
-                          </Button>
-                          <Button
-                            variant="danger"
-                            className="px-3 py-1.5 text-sm"
-                            onClick={() => handleDeactivate(user.id)}
-                          >
-                            <UserMinus className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
+                      {(() => {
+                        const st = getUserStatus(user);
+                        if (st === "pending") {
+                          return (
+                            <>
+                              <Button
+                                variant="secondary"
+                                className="px-3 py-1.5 text-sm gap-1"
+                                disabled={resendingId === user.id}
+                                onClick={() => handleResendInvite(user.id, user.email)}
+                                title="Gửi lại email đặt mật khẩu"
+                              >
+                                {resendingId === user.id
+                                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                                  : <MailPlus className="w-4 h-4" />}
+                                Gửi lại lời mời
+                              </Button>
+                              <Button
+                                variant="danger"
+                                className="px-3 py-1.5 text-sm"
+                                onClick={() => handleDeactivate(user.id)}
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </Button>
+                            </>
+                          );
+                        }
+                        if (st === "active") {
+                          return (
+                            <>
+                              <Button
+                                variant="secondary"
+                                className="px-3 py-1.5 text-sm"
+                                onClick={() => openRoleModal(user)}
+                              >
+                                Gán Role
+                              </Button>
+                              <Button
+                                variant="danger"
+                                className="px-3 py-1.5 text-sm"
+                                onClick={() => handleDeactivate(user.id)}
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </Button>
+                            </>
+                          );
+                        }
+                        return null;
+                      })()}
                     </td>
                   </tr>
                 ))
@@ -273,9 +347,10 @@ export const UsersTab = () => {
           setIsInviteModalOpen(false);
           setInviteError(null);
           setInviteSuccess(false);
+          setInviteWarning(null);
           setInviteEmail("");
           setInviteFullName("");
-        }} 
+        }}
         title="Mời nhân viên mới"
         onConfirm={!inviteSuccess ? handleInvite : undefined}
         confirmLabel="Gửi lời mời"
@@ -283,13 +358,28 @@ export const UsersTab = () => {
       >
         {inviteSuccess ? (
           <div className="flex flex-col items-center gap-4 py-6">
-            <CheckCircle2 className="w-12 h-12 text-success" />
-            <p className="text-center text-text-primary font-medium">
-              Email mời đã được gửi!
-            </p>
-            <p className="text-center text-sm text-text-secondary">
-              Nhân viên sẽ nhận được email để tự đặt mật khẩu và đăng nhập.
-            </p>
+            {inviteWarning ? (
+              <>
+                <AlertTriangle className="w-12 h-12 text-amber-400" />
+                <p className="text-center text-text-primary font-medium">
+                  Tài khoản đã được tạo, nhưng chưa gửi được email!
+                </p>
+                <p className="text-center text-sm text-text-secondary">
+                  {inviteWarning} Kiểm tra SMTP (Keycloak → Realm Settings → Email),
+                  rồi dùng nút &quot;Gửi lại lời mời&quot; ở danh sách.
+                </p>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-12 h-12 text-success" />
+                <p className="text-center text-text-primary font-medium">
+                  Email mời đã được gửi!
+                </p>
+                <p className="text-center text-sm text-text-secondary">
+                  Nhân viên sẽ nhận được email để tự đặt mật khẩu và đăng nhập.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

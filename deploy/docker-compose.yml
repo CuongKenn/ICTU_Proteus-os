@@ -57,7 +57,10 @@ services:
     networks:
       - proteus-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proteus}"]
+      # NOTE: phải chỉ rõ -d ${POSTGRES_DB}. Nếu chỉ -U mà không -d,
+      # pg_isready mặc định thử DB trùng tên user (VD: AdminProteus) vốn
+      # không tồn tại → log "FATAL: database ... does not exist" liên tục.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proteus} -d ${POSTGRES_DB:-proteus}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,7 +71,10 @@ services:
   # POSTGRES-BACKUP — Automated Database Backup
   # ────────────────────────────────────────────────────────────
   postgres-backup:
-    image: postgres:latest
+    # NOTE: dùng biến thể Alpine (busybox crond + /etc/crontabs sẵn có).
+    # Image postgres:latest (Debian) KHÔNG có crond → container crash-loop
+    # "exec: crond: not found" + "cannot create /etc/crontabs/root".
+    image: postgres:alpine
     container_name: proteus-postgres-backup
     restart: unless-stopped
     environment:
@@ -118,7 +124,12 @@ services:
     image: quay.io/keycloak/keycloak:latest
     container_name: proteus-keycloak
     restart: unless-stopped
-    command: ${KEYCLOAK_START_MODE:-start-dev} --db=postgres --import-realm
+    # NOTE: DB config comes from KC_DB* env vars below — do NOT append
+    # --db=... on the command line. --db is a build-time option and is
+    # rejected when combined with `start --optimized`. Likewise --optimized
+    # requires a prior `kc.sh build`, so the default production mode is
+    # plain `start` (see KEYCLOAK_START_MODE in .env.example).
+    command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
     environment:
 
       KC_DB: postgres
@@ -182,6 +193,16 @@ services:
     container_name: proteus-ollama
     restart: unless-stopped
     profiles: ["ollama"]
+    # Dùng GPU host khi có (inference nhanh gấp hàng chục lần CPU).
+    # Docker CDI (nvidia.com/gpu) đã có sẵn trên máy. Nếu host không có GPU,
+    # bỏ block deploy này để chạy CPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     volumes:
       - ollama-data:/root/.ollama
     networks:
@@ -351,7 +372,7 @@ services:
     environment:
       APPSMITH_DISABLE_TELEMETRY: "true"
       APPSMITH_OAUTH2_GITHUB_CLIENT_ID: appsmith
-      APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET}
+      APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET:-}
       APPSMITH_OAUTH2_GITHUB_AUTH_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/proteus/protocol/openid-connect/auth
       APPSMITH_OAUTH2_GITHUB_TOKEN_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
       APPSMITH_OAUTH2_GITHUB_PROFILE_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
