@@ -41,6 +41,7 @@ function Set-PublicUrls([string]$Scheme, [string]$Domain, [string]$Suffix) {
     Set-EnvValue "NEXT_PUBLIC_N8N_URL"        "$Scheme`://workflow.$Domain$Suffix"
     Set-EnvValue "NEXT_PUBLIC_METABASE_URL"   "$Scheme`://analytics.$Domain$Suffix"
     Set-EnvValue "NEXT_PUBLIC_APPSMITH_URL"   "$Scheme`://apps.$Domain$Suffix"
+    Set-EnvValue "PLUGINS_MFE_URL"            "$Scheme`://plugins.$Domain$Suffix"
 }
 
 # 0. Chon che do trien khai: local dev hay production VPS
@@ -485,16 +486,28 @@ if ($envContent -match "N8N_API_KEY=CHANGE_ME") {
         Write-Host "[INFO] n8n Owner account may already exist, proceeding to inject API key..." -ForegroundColor Yellow
     }
 
-    # Generate random API key
-    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    $bytes = New-Object byte[] 24
-    $rng.GetBytes($bytes)
-    $newApiKey = [Convert]::ToBase64String($bytes) -replace "[^a-zA-Z0-9]", ""
-
-    # Inject via DB (doc POSTGRES_USER/DB thuc te tu .env)
+    # Tao API key dung schema n8n 1.x+/2.x (bang user_api_keys, key la JWT ky HS256
+    # tu N8N_ENCRYPTION_KEY). Cot n8n."user".apiKey khong con ton tai.
     $pgDbLine = Get-Content .env -Encoding UTF8 | Where-Object { $_ -match "^POSTGRES_DB=" }
     $pgDb = if ($pgDbLine) { ($pgDbLine[0] -split '=', 2)[1].Trim('"', "'", " ") } else { "proteus" }
-    $sql = 'UPDATE n8n."user" SET "apiKey"=''' + $newApiKey + ''' WHERE email=''admin@proteus.local'';'
+    $n8nEncLine = Get-Content .env -Encoding UTF8 | Where-Object { $_ -match "^N8N_ENCRYPTION_KEY=" }
+    $n8nEnc = if ($n8nEncLine) { ($n8nEncLine[0] -split '=', 2)[1].Trim() } else { "" }
+    $ownerSql = 'SELECT id FROM n8n."user" WHERE "roleSlug" LIKE ''global:%'' ORDER BY "createdAt" LIMIT 1;'
+    $tmpOwner = Join-Path $env:TEMP "n8n_owner.sql"
+    [System.IO.File]::WriteAllText($tmpOwner, $ownerSql, [System.Text.Encoding]::UTF8)
+    $ownerId = ((Get-Content $tmpOwner | docker compose exec -T postgres psql -U $pgUser -d $pgDb -t -A 2>$null) -join "").Trim()
+    # Dong bo email owner (co ban email rong)
+    $fixMail = "UPDATE n8n.""user"" SET email='admin@proteus.local', ""firstName""='Admin', ""lastName""='Proteus' WHERE id='$ownerId' AND (email IS NULL OR email='');"
+    [System.IO.File]::WriteAllText($tmpOwner, $fixMail, [System.Text.Encoding]::UTF8)
+    Get-Content $tmpOwner | docker compose exec -T postgres psql -U $pgUser -d $pgDb | Out-Null
+    Remove-Item $tmpOwner -ErrorAction SilentlyContinue
+    # Mint JWT bang python trong backend container (co san python-jose)
+    $pyMint = "from jose import jwt" + [Environment]::NewLine + "import hashlib,uuid" + [Environment]::NewLine + "enc='''$n8nEnc'''.strip()" + [Environment]::NewLine + "base=''.join(enc[i] for i in range(0,len(enc),2))" + [Environment]::NewLine + "secret=hashlib.sha256(base.encode()).hexdigest()" + [Environment]::NewLine + "print(jwt.encode({'sub':'''$ownerId'''.strip(),'iss':'n8n','aud':'public-api','jti':str(uuid.uuid4())},secret,algorithm='HS256'))"
+    $tmpPy = Join-Path $env:TEMP "n8n_mint.py"
+    [System.IO.File]::WriteAllText($tmpPy, $pyMint, [System.Text.Encoding]::UTF8)
+    $newApiKey = ((Get-Content $tmpPy -Raw | docker compose exec -T backend python) -join "").Trim()
+    Remove-Item $tmpPy -ErrorAction SilentlyContinue
+    $sql = "INSERT INTO n8n.user_api_keys (id, ""userId"", label, ""apiKey"", scopes) VALUES (gen_random_uuid(), '$ownerId', 'proteus-os-bot', '$newApiKey', (SELECT json_agg(slug) FROM n8n.scope WHERE slug LIKE 'workflow:%' OR slug LIKE 'credential:%' OR slug LIKE 'execution:%' OR slug LIKE 'tag:%')) ON CONFLICT (""userId"", label) DO UPDATE SET ""apiKey""=EXCLUDED.""apiKey"", scopes=EXCLUDED.scopes, ""updatedAt""=now();"
     $tmpSql = Join-Path $env:TEMP "n8n_key.sql"
     [System.IO.File]::WriteAllText($tmpSql, $sql, [System.Text.Encoding]::UTF8)
     Get-Content $tmpSql | docker compose exec -T postgres psql -U $pgUser -d $pgDb | Out-Null

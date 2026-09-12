@@ -517,6 +517,7 @@ services:
       MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN}
       MATTERMOST_WEBHOOK_SECRET: ${MATTERMOST_WEBHOOK_SECRET}
       MATTERMOST_SYSTEM_CHANNEL_ID: ${MATTERMOST_SYSTEM_CHANNEL_ID}
+      PLUGINS_MFE_URL: ${PLUGINS_MFE_URL:-http://plugins.proteus.local}
       PLUGINS_DIR: /plugins
     volumes:
       - ../plugins:/plugins:ro

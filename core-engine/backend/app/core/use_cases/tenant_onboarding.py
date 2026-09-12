@@ -55,6 +55,14 @@ async def ensure_tenant_mattermost_team(
         name="canh-bao-he-thong",
         display_name="Cảnh báo hệ thống",
     )
+    # Bot Proteus phải là member thì mới post được tin nhắn (duyệt plugin,
+    # AI approval, cảnh báo install...). Best-effort.
+    try:
+        bot_id = await mm_adapter.get_bot_user_id()
+        if bot_id:
+            await mm_adapter.add_user_to_team(team["id"], bot_id)
+    except Exception as e:
+        logger.warning("Không đưa được bot vào team %s: %s", team["name"], e)
     config = {
         "team_id": team["id"],
         "team_name": team["name"],

@@ -158,6 +158,9 @@ class N8nAdapter(AbstractWorkflowEnginePort):
         clean_workflow = {k: v for k, v in workflow_json.items() if k in ALLOWED_FIELDS}
         if not clean_workflow.get("name"):
             clean_workflow["name"] = workflow_json.get("name", "Untitled Workflow")
+        # n8n 2.x bắt buộc có `settings` (thiếu → 400 "must have required
+        # property 'settings'"). Nhiều file workflow cũ không có field này.
+        clean_workflow.setdefault("settings", {})
 
         response = await self._request_with_retry("POST", url, json=clean_workflow)
 

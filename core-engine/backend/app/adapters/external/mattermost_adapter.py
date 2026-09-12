@@ -240,6 +240,17 @@ class MattermostAdapter(AbstractChatOpsPort):
         )
         return response.json()
 
+    async def get_bot_user_id(self) -> str | None:
+        """Lấy user_id của chính bot (qua token). None nếu chưa cấu hình."""
+        if not self.token:
+            return None
+        try:
+            response = await self._call("GET", "/api/v4/users/me")
+            return response.json().get("id")
+        except Exception as e:
+            logger.warning("Không lấy được bot user_id: %s", e)
+            return None
+
     async def add_user_to_team(self, team_id: str, user_id: str) -> None:
         """Thêm member vào team. Đã là member (400) → bỏ qua."""
         try:

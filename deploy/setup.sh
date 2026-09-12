@@ -39,6 +39,7 @@ apply_public_urls() {
   set_env NEXT_PUBLIC_N8N_URL "$PUBLIC_SCHEME://workflow.$DOMAIN$URL_SUFFIX"
   set_env NEXT_PUBLIC_METABASE_URL "$PUBLIC_SCHEME://analytics.$DOMAIN$URL_SUFFIX"
   set_env NEXT_PUBLIC_APPSMITH_URL "$PUBLIC_SCHEME://apps.$DOMAIN$URL_SUFFIX"
+  set_env PLUGINS_MFE_URL "$PUBLIC_SCHEME://plugins.$DOMAIN$URL_SUFFIX"
 }
 
 # ─────────────────────────────────────────────
@@ -549,14 +550,33 @@ if [ $N8N_ELAPSED -lt $N8N_TIMEOUT ] && grep -q "N8N_API_KEY=CHANGE_ME" .env; th
     
   echo "✅ Đã khởi tạo n8n Owner."
   
-  # 8.2 Inject API Key via Database bypass for n8n 1.52+
-  NEW_N8N_API_KEY=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9')
+  # 8.2 Tạo API Key đúng schema n8n 1.x+/2.x (bảng user_api_keys).
+  # Cột n8n."user".apiKey KHÔNG còn tồn tại → UPDATE cũ luôn fail âm thầm,
+  # key random ghi vào .env không khớp gì cả → mọi gọi n8n API 401, cài plugin
+  # gãy ở bước import workflow. Key mới là JWT ký HS256 bằng secret suy từ
+  # N8N_ENCRYPTION_KEY (đúng thuật toán của n8n), kèm scopes workflow/credential.
   _PGU=$(pg_env_user); _PGU=${_PGU:-proteus}; _PGD=$(pg_env_db); _PGD=${_PGD:-proteus}
-  echo "UPDATE n8n.\"user\" SET \"apiKey\"='$NEW_N8N_API_KEY' WHERE email='admin@proteus.local';" | docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD" > /dev/null || true
-  
-  sed -i.bak "s|N8N_API_KEY=CHANGE_ME.*|N8N_API_KEY=$NEW_N8N_API_KEY|g" .env
-  rm -f .env.bak
-  echo "✅ Đã tạo N8N_API_KEY qua Database."
+  _N8N_ENC=$(grep -E "^N8N_ENCRYPTION_KEY=" .env | cut -d '=' -f2)
+  _OWNER_ID=$(docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD" -tAc 'SELECT id FROM n8n."user" WHERE "roleSlug" LIKE '"'"'global:%'"'"' ORDER BY "createdAt" LIMIT 1' 2>/dev/null | tr -d '[:space:]')
+  [ -z "$_OWNER_ID" ] && _OWNER_ID=$(docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD" -tAc 'SELECT id FROM n8n."user" ORDER BY "createdAt" LIMIT 1' 2>/dev/null | tr -d '[:space:]')
+  # Đồng bộ email owner (có bản owner email rỗng khiến đăng nhập UI khó hiểu).
+  echo "UPDATE n8n.\"user\" SET email='admin@proteus.local', \"firstName\"='Admin', \"lastName\"='Proteus' WHERE id='$_OWNER_ID' AND (email IS NULL OR email='');" | docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD" > /dev/null 2>&1 || true
+  NEW_N8N_API_KEY=$(docker compose exec -T backend python -c "
+from jose import jwt
+import hashlib, uuid
+enc = '''$_N8N_ENC'''.strip()
+base = ''.join(enc[i] for i in range(0, len(enc), 2))
+secret = hashlib.sha256(base.encode()).hexdigest()
+print(jwt.encode({'sub': '''$_OWNER_ID'''.strip(), 'iss': 'n8n', 'aud': 'public-api', 'jti': str(uuid.uuid4())}, secret, algorithm='HS256'))
+" 2>/dev/null | tr -d '[:space:]')
+  if [ -n "$NEW_N8N_API_KEY" ] && [ -n "$_OWNER_ID" ]; then
+    echo "INSERT INTO n8n.user_api_keys (id, \"userId\", label, \"apiKey\", scopes) VALUES (gen_random_uuid(), '$_OWNER_ID', 'proteus-os-bot', '$NEW_N8N_API_KEY', (SELECT json_agg(slug) FROM n8n.scope WHERE slug LIKE 'workflow:%' OR slug LIKE 'credential:%' OR slug LIKE 'execution:%' OR slug LIKE 'tag:%')) ON CONFLICT (\"userId\", label) DO UPDATE SET \"apiKey\"=EXCLUDED.\"apiKey\", scopes=EXCLUDED.scopes, \"updatedAt\"=now();" | docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD" > /dev/null 2>&1 || true
+    sed -i.bak "s|N8N_API_KEY=CHANGE_ME.*|N8N_API_KEY=$NEW_N8N_API_KEY|g" .env
+    rm -f .env.bak
+    echo "✅ Đã tạo N8N_API_KEY qua Database (JWT + scopes)."
+  else
+    echo "⚠️  Không tạo được N8N_API_KEY (thiếu owner/JWT). Plugin cần n8n API sẽ fail 401."
+  fi
   docker compose restart backend
 fi
 

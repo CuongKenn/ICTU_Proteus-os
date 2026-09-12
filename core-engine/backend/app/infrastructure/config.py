@@ -48,6 +48,9 @@ class Settings(BaseSettings):
 
     # Plugins Directory
     PLUGINS_DIR: str = "/plugins"  # Container path
+    # Base URL public của Plugin Micro-Frontend gateway (dùng dựng external_url
+    # cho plugin, tránh hardcode domain local trong manifest.yaml).
+    PLUGINS_MFE_URL: str = "http://plugins.proteus.local"
 
     # ─── Metabase (Analytics) ───────────────────────────────
     METABASE_INTERNAL_URL: str | None = None

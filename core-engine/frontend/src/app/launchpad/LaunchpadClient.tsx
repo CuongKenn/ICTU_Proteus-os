@@ -11,8 +11,9 @@ import { useSession } from "next-auth/react";
 const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://chat.proteus.local";
 const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://wiki.proteus.local";
 const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://workflow.proteus.local";
+const APPSMITH_URL = process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local";
 import { useNotificationStore } from "@/store/notificationStore";
-import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
+import { AppWindow, Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 
@@ -126,6 +127,14 @@ export function LaunchpadClient() {
               isActive
             />
           )}
+          {isAdmin && (
+            <AppIcon
+              appName="Appsmith"
+              icon={<AppWindow className="w-8 h-8 text-purple-400" />}
+              onClick={() => openIframe("appsmith", APPSMITH_URL)}
+              isActive
+            />
+          )}
         </div>
       </section>
 
@@ -200,6 +209,8 @@ export function LaunchpadClient() {
                 <><Box className="w-5 h-5 text-brand-primary" /> Metabase Analytics</>
               ) : activeApp === "n8n" ? (
                 <><Network className="w-5 h-5 text-orange-500" /> n8n Workflow</>
+              ) : activeApp === "appsmith" ? (
+                <><AppWindow className="w-5 h-5 text-purple-400" /> Appsmith Low-code</>
               ) : (
                 <><Blocks className="w-5 h-5 text-brand-primary" /> {plugins.find(p => p.code_name === activeApp)?.display_name || activeApp}</>
               )}

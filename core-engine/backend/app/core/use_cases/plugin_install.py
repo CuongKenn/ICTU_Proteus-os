@@ -477,6 +477,70 @@ class PluginInstallUseCase:
             if row:
                 proteus_db_cred_id = row[0]
 
+        # 1b. Đảm bảo credential Mattermost dùng chung (ProteusMM) để gắn vào
+        # các node Mattermost. Thiếu nó workflow import được nhưng không
+        # activate được ("Missing required credential: mattermostApi").
+        proteus_mm_cred_id = None
+        proteus_mm_cred_name = None
+        if self.session:
+            try:
+                res = await self.session.execute(
+                    text(
+                        "SELECT id FROM n8n.credentials_entity WHERE name = 'ProteusMM' LIMIT 1"
+                    )
+                )
+                row = res.fetchone()
+                if row:
+                    proteus_mm_cred_id = str(row[0])
+                    proteus_mm_cred_name = "ProteusMM"
+                elif settings.MATTERMOST_BOT_TOKEN:
+                    created = await self.n8n_adapter.create_credential(
+                        credential_type="mattermostApi",
+                        credential_name="ProteusMM",
+                        data={
+                            "baseUrl": settings.MATTERMOST_URL,
+                            "accessToken": settings.MATTERMOST_BOT_TOKEN,
+                        },
+                    )
+                    proteus_mm_cred_id = str(created.get("id"))
+                    proteus_mm_cred_name = "ProteusMM"
+                    logger.info("Đã tạo n8n credential ProteusMM dùng chung")
+            except Exception as e:
+                logger.warning("Không đảm bảo được credential ProteusMM: %s", e)
+
+        # 1c. Đảm bảo credential Ollama dùng chung (ProteusOllama) cho các node
+        # AI (lmChatOllama...). File workflow mẫu thường mang credential ID cũ
+        # của máy dev (VD: "OllamaLocal") → phải ghi đè, nếu không workflow lỗi
+        # missing credential khi chạy.
+        proteus_ollama_cred_id = None
+        proteus_ollama_cred_name = None
+        if self.session:
+            try:
+                res = await self.session.execute(
+                    text(
+                        "SELECT id FROM n8n.credentials_entity WHERE name = 'ProteusOllama' LIMIT 1"
+                    )
+                )
+                row = res.fetchone()
+                if row:
+                    proteus_ollama_cred_id = str(row[0])
+                    proteus_ollama_cred_name = "ProteusOllama"
+                else:
+                    ollama_base = (settings.LLM_BASE_URL or "").rstrip("/")
+                    if ollama_base.endswith("/v1"):
+                        ollama_base = ollama_base[: -len("/v1")]
+                    if ollama_base:
+                        created = await self.n8n_adapter.create_credential(
+                            credential_type="ollamaApi",
+                            credential_name="ProteusOllama",
+                            data={"baseUrl": ollama_base},
+                        )
+                        proteus_ollama_cred_id = str(created.get("id"))
+                        proteus_ollama_cred_name = "ProteusOllama"
+                        logger.info("Đã tạo n8n credential ProteusOllama dùng chung")
+            except Exception as e:
+                logger.warning("Không đảm bảo được credential ProteusOllama: %s", e)
+
         tenant_schema = f"tenant_{str(context.tenant_id).replace('-', '_')}"
 
         for wf in manifest.workflows:
@@ -500,6 +564,32 @@ class PluginInstallUseCase:
                     # ProteusDB_Real để workflow import xong chạy được ngay.
                     if node.get("type") == "n8n-nodes-base.postgres":
                         node.setdefault("credentials", {}).setdefault("postgres", {})
+                    # Mattermost nodes (kể cả file cũ không khai credentials)
+                    # được gắn ProteusMM dùng chung để activate được ngay.
+                    if "mattermost" in (node.get("type") or "").lower():
+                        node.setdefault("credentials", {}).setdefault(
+                            "mattermostApi", {}
+                        )
+                        if proteus_mm_cred_id:
+                            node["credentials"]["mattermostApi"]["id"] = (
+                                proteus_mm_cred_id
+                            )
+                            node["credentials"]["mattermostApi"]["name"] = (
+                                proteus_mm_cred_name
+                            )
+                    # Ollama/AI nodes: ghi đè credential ID cũ của máy dev
+                    # (VD: "OllamaLocal") bằng ProteusOllama dùng chung.
+                    if "ollama" in (node.get("type") or "").lower():
+                        node.setdefault("credentials", {}).setdefault(
+                            "ollamaApi", {}
+                        )
+                        if proteus_ollama_cred_id:
+                            node["credentials"]["ollamaApi"]["id"] = (
+                                proteus_ollama_cred_id
+                            )
+                            node["credentials"]["ollamaApi"]["name"] = (
+                                proteus_ollama_cred_name
+                            )
                     if "credentials" in node:
                         for cred_key, cred_val in node["credentials"].items():
                             # Internal DB (Proteus)
