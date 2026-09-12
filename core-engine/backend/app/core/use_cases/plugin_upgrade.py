@@ -575,6 +575,18 @@ class PluginUpgradeUseCase:
         proteus_ollama_cred_id, proteus_ollama_cred_name = (
             await self._ensure_ollama_credential()
         )
+        alerts_channel_id = None
+        if self.tenant_repo is not None:
+            try:
+                from app.core.use_cases.tenant_onboarding import (
+                    get_tenant_alerts_channel_id,
+                )
+
+                alerts_channel_id = await get_tenant_alerts_channel_id(
+                    self.tenant_repo, self.mattermost_adapter, context.tenant_id
+                )
+            except Exception as e:
+                logger.warning("Không resolve được alerts channel: %s", e)
 
         new_ids: list[str] = []
         parser = self.manifest_parser
@@ -603,6 +615,7 @@ class PluginUpgradeUseCase:
                 proteus_mm_cred_name,
                 proteus_ollama_cred_id,
                 proteus_ollama_cred_name,
+                alerts_channel_id,
             )
             wf_name = wf_json.get("name") or wf.file
             old_id = existing_by_name.get(wf_name)
@@ -803,6 +816,7 @@ class PluginUpgradeUseCase:
         proteus_mm_cred_name: str | None,
         proteus_ollama_cred_id: str | None,
         proteus_ollama_cred_name: str | None,
+        alerts_channel_id: str | None = None,
     ) -> None:
         """Gắn credentials dùng chung vào nodes (giống luồng install)."""
         for node in wf_json.get("nodes", []):
@@ -812,16 +826,30 @@ class PluginUpgradeUseCase:
                     node["parameters"]["query"] = query.replace(
                         "{{TENANT_SCHEMA}}", tenant_schema
                     )
-            if node.get("type") == "n8n-nodes-base.postgres":
-                node.setdefault("credentials", {}).setdefault("postgres", {})
             ntype = (node.get("type") or "").lower()
+            needs_creds = (
+                node.get("type") == "n8n-nodes-base.postgres"
+                or "mattermost" in ntype
+                or "ollama" in ntype
+            )
+            if needs_creds and not isinstance(node.get("credentials"), dict):
+                node["credentials"] = {}
+            if node.get("type") == "n8n-nodes-base.postgres":
+                node["credentials"].setdefault("postgres", {})
             if "mattermost" in ntype:
-                node.setdefault("credentials", {}).setdefault("mattermostApi", {})
+                node["credentials"].setdefault("mattermostApi", {})
                 if proteus_mm_cred_id:
                     node["credentials"]["mattermostApi"]["id"] = proteus_mm_cred_id
                     node["credentials"]["mattermostApi"]["name"] = proteus_mm_cred_name
+                params = node.get("parameters")
+                if (
+                    isinstance(params, dict)
+                    and not params.get("channelId")
+                    and alerts_channel_id
+                ):
+                    params["channelId"] = alerts_channel_id
             if "ollama" in ntype:
-                node.setdefault("credentials", {}).setdefault("ollamaApi", {})
+                node["credentials"].setdefault("ollamaApi", {})
                 if proteus_ollama_cred_id:
                     node["credentials"]["ollamaApi"]["id"] = proteus_ollama_cred_id
                     node["credentials"]["ollamaApi"]["name"] = proteus_ollama_cred_name

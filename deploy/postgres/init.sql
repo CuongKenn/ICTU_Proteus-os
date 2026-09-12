@@ -16,6 +16,14 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";  -- Full-text search support
 
+-- Role dùng trong RLS policy của bảng plugin (FOR ALL TO app_user).
+-- Phải tồn tại trước khi cài plugin đầu tiên, nếu không CREATE POLICY fail.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
+    CREATE ROLE app_user NOLOGIN;
+  END IF;
+END $$;
+
 -- ─────────────────────────────────────────────────────────────
 -- SCHEMA SEPARATION
 -- Mỗi service OSS có schema riêng để tránh xung đột với Core

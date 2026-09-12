@@ -76,6 +76,28 @@ async def ensure_tenant_mattermost_team(
     return config
 
 
+async def get_tenant_alerts_channel_id(
+    tenant_repo: AbstractTenantRepository,
+    mm_adapter: Any,
+    tenant_id: uuid.UUID,
+) -> str | None:
+    """Trả về alerts channel của tenant (tự tạo team nếu chưa có).
+
+    Dùng để điền channelId mặc định cho node Mattermost khi cài/upgrade plugin.
+    Thất bại → None (caller bỏ qua, workflow để admin cấu hình tay).
+    """
+    if mm_adapter is None:
+        return None
+    try:
+        config = await ensure_tenant_mattermost_team(
+            tenant_repo, mm_adapter, tenant_id
+        )
+        return config.get("alerts_channel_id")
+    except Exception as e:
+        logger.warning("Không lấy được alerts channel cho tenant %s: %s", tenant_id, e)
+        return None
+
+
 class TenantOnboardingError(Exception):
     """Lỗi nghiệp vụ liên quan đến Tenant Onboarding."""
 

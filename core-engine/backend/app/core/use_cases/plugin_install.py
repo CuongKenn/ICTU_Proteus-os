@@ -85,6 +85,17 @@ class PluginInstallUseCase:
         # Reset state
         self._steps_log = []
         self._credential_ids = []
+        # Asset thu thập DẦN trong từng step (kể cả khi step fail giữa chừng)
+        # để rollback dọn được cả partial imports (trước đây chỉ lưu khi step
+        # DONE nên workflow import dở bị mồ côi → trùng tên ở lần cài lại).
+        created_assets_init: dict[str, list[str]] = {
+            "n8n": [],
+            "metabase": [],
+            "appsmith": [],
+            "keycloak": [],
+            "events": [],
+            "credentials": [],
+        }
 
         # 1. Fetch plugin metadata and tenant
         plugin = await self.plugin_repo.get_by_code_name(plugin_code_name)
@@ -129,7 +140,7 @@ class PluginInstallUseCase:
         await self.session.commit()
 
         completed_steps: list[str] = []
-        created_assets: dict[str, list[str]] = {}
+        created_assets: dict[str, list[str]] = created_assets_init
         try:
             # BƯỚC 1: Database Setup
             logger.info(
@@ -168,30 +179,42 @@ class PluginInstallUseCase:
                     context.tenant_id, plugin.id, created_assets["credentials"]
                 )
 
-            # BƯỚC 2: n8n Import
+            # BƯỚC 2: n8n Import (thu thập id dần vào created_assets
+            # để fail giữa chừng vẫn rollback được partial imports)
             self._log_step("n8n", "RUNNING")
             n8n_ids = await self._step_2_n8n(
-                context, plugin_code_name, manifest, credential_mapping
+                context,
+                plugin_code_name,
+                manifest,
+                credential_mapping,
+                collected=created_assets["n8n"],
             )
-            created_assets["n8n"] = n8n_ids
             self._log_step("n8n", "DONE")
             completed_steps.append("n8n")
             await self._persist_steps(context, plugin.id)
             await asyncio.sleep(random.uniform(1.0, 3.0))
 
-            # BƯỚC 3: Metabase Import
+            # BƯỚC 3: Metabase Import (thu thập dần như bước n8n)
             self._log_step("metabase", "RUNNING")
-            mb_ids = await self._step_3_metabase(context, plugin_code_name, manifest)
-            created_assets["metabase"] = mb_ids
+            mb_ids = await self._step_3_metabase(
+                context,
+                plugin_code_name,
+                manifest,
+                collected=created_assets["metabase"],
+            )
             self._log_step("metabase", "DONE")
             completed_steps.append("metabase")
             await self._persist_steps(context, plugin.id)
             await asyncio.sleep(random.uniform(1.0, 3.0))
 
-            # BƯỚC 4: Appsmith Import
+            # BƯỚC 4: Appsmith Import (thu thập dần như bước n8n)
             self._log_step("appsmith", "RUNNING")
-            app_ids = await self._step_4_appsmith(context, plugin_code_name, manifest)
-            created_assets["appsmith"] = app_ids
+            app_ids = await self._step_4_appsmith(
+                context,
+                plugin_code_name,
+                manifest,
+                collected=created_assets["appsmith"],
+            )
             self._log_step("appsmith", "DONE")
             completed_steps.append("appsmith")
             await self._persist_steps(context, plugin.id)
@@ -414,17 +437,50 @@ class PluginInstallUseCase:
 
             # Tự động tạo RLS cho các bảng (best-effort — table có thể chưa tồn tại)
             if manifest.database.tables:
-                if not has_schema:
+                # BẮT BUỘC set search_path mọi lần: seed block đã reset về public,
+                # nếu bỏ qua (chỉ set khi not has_schema) thì ALTER TABLE tìm sai
+                # schema → "relation does not exist" và RLS không bao giờ được bật.
+                await self.session.execute(
+                    text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                )
+                await self.session.execute(
+                    text(f'SET search_path TO "{schema_name}"')
+                )
+
+                # Role app_user phải tồn tại thì CREATE POLICY mới chạy được
+                # (fresh install chưa có → tạo best-effort, đã có thì skip).
+                await self.session.execute(text("SAVEPOINT rls_role"))
+                try:
                     await self.session.execute(
-                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                        text("CREATE ROLE app_user NOLOGIN")
                     )
+                    await self.session.execute(text("RELEASE SAVEPOINT rls_role"))
+                except Exception:
                     await self.session.execute(
-                        text(f'SET search_path TO "{schema_name}"')
+                        text("ROLLBACK TO SAVEPOINT rls_role")
                     )
+
+                # Chỉ bảng có cột tenant_id mới áp được policy (đa số bảng plugin
+                # cách ly bằng schema-per-tenant, không có cột này → bỏ qua).
+                res_cols = await self.session.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.columns "
+                        "WHERE table_schema = :schema AND column_name = 'tenant_id'"
+                    ),
+                    {"schema": schema_name},
+                )
+                tables_with_tenant = {r[0] for r in res_cols.fetchall()}
 
                 for table in manifest.database.tables:
                     if not re.match(r"^[a-zA-Z0-9_]+$", table):
                         raise PluginInstallError(f"Invalid table name: {table}")
+                    if table not in tables_with_tenant:
+                        logger.debug(
+                            "Bỏ qua RLS cho bảng %s (không có cột tenant_id; "
+                            "cách ly bằng schema)",
+                            table,
+                        )
+                        continue
 
                     sp = f"rls_{table}"
                     try:
@@ -461,6 +517,7 @@ class PluginInstallUseCase:
         plugin_code_name: str,
         manifest: PluginManifest,
         credential_mapping: dict[str, str] = None,
+        collected: list[str] | None = None,
     ) -> list[str]:
         """Import workflows vào n8n kèm Dynamic Workflow Injection."""
         workflow_ids = []
@@ -543,6 +600,22 @@ class PluginInstallUseCase:
 
         tenant_schema = f"tenant_{str(context.tenant_id).replace('-', '_')}"
 
+        # Kênh mặc định cho node Mattermost thiếu channelId (file mẫu thường bỏ
+        # trống → n8n từ chối activate "Missing channelId").
+        alerts_channel_id = None
+        if self.tenant_repo is not None:
+            try:
+                from app.core.use_cases.tenant_onboarding import (
+                    get_tenant_alerts_channel_id,
+                )
+
+                alerts_channel_id = await get_tenant_alerts_channel_id(
+                    self.tenant_repo, self.mattermost_adapter,
+                    context.tenant_id,
+                )
+            except Exception as e:
+                logger.warning("Không resolve được alerts channel: %s", e)
+
         for wf in manifest.workflows:
             wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
             if wf_path.exists():
@@ -559,17 +632,38 @@ class PluginInstallUseCase:
                                 "{{TENANT_SCHEMA}}", tenant_schema
                             )
 
-                    # Auto-bind Credentials (Internal & External)
+                    # Auto-bind Credentials (Internal & External).
+                    # credentials có thể là null (export từ n8n) → chuẩn hóa
+                    # thành dict trước, nếu không setdefault crash AttributeError.
+                    _ntype = (node.get("type") or "").lower()
+                    _needs_creds = (
+                        node.get("type") == "n8n-nodes-base.postgres"
+                        or "mattermost" in _ntype
+                        or "ollama" in _ntype
+                    )
+                    if _needs_creds and not isinstance(
+                        node.get("credentials"), dict
+                    ):
+                        node["credentials"] = {}
                     # Postgres nodes thiếu skeleton credentials vẫn được gắn
                     # ProteusDB_Real để workflow import xong chạy được ngay.
                     if node.get("type") == "n8n-nodes-base.postgres":
-                        node.setdefault("credentials", {}).setdefault("postgres", {})
+                        node["credentials"].setdefault("postgres", {})
                     # Mattermost nodes (kể cả file cũ không khai credentials)
                     # được gắn ProteusMM dùng chung để activate được ngay.
-                    if "mattermost" in (node.get("type") or "").lower():
-                        node.setdefault("credentials", {}).setdefault(
+                    # Node thiếu channelId được điền kênh alerts của tenant
+                    # (file mẫu hay bỏ trống → n8n từ chối activate).
+                    if "mattermost" in _ntype:
+                        node["credentials"].setdefault(
                             "mattermostApi", {}
                         )
+                        params = node.get("parameters")
+                        if (
+                            isinstance(params, dict)
+                            and not params.get("channelId")
+                            and alerts_channel_id
+                        ):
+                            params["channelId"] = alerts_channel_id
                         if proteus_mm_cred_id:
                             node["credentials"]["mattermostApi"]["id"] = (
                                 proteus_mm_cred_id
@@ -579,8 +673,8 @@ class PluginInstallUseCase:
                             )
                     # Ollama/AI nodes: ghi đè credential ID cũ của máy dev
                     # (VD: "OllamaLocal") bằng ProteusOllama dùng chung.
-                    if "ollama" in (node.get("type") or "").lower():
-                        node.setdefault("credentials", {}).setdefault(
+                    if "ollama" in _ntype:
+                        node["credentials"].setdefault(
                             "ollamaApi", {}
                         )
                         if proteus_ollama_cred_id:
@@ -590,7 +684,7 @@ class PluginInstallUseCase:
                             node["credentials"]["ollamaApi"]["name"] = (
                                 proteus_ollama_cred_name
                             )
-                    if "credentials" in node:
+                    if isinstance(node.get("credentials"), dict):
                         for cred_key, cred_val in node["credentials"].items():
                             # Internal DB (Proteus)
                             if (
@@ -611,6 +705,8 @@ class PluginInstallUseCase:
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
                 workflow_ids.append(wid)
+                if collected is not None:
+                    collected.append(wid)
 
                 # Webhook/cron chỉ chạy khi workflow ACTIVE — bật ngay sau import.
                 # Best-effort: activation fail thì warn (không fail cả install),
@@ -627,7 +723,11 @@ class PluginInstallUseCase:
         return workflow_ids
 
     async def _step_3_metabase(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        collected: list[str] | None = None,
     ) -> list[str]:
         """Import dashboards vào Metabase."""
         dashboard_ids = []
@@ -638,10 +738,16 @@ class PluginInstallUseCase:
                     db_json = json.load(f)
                 did = await self.metabase_adapter.import_dashboard(db_json)
                 dashboard_ids.append(did)
+                if collected is not None:
+                    collected.append(str(did))
         return dashboard_ids
 
     async def _step_4_appsmith(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        collected: list[str] | None = None,
     ) -> list[str]:
         """Import UI apps vào Appsmith."""
         app_ids = []
@@ -670,6 +776,8 @@ class PluginInstallUseCase:
                 )
 
                 app_ids.append(aid)
+                if collected is not None:
+                    collected.append(str(aid))
         return app_ids
 
     async def _step_5_keycloak(
