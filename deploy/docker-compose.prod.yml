@@ -1,0 +1,94 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Proteus OS — Docker Compose Production Overlay (TLS)
+# File này CHỈ chứa phần khác biệt của production so với docker-compose.yml:
+#   - Mọi router public chuyển sang entrypoint `websecure` + TLS (Let's Encrypt).
+#   - Router catch-all chuyển hướng toàn bộ HTTP → HTTPS.
+# Tham chiếu: docs/deployment.md
+#
+# Sử dụng: được tự động kích hoạt bởi setup.sh / setup.ps1 ở production mode
+# qua biến COMPOSE_FILE trong deploy/.env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+# Chạy thủ công:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# LƯU Ý: labels được merge theo key với docker-compose.yml, nên ở đây chỉ cần
+# ghi đè entrypoints + bổ sung tls — các rule/service/port giữ nguyên.
+
+services:
+
+  # ────────────────────────────────────────────────────────────
+  # TRAEFIK — Dashboard (TLS) + HTTP→HTTPS catch-all
+  # ────────────────────────────────────────────────────────────
+  traefik:
+    labels:
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      # Bắt mọi request HTTP còn lại và redirect sang HTTPS
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=https-redirect"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+
+  keycloak:
+    labels:
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.routers.keycloak.tls.certresolver=letsencrypt"
+
+  n8n:
+    labels:
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls=true"
+      - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+
+  mattermost:
+    labels:
+      - "traefik.http.routers.mattermost.entrypoints=websecure"
+      - "traefik.http.routers.mattermost.tls=true"
+      - "traefik.http.routers.mattermost.tls.certresolver=letsencrypt"
+
+  metabase:
+    labels:
+      - "traefik.http.routers.metabase.entrypoints=websecure"
+      - "traefik.http.routers.metabase.tls=true"
+      - "traefik.http.routers.metabase.tls.certresolver=letsencrypt"
+
+  appsmith:
+    labels:
+      - "traefik.http.routers.appsmith.entrypoints=websecure"
+      - "traefik.http.routers.appsmith.tls=true"
+      - "traefik.http.routers.appsmith.tls.certresolver=letsencrypt"
+
+  outline:
+    labels:
+      - "traefik.http.routers.outline.entrypoints=websecure"
+      - "traefik.http.routers.outline.tls=true"
+      - "traefik.http.routers.outline.tls.certresolver=letsencrypt"
+
+  grafana:
+    labels:
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+
+  backend:
+    labels:
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+
+  frontend:
+    labels:
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+
+  plugins-mfe:
+    labels:
+      - "traefik.http.routers.plugins-mfe.entrypoints=websecure"
+      - "traefik.http.routers.plugins-mfe.tls=true"
+      - "traefik.http.routers.plugins-mfe.tls.certresolver=letsencrypt"

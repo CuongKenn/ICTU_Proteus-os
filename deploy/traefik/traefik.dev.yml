@@ -1,16 +1,15 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Traefik Static Configuration (file đang dùng — được mount vào container)
+# Traefik Static Configuration — LOCAL DEV template
+# File này được setup.sh / setup.ps1 copy thành traefik.yml khi chọn mode "local".
 # Tham chiếu: docs/deployment.md §2
 #
-# LƯU Ý: file này do setup.sh / setup.ps1 TỰ SINH theo mode đã chọn
-# (copy từ traefik.dev.yml hoặc render từ traefik.prod.yml).
-# Muốn sửa static config: sửa 2 file template, rồi chạy lại setup script.
+# Dev: HTTP only (:80), dashboard mở không auth, KHÔNG có Let's Encrypt.
 
 api:
   dashboard: true
-  insecure: true   # Dev only. Production: insecure: false + TLS (xem traefik.prod.yml)
+  insecure: true   # Dev only. Production dùng traefik.prod.yml (insecure: false + TLS)
 
 entryPoints:
   web:

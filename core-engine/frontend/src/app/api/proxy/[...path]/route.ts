@@ -44,11 +44,13 @@ function mfeCorsHeaders(request: NextRequest): Record<string, string> | null {
   const hostParts = rawHost.split(".");
   const parentDomain =
     hostParts.length >= 2 ? hostParts.slice(-2).join(".") : request.nextUrl.hostname;
-  const allowed = new Set([
-    `http://plugins.${parentDomain}`,
-    `https://plugins.${parentDomain}`,
-  ]);
-  if (!allowed.has(originUrl.origin)) return null;
+  // So sánh theo hostname (bỏ qua port) để chạy được cả khi Traefik map
+  // HTTPS host sang port tùy chỉnh (VD: https://plugins.domain:8443).
+  // originUrl.origin luôn gồm port nên không so chuỗi trực tiếp được.
+  const okScheme =
+    originUrl.protocol === "http:" || originUrl.protocol === "https:";
+  if (!okScheme || originUrl.hostname !== `plugins.${parentDomain}`)
+    return null;
   return {
     "Access-Control-Allow-Origin": originUrl.origin,
     "Access-Control-Allow-Credentials": "true",

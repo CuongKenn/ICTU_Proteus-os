@@ -48,6 +48,18 @@ RUN npm ci
 COPY frontend/ .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* phải có mặt lúc build (Next.js bake vào client bundle).
+# Giá trị truyền qua docker-compose build.args, có fallback cho dev.
+ARG NEXT_PUBLIC_MATTERMOST_URL=http://chat.proteus.local
+ARG NEXT_PUBLIC_OUTLINE_URL=http://wiki.proteus.local
+ARG NEXT_PUBLIC_N8N_URL=http://workflow.proteus.local
+ARG NEXT_PUBLIC_METABASE_URL=http://analytics.proteus.local
+ARG NEXT_PUBLIC_APPSMITH_URL=http://apps.proteus.local
+ENV NEXT_PUBLIC_MATTERMOST_URL=$NEXT_PUBLIC_MATTERMOST_URL
+ENV NEXT_PUBLIC_OUTLINE_URL=$NEXT_PUBLIC_OUTLINE_URL
+ENV NEXT_PUBLIC_N8N_URL=$NEXT_PUBLIC_N8N_URL
+ENV NEXT_PUBLIC_METABASE_URL=$NEXT_PUBLIC_METABASE_URL
+ENV NEXT_PUBLIC_APPSMITH_URL=$NEXT_PUBLIC_APPSMITH_URL
 RUN npm run build
 
 
