@@ -14,3 +14,6 @@ deploy/scratch/
 
 # Ignore backups
 deploy/backups/
+
+# Auto-generated session transcripts (may contain secrets)
+session-*.md
