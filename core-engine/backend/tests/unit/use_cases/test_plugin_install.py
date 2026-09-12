@@ -51,7 +51,14 @@ def mock_mattermost_adapter():
 
 @pytest.fixture
 def mock_session():
-    return AsyncMock(spec=AsyncSession)
+    session = AsyncMock(spec=AsyncSession)
+    # Giả lập Result SYNC như SQLAlchemy thật: child mặc định của
+    # AsyncMock là async nên res.fetchone() trả về coroutine → lỗi
+    # "'coroutine' object is not subscriptable" trong _step_2_n8n.
+    execute_result = MagicMock()
+    execute_result.fetchone.return_value = None  # chưa có credential ProteusDB_Real
+    session.execute.return_value = execute_result
+    return session
 
 
 @pytest.fixture
@@ -166,9 +173,9 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    assert mock_session.execute.call_count == 11
+    assert mock_session.execute.call_count == 12
     # CREATE SCHEMA, SET search_path, SAVEPOINT, seed stmt, RELEASE SAVEPOINT,
-    # SET search_path TO public, and RLS queries
+    # SET search_path TO public, RLS queries + 1 lookup credential ProteusDB_Real
     mock_mattermost_adapter.send_message.assert_called_once()
     mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
         action="installed",

@@ -103,7 +103,8 @@ async def test_execute_read_command(
         mock_n8n_adapter.trigger_webhook.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
         call_args_read = mock_ai_command_repo.create_command.call_args[0][0]
-        assert "session_id" not in call_args_read
+        # session_id được persist vào record (schema hiện tại, xem 96c01f3)
+        assert call_args_read["session_id"] == request.session_id
         mock_ai_command_repo.commit.assert_called_once()
 
 
@@ -137,11 +138,12 @@ async def test_execute_write_command(
         mock_dsl_dry_run_repo.execute_dry_run.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
         mock_ai_command_repo.commit.assert_called_once()
-        mock_mattermost_adapter.send_message.assert_called_once()
+        # Thông báo phê duyệt dùng interactive message (nút Approve/Reject)
+        mock_mattermost_adapter.send_interactive_message.assert_called_once()
 
         # check deadline is 30 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]
-        assert "session_id" not in call_args
+        assert call_args["session_id"] == request.session_id
         assert call_args["status"] == "PENDING_APPROVAL"
         deadline = call_args["approval_deadline"]
         created = call_args["created_at"]
@@ -174,7 +176,7 @@ async def test_execute_critical_command(
 
         # check deadline is 15 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]
-        assert "session_id" not in call_args
+        assert call_args["session_id"] == request.session_id
         assert call_args["status"] == "PENDING_APPROVAL"
         deadline = call_args["approval_deadline"]
         created = call_args["created_at"]
@@ -200,8 +202,9 @@ async def test_process_approval_write_success(
     result = await use_case.process_approval(cmd_id, approver_id, "approve")
 
     assert result is True
+    # Không ghi approved_by (Mattermost user ID không phải UUID — xem 96c01f3)
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, approved_by=approver_id, status="APPROVED"
+        cmd_id=cmd_id, status="APPROVED"
     )
     mock_ai_command_repo.commit.assert_called_once()
     mock_n8n_adapter.trigger_webhook.assert_called_once()
@@ -215,37 +218,37 @@ async def test_process_approval_critical_two_approvers(
     approver1_id = str(uuid.uuid4())
     approver2_id = str(uuid.uuid4())
 
-    # Step 1: First approver
+    # Step 1: First approver (chưa có approved_by) → ghi nhận, chưa chạy n8n
     mock_ai_command_repo.get_command_by_id.return_value = {
         "id": cmd_id,
         "status": "PENDING_APPROVAL",
         "effect": "critical",
         "action": "finance.invoices.create",
         "parameters": {"amount": 1000},
-        "approved_by_user_id": None,
+        "approved_by": None,
     }
 
     result1 = await use_case.process_approval(cmd_id, approver1_id, "approve")
     assert result1 is True
-    mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, approved_by=approver1_id
-    )
+    mock_ai_command_repo.update_command_approval.assert_called_once_with(cmd_id=cmd_id)
     mock_n8n_adapter.trigger_webhook.assert_not_called()
 
-    # Step 2: Same approver tries again -> should fail
+    # Step 2: Second (distinct) approver → APPROVED và chạy n8n.
+    # LƯU Ý: guard "cùng người duyệt 2 lần" đã bỏ theo thiết kế hiện tại
+    # (Mattermost user ID không map được vào UUID column) — xem 96c01f3.
     mock_ai_command_repo.update_command_approval.reset_mock()
-    mock_ai_command_repo.get_command_by_id.return_value["approved_by_user_id"] = (
-        approver1_id
-    )
-    result_same = await use_case.process_approval(cmd_id, approver1_id, "approve")
-    assert result_same is False
-    mock_ai_command_repo.update_command_approval.assert_not_called()
-
-    # Step 3: Second approver -> APPROVED and triggers n8n
+    mock_ai_command_repo.get_command_by_id.return_value = {
+        "id": cmd_id,
+        "status": "PENDING_APPROVAL",
+        "effect": "critical",
+        "action": "finance.invoices.create",
+        "parameters": {"amount": 1000},
+        "approved_by": approver1_id,
+    }
     result2 = await use_case.process_approval(cmd_id, approver2_id, "approve")
     assert result2 is True
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, second_approver=approver2_id, status="APPROVED"
+        cmd_id=cmd_id, status="APPROVED"
     )
     mock_n8n_adapter.trigger_webhook.assert_called_once()
 

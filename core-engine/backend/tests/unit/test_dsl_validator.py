@@ -97,13 +97,27 @@ async def test_validate_plugin_not_active(validator):
 
 @pytest.mark.asyncio
 async def test_validate_invalid_parameters(validator):
+    # request_ids sai kiểu (string thay vì array) vẫn phải raise
+    payload = {
+        "version": "1.0",
+        "action": "hr.leave_requests.batch_approve",
+        "parameters": {"request_ids": "not-an-array"},
+    }
+    with pytest.raises(DSLInvalidParametersError):
+        await validator.validate(payload)
+
+
+@pytest.mark.asyncio
+async def test_validate_missing_request_ids_allowed(validator):
+    # Cố ý: không bắt buộc "request_ids" vì AI thường chỉ trả "raw_input"
+    # (xem Rule 4 trong dsl_validator.py)
     payload = {
         "version": "1.0",
         "action": "hr.leave_requests.batch_approve",
         "parameters": {"reason": "missing request_ids"},
     }
-    with pytest.raises(DSLInvalidParametersError):
-        await validator.validate(payload)
+    result = await validator.validate(payload)
+    assert result is True
 
 
 @pytest.mark.asyncio

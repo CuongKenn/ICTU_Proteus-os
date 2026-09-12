@@ -124,7 +124,7 @@ async def test_mattermost_webhook_invalid_signature(
         )
 
     assert response.status_code == 400
-    assert "Chữ ký HMAC không hợp lệ" in response.json()["detail"]
+    assert "Chữ ký HMAC hoặc Token không hợp lệ" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -141,7 +141,7 @@ async def test_mattermost_webhook_missing_signature(
         )
 
     assert response.status_code == 400
-    assert "Chữ ký HMAC không hợp lệ" in response.json()["detail"]
+    assert "Chữ ký HMAC hoặc Token không hợp lệ" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
