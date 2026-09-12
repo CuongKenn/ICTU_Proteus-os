@@ -31,3 +31,25 @@ export function sessionCookieDomain(): string | undefined {
     return undefined;
   }
 }
+
+/**
+ * Base URL public mà browser thấy (https://proteus.local).
+ * Chạy sau Traefik nên req.url chứa hostname container — phải đọc
+ * X-Forwarded-Host do Traefik gắn, fallback NEXTAUTH_URL.
+ */
+export function publicBaseUrl(req: {
+  url: string;
+  headers: { get(name: string): string | null };
+}): string {
+  const forwardedHost = req.headers
+    .get("x-forwarded-host")
+    ?.split(",")[0]
+    .trim();
+  if (forwardedHost) {
+    const proto =
+      req.headers.get("x-forwarded-proto")?.split(",")[0].trim() || "http";
+    return `${proto}://${forwardedHost}`;
+  }
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  return new URL(req.url).origin;
+}
