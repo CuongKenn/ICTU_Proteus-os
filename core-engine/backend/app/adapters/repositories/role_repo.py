@@ -89,7 +89,9 @@ class RoleRepository:
                 else:
                     for module, actions in permissions_data.items():
                         if isinstance(actions, list):
-                            all_permissions.update(f"{module}:{action}" for action in actions)
+                            all_permissions.update(
+                                f"{module}:{action}" for action in actions
+                            )
                         elif actions is True:
                             all_permissions.add(str(module))
 

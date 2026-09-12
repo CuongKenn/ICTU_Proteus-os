@@ -12,20 +12,30 @@ from app.core.use_cases.ai_command import AICommandDTO, AICommandUseCase
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class AIChatDTO:
     session_id: uuid.UUID
     natural_language_input: str
 
+
 class AIChatUseCase:
-    def __init__(self, llm_port: AbstractLLMPort, ai_command_use_case: AICommandUseCase):
+    def __init__(
+        self, llm_port: AbstractLLMPort, ai_command_use_case: AICommandUseCase
+    ):
         self.llm_port = llm_port
         self.ai_command_use_case = ai_command_use_case
 
-    async def execute(self, dto: AIChatDTO, ctx: dict) -> tuple[AICommandStatus, str, dict]:
+    async def execute(
+        self, dto: AIChatDTO, ctx: dict
+    ) -> tuple[AICommandStatus, str, dict]:
         if not self.llm_port:
             logger.error("LLM Port is not configured. Cannot process AI Chat.")
-            return AICommandStatus.FAILED, "AI Service Unavailable", {"detail": "LLM provider is not configured."}
+            return (
+                AICommandStatus.FAILED,
+                "AI Service Unavailable",
+                {"detail": "LLM provider is not configured."},
+            )
 
         system_prompt = """Bạn là trợ lý AI (Proteus AI) đóng vai trò là một Orchestrator. Nhiệm vụ của bạn là chuyển đổi câu lệnh ngôn ngữ tự nhiên của người dùng thành một lệnh hệ thống chuẩn DX-DSL.
         
@@ -46,41 +56,47 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": dto.natural_language_input}
+            {"role": "user", "content": dto.natural_language_input},
         ]
 
         logger.info(f"Sending natural language to LLM: {dto.natural_language_input}")
-        
+
         try:
             llm_response = await self.llm_port.ainvoke(messages)
-            
+
             # Parse the JSON response
             content = llm_response.content.strip()
-            
+
             import re
-            match = re.search(r'\{.*\}', content, re.DOTALL)
+
+            match = re.search(r"\{.*\}", content, re.DOTALL)
             if match:
                 content = match.group(0)
-                
+
             parsed = json.loads(content.strip())
-            
+
             command_dto = AICommandDTO(
                 command_id=uuid.uuid4(),
                 session_id=dto.session_id,
                 dsl_version="1.0",
                 action=parsed.get("action", "hr.employees.read"),
                 effect=parsed.get("effect", "read"),
-                parameters=parsed.get("parameters", {"raw_input": dto.natural_language_input}),
-                approval_message=parsed.get("approval_message", None)
+                parameters=parsed.get(
+                    "parameters", {"raw_input": dto.natural_language_input}
+                ),
+                approval_message=parsed.get("approval_message", None),
             )
-            
+
             # Chuyển tiếp tới AICommandUseCase
             return await self.ai_command_use_case.execute(command_dto, ctx)
-            
+
         except json.JSONDecodeError:
             logger.error(f"Failed to parse LLM output as JSON: {llm_response.content}")
-            return AICommandStatus.FAILED, "Lỗi từ AI Service", {"detail": "LLM returned invalid JSON"}
+            return (
+                AICommandStatus.FAILED,
+                "Lỗi từ AI Service",
+                {"detail": "LLM returned invalid JSON"},
+            )
         except Exception as e:
             logger.error(f"Error in AIChatUseCase: {str(e)}")
             return AICommandStatus.FAILED, f"Lỗi hệ thống: {str(e)}", {"detail": str(e)}
-

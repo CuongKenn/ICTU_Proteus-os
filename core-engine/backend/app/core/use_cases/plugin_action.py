@@ -78,9 +78,7 @@ class PluginActionUseCase:
         try:
             manifest = self.manifest_parser.parse(plugin_code)
         except ManifestParserError as exc:
-            raise PluginNotFoundError(
-                f"Plugin '{plugin_code}' không tồn tại."
-            ) from exc
+            raise PluginNotFoundError(f"Plugin '{plugin_code}' không tồn tại.") from exc
 
         for wf in manifest.workflows:
             effective_id = wf.id or Path(wf.file).stem
@@ -166,9 +164,7 @@ class PluginActionUseCase:
         try:
             manifest = self.manifest_parser.parse(plugin_code)
         except ManifestParserError as exc:
-            raise PluginNotFoundError(
-                f"Plugin '{plugin_code}' không tồn tại."
-            ) from exc
+            raise PluginNotFoundError(f"Plugin '{plugin_code}' không tồn tại.") from exc
 
         return [
             {

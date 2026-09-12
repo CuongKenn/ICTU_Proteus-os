@@ -380,9 +380,7 @@ class ManifestValidator:
             # POST /plugins/{code}/actions/{id})
             wf_id = wf.get("id")
             if wf_id is not None:
-                if not isinstance(wf_id, str) or not re.match(
-                    r"^[a-z0-9_-]+$", wf_id
-                ):
+                if not isinstance(wf_id, str) or not re.match(r"^[a-z0-9_-]+$", wf_id):
                     errors.append(
                         f"workflows[{idx}].id '{wf_id}' không hợp lệ "
                         f"(chỉ gồm chữ thường, số, '-' và '_')"

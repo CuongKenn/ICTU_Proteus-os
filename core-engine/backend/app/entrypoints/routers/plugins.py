@@ -395,7 +395,6 @@ async def get_install_status(
 # ─────────────────────────────────────────────────────────────
 
 
-
 async def _run_uninstall_plugin_background(
     ctx: TenantContext,
     plugin_id: uuid.UUID,
@@ -403,15 +402,16 @@ async def _run_uninstall_plugin_background(
     app_state,
 ):
     import sys
+
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
-    
+
     tenant_id_ctx.set(str(ctx.tenant_id))
     print(
         f"[BG_TASK] _run_uninstall_plugin_background STARTED: {plugin_id}",
         flush=True,
         file=sys.stderr,
     )
-    
+
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -421,8 +421,8 @@ async def _run_uninstall_plugin_background(
     from app.adapters.external.redis_event_bus import RedisEventBusPublisher
     from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
     from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
-    from app.infrastructure.database import AsyncSessionLocal
     from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
+    from app.infrastructure.database import AsyncSessionLocal
 
     try:
         async with AsyncSessionLocal() as session:
@@ -446,11 +446,12 @@ async def _run_uninstall_plugin_background(
                 plugin_id=plugin_id,
                 confirm_name=confirm_name,
             )
-            
+
             print(f"[BG_TASK] SUCCESS: {plugin_id}", flush=True, file=sys.stderr)
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         print(f"[BG_TASK] FAILED: {plugin_id} — {repr(e)}", flush=True, file=sys.stderr)
 
@@ -477,7 +478,7 @@ async def uninstall_plugin(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Plugin không tồn tại.",
         )
-        
+
     if body.confirm_name != plugin.code_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -485,7 +486,7 @@ async def uninstall_plugin(
         )
 
     task_id = uuid.uuid4()
-    
+
     await repo.upsert_installation(
         ctx.tenant_id,
         plugin_id,
@@ -500,6 +501,7 @@ async def uninstall_plugin(
     await repo._session.commit()
 
     import asyncio
+
     asyncio.get_event_loop().create_task(
         _run_uninstall_plugin_background(
             ctx=ctx,
@@ -513,7 +515,7 @@ async def uninstall_plugin(
         "message": "Plugin uninstallation queued.",
         "plugin_id": str(plugin_id),
         "task_id": str(task_id),
-        "status": "UNINSTALLING"
+        "status": "UNINSTALLING",
     }
 
 

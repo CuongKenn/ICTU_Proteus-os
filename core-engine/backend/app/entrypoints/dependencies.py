@@ -47,9 +47,9 @@ from app.core.use_cases.ai_command import AICommandUseCase
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_action import PluginActionUseCase
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
-from app.core.use_cases.plugin_records import PluginRecordsUseCase
 from app.core.use_cases.plugin_install import PluginInstallUseCase
 from app.core.use_cases.plugin_list import PluginListUseCase
+from app.core.use_cases.plugin_records import PluginRecordsUseCase
 from app.core.use_cases.plugin_toggle import PluginToggleUseCase
 from app.core.use_cases.plugin_uninstall import PluginUninstallUseCase
 from app.core.use_cases.plugin_upgrade import PluginUpgradeUseCase
@@ -323,8 +323,9 @@ async def get_current_tenant_context(
 
     # IMPORTANT: Set contextvar cho RLS middleware
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
+
     tenant_id_ctx.set(str(tenant_id))
-    
+
     return TenantContext(
         tenant_id=tenant_id,
         user_id=user_id,
@@ -488,7 +489,9 @@ async def get_llm_port() -> AbstractLLMPort | None:
         api_key=getattr(settings, "LLM_API_KEY", "dummy"),
     )
 
+
 from app.core.use_cases.ai_chat import AIChatUseCase
+
 
 async def get_ai_chat_use_case(
     llm_port: AbstractLLMPort = Depends(get_llm_port),

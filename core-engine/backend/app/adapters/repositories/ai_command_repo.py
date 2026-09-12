@@ -64,8 +64,10 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         if "issued_by_user_id" in data:
             uid = data["issued_by_user_id"]
             res = await self._session.execute(
-                text("SELECT id FROM users WHERE id = :uid OR keycloak_id = :uid LIMIT 1"), 
-                {"uid": uid}
+                text(
+                    "SELECT id FROM users WHERE id = :uid OR keycloak_id = :uid LIMIT 1"
+                ),
+                {"uid": uid},
             )
             real_id = res.scalar()
             if real_id:
@@ -115,7 +117,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
 
         set_clause = ", ".join(updates)
         sql = f"UPDATE ai_commands SET {set_clause} WHERE id = :cmd_id"
-        
+
         await self._session.execute(text(sql), params)
 
     async def commit(self) -> None:

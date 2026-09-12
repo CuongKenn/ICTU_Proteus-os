@@ -22,7 +22,7 @@ from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.domain.ports import AbstractChatOpsPort, AbstractWorkflowEnginePort
 from app.core.use_cases.dsl_dry_run import DSLDryRunEngine
-from app.core.use_cases.dsl_validator import DSLValidator, DSLValidationError
+from app.core.use_cases.dsl_validator import DSLValidationError, DSLValidator
 from app.infrastructure.config import settings
 
 
@@ -91,7 +91,18 @@ class AICommandUseCase:
                     "tenant_id": ctx.tenant_id,
                     "issued_by_user_id": ctx.user_id,
                     "session_id": body.session_id,
-                    "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
+                    "dsl_payload": json.dumps(
+                        {
+                            "command_id": str(body.command_id),
+                            "session_id": str(body.session_id),
+                            "dsl_version": body.dsl_version,
+                            "action": body.action,
+                            "effect": body.effect,
+                            "parameters": body.parameters,
+                            "approval_message": body.approval_message,
+                        },
+                        default=str,
+                    ),
                     "action": body.action,
                     "effect": body.effect,
                     "status": AICommandStatus.FAILED.value,
@@ -121,12 +132,25 @@ class AICommandUseCase:
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
                         "session_id": body.session_id,
-                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
+                        "dsl_payload": json.dumps(
+                            {
+                                "command_id": str(body.command_id),
+                                "session_id": str(body.session_id),
+                                "dsl_version": body.dsl_version,
+                                "action": body.action,
+                                "effect": body.effect,
+                                "parameters": body.parameters,
+                                "approval_message": body.approval_message,
+                            },
+                            default=str,
+                        ),
                         "action": body.action,
                         "effect": body.effect,
                         "status": AICommandStatus.COMPLETED.value,
                         "execution_result": (
-                            json.dumps(response, default=str) if response is not None else None
+                            json.dumps(response, default=str)
+                            if response is not None
+                            else None
                         ),
                         "executed_at": now,
                         "created_at": now,
@@ -141,7 +165,11 @@ class AICommandUseCase:
                     tenant_id=ctx.tenant_id,
                 )
                 # Hỗ trợ hiển thị Markdown đẹp trên giao diện nếu Plugin trả về
-                result_data = response.get("markdown") if isinstance(response, dict) and "markdown" in response else response
+                result_data = (
+                    response.get("markdown")
+                    if isinstance(response, dict) and "markdown" in response
+                    else response
+                )
                 return (
                     AICommandStatus.COMPLETED,
                     "Lệnh đọc dữ liệu đã thực thi thành công.",
@@ -163,7 +191,18 @@ class AICommandUseCase:
                         "tenant_id": ctx.tenant_id,
                         "issued_by_user_id": ctx.user_id,
                         "session_id": body.session_id,
-                        "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
+                        "dsl_payload": json.dumps(
+                            {
+                                "command_id": str(body.command_id),
+                                "session_id": str(body.session_id),
+                                "dsl_version": body.dsl_version,
+                                "action": body.action,
+                                "effect": body.effect,
+                                "parameters": body.parameters,
+                                "approval_message": body.approval_message,
+                            },
+                            default=str,
+                        ),
                         "action": body.action,
                         "effect": body.effect,
                         "status": AICommandStatus.FAILED.value,
@@ -187,7 +226,7 @@ class AICommandUseCase:
             )
         except Exception:
             dry_run_res = {"preview": "Không thể thực hiện dry run"}
-            
+
         dry_run_res["action"] = body.action
         dry_run_res["effect"] = body.effect
 
@@ -198,13 +237,26 @@ class AICommandUseCase:
                 "tenant_id": ctx.tenant_id,
                 "issued_by_user_id": ctx.user_id,
                 "session_id": body.session_id,
-                "dsl_payload": json.dumps({"command_id": str(body.command_id), "session_id": str(body.session_id), "dsl_version": body.dsl_version, "action": body.action, "effect": body.effect, "parameters": body.parameters, "approval_message": body.approval_message}, default=str),
+                "dsl_payload": json.dumps(
+                    {
+                        "command_id": str(body.command_id),
+                        "session_id": str(body.session_id),
+                        "dsl_version": body.dsl_version,
+                        "action": body.action,
+                        "effect": body.effect,
+                        "parameters": body.parameters,
+                        "approval_message": body.approval_message,
+                    },
+                    default=str,
+                ),
                 "action": body.action,
                 "effect": body.effect,
                 "status": AICommandStatus.PENDING_APPROVAL.value,
                 "approval_deadline": approval_deadline,
                 "dry_run_result": (
-                    json.dumps(dry_run_res, default=str) if dry_run_res is not None else None
+                    json.dumps(dry_run_res, default=str)
+                    if dry_run_res is not None
+                    else None
                 ),
                 "created_at": now,
             }
@@ -229,9 +281,9 @@ class AICommandUseCase:
         )
         try:
             await self.mattermost_adapter.send_interactive_message(
-                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID, 
+                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 text=msg_text,
-                action_id=str(body.command_id)
+                action_id=str(body.command_id),
             )
         except Exception as e:
             logger.warning(
@@ -281,9 +333,7 @@ class AICommandUseCase:
         if cmd["effect"] == "critical":
             if not cmd.get("approved_by"):
                 # Ghi nhận lần duyệt 1 (Mattermost user ID không insert vào UUID column được)
-                await self.ai_command_repo.update_command_approval(
-                    cmd_id=cmd_id
-                )
+                await self.ai_command_repo.update_command_approval(cmd_id=cmd_id)
                 await self.ai_command_repo.commit()
                 return True
             else:

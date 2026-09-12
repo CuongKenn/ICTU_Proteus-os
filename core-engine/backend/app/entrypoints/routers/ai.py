@@ -10,20 +10,25 @@ import uuid
 from fastapi import APIRouter, Depends, Request, status
 
 from app.core.domain.entities import AICommandStatus, TenantContext
-from app.core.use_cases.ai_command import AICommandDTO, AICommandUseCase
 from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
+from app.core.use_cases.ai_command import AICommandDTO, AICommandUseCase
 from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.entrypoints.dependencies import (
-    get_ai_command_use_case,
     get_ai_chat_use_case,
+    get_ai_command_use_case,
     get_current_tenant_context,
     get_rag_ingestion_use_case,
 )
-from app.entrypoints.schemas.ai_command import AICommandRequest, AICommandResponse, AIChatRequest
+from app.entrypoints.schemas.ai_command import (
+    AIChatRequest,
+    AICommandRequest,
+    AICommandResponse,
+)
 from app.infrastructure.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai")
+
 
 @router.post(
     "/chat",
@@ -38,8 +43,13 @@ async def submit_ai_chat(
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case: AIChatUseCase = Depends(get_ai_chat_use_case),
 ) -> AICommandResponse:
-    logger.info("AI chat received", extra={"session_id": str(body.session_id), "tenant_id": str(ctx.tenant_id)})
-    dto = AIChatDTO(session_id=body.session_id, natural_language_input=body.natural_language_input)
+    logger.info(
+        "AI chat received",
+        extra={"session_id": str(body.session_id), "tenant_id": str(ctx.tenant_id)},
+    )
+    dto = AIChatDTO(
+        session_id=body.session_id, natural_language_input=body.natural_language_input
+    )
     status_code, message, result = await use_case.execute(dto, ctx)
 
     # We reuse AICommandResponse but command_id might be newly generated
@@ -49,7 +59,6 @@ async def submit_ai_chat(
         message=message,
         result=result if status_code == AICommandStatus.COMPLETED else None,
     )
-
 
 
 @router.post(

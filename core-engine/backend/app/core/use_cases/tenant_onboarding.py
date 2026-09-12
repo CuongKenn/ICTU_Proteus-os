@@ -158,9 +158,7 @@ class TenantOnboardingUseCase:
                     self.tenant_repo, self.mattermost_adapter, tenant_id
                 )
             except Exception as e:
-                logger.warning(
-                    "Bỏ qua tạo Mattermost team cho tenant %s: %s", slug, e
-                )
+                logger.warning("Bỏ qua tạo Mattermost team cho tenant %s: %s", slug, e)
 
         return created_tenant
 

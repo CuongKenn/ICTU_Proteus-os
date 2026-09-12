@@ -181,8 +181,7 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
         if existing:
             await self._session.execute(
                 text(
-                    "UPDATE tenant_integrations SET config = :config "
-                    "WHERE id = :id"
+                    "UPDATE tenant_integrations SET config = :config " "WHERE id = :id"
                 ),
                 {"id": existing.id, "config": json.dumps(config)},
             )

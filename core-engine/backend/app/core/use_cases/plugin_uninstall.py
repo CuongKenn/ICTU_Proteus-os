@@ -3,11 +3,12 @@
 #
 # Core Domain — Plugin Uninstall Use Case (6-step reverse)
 
+import asyncio
 import logging
 import random
-import asyncio
 import re
 import uuid
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -392,8 +393,11 @@ class PluginUninstallUseCase:
             finally:
                 await self.session.execute(text("SET search_path TO public"))
 
-    async def _persist_steps(self, context: TenantContext, plugin_id: uuid.UUID) -> None:
+    async def _persist_steps(
+        self, context: TenantContext, plugin_id: uuid.UUID
+    ) -> None:
         import json
+
         await self.plugin_repo.update_install_steps_log(
             tenant_id=context.tenant_id,
             plugin_id=plugin_id,
@@ -408,16 +412,19 @@ class PluginUninstallUseCase:
         message: str | None = None,
     ) -> None:
         from datetime import UTC, datetime
+
         now_iso = datetime.now(UTC).isoformat()
-        
+
         emoji = "⏳"
         if status == "DONE":
             emoji = "✅"
         elif status == "FAILED":
             emoji = "❌"
-        
+
         msg_suffix = f" - {message}" if message else ""
-        logger.info(f"{emoji} [UNINSTALL] Bước {step_name.upper()}: {status}{msg_suffix}")
+        logger.info(
+            f"{emoji} [UNINSTALL] Bước {step_name.upper()}: {status}{msg_suffix}"
+        )
 
         for entry in self._steps_log:
             if entry["step"] == step_name:
@@ -426,10 +433,12 @@ class PluginUninstallUseCase:
                 if message:
                     entry["message"] = message
                 return
-        
-        self._steps_log.append({
-            "step": step_name,
-            "status": status,
-            "at": now_iso,
-            "message": message,
-        })
+
+        self._steps_log.append(
+            {
+                "step": step_name,
+                "status": status,
+                "at": now_iso,
+                "message": message,
+            }
+        )

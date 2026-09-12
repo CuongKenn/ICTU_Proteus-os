@@ -312,8 +312,7 @@ class RedisEventBusPublisher(AbstractEventBusPort):
         )
 
     async def subscribe_and_listen(
-        self,
-        handler: Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
+        self, handler: Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
     ) -> None:
         """
         Lắng nghe tất cả các sự kiện trên hệ thống Pub/Sub và đẩy vào handler.
@@ -333,7 +332,7 @@ class RedisEventBusPublisher(AbstractEventBusPort):
                         if isinstance(data, bytes):
                             data = data.decode("utf-8")
                         envelope = json.loads(data)
-                        
+
                         # Không block main loop của redis listener, spawn task để xử lý
                         asyncio.create_task(handler(envelope))
                     except Exception as e:

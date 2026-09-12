@@ -72,9 +72,11 @@ async def mattermost_interactive_callback(
 
     # 1. Verify Signature
     if settings.MATTERMOST_WEBHOOK_SECRET:
-        is_valid_hmac = mattermost_signature and verify_mattermost_signature(raw_body, mattermost_signature)
+        is_valid_hmac = mattermost_signature and verify_mattermost_signature(
+            raw_body, mattermost_signature
+        )
         is_valid_token = token and token == settings.MATTERMOST_WEBHOOK_SECRET
-        
+
         if not (is_valid_hmac or is_valid_token):
             logger.warning("Invalid Mattermost signature or token")
             raise HTTPException(
@@ -134,8 +136,8 @@ async def mattermost_interactive_callback(
             "ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}.",
             "update": {
                 "message": f"✅ Lệnh đã ĐƯỢC PHÊ DUYỆT bởi <@{user_id}>",
-                "props": {}
-            }
+                "props": {},
+            },
         }
     elif action == "reject":
         logger.info("Yêu cầu %s BỊ TỪ CHỐI bởi user %s.", action_id, user_id)
@@ -170,8 +172,8 @@ async def mattermost_interactive_callback(
             "ephemeral_text": f"Bạn đã từ chối hành động {action_id}.",
             "update": {
                 "message": f"❌ Lệnh đã BỊ TỪ CHỐI bởi <@{user_id}>",
-                "props": {}
-            }
+                "props": {},
+            },
         }
     else:
         logger.warning("Unknown action %s from mattermost", action)

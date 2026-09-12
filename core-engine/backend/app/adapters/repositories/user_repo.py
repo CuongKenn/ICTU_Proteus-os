@@ -48,9 +48,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         if not model:
             return None
 
-        loaded_roles = [
-            role.name for role in model.__dict__.get("roles", [])
-        ]
+        loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
         return _to_entity(model, roles=loaded_roles)
 
     async def get_by_keycloak_id(self, keycloak_id: uuid.UUID) -> UserEntity | None:
@@ -72,9 +70,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         if not model:
             return None
         # Roles đã được eager-load, lấy an toàn từ model.__dict__
-        loaded_roles = [
-            role.name for role in model.__dict__.get("roles", [])
-        ]
+        loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
         return _to_entity(model, roles=loaded_roles)
 
     async def upsert(self, user_data: dict) -> UserEntity:
@@ -145,10 +141,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         models = result.scalars().all()
         entities = []
         for model in models:
-            loaded_roles = [
-                role.name
-                for role in model.__dict__.get("roles", [])
-            ]
+            loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
             entities.append(_to_entity(model, roles=loaded_roles))
         return entities
 

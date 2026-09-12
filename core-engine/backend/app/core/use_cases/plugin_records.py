@@ -90,9 +90,7 @@ class PluginRecordsUseCase:
         try:
             manifest = self.manifest_parser.parse(plugin_code)
         except ManifestParserError as exc:
-            raise PluginNotFoundError(
-                f"Plugin '{plugin_code}' không tồn tại."
-            ) from exc
+            raise PluginNotFoundError(f"Plugin '{plugin_code}' không tồn tại.") from exc
         allowed = manifest.database.tables if manifest.database else []
         if table not in allowed:
             raise DSLInvalidActionError(
@@ -157,17 +155,13 @@ class PluginRecordsUseCase:
                 "timestamp without time zone",
             ):
                 if isinstance(value, str):
-                    return datetime.fromisoformat(
-                        value.strip().replace("Z", "+00:00")
-                    )
+                    return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
                 return value
             if col_type == "uuid" and isinstance(value, str):
                 return uuid.UUID(value.strip())
             if col_type in ("numeric", "decimal") and isinstance(value, str):
                 return Decimal(value.strip())
-            if col_type in ("integer", "bigint", "smallint") and isinstance(
-                value, str
-            ):
+            if col_type in ("integer", "bigint", "smallint") and isinstance(value, str):
                 return int(value.strip())
             if col_type in ("json", "jsonb") and isinstance(value, (dict, list)):
                 return json.dumps(value, ensure_ascii=False)
@@ -181,9 +175,7 @@ class PluginRecordsUseCase:
         self, col_types: dict[str, str], data: dict[str, Any]
     ) -> dict[str, Any]:
         return {
-            c: self._coerce(col_types[c], c, data[c])
-            for c in data
-            if c in col_types
+            c: self._coerce(col_types[c], c, data[c]) for c in data if c in col_types
         }
 
     @staticmethod

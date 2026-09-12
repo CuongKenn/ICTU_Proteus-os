@@ -14,6 +14,7 @@ from app.core.domain.entities import AICommandStatus
 
 class AIChatRequest(BaseModel):
     """Input schema cho POST /ai/chat. Dành cho câu lệnh ngôn ngữ tự nhiên."""
+
     session_id: uuid.UUID = Field(..., description="ID phiên chat")
     natural_language_input: str = Field(..., description="Câu lệnh tiếng Việt tự nhiên")
 

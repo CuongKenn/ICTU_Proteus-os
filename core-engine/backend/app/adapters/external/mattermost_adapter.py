@@ -144,9 +144,7 @@ class MattermostAdapter(AbstractChatOpsPort):
     # tham gia. Mọi method dưới raise MattermostAdapterError khi lỗi —
     # caller (onboarding/invite) quyết định best-effort hay fail cứng.
 
-    async def _call(
-        self, method: str, path: str, **kwargs: Any
-    ) -> httpx.Response:
+    async def _call(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         """Gọi MM API, map lỗi HTTP thành MattermostAdapterError."""
         if not self.token:
             raise MattermostAdapterError("MATTERMOST_BOT_TOKEN chưa cấu hình.")
@@ -158,9 +156,7 @@ class MattermostAdapter(AbstractChatOpsPort):
             return response
         except httpx.HTTPStatusError as e:
             logger.error("Mattermost API %s %s: %s", method, path, e.response.text)
-            raise MattermostAdapterError(
-                f"HTTP Error: {e.response.status_code}"
-            ) from e
+            raise MattermostAdapterError(f"HTTP Error: {e.response.status_code}") from e
         except Exception as e:
             logger.error("Lỗi kết nối Mattermost: %s", e)
             raise MattermostAdapterError(str(e)) from e
