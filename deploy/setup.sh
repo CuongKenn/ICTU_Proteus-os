@@ -358,14 +358,16 @@ KC_REALM=$(grep -E "^KEYCLOAK_REALM=" .env | cut -d '=' -f2)
 KC_URL="http://localhost:8080" # Gọi trực tiếp tới container keycloak qua port 8080 (cần đảm bảo port 8080 được expose hoặc dùng docker exec)
 
 # Thực tế Keycloak có thể không expose port 8080 ra host, nếu chạy trên host không gọi được localhost:8080.
-# Thử gọi qua Traefik (auth.proteus.local) bằng cách thêm Host header nếu dùng localhost:80.
+# Keycloak 26+ chuyển /health sang management port — poll discovery endpoint
+# (ổn định mọi version) thay vì /health/ready.
+KC_DISCOVERY_PATH="/realms/master/.well-known/openid-configuration"
 KC_URL_TRAEFIK="http://localhost:80"
 HOST_HEADER="Host: auth.$DOMAIN"
 
 KC_TIMEOUT=120
 KC_ELAPSED=0
 while [ $KC_ELAPSED -lt $KC_TIMEOUT ]; do
-  if curl -sf -H "$HOST_HEADER" "$KC_URL_TRAEFIK/health/ready" > /dev/null; then
+  if curl -sf -H "$HOST_HEADER" "$KC_URL_TRAEFIK$KC_DISCOVERY_PATH" > /dev/null; then
     break
   fi
   sleep 5

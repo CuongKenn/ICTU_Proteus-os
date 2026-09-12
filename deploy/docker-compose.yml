@@ -14,7 +14,7 @@ services:
   # TRAEFIK — Edge Proxy (Ingress)
   # ────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v2.11
+    image: traefik:latest
     container_name: proteus-traefik
     restart: unless-stopped
     ports:
@@ -42,7 +42,7 @@ services:
   # POSTGRESQL — Primary Database
   # ────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:latest
     container_name: proteus-postgres
     restart: unless-stopped
     environment:
@@ -50,7 +50,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-proteus}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # PG18+: mount ở /var/lib/postgresql (cha), data nằm ở subdir theo
+      # major version (pg_ctlcluster layout). Mount trực tiếp .../data bị từ chối.
+      - postgres-data:/var/lib/postgresql
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     networks:
       - proteus-net
@@ -66,7 +68,7 @@ services:
   # POSTGRES-BACKUP — Automated Database Backup
   # ────────────────────────────────────────────────────────────
   postgres-backup:
-    image: postgres:16-alpine
+    image: postgres:latest
     container_name: proteus-postgres-backup
     restart: unless-stopped
     environment:
@@ -93,7 +95,7 @@ services:
   # REDIS — Event Bus (Pub/Sub) + Cache
   # ────────────────────────────────────────────────────────────
   redis:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: proteus-redis
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1
@@ -113,7 +115,7 @@ services:
   # KEYCLOAK — SSO / Identity Provider
   # ────────────────────────────────────────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:25.0
+    image: quay.io/keycloak/keycloak:latest
     container_name: proteus-keycloak
     restart: unless-stopped
     command: ${KEYCLOAK_START_MODE:-start-dev} --db=postgres --import-realm
@@ -161,7 +163,7 @@ services:
   # QDRANT — Vector Database (RAG / AI)
   # ────────────────────────────────────────────────────────────
   qdrant:
-    image: qdrant/qdrant:v1.10.1
+    image: qdrant/qdrant:latest
     container_name: proteus-qdrant
     restart: unless-stopped
     volumes:
@@ -238,7 +240,7 @@ services:
   # N8N — Workflow Automation Engine
   # ────────────────────────────────────────────────────────────
   n8n:
-    image: n8nio/n8n:1.52.2
+    image: n8nio/n8n:latest
     container_name: proteus-n8n
     restart: unless-stopped
     environment:
@@ -275,7 +277,7 @@ services:
   # MATTERMOST — Chat & Collaboration
   # ────────────────────────────────────────────────────────────
   mattermost:
-    image: mattermost/mattermost-enterprise-edition:9.11.1
+    image: mattermost/mattermost-enterprise-edition:latest
     container_name: proteus-mattermost
     restart: unless-stopped
     environment:
@@ -308,7 +310,7 @@ services:
   # METABASE — Business Intelligence / Dashboard
   # ────────────────────────────────────────────────────────────
   metabase:
-    image: metabase/metabase:v0.50.31
+    image: metabase/metabase:latest
     container_name: proteus-metabase
     restart: unless-stopped
     environment:
@@ -363,7 +365,7 @@ services:
   # OUTLINE — Wiki / Knowledge Base
   # ────────────────────────────────────────────────────────────
   outline:
-    image: outlinewiki/outline:0.80.2
+    image: outlinewiki/outline:latest
     container_name: proteus-outline
     restart: unless-stopped
     environment:
@@ -403,7 +405,7 @@ services:
   # OBSERVABILITY — Grafana, Loki, Promtail
   # ────────────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:2.9.2
+    image: grafana/loki:latest
     container_name: proteus-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
@@ -414,7 +416,7 @@ services:
       - proteus-net
 
   promtail:
-    image: grafana/promtail:2.9.2
+    image: grafana/promtail:latest
     container_name: proteus-promtail
     restart: unless-stopped
     volumes:
@@ -428,7 +430,7 @@ services:
       - loki
 
   grafana:
-    image: grafana/grafana:10.2.2
+    image: grafana/grafana:latest
     container_name: proteus-grafana
     restart: unless-stopped
     environment:
