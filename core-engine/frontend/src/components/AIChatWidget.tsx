@@ -1,7 +1,7 @@
 // Copyright (c) 2026 CuongKenn & ICTU Team
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// AIChatWidget — Floating AI Chat Widget (§5.4.5 Design System)
+// AIChatWidget / AIChatPanel — Proteus AI conversation UI (§5.4.5 Design System)
 // States: collapsed | expanded | thinking | awaiting_approval
 // Tham chiếu: docs/ui_ux_design.md §5.4.5, docs/dsl-spec.md, docs/architecture.md §2.3
 //
@@ -194,9 +194,13 @@ const DslPreviewPanel: React.FC<{
   );
 };
 
-// ─── Main Widget Component ────────────────────────────────────────────────────
+// ─── Main Chat Components ─────────────────────────────────────────────────────
 
-const AIChatWidgetInner: React.FC = () => {
+interface AIChatSurfaceProps {
+  mode: "floating" | "page";
+}
+
+const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
   const {
     widgetState,
     messages,
@@ -215,7 +219,8 @@ const AIChatWidgetInner: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const isExpanded = widgetState !== "collapsed";
+  const isPage = mode === "page";
+  const isExpanded = isPage || widgetState !== "collapsed";
 
   // Auto-scroll khi có tin nhắn mới
   useEffect(() => {
@@ -233,7 +238,7 @@ const AIChatWidgetInner: React.FC = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendCommand();
-    } else if (e.key === "Escape") {
+    } else if (!isPage && e.key === "Escape") {
       e.preventDefault();
       minimizeWidget();
     }
@@ -241,6 +246,8 @@ const AIChatWidgetInner: React.FC = () => {
 
   // Global Keyboard listener for Ctrl+K
   useEffect(() => {
+    if (isPage) return;
+
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
@@ -253,10 +260,176 @@ const AIChatWidgetInner: React.FC = () => {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isExpanded, openWidget, minimizeWidget]);
+  }, [isPage, isExpanded, openWidget, minimizeWidget]);
 
   const isInputDisabled = widgetState === "thinking" || widgetState === "awaiting_approval";
   const canSend = inputValue.trim().length > 0 && !isInputDisabled;
+  const statusText =
+    widgetState === "thinking"
+      ? "Đang xử lý..."
+      : widgetState === "awaiting_approval"
+      ? "Chờ phê duyệt"
+      : "Sẵn sàng";
+  const statusDotClass = widgetState === "thinking" ? "bg-warning animate-pulse" : "bg-success";
+
+  const chatHeader = (
+    <div
+      className={clsx(
+        "flex items-center justify-between border-b border-border bg-bg-surface/50 shrink-0",
+        isPage ? "min-h-[68px] px-4 py-3 sm:px-6" : "h-[52px] px-4"
+      )}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={clsx(
+            "rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center shrink-0",
+            isPage ? "w-9 h-9" : "w-8 h-8"
+          )}
+        >
+          <Bot className={clsx("text-accent", isPage ? "w-5 h-5" : "w-4 h-4")} />
+        </div>
+        <div className="min-w-0">
+          <div className={clsx("font-semibold text-text-primary leading-tight", isPage ? "text-base" : "text-sm")}>
+            Proteus AI
+          </div>
+          <div className="flex items-center gap-1">
+            <span className={clsx("w-1.5 h-1.5 rounded-full", statusDotClass)} />
+            <span className="text-[10px] text-text-secondary">{statusText}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          id="ai-widget-clear-btn"
+          aria-label="Xóa lịch sử trò chuyện"
+          onClick={clearHistory}
+          className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
+          title="Xóa lịch sử trò chuyện"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+        {!isPage && (
+          <>
+            <button
+              id="ai-widget-minimize-btn"
+              aria-label="Thu nhỏ widget"
+              onClick={minimizeWidget}
+              className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <button
+              id="ai-widget-close-btn"
+              aria-label="Đóng widget"
+              onClick={resetAndClose}
+              className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const chatMessages = (
+    <div
+      id="ai-chat-messages"
+      role="log"
+      aria-live="polite"
+      aria-atomic="false"
+      aria-label="Lịch sử hội thoại với Proteus AI"
+      className={clsx("flex-1 overflow-y-auto", isPage ? "px-4 py-5 sm:px-6" : "px-3 pt-3")}
+    >
+      <div className={clsx(isPage && "mx-auto w-full max-w-4xl")}>
+        {messages.map((msg) => (
+          <MessageBubble key={msg.id} message={msg} />
+        ))}
+
+        {widgetState === "thinking" && (
+          <div aria-hidden="true">
+            <ThinkingIndicator />
+          </div>
+        )}
+
+        {widgetState === "awaiting_approval" && dslPreview && (
+          <DslPreviewPanel
+            preview={dslPreview}
+            onApprove={openMattermostApproval}
+            onCancel={cancelApproval}
+          />
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+    </div>
+  );
+
+  const chatInput = (
+    <div
+      className={clsx(
+        "border-t border-border flex items-center gap-2 bg-bg-surface/30 shrink-0",
+        isPage ? "px-4 py-3 sm:px-6" : "h-[64px] px-3"
+      )}
+    >
+      <div className={clsx("flex items-center gap-2 w-full", isPage && "mx-auto max-w-4xl")}>
+        <textarea
+          ref={inputRef}
+          id="ai-chat-input"
+          rows={1}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isInputDisabled}
+          placeholder={
+            widgetState === "awaiting_approval"
+              ? "Đang chờ phê duyệt…"
+              : "Nhập lệnh bằng tiếng Việt… (Enter để gửi)"
+          }
+          aria-label="Nhập lệnh cho AI"
+          className={clsx(
+            "flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-disabled",
+            "resize-none outline-none leading-5 py-2 max-h-[52px] overflow-y-auto",
+            "disabled:opacity-50 disabled:cursor-not-allowed"
+          )}
+        />
+        <button
+          id="ai-chat-send-btn"
+          aria-label="Gửi lệnh"
+          onClick={sendCommand}
+          disabled={!canSend}
+          className={clsx(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200",
+            canSend
+              ? "bg-primary hover:bg-primary-hover text-white shadow-[0_0_12px_hsla(245,85%,65%,0.4)]"
+              : "bg-bg-hover text-text-disabled cursor-not-allowed"
+          )}
+        >
+          {widgetState === "thinking" ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isPage) {
+    return (
+      <section
+        id="ai-chat-page"
+        role="region"
+        className="h-full min-h-0 flex flex-col bg-bg-base"
+        aria-label="Proteus AI"
+      >
+        {chatHeader}
+        {chatMessages}
+        {chatInput}
+      </section>
+    );
+  }
 
   return (
     <div
@@ -281,134 +454,9 @@ const AIChatWidgetInner: React.FC = () => {
         )}
         style={{ height: isExpanded ? "600px" : "0px" }}
       >
-        {/* Header */}
-        <div className="h-[52px] flex items-center justify-between px-4 border-b border-border bg-bg-surface/50 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-accent" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-text-primary leading-tight">Proteus AI</div>
-              <div className="flex items-center gap-1">
-                <span
-                  className={clsx(
-                    "w-1.5 h-1.5 rounded-full",
-                    widgetState === "thinking" ? "bg-warning animate-pulse" : "bg-success"
-                  )}
-                />
-                <span className="text-[10px] text-text-secondary">
-                  {widgetState === "thinking"
-                    ? "Đang xử lý…"
-                    : widgetState === "awaiting_approval"
-                    ? "Chờ phê duyệt"
-                    : "Sẵn sàng"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              id="ai-widget-clear-btn"
-              aria-label="Xóa lịch sử trò chuyện"
-              onClick={clearHistory}
-              className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
-              title="Xóa lịch sử trò chuyện"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button
-              id="ai-widget-minimize-btn"
-              aria-label="Thu nhỏ widget"
-              onClick={minimizeWidget}
-              className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-            >
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            <button
-              id="ai-widget-close-btn"
-              aria-label="Đóng widget"
-              onClick={resetAndClose}
-              className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Messages Area */}
-        <div
-          id="ai-chat-messages"
-          role="log"
-          aria-live="polite"
-          aria-atomic="false"
-          aria-label="Lịch sử hội thoại với Proteus AI"
-          className="flex-1 overflow-y-auto px-3 pt-3"
-        >
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
-
-          {/* Thinking state */}
-          {widgetState === "thinking" && (
-            <div aria-hidden="true">
-              <ThinkingIndicator />
-            </div>
-          )}
-
-          {/* DSL Preview Panel */}
-          {widgetState === "awaiting_approval" && dslPreview && (
-            <DslPreviewPanel
-              preview={dslPreview}
-              onApprove={openMattermostApproval}
-              onCancel={cancelApproval}
-            />
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Area */}
-        <div className="h-[64px] border-t border-border px-3 flex items-center gap-2 bg-bg-surface/30 shrink-0">
-          <textarea
-            ref={inputRef}
-            id="ai-chat-input"
-            rows={1}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isInputDisabled}
-            placeholder={
-              widgetState === "awaiting_approval"
-                ? "Đang chờ phê duyệt…"
-                : "Nhập lệnh bằng tiếng Việt… (Enter để gửi)"
-            }
-            aria-label="Nhập lệnh cho AI"
-            className={clsx(
-              "flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-disabled",
-              "resize-none outline-none leading-5 py-2 max-h-[52px] overflow-y-auto",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-          />
-          <button
-            id="ai-chat-send-btn"
-            aria-label="Gửi lệnh"
-            onClick={sendCommand}
-            disabled={!canSend}
-            className={clsx(
-              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200",
-              canSend
-                ? "bg-primary hover:bg-primary-hover text-white shadow-[0_0_12px_hsla(245,85%,65%,0.4)]"
-                : "bg-bg-hover text-text-disabled cursor-not-allowed"
-            )}
-          >
-            {widgetState === "thinking" ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </button>
-        </div>
+        {chatHeader}
+        {chatMessages}
+        {chatInput}
       </div>
 
       {/* ── Floating Button (always visible) ── */}
@@ -489,6 +537,12 @@ class AIChatErrorBoundary extends React.Component<
 
 export const AIChatWidget: React.FC = () => (
   <AIChatErrorBoundary>
-    <AIChatWidgetInner />
+    <AIChatSurface mode="floating" />
+  </AIChatErrorBoundary>
+);
+
+export const AIChatPanel: React.FC = () => (
+  <AIChatErrorBoundary>
+    <AIChatSurface mode="page" />
   </AIChatErrorBoundary>
 );

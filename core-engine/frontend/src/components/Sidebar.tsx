@@ -12,6 +12,7 @@ import {
   Package, 
   LayoutGrid, 
   MessageSquare,
+  Bot,
   AppWindow,
   BookOpen,
   Settings,
@@ -60,6 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
 
   const PRODUCTIVITY_LINKS = [
     { name: "Launchpad", href: "/launchpad", icon: LayoutGrid, requiredRole: null },
+    { name: "Proteus AI", href: "/ai", icon: Bot, requiredRole: null },
     { name: "Trò chuyện", href: "/chat", icon: MessageSquare, requiredRole: null },
     { name: "Ứng dụng", href: "/apps", icon: AppWindow, requiredRole: null },
     { name: "Tài liệu", href: "/wiki", icon: BookOpen, requiredRole: null },
