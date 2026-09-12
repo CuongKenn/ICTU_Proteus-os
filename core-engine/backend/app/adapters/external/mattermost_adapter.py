@@ -138,3 +138,133 @@ class MattermostAdapter(AbstractChatOpsPort):
     ) -> None:
         """Chưa implement."""
         raise NotImplementedError("update_message chưa được implement")
+
+    # ─── Team-per-tenant isolation ────────────────────────────
+    # Mỗi tenant có 1 Team riêng (tenant_<slug>); user chỉ thấy team mình
+    # tham gia. Mọi method dưới raise MattermostAdapterError khi lỗi —
+    # caller (onboarding/invite) quyết định best-effort hay fail cứng.
+
+    async def _call(
+        self, method: str, path: str, **kwargs: Any
+    ) -> httpx.Response:
+        """Gọi MM API, map lỗi HTTP thành MattermostAdapterError."""
+        if not self.token:
+            raise MattermostAdapterError("MATTERMOST_BOT_TOKEN chưa cấu hình.")
+        try:
+            response = await self.client.request(
+                method, f"{self.base_url}{path}", headers=self.headers, **kwargs
+            )
+            response.raise_for_status()
+            return response
+        except httpx.HTTPStatusError as e:
+            logger.error("Mattermost API %s %s: %s", method, path, e.response.text)
+            raise MattermostAdapterError(
+                f"HTTP Error: {e.response.status_code}"
+            ) from e
+        except Exception as e:
+            logger.error("Lỗi kết nối Mattermost: %s", e)
+            raise MattermostAdapterError(str(e)) from e
+
+    async def get_team_by_name(self, name: str) -> dict[str, Any] | None:
+        """Lấy team theo name (slug). 404 → None (chưa tồn tại)."""
+        try:
+            response = await self._call("GET", f"/api/v4/teams/name/{name}")
+            return response.json()
+        except MattermostAdapterError as e:
+            if "404" in str(e):
+                return None
+            raise
+
+    async def create_team(
+        self, name: str, display_name: str, team_type: str = "I"
+    ) -> dict[str, Any]:
+        """Tạo team mới. type 'I' = invite-only (kín giữa tenant)."""
+        response = await self._call(
+            "POST",
+            "/api/v4/teams",
+            json={
+                "name": name,
+                "display_name": display_name,
+                "type": team_type,
+            },
+        )
+        team = response.json()
+        logger.info("Đã tạo Mattermost team", extra={"team": name})
+        return team
+
+    async def create_channel(
+        self,
+        team_id: str,
+        name: str,
+        display_name: str,
+        channel_type: str = "O",
+    ) -> dict[str, Any]:
+        """Tạo channel trong team. Tồn tại rồi (400) → lấy lại theo tên."""
+        try:
+            response = await self._call(
+                "POST",
+                "/api/v4/channels",
+                json={
+                    "team_id": team_id,
+                    "name": name,
+                    "display_name": display_name,
+                    "type": channel_type,
+                },
+            )
+            return response.json()
+        except MattermostAdapterError as e:
+            if "400" not in str(e):
+                raise
+            existing = await self._call(
+                "GET", f"/api/v4/teams/{team_id}/channels/name/{name}"
+            )
+            return existing.json()
+
+    async def get_user_by_email(self, email: str) -> dict[str, Any] | None:
+        """Tìm MM user theo email. Không thấy → None."""
+        response = await self._call(
+            "POST", "/api/v4/users/search", json={"term": email, "limit": 5}
+        )
+        for user in response.json() or []:
+            if (user.get("email") or "").lower() == email.lower():
+                return user
+        return None
+
+    async def create_user(
+        self, email: str, username: str, password: str
+    ) -> dict[str, Any]:
+        """
+        Tạo MM user (login chính vẫn qua SSO Keycloak; password random này
+        chỉ để thỏa mãn API — user không bao giờ dùng trực tiếp).
+        """
+        response = await self._call(
+            "POST",
+            "/api/v4/users",
+            json={"email": email, "username": username, "password": password},
+        )
+        return response.json()
+
+    async def add_user_to_team(self, team_id: str, user_id: str) -> None:
+        """Thêm member vào team. Đã là member (400) → bỏ qua."""
+        try:
+            await self._call(
+                "POST",
+                f"/api/v4/teams/{team_id}/members",
+                json={"team_id": team_id, "user_id": user_id},
+            )
+        except MattermostAdapterError as e:
+            if "400" not in str(e):
+                raise
+            logger.info(
+                "User đã ở trong team", extra={"team_id": team_id, "user": user_id}
+            )
+
+    async def ensure_user_in_team_by_email(
+        self, team_id: str, email: str, username: str, password: str
+    ) -> dict[str, Any]:
+        """Đảm bảo MM user tồn tại và nằm trong team (dùng cho invite)."""
+        user = await self.get_user_by_email(email)
+        if not user:
+            user = await self.create_user(email, username, password)
+        await self.add_user_to_team(team_id, user["id"])
+        return user

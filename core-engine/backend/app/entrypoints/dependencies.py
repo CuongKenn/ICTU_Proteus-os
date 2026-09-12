@@ -336,6 +336,7 @@ async def get_current_tenant_context(
 
 async def get_tenant_onboarding_use_case(
     keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
 ) -> TenantOnboardingUseCase:
     """
@@ -345,6 +346,7 @@ async def get_tenant_onboarding_use_case(
     return TenantOnboardingUseCase(
         tenant_repo=SQLAlchemyTenantRepository(session=db),
         keycloak_adapter=keycloak_adapter,
+        mattermost_adapter=mattermost_adapter,
         session=db,
     )
 

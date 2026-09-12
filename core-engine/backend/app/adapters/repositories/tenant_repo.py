@@ -172,3 +172,27 @@ class SQLAlchemyTenantRepository(AbstractTenantRepository):
             },
         )
         return integration
+
+    async def upsert_integration_config(
+        self, tenant_id: uuid.UUID, provider: str, config: dict
+    ) -> None:
+        """Cập nhật config integration nếu có, ngược lại tạo mới."""
+        existing = await self.get_integration_by_provider(tenant_id, provider)
+        if existing:
+            await self._session.execute(
+                text(
+                    "UPDATE tenant_integrations SET config = :config "
+                    "WHERE id = :id"
+                ),
+                {"id": existing.id, "config": json.dumps(config)},
+            )
+            return
+        await self.add_integration(
+            TenantIntegrationEntity(
+                id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                provider=provider,
+                config=config,
+                is_active=True,
+            )
+        )

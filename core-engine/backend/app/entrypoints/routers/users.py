@@ -5,6 +5,7 @@
 # Quản lý nhân viên trong Tenant: liệt kê, mời qua email, deactivate.
 
 import logging
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,14 +13,17 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import KeycloakAdapter
+from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.repositories.tenant_repo import SQLAlchemyTenantRepository
 from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import NotFoundError
+from app.core.use_cases.tenant_onboarding import ensure_tenant_mattermost_team
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_db_transactional,
     get_keycloak_adapter,
+    get_mattermost_adapter,
     require_permission,
 )
 
@@ -99,6 +103,7 @@ async def invite_user(
     request: Request,
     context: TenantContext = Depends(get_current_tenant_context),
     keycloak: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
 ):
     """
@@ -182,6 +187,22 @@ async def invite_user(
         }
     )
     await db.commit()
+
+    # 5. Đưa user vào Mattermost team của tenant (best-effort: login chính
+    # qua SSO Keycloak, password random này không dùng trực tiếp).
+    try:
+        team_cfg = await ensure_tenant_mattermost_team(
+            tenant_repo, mattermost, context.tenant_id
+        )
+        username = payload.email.split("@")[0].lower().replace("+", "")
+        await mattermost.ensure_user_in_team_by_email(
+            team_id=team_cfg["team_id"],
+            email=payload.email,
+            username=username,
+            password=secrets.token_urlsafe(24),
+        )
+    except Exception as e:
+        logger.warning("Không thể đưa user vào Mattermost team: %s", e)
 
     logger.info(
         "Invited new user",

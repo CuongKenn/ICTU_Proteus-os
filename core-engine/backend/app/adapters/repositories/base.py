@@ -230,6 +230,13 @@ class AbstractTenantRepository(ABC):
         """Thêm integration mới cho Tenant."""
         ...
 
+    @abstractmethod
+    async def upsert_integration_config(
+        self, tenant_id: uuid.UUID, provider: str, config: dict
+    ) -> None:
+        """Cập nhật config integration nếu có, ngược lại tạo mới."""
+        ...
+
 
 class AbstractUserRepository(ABC):
     """Port: Giao tiếp với User data store."""
