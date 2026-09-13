@@ -222,6 +222,7 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
                     "effect": step.effect,
                     "status": status.value,
                     "message": message,
+                    "result": result,
                 }
             )
             if on_step is not None:

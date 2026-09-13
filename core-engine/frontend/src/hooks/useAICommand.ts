@@ -248,6 +248,12 @@ export interface DslPreview {
           ? { query: (result as any).query }
           : result;
       let text = JSON.stringify(body, null, 2);
+      const MAX_LEN = 4000;
+      if (text.length > MAX_LEN) {
+        text =
+          text.slice(0, MAX_LEN) +
+          `\n… (đã rút gọn, còn ${text.length - MAX_LEN} ký tự)`;
+      }
       if (Array.isArray(cites) && cites.length > 0) {
         const lines = cites.map((c: any, i: number) => {
           const title = c?.doc_title || c?.source_url || `Tài liệu ${i + 1}`;
@@ -266,8 +272,30 @@ export interface DslPreview {
         const statusUpper =
           typeof data.status === "string" ? data.status.toUpperCase() : "ERROR";
 
-        if (statusUpper === "COMPLETED" && data.result) {
-          appendMessage("assistant", formatResult(data.result));
+        if (statusUpper === "COMPLETED") {
+          // Backend trả summary ở message + data thật trong result.steps[].result.
+          // Hiện summary trước, data chi tiết sau (không dump JSON trạng thái).
+          const steps = (data.result as any)?.steps;
+          const details: string[] = [];
+          if (Array.isArray(steps)) {
+            for (const s of steps) {
+              if (
+                s &&
+                s.status === "COMPLETED" &&
+                s.result !== null &&
+                s.result !== undefined
+              ) {
+                details.push(formatResult(s.result));
+              }
+            }
+          } else if (data.result) {
+            details.push(formatResult(data.result));
+          }
+          const content =
+            details.length > 0
+              ? `${data.message}\n\n📦 Kết quả:\n${details.join("\n\n")}`
+              : data.message || "Hoàn thành.";
+          appendMessage("assistant", content);
           setWidgetState("expanded");
         } else if (statusUpper === "PENDING_APPROVAL") {
           const preview = data.dry_run_result || (data as any).dsl_preview || data.result || {
