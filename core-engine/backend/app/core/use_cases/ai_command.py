@@ -228,7 +228,7 @@ class AICommandUseCase:
             )
             await self._audit(
                 ctx.tenant_id,
-                "USER",
+                "HUMAN",
                 "ai.command.rejected",
                 body.command_id,
                 {"action": body.action, "error": str(e)},
@@ -292,7 +292,7 @@ class AICommandUseCase:
                 )
                 await self._audit(
                     ctx.tenant_id,
-                    "USER",
+                    "HUMAN",
                     "ai.command.executed",
                     body.command_id,
                     {"action": body.action, "effect": body.effect},
@@ -347,7 +347,7 @@ class AICommandUseCase:
                 await self.ai_command_repo.commit()
                 await self._audit(
                     ctx.tenant_id,
-                    "USER",
+                    "HUMAN",
                     "ai.command.failed",
                     body.command_id,
                     {"action": body.action, "error": str(e)},
@@ -411,7 +411,7 @@ class AICommandUseCase:
         )
         await self._audit(
             ctx.tenant_id,
-            "USER",
+            "HUMAN",
             "ai.command.pending",
             body.command_id,
             {"action": body.action, "effect": body.effect},
@@ -546,7 +546,7 @@ class AICommandUseCase:
             )
             await self._audit(
                 tenant_id,
-                "APPROVER",
+                "HUMAN",
                 "ai.command.denied",
                 cmd_id,
                 {
@@ -565,7 +565,7 @@ class AICommandUseCase:
             await self.ai_command_repo.commit()
             await self._audit(
                 tenant_id,
-                "APPROVER",
+                "HUMAN",
                 "ai.command.rejected",
                 cmd_id,
                 {"action": cmd.get("action"), "approver": str(approver.id)},
@@ -599,7 +599,7 @@ class AICommandUseCase:
         if is_approved:
             await self._audit(
                 tenant_id,
-                "APPROVER",
+                "HUMAN",
                 "ai.command.approved",
                 cmd_id,
                 {"action": cmd.get("action"), "approver": str(approver.id)},

@@ -120,25 +120,29 @@ async def mattermost_interactive_callback(
                 "ephemeral_text": "Lệnh không còn ở trạng thái chờ duyệt (đã xử lý hoặc hết hạn).",
             }
         if outcome == "approved" and cmd:
-            actual_tenant_id = (
-                uuid.UUID(str(cmd["tenant_id"]))
-                if cmd.get("tenant_id")
-                else uuid.UUID(int=0)
-            )
-            await audit_log_repo.insert_log(
-                tenant_id=actual_tenant_id,
-                actor_type="mattermost_user",
-                action="APPROVE_AI_COMMAND",
-                resource_type="ai_command",
-                resource_id=(
-                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
-                ),
-                command_id=(
-                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
-                ),
-                metadata_json=json.dumps({"mattermost_user_id": user_id}),
-            )
-            await db.commit()
+            # Audit best-effort: lỗi ghi log không được làm fail cả callback.
+            try:
+                actual_tenant_id = (
+                    uuid.UUID(str(cmd["tenant_id"]))
+                    if cmd.get("tenant_id")
+                    else uuid.UUID(int=0)
+                )
+                await audit_log_repo.insert_log(
+                    tenant_id=actual_tenant_id,
+                    actor_type="HUMAN",
+                    action="APPROVE_AI_COMMAND",
+                    resource_type="ai_command",
+                    resource_id=(
+                        uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                    ),
+                    command_id=(
+                        uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                    ),
+                    metadata_json=json.dumps({"mattermost_user_id": user_id}),
+                )
+                await db.commit()
+            except Exception as e:
+                logger.warning("Ghi audit approve thất bại (best-effort): %s", e)
 
         return {
             "ephemeral_text": f"Bạn đã phê duyệt hành động {action_id}.",
@@ -164,25 +168,29 @@ async def mattermost_interactive_callback(
                 "ephemeral_text": "Lệnh không còn ở trạng thái chờ duyệt (đã xử lý hoặc hết hạn).",
             }
         if outcome == "rejected" and cmd:
-            actual_tenant_id = (
-                uuid.UUID(str(cmd["tenant_id"]))
-                if cmd.get("tenant_id")
-                else uuid.UUID(int=0)
-            )
-            await audit_log_repo.insert_log(
-                tenant_id=actual_tenant_id,
-                actor_type="mattermost_user",
-                action="REJECT_AI_COMMAND",
-                resource_type="ai_command",
-                resource_id=(
-                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
-                ),
-                command_id=(
-                    uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
-                ),
-                metadata_json=json.dumps({"mattermost_user_id": user_id}),
-            )
-            await db.commit()
+            # Audit best-effort: lỗi ghi log không được làm fail cả callback.
+            try:
+                actual_tenant_id = (
+                    uuid.UUID(str(cmd["tenant_id"]))
+                    if cmd.get("tenant_id")
+                    else uuid.UUID(int=0)
+                )
+                await audit_log_repo.insert_log(
+                    tenant_id=actual_tenant_id,
+                    actor_type="HUMAN",
+                    action="REJECT_AI_COMMAND",
+                    resource_type="ai_command",
+                    resource_id=(
+                        uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                    ),
+                    command_id=(
+                        uuid.UUID(action_id) if len(action_id) == 36 else uuid.UUID(int=0)
+                    ),
+                    metadata_json=json.dumps({"mattermost_user_id": user_id}),
+                )
+                await db.commit()
+            except Exception as e:
+                logger.warning("Ghi audit reject thất bại (best-effort): %s", e)
 
         return {
             "ephemeral_text": f"Bạn đã từ chối hành động {action_id}.",
