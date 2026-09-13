@@ -94,6 +94,7 @@ class MattermostAdapter(AbstractChatOpsPort):
                         "actions": [
                             {
                                 "id": "approveButton",
+                                "type": "button",
                                 "name": "Phê duyệt",
                                 "integration": {
                                     "url": webhook_url,
@@ -102,6 +103,7 @@ class MattermostAdapter(AbstractChatOpsPort):
                             },
                             {
                                 "id": "rejectButton",
+                                "type": "button",
                                 "name": "Từ chối",
                                 "style": "danger",
                                 "integration": {

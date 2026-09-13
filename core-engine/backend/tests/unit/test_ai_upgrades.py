@@ -561,3 +561,47 @@ async def test_single_step_summary_one_liner():
     assert overall == AICommandStatus.COMPLETED
     assert "core.plugins.list" in summary
     assert "1." not in summary.split("\n", 1)[0]
+
+
+@pytest.mark.asyncio
+async def test_interactive_actions_have_button_type():
+    from unittest.mock import MagicMock
+
+    from app.adapters.external.mattermost_adapter import MattermostAdapter
+
+    captured = {}
+
+    post_response = MagicMock()
+    post_response.json.return_value = {"id": "p1"}
+    post_response.raise_for_status.return_value = None
+    client = AsyncMock()
+    client.post.return_value = post_response
+
+    adapter = MattermostAdapter(client=client)
+    adapter.token = "t"
+    adapter.headers = {}
+
+    async def fake_post(url, headers=None, json=None):
+        captured.update(json or {})
+        return post_response
+
+    client.post = fake_post
+    await adapter.send_interactive_message("chan", "text", "cmd-1")
+    actions = captured["props"]["attachments"][0]["actions"]
+    assert [a["type"] for a in actions] == ["button", "button"]
+    assert [a["id"] for a in actions] == ["approveButton", "rejectButton"]
+
+
+@pytest.mark.asyncio
+async def test_conversation_rejects_unknown_user():
+    from unittest.mock import MagicMock
+
+    from app.adapters.repositories.conversation_repo import ConversationRepository
+
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalar.return_value = None
+    session.execute.return_value = result
+    repo = ConversationRepository(session)
+    with pytest.raises(ValueError):
+        await repo.ensure_session(uuid.uuid4(), uuid.uuid4(), None)
