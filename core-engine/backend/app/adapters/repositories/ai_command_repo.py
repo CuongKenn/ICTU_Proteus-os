@@ -44,6 +44,29 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         rows = result.mappings().all()
         return [dict(row) for row in rows]
 
+    async def count_failed_since(self, minutes: int) -> int:
+        since = datetime.now(UTC) - timedelta(minutes=minutes)
+        result = await self._session.execute(
+            text(
+                "SELECT COUNT(*) FROM ai_commands "
+                "WHERE status = 'FAILED' AND created_at > :since"
+            ),
+            {"since": since},
+        )
+        return int(result.scalar() or 0)
+
+    async def get_pending_older_than(self, minutes: int, limit: int = 5) -> list[dict]:
+        since = datetime.now(UTC) - timedelta(minutes=minutes)
+        result = await self._session.execute(
+            text(
+                "SELECT id, action, issued_by_user_id, approval_deadline "
+                "FROM ai_commands WHERE status = 'PENDING_APPROVAL' "
+                "AND created_at < :since ORDER BY created_at LIMIT :lim"
+            ),
+            {"since": since, "lim": limit},
+        )
+        return [dict(row) for row in result.mappings().all()]
+
     async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
         sql_update = text("""
             UPDATE ai_commands

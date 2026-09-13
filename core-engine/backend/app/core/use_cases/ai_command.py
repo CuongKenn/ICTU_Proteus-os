@@ -54,6 +54,9 @@ class AICommandUseCase:
         role_repo: RoleRepository,
         mattermost_adapter: AbstractChatOpsPort,
         n8n_adapter: AbstractWorkflowEnginePort,
+        manifest_parser=None,
+        qdrant_adapter=None,
+        audit_log_repo=None,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
@@ -61,7 +64,98 @@ class AICommandUseCase:
         self.role_repo = role_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
+        self.manifest_parser = manifest_parser
+        self.qdrant_adapter = qdrant_adapter
+        self.audit_log_repo = audit_log_repo
         self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
+
+    async def _audit(
+        self,
+        tenant_id,
+        actor_type: str,
+        action: str,
+        command_id,
+        metadata: dict | None = None,
+    ) -> None:
+        """Ghi audit best-effort (không bao giờ chặn luồng lệnh)."""
+        if self.audit_log_repo is None:
+            return
+        try:
+            await self.audit_log_repo.insert_log(
+                tenant_id=tenant_id,
+                actor_type=actor_type,
+                action=action,
+                resource_type="AI_COMMAND",
+                resource_id=command_id,
+                command_id=command_id,
+                metadata_json=json.dumps(metadata or {}, default=str),
+            )
+        except Exception as e:
+            logger.warning("Ghi audit AI thất bại (best-effort): %s", e)
+
+    def _resolve_action_url(self, action: str) -> str:
+        """Dựng webhook URL cho action 3-part classic hoặc 2-part workflow."""
+        from app.core.use_cases.action_catalog import split_plugin_action
+
+        split = split_plugin_action(action)
+        if split is not None:
+            if self.manifest_parser is None:
+                raise ValueError(
+                    f"Action '{action}' cần manifest parser để resolve webhook."
+                )
+            from app.core.use_cases.action_catalog import (
+                resolve_workflow_webhook_url,
+            )
+
+            plugin_code, workflow_id = split
+            return resolve_workflow_webhook_url(
+                self.manifest_parser, plugin_code, workflow_id
+            )
+        return self.n8n_adapter.build_webhook_url(action)
+
+    async def _execute_local_read(
+        self, body: AICommandDTO, ctx: TenantContext
+    ) -> tuple[bool, Any]:
+        """Thực thi local các core read actions (không qua n8n).
+
+        Trả về (handled, result). core.knowledge.search trả kèm citations.
+        """
+        if body.action == "core.plugins.list":
+            plugins, total = await self.plugin_repo.list_installed(
+                tenant_id=ctx.tenant_id
+            )
+            return True, {
+                "total": total,
+                "plugins": [
+                    {
+                        "code_name": getattr(p, "code_name", None),
+                        "display_name": getattr(p, "display_name", None),
+                        "status": getattr(getattr(p, "status", None), "value", None)
+                        or str(getattr(p, "status", "")),
+                    }
+                    for p in plugins
+                ],
+            }
+        if body.action == "core.knowledge.search":
+            if self.qdrant_adapter is None:
+                raise ValueError("RAG chưa cấu hình (thiếu Qdrant adapter).")
+            query = (body.parameters or {}).get("raw_input") or (
+                body.parameters or {}
+            ).get("query", "")
+            hits = await self.qdrant_adapter.search(
+                tenant_id=str(ctx.tenant_id), query=str(query), limit=5
+            )
+            citations = [
+                {
+                    "document": h.get("document"),
+                    "score": h.get("score"),
+                    "doc_title": (h.get("metadata") or {}).get("doc_title"),
+                    "source_url": (h.get("metadata") or {}).get("source_url"),
+                }
+                for h in hits
+            ]
+            return True, {"query": query, "citations": citations}
+        return False, None
 
     async def execute(
         self, body: AICommandDTO, ctx: TenantContext
@@ -75,6 +169,7 @@ class AICommandUseCase:
             role_repo=self.role_repo,
             tenant_id=str(ctx.tenant_id),
             user_id=str(ctx.user_id),
+            manifest_parser=self.manifest_parser,
         )
 
         try:
@@ -111,19 +206,30 @@ class AICommandUseCase:
                     "created_at": now,
                 }
             )
+            await self._audit(
+                ctx.tenant_id,
+                "USER",
+                "ai.command.rejected",
+                body.command_id,
+                {"action": body.action, "error": str(e)},
+            )
             return AICommandStatus.FAILED, f"Từ chối thực hiện: {str(e)}", None
 
         now = datetime.now(UTC)
 
         # 2. Xử lý theo effect
         if body.effect == "read":
-            # Lệnh Read → Gửi n8n execute lập tức (vì là webhook trigger proxy)
+            # Lệnh Read → core actions chạy local, còn lại qua n8n webhook.
             try:
-                webhook_url = self.n8n_adapter.build_webhook_url(body.action)
-                response = await self.n8n_adapter.trigger_webhook(
-                    webhook_url=webhook_url,
-                    payload=json.loads(json.dumps(asdict(body), default=str)),
-                )
+                handled, local_result = await self._execute_local_read(body, ctx)
+                if handled:
+                    response = local_result
+                else:
+                    webhook_url = self._resolve_action_url(body.action)
+                    response = await self.n8n_adapter.trigger_webhook(
+                        webhook_url=webhook_url,
+                        payload=json.loads(json.dumps(asdict(body), default=str)),
+                    )
 
                 # Lưu DB ngay
                 await self.ai_command_repo.create_command(
@@ -163,6 +269,13 @@ class AICommandUseCase:
                     action=body.action,
                     effect=body.effect,
                     tenant_id=ctx.tenant_id,
+                )
+                await self._audit(
+                    ctx.tenant_id,
+                    "USER",
+                    "ai.command.executed",
+                    body.command_id,
+                    {"action": body.action, "effect": body.effect},
                 )
                 # Hỗ trợ hiển thị Markdown đẹp trên giao diện nếu Plugin trả về
                 result_data = (
@@ -212,6 +325,13 @@ class AICommandUseCase:
                     }
                 )
                 await self.ai_command_repo.commit()
+                await self._audit(
+                    ctx.tenant_id,
+                    "USER",
+                    "ai.command.failed",
+                    body.command_id,
+                    {"action": body.action, "error": str(e)},
+                )
                 return AICommandStatus.FAILED, f"Lỗi khi thực thi: {e}", None
 
         # Write or Critical → Cần phê duyệt (Human-in-the-loop)
@@ -269,6 +389,13 @@ class AICommandUseCase:
             effect=body.effect,
             tenant_id=ctx.tenant_id,
         )
+        await self._audit(
+            ctx.tenant_id,
+            "USER",
+            "ai.command.pending",
+            body.command_id,
+            {"action": body.action, "effect": body.effect},
+        )
 
         # Gửi thông báo phê duyệt qua Mattermost
         action_code = f"`{body.action}`"
@@ -322,12 +449,20 @@ class AICommandUseCase:
             await self.ai_command_repo.commit()
             return False
 
+        tenant_id = cmd.get("tenant_id")
         is_approved = False
         if action_taken == "reject":
             await self.ai_command_repo.update_command_approval(
                 cmd_id=cmd_id, status="REJECTED"
             )
             await self.ai_command_repo.commit()
+            await self._audit(
+                tenant_id,
+                "APPROVER",
+                "ai.command.rejected",
+                cmd_id,
+                {"action": cmd.get("action"), "approver": approver_id},
+            )
             return True
 
         if cmd["effect"] == "critical":
@@ -351,8 +486,15 @@ class AICommandUseCase:
             is_approved = True
 
         if is_approved:
+            await self._audit(
+                tenant_id,
+                "APPROVER",
+                "ai.command.approved",
+                cmd_id,
+                {"action": cmd.get("action"), "approver": approver_id},
+            )
             try:
-                webhook_url = self.n8n_adapter.build_webhook_url(cmd["action"])
+                webhook_url = self._resolve_action_url(cmd["action"])
                 await self.n8n_adapter.trigger_webhook(
                     webhook_url=webhook_url, payload=cmd["parameters"]
                 )

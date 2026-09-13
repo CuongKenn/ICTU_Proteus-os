@@ -324,6 +324,16 @@ class AbstractAICommandRepository(ABC):
         ...
 
     @abstractmethod
+    async def count_failed_since(self, minutes: int) -> int:
+        """Đếm lệnh FAILED trong N phút qua (phát hiện abuse/lỗi prompt)."""
+        ...
+
+    @abstractmethod
+    async def get_pending_older_than(self, minutes: int, limit: int = 5) -> list[dict]:
+        """Lệnh PENDING_APPROVAL tồn đọng quá N phút (để digest)."""
+        ...
+
+    @abstractmethod
     async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
         """Cập nhật trạng thái của lệnh."""
         ...
@@ -388,6 +398,14 @@ class AbstractHRLeaveRepository(ABC):
         """Lấy các đơn xin nghỉ phép chưa duyệt quá hạn."""
         ...
 
+    @abstractmethod
+    async def count_leaves_spike(self) -> dict | None:
+        """So sánh đơn tạo 7 ngày qua vs trung bình 28 ngày trước đó.
+
+        Trả về {recent, baseline_daily_avg, ratio} hoặc None nếu thiếu bảng.
+        """
+        ...
+
 
 class AbstractDSLDryRunRepository(ABC):
     """Port: Giao tiếp cơ sở dữ liệu để thực hiện Dry Run của DSL."""
@@ -398,4 +416,55 @@ class AbstractDSLDryRunRepository(ABC):
         Thực thi dry run, trả về dict chứa affected_count và preview data.
         Ví dụ: {"affected_count": 5, "preview": [...]}
         """
+
+
+class AbstractConversationRepository(ABC):
+    """Port: Giao tiếp với ai_sessions + ai_messages (memory server-side)."""
+
+    @abstractmethod
+    async def ensure_session(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID | None = None,
+    ) -> uuid.UUID:
+        """Trả về session hiện có (thuộc user+tenant) hoặc tạo mới."""
+        ...
+
+    @abstractmethod
+    async def list_sessions(
+        self, tenant_id: uuid.UUID, user_id: uuid.UUID, limit: int = 20
+    ) -> list[dict]:
+        """Liệt kê sessions của user (mới nhất trước)."""
+        ...
+
+    @abstractmethod
+    async def append_message(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID,
+        role: str,
+        content: str,
+        command_id: uuid.UUID | None = None,
+        citations: list[dict] | None = None,
+    ) -> uuid.UUID:
+        """Thêm 1 turn chat, trả về message id."""
+        ...
+
+    @abstractmethod
+    async def list_messages(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Lịch sử 1 session (cũ nhất trước), rỗng nếu session không thuộc user."""
+        ...
+
+    @abstractmethod
+    async def commit(self) -> None:
+        """Commit transaction."""
+        ...
         ...

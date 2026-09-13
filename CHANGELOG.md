@@ -7,6 +7,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Added
+- [core-engine/backend] Memory hội thoại AI server-side: bảng `ai_sessions`/`ai_messages` (migration `k5f6g7h8i9j0`), API sessions/messages per-user theo tenant.
+- [core-engine/backend] Dynamic DX-DSL catalog (`GET /ai/actions`), thực thi local `core.plugins.list`/`core.knowledge.search`, knowledge search có citations, chat SSE `POST /ai/chat/stream`, audit trail AI, proactive rules mới (spike FAILED/tồn đọng/spike nghỉ phép).
+- [core-engine/frontend] Hook chat đọc history server, gửi qua SSE (fallback POST), render trích dẫn RAG.
 - [docs/plugin-manifest-spec.md] Hỗ trợ cấu trúc Hybrid UI (`external_url` cho Micro-Frontend) trong Plugin Manifest (v1.2.0).
 - [core-engine/backend] Bổ sung parser cho trường `ui.external_url` trong `PluginManifest` model thay thế cho `ui_apps` array cũ.
 - [core-engine/frontend] Sửa logic `LaunchpadClient.tsx` ưu tiên render `external_url` (nếu có) trước khi fallback về Appsmith mặc định.
