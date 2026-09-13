@@ -74,6 +74,28 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
         return _to_entity(model, roles=loaded_roles)
 
+    async def get_by_email(
+        self, tenant_id: uuid.UUID, email: str
+    ) -> UserEntity | None:
+        """Lấy User theo email trong tenant (case-insensitive)."""
+        from sqlalchemy import func
+
+        stmt = (
+            select(UserModel)
+            .where(
+                UserModel.tenant_id == tenant_id,
+                func.lower(UserModel.email) == email.strip().lower(),
+                UserModel.deleted_at.is_(None),
+            )
+            .options(selectinload(UserModel.roles))
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalars().first()
+        if not model:
+            return None
+        loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
+        return _to_entity(model, roles=loaded_roles)
+
     async def upsert(self, user_data: dict) -> UserEntity:
         """
         Thêm mới hoặc cập nhật thông tin User dựa vào keycloak_id (Idempotent).

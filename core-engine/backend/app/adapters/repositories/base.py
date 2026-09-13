@@ -288,6 +288,13 @@ class AbstractUserRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_by_email(
+        self, tenant_id: uuid.UUID, email: str
+    ) -> UserEntity | None:
+        """Lấy User theo email trong tenant (so khớp không phân biệt hoa/thường)."""
+        ...
+
+    @abstractmethod
     async def upsert(self, user_data: dict) -> UserEntity:
         """Thêm mới hoặc cập nhật thông tin User dựa vào keycloak_id."""
         ...

@@ -469,6 +469,7 @@ async def get_ai_command_use_case(
     n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
     qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
     audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),
+    user_repo: AbstractUserRepository = Depends(get_user_repo),
 ) -> AICommandUseCase:
     """Inject AICommandUseCase (dynamic DSL + local core actions + audit)."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -483,6 +484,7 @@ async def get_ai_command_use_case(
         manifest_parser=LocalManifestParser(),
         qdrant_adapter=qdrant_adapter,
         audit_log_repo=audit_log_repo,
+        user_repo=user_repo,
     )
 
 

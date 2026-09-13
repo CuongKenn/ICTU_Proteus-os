@@ -108,10 +108,18 @@ async def mattermost_interactive_callback(
         cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
             uuid.UUID(action_id)
         )
-        success = await ai_command_use_case.process_approval(
+        outcome = await ai_command_use_case.process_approval(
             cmd_id=action_id, approver_id=user_id, action_taken="approve"
         )
-        if success and cmd:
+        if outcome == "denied":
+            return {
+                "ephemeral_text": "⛔ Bạn không có quyền duyệt lệnh này (cần đúng vai trò, không tự duyệt lệnh của mình).",
+            }
+        if outcome == "invalid":
+            return {
+                "ephemeral_text": "Lệnh không còn ở trạng thái chờ duyệt (đã xử lý hoặc hết hạn).",
+            }
+        if outcome == "approved" and cmd:
             actual_tenant_id = (
                 uuid.UUID(str(cmd["tenant_id"]))
                 if cmd.get("tenant_id")
@@ -144,10 +152,18 @@ async def mattermost_interactive_callback(
         cmd = await ai_command_use_case.ai_command_repo.get_command_by_id(
             uuid.UUID(action_id)
         )
-        success = await ai_command_use_case.process_approval(
+        outcome = await ai_command_use_case.process_approval(
             cmd_id=action_id, approver_id=user_id, action_taken="reject"
         )
-        if success and cmd:
+        if outcome == "denied":
+            return {
+                "ephemeral_text": "⛔ Bạn không có quyền từ chối lệnh này.",
+            }
+        if outcome == "invalid":
+            return {
+                "ephemeral_text": "Lệnh không còn ở trạng thái chờ duyệt (đã xử lý hoặc hết hạn).",
+            }
+        if outcome == "rejected" and cmd:
             actual_tenant_id = (
                 uuid.UUID(str(cmd["tenant_id"]))
                 if cmd.get("tenant_id")

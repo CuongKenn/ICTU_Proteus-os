@@ -57,6 +57,7 @@ class AICommandUseCase:
         manifest_parser=None,
         qdrant_adapter=None,
         audit_log_repo=None,
+        user_repo=None,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
@@ -67,6 +68,7 @@ class AICommandUseCase:
         self.manifest_parser = manifest_parser
         self.qdrant_adapter = qdrant_adapter
         self.audit_log_repo = audit_log_repo
+        self.user_repo = user_repo
         self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
 
     async def _audit(
@@ -446,16 +448,79 @@ class AICommandUseCase:
         )
         return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res
 
+    async def _resolve_approver(self, mm_user_id: str, tenant_id):
+        """Map Mattermost user id → UserEntity nội bộ (cùng tenant, còn active).
+
+        Ưu tiên email từ Mattermost API; fallback chấp nhận UUID nội bộ trực
+        tiếp (tương thích caller cũ/tests). Trả về None nếu không xác định được.
+        """
+        if self.user_repo is None:
+            return None
+        try:
+            mm_user = await self.mattermost_adapter.get_user_by_id(mm_user_id)
+        except Exception as e:
+            logger.warning("Không lấy được MM user %s: %s", mm_user_id, e)
+            mm_user = None
+        if mm_user and mm_user.get("email"):
+            try:
+                user = await self.user_repo.get_by_email(tenant_id, mm_user["email"])
+                if user is not None and user.is_active:
+                    return user
+            except Exception as e:
+                logger.warning("Lookup user theo email thất bại: %s", e)
+        try:
+            candidate = await self.user_repo.get(uuid.UUID(str(mm_user_id)))
+        except Exception:
+            return None
+        if (
+            candidate is not None
+            and str(candidate.tenant_id) == str(tenant_id)
+            and candidate.is_active
+        ):
+            return candidate
+        return None
+
+    async def _approver_allowed(self, cmd: dict, approver) -> tuple[bool, str]:
+        """Policy duyệt lệnh: đúng người trong tenant + có quyền +
+        không tự duyệt + critical cần 2 người khác nhau."""
+        from app.core.domain.permissions import has_admin_role
+
+        if approver is None:
+            return False, "không xác định được người duyệt trong tổ chức"
+        if not has_admin_role(getattr(approver, "roles", [])):
+            action = cmd.get("action", "")
+            parts = action.split(".")
+            perms = await self.role_repo.get_user_permissions(approver.id)
+            perms = [str(p) for p in perms or []]
+            if len(parts) == 2 and all(parts):
+                if not any(p.startswith(f"{parts[0]}:") for p in perms):
+                    return False, f"thiếu quyền '{parts[0]}:*'"
+            elif len(parts) >= 3:
+                req = f"{parts[0]}:{parts[1]}:{parts[2]}"
+                if req not in perms:
+                    return False, f"thiếu quyền '{req}'"
+            else:
+                return False, "action không hợp lệ"
+        requester = cmd.get("issued_by_user_id") or cmd.get("requested_by")
+        if requester is not None and str(requester) == str(approver.id):
+            return False, "không được tự duyệt lệnh của chính mình"
+        if cmd.get("effect") == "critical":
+            first = cmd.get("approved_by")
+            if first is not None and str(first) == str(approver.id):
+                return False, "lệnh critical cần 2 người duyệt khác nhau"
+        return True, ""
+
     async def process_approval(
         self, cmd_id: str, approver_id: str, action_taken: str
-    ) -> bool:
-        """
-        Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ].
+    ) -> str:
+        """Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ].
+
+        Trả về: "approved" | "rejected" | "denied" | "invalid".
         """
         cmd = await self.ai_command_repo.get_command_by_id(cmd_id, for_update=True)
 
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
-            return False
+            return "invalid"
 
         if (
             cmd.get("approval_deadline")
@@ -465,13 +530,32 @@ class AICommandUseCase:
                 cmd_id=cmd_id, status="TIMEOUT"
             )
             await self.ai_command_repo.commit()
-            return False
+            return "invalid"
 
         tenant_id = cmd.get("tenant_id")
+        approver = await self._resolve_approver(approver_id, tenant_id)
+        allowed, reason = await self._approver_allowed(cmd, approver)
+        if not allowed:
+            logger.warning(
+                "Từ chối duyệt lệnh %s bởi %s: %s", cmd_id, approver_id, reason
+            )
+            await self._audit(
+                tenant_id,
+                "APPROVER",
+                "ai.command.denied",
+                cmd_id,
+                {
+                    "action": cmd.get("action"),
+                    "mattermost_user_id": approver_id,
+                    "reason": reason,
+                },
+            )
+            return "denied"
+
         is_approved = False
         if action_taken == "reject":
             await self.ai_command_repo.update_command_approval(
-                cmd_id=cmd_id, status="REJECTED"
+                cmd_id=cmd_id, status="REJECTED", approved_by=str(approver.id)
             )
             await self.ai_command_repo.commit()
             await self._audit(
@@ -479,26 +563,30 @@ class AICommandUseCase:
                 "APPROVER",
                 "ai.command.rejected",
                 cmd_id,
-                {"action": cmd.get("action"), "approver": approver_id},
+                {"action": cmd.get("action"), "approver": str(approver.id)},
             )
-            return True
+            return "rejected"
 
         if cmd["effect"] == "critical":
             if not cmd.get("approved_by"):
-                # Ghi nhận lần duyệt 1 (Mattermost user ID không insert vào UUID column được)
-                await self.ai_command_repo.update_command_approval(cmd_id=cmd_id)
-                await self.ai_command_repo.commit()
-                return True
-            else:
-                # Ghi nhận lần duyệt 2
+                # Ghi nhận lần duyệt 1 (đã resolve được UUID nội bộ).
                 await self.ai_command_repo.update_command_approval(
-                    cmd_id=cmd_id, status="APPROVED"
+                    cmd_id=cmd_id, approved_by=str(approver.id)
+                )
+                await self.ai_command_repo.commit()
+                return "approved"
+            else:
+                # Ghi nhận lần duyệt 2 (người khác — đã check ở policy).
+                await self.ai_command_repo.update_command_approval(
+                    cmd_id=cmd_id,
+                    status="APPROVED",
+                    second_approver=str(approver.id),
                 )
                 await self.ai_command_repo.commit()
                 is_approved = True
         else:
             await self.ai_command_repo.update_command_approval(
-                cmd_id=cmd_id, status="APPROVED"
+                cmd_id=cmd_id, status="APPROVED", approved_by=str(approver.id)
             )
             await self.ai_command_repo.commit()
             is_approved = True
@@ -509,7 +597,7 @@ class AICommandUseCase:
                 "APPROVER",
                 "ai.command.approved",
                 cmd_id,
-                {"action": cmd.get("action"), "approver": approver_id},
+                {"action": cmd.get("action"), "approver": str(approver.id)},
             )
             try:
                 webhook_url = self._resolve_action_url(cmd["action"])
@@ -523,4 +611,4 @@ class AICommandUseCase:
                     e,
                 )
 
-        return True
+        return "approved"

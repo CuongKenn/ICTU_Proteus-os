@@ -216,6 +216,16 @@ class MattermostAdapter(AbstractChatOpsPort):
             )
             return existing.json()
 
+    async def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
+        """Lấy MM user theo id (dùng resolve người duyệt từ webhook)."""
+        try:
+            response = await self._call("GET", f"/api/v4/users/{user_id}")
+            return response.json()
+        except MattermostAdapterError as e:
+            if "404" in str(e):
+                return None
+            raise
+
     async def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         """Tìm MM user theo email. Không thấy → None."""
         response = await self._call(
