@@ -33,6 +33,11 @@ class AIChatDTO:
     natural_language_input: str
 
 
+# P0: planner-executor giữ đơn giản cho model nhỏ (llama3 local).
+# Plan dài dễ ảo giác → giới hạn steps, validate từng step như lệnh đơn.
+MAX_PLAN_STEPS = 4
+
+
 class AIChatUseCase:
     def __init__(
         self,
@@ -64,12 +69,28 @@ class AIChatUseCase:
         )
         system_prompt = f"""Bạn là trợ lý AI (Proteus AI) đóng vai trò là một Orchestrator. Nhiệm vụ của bạn là chuyển đổi câu lệnh ngôn ngữ tự nhiên của người dùng thành một lệnh hệ thống chuẩn DX-DSL.
 
-Bạn CHỈ ĐƯỢC PHÉP trả về một object JSON hợp lệ với cấu trúc sau, tuyệt đối không trả lời thêm bất kỳ văn bản nào khác:
+Bạn CHỈ ĐƯỢC PHÉP trả về một object JSON hợp lệ với 1 trong 2 dạng sau, tuyệt đối không trả lời thêm bất kỳ văn bản nào khác:
+
+Dạng 1 — plan nhiều bước (khi việc cần từ 2 việc trở lên):
+{{
+  "goal": "<mục tiêu tóm tắt>",
+  "steps": [
+    {{
+      "action": "<tên hành động>",
+      "effect": "<read | write | critical>",
+      "parameters": {{ "raw_input": "<câu lệnh gốc của người dùng>" }},
+      "approval_message": "<tiếng Việt, chỉ dùng khi effect là write hoặc critical, nếu không thì để null>"
+    }}
+  ]
+}}
+Tối đa {MAX_PLAN_STEPS} steps. Sắp xếp steps read (tra cứu) TRƯỚC, write/critical SAU.
+
+Dạng 2 — lệnh đơn (việc đơn giản, chỉ 1 hành động):
 {{
   "action": "<tên hành động>",
   "effect": "<read | write | critical>",
   "parameters": {{ "raw_input": "<câu lệnh gốc của người dùng>" }},
-  "approval_message": "<Nội dung tin nhắn tóm tắt ngắn gọn yêu cầu bằng tiếng Việt để xin duyệt trên Mattermost, chỉ dùng khi effect là write hoặc critical, nếu không thì để null>"
+  "approval_message": "<như trên>"
 }}
 
 Danh sách các hành động (action) được hỗ trợ hiện tại:
@@ -82,25 +103,69 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
             {"role": "user", "content": user_text},
         ]
 
-    def _parse_command(
-        self, content: str, dto: AIChatDTO, fallback_effect: str = "read"
-    ) -> AICommandDTO:
-        try:
-            parsed = json.loads(extract_json_object(content.strip()))
-        except (ValueError, json.JSONDecodeError):
-            logger.warning("LLM output không parse được JSON, dùng fallback read.")
-            parsed = {}
+    def _single_fallback(self, dto: AIChatDTO) -> AICommandDTO:
         return AICommandDTO(
             command_id=uuid.uuid4(),
             session_id=dto.session_id,
             dsl_version="1.0",
-            action=parsed.get("action", "hr.employees.read"),
-            effect=parsed.get("effect", fallback_effect),
-            parameters=parsed.get(
-                "parameters", {"raw_input": dto.natural_language_input}
-            ),
-            approval_message=parsed.get("approval_message", None),
+            action="hr.employees.read",
+            effect="read",
+            parameters={"raw_input": dto.natural_language_input},
+            approval_message=None,
         )
+
+    def _step_from_dict(self, raw: dict, dto: AIChatDTO) -> AICommandDTO | None:
+        if not isinstance(raw, dict) or not raw.get("action"):
+            return None
+        effect = raw.get("effect", "read")
+        if effect not in ("read", "write", "critical"):
+            effect = "read"
+        params = raw.get("parameters")
+        if not isinstance(params, dict):
+            params = {"raw_input": dto.natural_language_input}
+        return AICommandDTO(
+            command_id=uuid.uuid4(),
+            session_id=dto.session_id,
+            dsl_version="1.0",
+            action=str(raw["action"]),
+            effect=effect,
+            parameters=params,
+            approval_message=raw.get("approval_message"),
+        )
+
+    def _parse_plan(self, content: str, dto: AIChatDTO) -> list[AICommandDTO]:
+        """Parse output LLM thành plan (list steps, tối đa MAX_PLAN_STEPS).
+
+        Chấp nhận dạng plan {goal, steps[]} và dạng lệnh đơn legacy {action,...}.
+        Parse rớt → 1 step fallback read (không bao giờ vỡ luồng chat).
+        """
+        try:
+            parsed = json.loads(extract_json_object(content.strip()))
+        except (ValueError, json.JSONDecodeError):
+            logger.warning("LLM output không parse được JSON, dùng fallback read.")
+            return [self._single_fallback(dto)]
+        if isinstance(parsed, dict) and isinstance(parsed.get("steps"), list):
+            steps = []
+            for raw in parsed["steps"][:MAX_PLAN_STEPS]:
+                step = self._step_from_dict(raw, dto)
+                if step is not None:
+                    steps.append(step)
+            if steps:
+                if len(parsed["steps"]) > MAX_PLAN_STEPS:
+                    logger.warning(
+                        "Plan %d steps vượt giới hạn %d, cắt bớt.",
+                        len(parsed["steps"]),
+                        MAX_PLAN_STEPS,
+                    )
+                return steps
+        single = self._step_from_dict(parsed, dto) if isinstance(parsed, dict) else None
+        return [single or self._single_fallback(dto)]
+
+    def _parse_command(
+        self, content: str, dto: AIChatDTO, fallback_effect: str = "read"
+    ) -> AICommandDTO:
+        plan = self._parse_plan(content, dto)
+        return plan[0]
 
     async def _persist_turn(
         self,
@@ -128,6 +193,68 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
         except Exception as e:
             logger.warning("Persist memory thất bại (best-effort): %s", e)
 
+    async def _run_plan(
+        self,
+        plan: list[AICommandDTO],
+        dto: AIChatDTO,
+        ctx: Any,
+        on_step=None,
+    ) -> tuple[AICommandStatus, str, dict]:
+        """Chạy steps tuần tự, dừng ở PENDING (chờ duyệt) hoặc FAILED.
+
+        Mỗi step vẫn đi qua AICommandUseCase đầy đủ (validate/Z3/audit/duyệt).
+        on_step(index, step, status, message) được gọi sau mỗi step (cho SSE).
+        """
+        outcomes: list[dict[str, Any]] = []
+        total = len(plan)
+        for i, step in enumerate(plan):
+            params = dict(step.parameters or {})
+            params["_plan"] = {"index": i + 1, "total": total}
+            step.parameters = params
+            status, message, result = await self.ai_command_use_case.execute(
+                step, ctx
+            )
+            outcomes.append(
+                {
+                    "index": i + 1,
+                    "command_id": str(step.command_id),
+                    "action": step.action,
+                    "effect": step.effect,
+                    "status": status.value,
+                    "message": message,
+                }
+            )
+            if on_step is not None:
+                maybe = on_step(i, step, status, message)
+                if hasattr(maybe, "__await__"):
+                    await maybe
+            if status != AICommandStatus.COMPLETED:
+                break
+
+        done = [o for o in outcomes if o["status"] == AICommandStatus.COMPLETED.value]
+        last = outcomes[-1]
+        lines = [
+            f"{o['index']}. `{o['action']}` — {o['status']}: {o['message']}"
+            for o in outcomes
+        ]
+        if last["status"] == AICommandStatus.COMPLETED.value and len(outcomes) == total:
+            summary = f"✅ Hoàn thành plan {total} bước:\n" + "\n".join(lines)
+            overall = AICommandStatus.COMPLETED
+        elif last["status"] == AICommandStatus.PENDING_APPROVAL.value:
+            summary = (
+                f"⏳ Xong {len(done)}/{total} bước, dừng ở bước {last['index']} "
+                f"(`{last['action']}`): chờ phê duyệt trên Mattermost.\n"
+                + "\n".join(lines)
+            )
+            overall = AICommandStatus.PENDING_APPROVAL
+        else:
+            summary = (
+                f"❌ Dừng ở bước {last['index']}/{total} "
+                f"(`{last['action']}`): {last['message']}\n" + "\n".join(lines)
+            )
+            overall = AICommandStatus.FAILED
+        return overall, summary, {"plan_total": total, "steps": outcomes}
+
     async def execute(
         self, dto: AIChatDTO, ctx: dict
     ) -> tuple[AICommandStatus, str, dict]:
@@ -147,15 +274,14 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
                 llm_response = await self.llm_port.ainvoke_json(messages)
             else:
                 llm_response = await self.llm_port.ainvoke(messages)
-            command_dto = self._parse_command(llm_response.content, dto)
+            plan = self._parse_plan(llm_response.content, dto)
             await self._persist_turn(
                 ctx, dto.session_id, "user", dto.natural_language_input
             )
-            status, message, result = await self.ai_command_use_case.execute(
-                command_dto, ctx
-            )
+            status, message, result = await self._run_plan(plan, dto, ctx)
+            first_cmd = plan[0].command_id if plan else None
             await self._persist_turn(
-                ctx, dto.session_id, "assistant", message, command_dto.command_id
+                ctx, dto.session_id, "assistant", message, first_cmd
             )
             return status, message, result
         except Exception as e:
@@ -197,34 +323,51 @@ Nếu câu lệnh không nằm trong các hành động trên, hãy mặc địn
                 "result": {"detail": str(e)},
             }
             return
-        command_dto = self._parse_command(content, dto)
+        command_dtos = self._parse_plan(content, dto)
         yield {
-            "event": "dsl",
-            "action": command_dto.action,
-            "effect": command_dto.effect,
-            "command_id": str(command_dto.command_id),
+            "event": "plan",
+            "total": len(command_dtos),
+            "steps": [
+                {"action": c.action, "effect": c.effect} for c in command_dtos
+            ],
         }
         await self._persist_turn(
             ctx, dto.session_id, "user", dto.natural_language_input
         )
+        step_events: list[dict[str, Any]] = []
+
+        async def _emit(i: int, step: AICommandDTO, status, message: str) -> None:
+            step_events.append(
+                {
+                    "index": i + 1,
+                    "command_id": str(step.command_id),
+                    "action": step.action,
+                    "status": status.value,
+                    "message": message,
+                }
+            )
+
         try:
-            status, message, result = await self.ai_command_use_case.execute(
-                command_dto, ctx
+            overall, message, result = await self._run_plan(
+                command_dtos, dto, ctx, on_step=_emit
             )
         except Exception as e:
             logger.error(f"Error in AIChatUseCase stream: {e}")
-            status, message, result = (
+            overall, message, result = (
                 AICommandStatus.FAILED,
                 f"Lỗi hệ thống: {e}",
                 {"detail": str(e)},
             )
+        for se in step_events:
+            yield {"event": "step", **se}
+        first_cmd = command_dtos[0].command_id if command_dtos else None
         await self._persist_turn(
-            ctx, dto.session_id, "assistant", message, command_dto.command_id
+            ctx, dto.session_id, "assistant", message, first_cmd
         )
         yield {
             "event": "result",
-            "status": status.value,
+            "status": overall.value,
             "message": message,
             "result": result,
-            "command_id": str(command_dto.command_id),
+            "command_id": str(first_cmd) if first_cmd else None,
         }

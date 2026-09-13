@@ -219,3 +219,99 @@ async def test_validator_public_action_write_still_denied():
                 "parameters": {},
             }
         )
+
+
+def _chat_case(llm_content: str = ""):
+    from unittest.mock import MagicMock
+
+    from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
+
+    llm = MagicMock()
+    llm.ainvoke_json = AsyncMock(return_value=SimpleNamespace(content=llm_content))
+    cmds = MagicMock()
+    return AIChatUseCase(llm_port=llm, ai_command_use_case=cmds), cmds
+
+
+@pytest.mark.asyncio
+async def test_parse_plan_multi_step_truncates():
+    from app.core.use_cases.ai_chat import AIChatDTO, MAX_PLAN_STEPS
+
+    use_case, _ = _chat_case()
+    steps = [
+        {"action": f"hr.step{i}", "effect": "read", "parameters": {}}
+        for i in range(MAX_PLAN_STEPS + 3)
+    ]
+    dto = AIChatDTO(
+        session_id=uuid.uuid4(), natural_language_input="làm nhiều việc"
+    )
+    plan = use_case._parse_plan(
+        '{"goal": "g", "steps": %s}'
+        % __import__("json").dumps(steps),
+        dto,
+    )
+    assert len(plan) == MAX_PLAN_STEPS
+    assert plan[0].action == "hr.step0"
+
+
+@pytest.mark.asyncio
+async def test_parse_plan_legacy_single_and_garbage():
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, _ = _chat_case()
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="xin chào")
+    legacy = use_case._parse_plan(
+        '{"action": "hr.employees.read", "effect": "read", '
+        '"parameters": {"raw_input": "xin chào"}}',
+        dto,
+    )
+    assert len(legacy) == 1 and legacy[0].action == "hr.employees.read"
+    fallback = use_case._parse_plan("xin chào bạn", dto)
+    assert len(fallback) == 1 and fallback[0].effect == "read"
+
+
+@pytest.mark.asyncio
+async def test_run_plan_stops_at_pending():
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, cmds = _chat_case()
+    cmds.execute = AsyncMock(
+        side_effect=[
+            (AICommandStatus.COMPLETED, "ok 1", {"r": 1}),
+            (AICommandStatus.PENDING_APPROVAL, "chờ duyệt", {"dry": True}),
+            (AICommandStatus.COMPLETED, "ok 3", {"r": 3}),
+        ]
+    )
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="duyệt phép")
+    plan = use_case._parse_plan(
+        '{"goal": "g", "steps": ['
+        '{"action": "hr.a", "effect": "read", "parameters": {}},'
+        '{"action": "hr.b", "effect": "write", "parameters": {}},'
+        '{"action": "hr.c", "effect": "read", "parameters": {}}]}',
+        dto,
+    )
+    status, message, result = await use_case._run_plan(plan, dto, {"tenant_id": "t"})
+    assert status == AICommandStatus.PENDING_APPROVAL
+    assert cmds.execute.call_count == 2
+    assert result["plan_total"] == 3
+    assert "1/3" in message or "2/3" in message
+
+
+@pytest.mark.asyncio
+async def test_run_plan_all_completed():
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, cmds = _chat_case()
+    cmds.execute = AsyncMock(return_value=(AICommandStatus.COMPLETED, "ok", {}))
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="tra cứu")
+    plan = use_case._parse_plan(
+        '{"goal": "g", "steps": ['
+        '{"action": "hr.a", "effect": "read", "parameters": {}},'
+        '{"action": "hr.b", "effect": "read", "parameters": {}}]}',
+        dto,
+    )
+    status, message, result = await use_case._run_plan(plan, dto, {"tenant_id": "t"})
+    assert status == AICommandStatus.COMPLETED
+    assert cmds.execute.call_count == 2
+    assert len(result["steps"]) == 2
