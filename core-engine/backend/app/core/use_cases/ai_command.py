@@ -515,6 +515,59 @@ class AICommandUseCase:
                 return False, "lệnh critical cần 2 người duyệt khác nhau"
         return True, ""
 
+    async def cancel_own_command(self, cmd_id: str, user_id: str) -> str:
+        """Người ra lệnh tự hủy lệnh PENDING của mình (nút Huỷ trên chat).
+
+        Trả về: "cancelled" | "denied" | "invalid". Dùng REJECTED (enum hiện
+        tại không có CANCELLED), kèm audit ghi rõ người hủy.
+        """
+        cmd = await self.ai_command_repo.get_command_by_id(cmd_id, for_update=True)
+        if not cmd or cmd["status"] != "PENDING_APPROVAL":
+            return "invalid"
+        tenant_id = cmd.get("tenant_id")
+        requester = cmd.get("issued_by_user_id") or cmd.get("requested_by")
+        me = None
+        if self.user_repo is not None:
+            try:
+                entity = await self.user_repo.get(uuid.UUID(str(user_id)))
+                if entity is not None and str(entity.tenant_id) == str(tenant_id):
+                    me = entity
+            except Exception:
+                me = None
+            if me is None:
+                try:
+                    entity = await self.user_repo.get_by_keycloak_id(
+                        uuid.UUID(str(user_id))
+                    )
+                    if entity is not None and str(entity.tenant_id) == str(tenant_id):
+                        me = entity
+                except Exception:
+                    me = None
+        if me is None:
+            return "denied"
+        internal_id = str(me.id)
+        if requester is not None and str(requester) != internal_id:
+            # Không phải người ra lệnh: vẫn cho hủy nếu có quyền duyệt.
+            allowed, _ = await self._approver_allowed(cmd, me)
+            if not allowed:
+                return "denied"
+        await self.ai_command_repo.update_command_approval(
+            cmd_id=cmd_id, status="REJECTED", approved_by=internal_id
+        )
+        await self.ai_command_repo.commit()
+        await self._audit(
+            tenant_id,
+            "HUMAN",
+            "ai.command.rejected",
+            cmd_id,
+            {
+                "action": cmd.get("action"),
+                "cancelled_by": internal_id,
+                "via": "chat_cancel",
+            },
+        )
+        return "cancelled"
+
     async def process_approval(
         self, cmd_id: str, approver_id: str, action_taken: str
     ) -> str:

@@ -34,11 +34,11 @@ export interface DslPreview {
   action: string;
   effect: "read" | "write" | "critical";
   approval_message: string;
+  approval_deadline?: string | null;
   dry_run_result?: {
     affected_count: number;
     preview: Array<Record<string, unknown>>;
   };
-  approval_deadline: string;
 }
 
   interface AICommandBFFResponse {
@@ -332,17 +332,31 @@ export interface DslPreview {
           appendMessage("assistant", content);
           setWidgetState("expanded");
         } else if (statusUpper === "PENDING_APPROVAL") {
-          const preview = data.dry_run_result || (data as any).dsl_preview || data.result || {
-            action: "System Command",
-            effect: "write",
-          };
-          setDslPreview(preview);
+          const preview = data.dsl_preview ||
+            data.dry_run_result ||
+            (data as any).dsl_preview ||
+            (data.result as any)?.dsl_preview ||
+            data.result || {
+              action: "System Command",
+              effect: "write",
+            };
+          setDslPreview({
+            command_id:
+              (preview as any).command_id || (data as any).command_id || uuid(),
+            action: (preview as any).action || "Execute",
+            effect: (preview as any).effect === "critical" ? "critical" : "write",
+            approval_message:
+              (preview as any).approval_message || data.message || "",
+            approval_deadline: (preview as any).approval_deadline || null,
+            dry_run_result: (preview as any).dry_run_result,
+          });
           appendMessage(
             "assistant",
-            `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${preview.action || "Execute"}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
+            `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${(preview as any).action || "Execute"}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục, hoặc **Huỷ** để hủy lệnh.`
           );
           setWidgetState("awaiting_approval");
         } else {
+          setDslPreview(null);
           appendMessage("assistant", data.message || "Đã xảy ra lỗi không xác định.");
           setWidgetState("expanded");
         }
@@ -508,13 +522,32 @@ export interface DslPreview {
   }, [addToast]);
 
   /**
-   * cancelApproval — Huỷ lệnh đang chờ phê duyệt.
+   * cancelApproval — Hủy thật lệnh đang chờ duyệt (backend REJECTED),
+   * không chỉ xóa panel local như trước.
    */
-  const cancelApproval = useCallback(() => {
+  const cancelApproval = useCallback(async () => {
+    const cmdId = dslPreview?.command_id;
+    if (cmdId) {
+      try {
+        const res = await fetch(
+          `/api/proxy/v1/ai/commands/${cmdId}/cancel`,
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.cancelled === false) {
+          addToast(
+            "warning",
+            (data as any).reason || "Không hủy được lệnh (có thể đã được xử lý)."
+          );
+        }
+      } catch {
+        addToast("warning", "Không kết nối được để hủy lệnh.");
+      }
+    }
     setDslPreview(null);
     appendMessage("assistant", "🚫 Lệnh đã được huỷ bỏ.");
     setWidgetState("expanded");
-  }, [appendMessage]);
+  }, [dslPreview, appendMessage, addToast]);
 
   return {
     widgetState,

@@ -306,6 +306,38 @@ CHỈ trả về JSON, không text thừa:
             return (await self.llm_port.ainvoke_json(messages)).content
         return (await self.llm_port.ainvoke(messages)).content
 
+    async def _pending_preview(
+        self, outcomes: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        """Dựng dsl_preview thật cho step PENDING cuối (best-effort)."""
+        pending = [
+            o
+            for o in outcomes
+            if o.get("status") == AICommandStatus.PENDING_APPROVAL.value
+        ]
+        if not pending:
+            return None
+        last = pending[-1]
+        deadline = None
+        try:
+            repo = self.ai_command_use_case.ai_command_repo
+            row = await repo.get_command_by_id(last["command_id"])
+            dl = (row or {}).get("approval_deadline")
+            deadline = dl.isoformat() if hasattr(dl, "isoformat") else (
+                str(dl) if dl else None
+            )
+        except Exception as e:
+            logger.warning("Lấy deadline duyệt thất bại (best-effort): %s", e)
+        dry = last.get("result")
+        return {
+            "command_id": last.get("command_id"),
+            "action": last.get("action"),
+            "effect": last.get("effect"),
+            "approval_message": last.get("approval_message"),
+            "approval_deadline": deadline,
+            "dry_run_result": dry if isinstance(dry, dict) else None,
+        }
+
     async def _run_react(
         self,
         seed_plan: list[AICommandDTO],
@@ -349,6 +381,7 @@ CHỈ trả về JSON, không text thừa:
                     "status": status.value,
                     "message": message,
                     "result": result,
+                    "approval_message": step.approval_message,
                 }
             )
             await _emit(
@@ -368,10 +401,10 @@ CHỈ trả về JSON, không text thừa:
         first_status = await _do_step(1, first)
         if first_status == AICommandStatus.PENDING_APPROVAL:
             # Dừng chờ duyệt: step sau có thể phụ thuộc mutation chưa duyệt.
-            return self._summarize(outcomes, total_hint, thoughts)
+            return await self._finish(outcomes, total_hint, thoughts, "done")
         if first_status == AICommandStatus.COMPLETED and not rest:
             # Việc đơn xong ngay: khỏi tốn thêm vòng ReAct.
-            return self._summarize(outcomes, total_hint, thoughts)
+            return await self._finish(outcomes, total_hint, thoughts, "done")
         # FAILED hoặc còn gợi ý: vào loop cho LLM cứu/tiếp tục (giới hạn vòng).
 
         suggestion = list(rest)
@@ -407,7 +440,24 @@ CHỈ trả về JSON, không text thừa:
             # vòng lặp tự kết thúc nhờ MAX_REACT_ITERS.
         else:
             end_reason = "iters"
-        return self._summarize(outcomes, total_hint, thoughts, end_reason)
+        return await self._finish(outcomes, total_hint, thoughts, end_reason)
+
+    async def _finish(
+        self,
+        outcomes: list[dict[str, Any]],
+        total_hint: int,
+        thoughts: list[str] | None,
+        end_reason: str,
+    ) -> tuple[AICommandStatus, str, dict]:
+        """Kết luận turn + đính kèm dsl_preview khi chờ duyệt."""
+        overall, summary, result = self._summarize(
+            outcomes, total_hint, thoughts, end_reason
+        )
+        if overall == AICommandStatus.PENDING_APPROVAL:
+            preview = await self._pending_preview(outcomes)
+            if preview is not None:
+                result["dsl_preview"] = preview
+        return overall, summary, result
 
     def _summarize(
         self,

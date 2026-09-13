@@ -298,7 +298,7 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [isPage, isExpanded, openWidget, minimizeWidget]);
 
-  const isInputDisabled = widgetState === "thinking" || widgetState === "awaiting_approval";
+  const isInputDisabled = widgetState === "thinking";
   const canSend = inputValue.trim().length > 0 && !isInputDisabled;
   const statusText =
     widgetState === "thinking"
@@ -420,7 +420,7 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
           disabled={isInputDisabled}
           placeholder={
             widgetState === "awaiting_approval"
-              ? "Đang chờ phê duyệt…"
+              ? "Đang chờ phê duyệt — vẫn có thể hỏi tiếp…"
               : "Nhập lệnh bằng tiếng Việt… (Enter để gửi)"
           }
           aria-label="Nhập lệnh cho AI"

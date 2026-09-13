@@ -65,11 +65,15 @@ async def submit_ai_chat(
     status_code, message, result = await use_case.execute(dto, ctx)
 
     # We reuse AICommandResponse but command_id might be newly generated
+    preview = None
+    if isinstance(result, dict):
+        preview = result.get("dsl_preview")
     return AICommandResponse(
         command_id=uuid.uuid4(),  # Or return the one generated inside if available, but for simplicity we generate a new one if not passed out
         status=status_code,
         message=message,
         result=result if status_code == AICommandStatus.COMPLETED else None,
+        dsl_preview=preview,
     )
 
 
@@ -189,6 +193,26 @@ async def transmit_kv_cache_ipc(
         latency_ms=latency_ms,
         message="Đã truyền tải Context Pointer thành công",
     )
+
+
+@router.post(
+    "/commands/{command_id}/cancel",
+    status_code=status.HTTP_200_OK,
+    summary="Người ra lệnh tự hủy lệnh đang chờ duyệt",
+)
+@limiter.limit("30/minute")
+async def cancel_ai_command(
+    command_id: uuid.UUID,
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+):
+    outcome = await use_case.cancel_own_command(str(command_id), str(ctx.user_id))
+    if outcome == "invalid":
+        return {"cancelled": False, "reason": "Lệnh không còn ở trạng thái chờ duyệt."}
+    if outcome == "denied":
+        return {"cancelled": False, "reason": "Bạn không có quyền hủy lệnh này."}
+    return {"cancelled": True}
 
 
 # ─── Conversation Memory (server-side, per user+tenant) ─────────────────────

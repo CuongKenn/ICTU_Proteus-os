@@ -631,3 +631,90 @@ async def test_approver_wildcard_permission_allowed():
            "issued_by_user_id": str(uuid.uuid4())}
     allowed, reason = await use_case._approver_allowed(cmd, approver)
     assert allowed is True, reason
+
+
+@pytest.mark.asyncio
+async def test_pending_preview_has_real_details():
+    from datetime import UTC, datetime, timedelta
+    from unittest.mock import MagicMock
+    from uuid import uuid4
+
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
+
+    cmd_use = MagicMock()
+    repo = AsyncMock()
+    cmd_use.ai_command_repo = repo
+    dl = datetime.now(UTC) + timedelta(minutes=30)
+    repo.get_command_by_id = AsyncMock(
+        return_value={"approval_deadline": dl}
+    )
+    use_case = AIChatUseCase(
+        llm_port=MagicMock(), ai_command_use_case=cmd_use
+    )
+    outcomes = [
+        {
+            "index": 1,
+            "command_id": str(uuid4()),
+            "action": "hr.leave_requests.batch_approve",
+            "effect": "write",
+            "status": AICommandStatus.PENDING_APPROVAL.value,
+            "message": "chờ duyệt",
+            "result": {"affected_count": 3, "preview": []},
+            "approval_message": "Duyệt 3 đơn?",
+        }
+    ]
+    preview = await use_case._pending_preview(outcomes)
+    assert preview["action"] == "hr.leave_requests.batch_approve"
+    assert preview["approval_message"] == "Duyệt 3 đơn?"
+    assert preview["approval_deadline"] == dl.isoformat()
+    assert preview["dry_run_result"]["affected_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_cancel_own_command():
+    from unittest.mock import MagicMock
+    from uuid import uuid4
+
+    from app.core.use_cases.ai_command import AICommandUseCase
+
+    tenant_id, requester_id, cmd_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    me = SimpleNamespace(id=requester_id, tenant_id=tenant_id, is_active=True)
+
+    def _use_case(cmd_row):
+        uc = AICommandUseCase(
+            plugin_repo=MagicMock(),
+            ai_command_repo=MagicMock(),
+            dsl_dry_run_repo=MagicMock(),
+            role_repo=MagicMock(),
+            mattermost_adapter=MagicMock(),
+            n8n_adapter=MagicMock(),
+        )
+        uc.ai_command_repo.get_command_by_id = AsyncMock(return_value=cmd_row)
+        uc.user_repo = MagicMock()
+        uc.user_repo.get = AsyncMock(return_value=me)
+        return uc
+
+    base = {
+        "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
+        "status": "PENDING_APPROVAL",
+        "effect": "write",
+        "action": "hr.leave_requests.batch_approve",
+        "parameters": {},
+    }
+    uc = _use_case(dict(base))
+    assert await uc.cancel_own_command(str(cmd_id), str(requester_id)) == "cancelled"
+    uc.ai_command_repo.update_command_approval.assert_called_once()
+
+    uc2 = _use_case(dict(base, status="APPROVED"))
+    assert await uc2.cancel_own_command(str(cmd_id), str(requester_id)) == "invalid"
+
+    stranger = SimpleNamespace(
+        id=uuid.uuid4(), tenant_id=tenant_id, is_active=True
+    )
+    uc3 = _use_case(dict(base))
+    uc3.user_repo.get = AsyncMock(return_value=stranger)
+    uc3.role_repo.get_user_permissions = AsyncMock(return_value=[])
+    assert await uc3.cancel_own_command(str(cmd_id), str(stranger.id)) == "denied"
