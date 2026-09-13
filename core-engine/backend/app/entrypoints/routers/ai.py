@@ -330,9 +330,13 @@ async def search_knowledge(
         return {"query": "", "citations": []}
     limit = int((body or {}).get("limit", 5) or 5)
     limit = max(1, min(limit, 20))
-    hits = await qdrant.search(
-        tenant_id=str(ctx.tenant_id), query=query, limit=limit
-    )
+    try:
+        hits = await qdrant.search(
+            tenant_id=str(ctx.tenant_id), query=query, limit=limit
+        )
+    except Exception as e:
+        logger.warning("Knowledge search thất bại: %s", e)
+        return {"query": query, "citations": [], "warning": f"RAG chưa khả dụng: {e}"}
     return {
         "query": query,
         "citations": [

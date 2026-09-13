@@ -25,25 +25,36 @@ class QdrantAdapter(AbstractVectorDBPort):
     """
 
     def __init__(self, qdrant_client: AsyncQdrantClient | None = None):
-        # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung
+        # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung.
+        # Embedding models được cấu hình LAZY ở lần dùng đầu tiên: __init__
+        # tuyệt đối không raise để 1 RAG hỏng không kéo sập cả /ai/command.
         self.client = qdrant_client or AsyncQdrantClient(url=settings.QDRANT_URL)
-        # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
-        # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small.
-        self.dense_model = "intfloat/multilingual-e5-small"
+        self.dense_model = settings.QDRANT_DENSE_MODEL
         self.sparse_model = "Qdrant/bm25"
         self.collection_name = "knowledge_base"
         self._collection_ensured = False
-
-        # Cấu hình embedding models
-        self.client.set_model(self.dense_model)
-        self.client.set_sparse_model(self.sparse_model)
+        self._models_ensured = False
 
     async def aclose(self) -> None:
         """Đóng kết nối Qdrant client."""
         await self.client.close()
 
+    def _ensure_models(self) -> None:
+        """Cấu hình embedding models (chạy 1 lần, lazy)."""
+        if self._models_ensured:
+            return
+        try:
+            self.client.set_model(self.dense_model)
+            self.client.set_sparse_model(self.sparse_model)
+        except Exception as e:
+            raise QdrantAdapterError(
+                f"Embedding model '{self.dense_model}' không khả dụng: {e}"
+            ) from e
+        self._models_ensured = True
+
     async def _ensure_collection_exists(self):
         """Khởi tạo collection nếu chưa tồn tại"""
+        self._ensure_models()
         if getattr(self, "_collection_ensured", False):
             return
         if not await self.client.collection_exists(self.collection_name):

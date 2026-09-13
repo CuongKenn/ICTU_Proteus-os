@@ -86,7 +86,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   if (!upstream.ok || !upstream.body) {
-    const text = await upstream.text().catch(() => "");
+    let text = "";
+    try {
+      text = await upstream.text();
+    } catch {
+      text = "";
+    }
     return Response.json(
       { error: "Upstream Error", message: text || "Backend trả về response không hợp lệ." },
       { status: upstream.status || 502 }
