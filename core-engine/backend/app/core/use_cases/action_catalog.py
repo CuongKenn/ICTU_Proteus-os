@@ -39,8 +39,7 @@ class CatalogAction:
     description: str
 
 
-CORE_ACTIONS: list[CatalogAction] = [
-    CatalogAction("core.plugins.list", "read", "Liệt kê plugin đã cài của tổ chức."),
+CORE_ACTIONS: list[CatalogAction] = [    CatalogAction("core.plugins.list", "read", "Liệt kê plugin đã cài của tổ chức."),
     CatalogAction(
         "core.plugins.install", "write", "Cài plugin mới (cần tenant_admin)."
     ),
@@ -55,6 +54,15 @@ CORE_ACTIONS: list[CatalogAction] = [
         "core.knowledge.ingest", "write", "Nạp tài liệu mới vào RAG."
     ),
 ]
+
+# Core read actions mở cho MỌI role đã đăng nhập (docs/dsl-spec.md §3.1,
+# clarification §9 RAG Assistant): chỉ đọc dữ liệu tenant mình, không duyệt.
+CORE_PUBLIC_READ_ACTIONS: frozenset[str] = frozenset(
+    {
+        "core.plugins.list",
+        "core.knowledge.search",
+    }
+)
 
 
 def infer_effect(action_id: str) -> str:

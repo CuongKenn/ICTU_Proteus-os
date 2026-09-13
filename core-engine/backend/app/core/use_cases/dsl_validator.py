@@ -109,15 +109,22 @@ class DSLValidator:
                         f"Plugin {db_plugin_code} is not installed or not ACTIVE."
                     )
 
-        # Rule 2: Permission check
-        req_permission = f"{plugin_code}:{resource}:{method}"
-        user_permissions = await self.role_repo.get_user_permissions(
-            uuid.UUID(self.user_id)
-        )
-        if req_permission not in user_permissions:
-            raise DSLPermissionDeniedError(
-                f"User {self.user_id} lacks permission {req_permission}"
+        # Rule 2: Permission check (bỏ qua cho core public read actions:
+        # docs/dsl-spec.md §3.1 "mọi role" — chỉ khi effect khai báo là read).
+        from app.core.use_cases.action_catalog import CORE_PUBLIC_READ_ACTIONS
+
+        if not (
+            action in CORE_PUBLIC_READ_ACTIONS
+            and dsl_payload.get("effect") == "read"
+        ):
+            req_permission = f"{plugin_code}:{resource}:{method}"
+            user_permissions = await self.role_repo.get_user_permissions(
+                uuid.UUID(self.user_id)
             )
+            if req_permission not in user_permissions:
+                raise DSLPermissionDeniedError(
+                    f"User {self.user_id} lacks permission {req_permission}"
+                )
 
         # Rule 4: Parameters JSON Schema
         params = dsl_payload.get("parameters", {})

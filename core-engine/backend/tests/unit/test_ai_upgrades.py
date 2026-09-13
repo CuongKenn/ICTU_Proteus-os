@@ -178,3 +178,44 @@ async def test_conversation_save_delegates():
     tid, uid, sid = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     await use_case.save_turn(tid, uid, sid, "user", "hello")
     repo.append_message.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_validator_public_core_read_needs_no_permission():
+    from app.core.use_cases.dsl_validator import DSLValidator
+
+    v = DSLValidator(
+        plugin_repo=_PluginRepo(),
+        role_repo=_role_repo([]),
+        tenant_id="t1",
+        user_id="12345678-1234-5678-1234-567812345678",
+    )
+    assert await v.validate(
+        {
+            "dsl_version": "1.0",
+            "action": "core.knowledge.search",
+            "effect": "read",
+            "parameters": {"raw_input": "chính sách nghỉ phép?"},
+        }
+    ) is True
+
+
+@pytest.mark.asyncio
+async def test_validator_public_action_write_still_denied():
+    from app.core.use_cases.dsl_validator import DSLPermissionDeniedError, DSLValidator
+
+    v = DSLValidator(
+        plugin_repo=_PluginRepo(),
+        role_repo=_role_repo([]),
+        tenant_id="t1",
+        user_id="12345678-1234-5678-1234-567812345678",
+    )
+    with pytest.raises(DSLPermissionDeniedError):
+        await v.validate(
+            {
+                "dsl_version": "1.0",
+                "action": "core.knowledge.search",
+                "effect": "write",
+                "parameters": {},
+            }
+        )
