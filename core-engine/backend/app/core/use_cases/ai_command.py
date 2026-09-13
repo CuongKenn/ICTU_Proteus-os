@@ -129,17 +129,30 @@ class AICommandUseCase:
             plugins, total = await self.plugin_repo.list_installed(
                 tenant_id=ctx.tenant_id
             )
+            items = [
+                {
+                    "code_name": getattr(p, "code_name", None),
+                    "display_name": getattr(p, "display_name", None),
+                    "status": getattr(getattr(p, "status", None), "value", None)
+                    or str(getattr(p, "status", "")),
+                }
+                for p in plugins
+            ]
+            lines = "\n".join(
+                f"- **{p['display_name'] or p['code_name']}**"
+                + (f" (`{p['code_name']}`)" if p["display_name"] else "")
+                + f" — {p['status']}"
+                for p in items
+            )
             return True, {
                 "total": total,
-                "plugins": [
-                    {
-                        "code_name": getattr(p, "code_name", None),
-                        "display_name": getattr(p, "display_name", None),
-                        "status": getattr(getattr(p, "status", None), "value", None)
-                        or str(getattr(p, "status", "")),
-                    }
-                    for p in plugins
-                ],
+                "plugins": items,
+                # Quy ước hiển thị: ai_command ưu tiên "markdown" cho UI.
+                "markdown": (
+                    f"Tổ chức đang có **{total}** plugin:\n{lines}"
+                    if items
+                    else "Tổ chức chưa cài plugin nào."
+                ),
             }
         if body.action == "core.knowledge.search":
             if self.qdrant_adapter is None:

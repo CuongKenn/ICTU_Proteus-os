@@ -442,6 +442,12 @@ CHỈ trả về JSON, không text thừa:
                     outcomes[0]["result"],
                     {"plan_total": total_hint, "steps": outcomes},
                 )
+            # Việc đơn xong gọn: 1 dòng thay vì liệt kê lại steps.
+            if len(outcomes) == 1 and not thoughts:
+                summary = f"✅ Đã xong `{last['action']}`."
+                overall = AICommandStatus.COMPLETED
+                result: dict[str, Any] = {"plan_total": total_hint, "steps": outcomes}
+                return overall, summary, result
             note = (
                 f" (dừng sau giới hạn vòng lặp, đã xong {len(done)} bước)"
                 if end_reason in ("iters", "timeout")

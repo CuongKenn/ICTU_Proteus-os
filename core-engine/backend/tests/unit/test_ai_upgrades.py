@@ -494,3 +494,70 @@ async def test_chatreply_renders_clean_text():
     assert status == AICommandStatus.COMPLETED
     assert message == "Xin chào bạn!"
     assert result["steps"][0]["result"] == "Xin chào bạn!"
+
+
+@pytest.mark.asyncio
+async def test_plugins_list_returns_markdown():
+    from types import SimpleNamespace as _SN
+    from unittest.mock import MagicMock as _MM
+
+    from app.core.use_cases.ai_command import AICommandDTO
+    from app.core.use_cases.ai_command import (
+        AICommandUseCase as _AICommandUseCase,
+    )
+
+    plugins = [
+        _SN(code_name="hr-module", display_name="HR Core",
+            status=_SN(value="ACTIVE")),
+    ]
+    plugin_repo = _MM()
+    plugin_repo.list_installed = AsyncMock(return_value=(plugins, 1))
+    uc = _AICommandUseCase(
+        plugin_repo=plugin_repo,
+        ai_command_repo=_MM(),
+        dsl_dry_run_repo=_MM(),
+        role_repo=_MM(),
+        mattermost_adapter=_MM(),
+        n8n_adapter=_MM(),
+    )
+    dto = AICommandDTO(
+        command_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        dsl_version="1.0",
+        action="core.plugins.list",
+        effect="read",
+        parameters={},
+    )
+    handled, result = await uc._execute_local_read(
+        dto, _SN(tenant_id=uuid.uuid4())
+    )
+    assert handled is True
+    assert "HR Core" in result["markdown"]
+    assert result["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_single_step_summary_one_liner():
+    from unittest.mock import MagicMock as _MagicMock
+
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
+
+    use_case = AIChatUseCase(
+        llm_port=_MagicMock(), ai_command_use_case=_MagicMock()
+    )
+    outcomes = [
+        {
+            "index": 1,
+            "command_id": str(uuid.uuid4()),
+            "action": "core.plugins.list",
+            "effect": "read",
+            "status": AICommandStatus.COMPLETED.value,
+            "message": "Lệnh đọc dữ liệu đã thực thi thành công.",
+            "result": "danh sách",
+        }
+    ]
+    overall, summary, _ = use_case._summarize(outcomes, 1, [])
+    assert overall == AICommandStatus.COMPLETED
+    assert "core.plugins.list" in summary
+    assert "1." not in summary.split("\n", 1)[0]
