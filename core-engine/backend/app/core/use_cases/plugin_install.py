@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.base import AbstractPluginRepository
+from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import CredentialInput, PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
@@ -93,6 +94,7 @@ class PluginInstallUseCase:
             "metabase": [],
             "appsmith": [],
             "keycloak": [],
+            "db_roles": [],
             "events": [],
             "credentials": [],
         }
@@ -220,10 +222,13 @@ class PluginInstallUseCase:
             await self._persist_steps(context, plugin.id)
             await asyncio.sleep(random.uniform(1.0, 3.0))
 
-            # BƯỚC 5: Keycloak Roles
+            # BƯỚC 5: Keycloak Roles + DB Roles
             self._log_step("keycloak", "RUNNING")
-            roles = await self._step_5_keycloak(context, plugin_code_name, manifest)
-            created_assets["keycloak"] = roles
+            kc_roles, db_roles = await self._step_5_keycloak(
+                context, plugin_code_name, manifest
+            )
+            created_assets["keycloak"] = kc_roles
+            created_assets["db_roles"] = db_roles
             self._log_step("keycloak", "DONE")
             completed_steps.append("keycloak")
             await self._persist_steps(context, plugin.id)
@@ -788,23 +793,52 @@ class PluginInstallUseCase:
 
     async def _step_5_keycloak(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> list[str]:
-        """Tạo Roles trong Keycloak."""
+    ) -> tuple[list[str], list[str]]:
+        """Tạo Roles trong Keycloak + bảng ROLE (PostgreSQL).
+
+        Trả về (keycloak_role_names, db_role_names) để rollback dọn đúng.
+        DB roles dùng tên manifest gốc (VD: hr_manager) — khớp Launchpad filter
+        và API gán role. Idempotent: role đã tồn tại thì bỏ qua.
+        """
         keycloak_realm = "proteus"
         if self.tenant_repo:
             tenant = await self.tenant_repo.get_by_id(context.tenant_id)
             if tenant:
                 keycloak_realm = tenant.keycloak_realm
 
-        created_roles = []
+        kc_roles: list[str] = []
         for role in manifest.roles:
+            kc_name = f"{plugin_code_name}_{role.name}"
             if hasattr(self.keycloak_adapter, "create_role"):
                 await self.keycloak_adapter.create_role(
                     realm=keycloak_realm,
-                    role_name=f"{plugin_code_name}_{role.name}",
+                    role_name=kc_name,
                 )
-                created_roles.append(role.name)
-        return created_roles
+            kc_roles.append(kc_name)
+
+        db_roles: list[str] = []
+        try:
+            role_repo = RoleRepository(self.session)
+            existing = {
+                r.name for r in await role_repo.list_by_tenant(context.tenant_id)
+            }
+            for role in manifest.roles:
+                if role.name in existing:
+                    continue
+                await role_repo.create_role(
+                    {
+                        "tenant_id": context.tenant_id,
+                        "plugin_code_name": plugin_code_name,
+                        "name": role.name,
+                        "display_name": role.display_name,
+                        "description": role.description,
+                        "permissions": list(role.permissions),
+                    }
+                )
+                db_roles.append(role.name)
+        except Exception as e:
+            logger.warning("Không thể tạo DB roles cho %s: %s", plugin_code_name, e)
+        return kc_roles, db_roles
 
     async def _step_6_events(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
@@ -991,6 +1025,28 @@ class PluginInstallUseCase:
                                 realm=keycloak_realm,
                                 role_name=role_name,
                             )
+                    # Dọn DB roles đã tạo ở step 5 (chỉ những role mới tạo,
+                    # không đụng role trùng tên có sẵn từ trước).
+                    try:
+                        role_repo = RoleRepository(self.session)
+                        existing = {
+                            r.name: r
+                            for r in await role_repo.list_by_tenant(context.tenant_id)
+                        }
+                        for role_name in reversed(
+                            created_assets.get("db_roles", [])
+                        ):
+                            role = existing.get(role_name)
+                            if role is not None:
+                                await role_repo.delete_role(
+                                    role.id, context.tenant_id
+                                )
+                    except Exception as e:
+                        logger.warning(
+                            "Rollback không xóa được DB roles của %s: %s",
+                            plugin_code_name,
+                            e,
+                        )
                 elif step == "appsmith":
                     if hasattr(self.appsmith_adapter, "delete_app"):
                         integration_config = None

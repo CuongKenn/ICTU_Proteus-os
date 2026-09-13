@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.local_manifest_parser import LocalManifestParser
 from app.adapters.repositories.base import AbstractPluginRepository
+from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
@@ -748,6 +749,32 @@ class PluginUpgradeUseCase:
                     role_name=f"{plugin_code_name}_{role.name}",
                 )
                 created_roles.append(role.name)
+        # Đồng bộ DB roles (bảng ROLE) để gán được qua API.
+        # Idempotent: role đã tồn tại thì bỏ qua (trường hợp cài bản cũ
+        # chỉ tạo Keycloak roles mà thiếu DB rows).
+        try:
+            if self.session is not None:
+                role_repo = RoleRepository(self.session)
+                existing = {
+                    r.name for r in await role_repo.list_by_tenant(context.tenant_id)
+                }
+                for role in manifest.roles:
+                    if role.name in existing:
+                        continue
+                    await role_repo.create_role(
+                        {
+                            "tenant_id": context.tenant_id,
+                            "plugin_code_name": plugin_code_name,
+                            "name": role.name,
+                            "display_name": role.display_name,
+                            "description": role.description,
+                            "permissions": list(role.permissions),
+                        }
+                    )
+        except Exception as e:
+            logger.warning(
+                "Không thể đồng bộ DB roles cho %s: %s", plugin_code_name, e
+            )
         return created_roles
 
     # ─── Helpers ──────────────────────────────────────────────────────
