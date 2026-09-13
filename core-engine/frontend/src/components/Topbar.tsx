@@ -29,6 +29,20 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem("proteus:sso:chat:done");
+      localStorage.removeItem("proteus:sso:wiki:done");
+      localStorage.removeItem("proteus:sso:apps:done");
+    } catch {
+      // Bỏ qua.
+    }
+    try {
+      // Thu hồi Mattermost sessions trước (best-effort).
+      try {
+        const { default: api } = await import("@/lib/api");
+        await api.post("/v1/auth/logout");
+      } catch {
+        // MM down cũng không chặn logout hệ thống.
+      }
       const res = await fetch("/api/auth/federated-logout");
       const data = await res.json();
       await signOut({ redirect: false });

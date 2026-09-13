@@ -227,18 +227,52 @@ class MattermostAdapter(AbstractChatOpsPort):
         return None
 
     async def create_user(
-        self, email: str, username: str, password: str
+        self,
+        email: str,
+        username: str,
+        password: str,
+        auth_service: str = "gitlab",
+        auth_data: str | None = None,
     ) -> dict[str, Any]:
         """
-        Tạo MM user (login chính vẫn qua SSO Keycloak; password random này
-        chỉ để thỏa mãn API — user không bao giờ dùng trực tiếp).
+        Tạo MM user với auth GitLab SSO (tránh xung đột
+        "already an account with email using other sign-in method" khi user
+        bấm Login with GitLab: user tạo kiểu email/password không SSO được).
+        Mattermost cấm gửi đồng thời password + auth_data nên user SSO
+        không kèm password.
         """
+        body: dict[str, Any] = {
+            "email": email,
+            "username": username,
+        }
+        if auth_service and auth_service != "email":
+            body["auth_service"] = auth_service
+            if auth_data:
+                body["auth_data"] = auth_data
+        else:
+            body["password"] = password
         response = await self._call(
             "POST",
             "/api/v4/users",
-            json={"email": email, "username": username, "password": password},
+            json=body,
         )
         return response.json()
+
+    async def revoke_all_sessions(self, user_id: str) -> bool:
+        """Thu hồi toàn bộ Mattermost sessions của user (dùng khi logout hệ thống).
+
+        Best-effort: user không có session (404) coi như đã logout → True.
+        """
+        try:
+            await self._call(
+                "POST", f"/api/v4/users/{user_id}/sessions/revoke/all", json={}
+            )
+            return True
+        except MattermostAdapterError as e:
+            if "404" in str(e):
+                return True
+            logger.warning("Không revoke được MM sessions của %s: %s", user_id, e)
+            return False
 
     async def get_bot_user_id(self) -> str | None:
         """Lấy user_id của chính bot (qua token). None nếu chưa cấu hình."""
@@ -267,11 +301,19 @@ class MattermostAdapter(AbstractChatOpsPort):
             )
 
     async def ensure_user_in_team_by_email(
-        self, team_id: str, email: str, username: str, password: str
+        self,
+        team_id: str,
+        email: str,
+        username: str,
+        password: str,
+        auth_service: str = "gitlab",
+        auth_data: str | None = None,
     ) -> dict[str, Any]:
         """Đảm bảo MM user tồn tại và nằm trong team (dùng cho invite)."""
         user = await self.get_user_by_email(email)
         if not user:
-            user = await self.create_user(email, username, password)
+            user = await self.create_user(
+                email, username, password, auth_service, auth_data
+            )
         await self.add_user_to_team(team_id, user["id"])
         return user

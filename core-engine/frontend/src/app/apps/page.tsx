@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { AppShell } from "@/components/AppShell";
-import { IframeEmbed } from "@/components/ui/IframeEmbed";
+import { SsoEmbed } from "@/components/ui/SsoEmbed";
 import { AppWindow } from "lucide-react";
 
 export default function AppsPage() {
@@ -11,9 +11,10 @@ export default function AppsPage() {
   return (
     <AppShell>
       {appsUrl ? (
-        <IframeEmbed
-          src={appsUrl}
+        <SsoEmbed
+          baseUrl={appsUrl}
           title="Low-code UI Builder (Appsmith)"
+          storageKey="proteus:sso:apps:done"
         />
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-text-secondary">
