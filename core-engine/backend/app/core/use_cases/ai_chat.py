@@ -10,7 +10,6 @@
 
 import json
 import logging
-import re
 import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncIterator
@@ -43,16 +42,10 @@ MAX_PLAN_STEPS = 4
 MAX_REACT_ITERS = 2
 REACT_TIME_BUDGET_S = 75
 
-# Chào hỏi/cảm ơn/tạm biệt thuần túy (toàn bộ tin nhắn, không kèm nội dung
-# khác) → trả lời ngay, khỏi tốn 1 LLM call mà model nhỏ còn dễ đoán bậy.
-_GREETING_RE = re.compile(
-    r"^(xin\s*chào|chào(\s+(bạn|anh|chị|em|mọi người))?|hello|hi|hey|alo|"
-    r"good\s*(morning|afternoon|evening)|cảm\s*ơn|thanks?|thank\s*you|"
-    r"tạm\s*biệt|bye|tạm\s*biệt\s*nhé?)[\s!.,?…~👋🙏]*$",
-    re.IGNORECASE,
-)
-
-_GREETING_REPLY = (
+# Chitchat và hỏi khả năng do LLM xử lý trực tiếp qua tool core.chat.reply
+# (catalog đã nằm trong prompt) — không fast-path regex để model quyết định.
+# Fallback khi LLM trả về parse không được: chào an toàn, không chạm dữ liệu.
+_FALLBACK_REPLY = (
     "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn tra cứu nhân sự, "
     "nghỉ phép, tri thức nội bộ hoặc thực hiện các tác vụ quản trị "
     "(cần phê duyệt). Bạn cần gì?"
@@ -118,43 +111,30 @@ Danh sách các hành động (action) được hỗ trợ hiện tại:
 {action_list}
 
 Quy tắc effect: "read" cho tra cứu/báo cáo (trả lời ngay), "write" cho thay đổi dữ liệu (cần 1 duyệt), "critical" cho xóa/khóa/chuyển khoản (cần 2 duyệt).
-Chào hỏi, giới thiệu, hỏi "bạn làm được gì", cảm ơn, tạm biệt và mọi câu KHÔNG liên quan nghiệp vụ → dùng "core.chat.reply" với parameters={{"reply": "<câu trả lời tiếng Việt thân thiện"}}. TUYỆT ĐỐI không gọi action nghiệp vụ cho các câu này.
-Nếu câu lệnh nghiệp vụ không nằm trong các hành động trên, hãy dùng "core.chat.reply" để giải thích không làm được và gợi ý việc gần nhất."""
+
+Xử lý hội thoại (dùng "core.chat.reply", parameters.reply TIẾNG VIỆT, xưng "tôi"):
+- Chào/cảm ơn/tạm biệt ("xin chào", "hello", "cảm ơn", "bye"...): chào lại thân thiện + gợi ý 1-2 việc có thể làm.
+- Được hỏi khả năng ("làm được gì", "tính năng", "bạn là ai"...): LIỆT KÊ từ danh sách actions ở trên (nhóm tra cứu / cần phê duyệt), không bịa thêm action.
+- Câu nghiệp vụ không có action phù hợp: giải thích không làm được + gợi ý việc gần nhất.
+TUYỆT ĐỐI không gọi action nghiệp vụ cho các câu trên.
+
+Ví dụ:
+- Input "xin chào" → {{"action": "core.chat.reply", "effect": "read", "parameters": {{"reply": "Xin chào! Tôi là Proteus AI, trợ lý điều hành của tổ chức bạn. Tôi tra cứu nhân sự, nghỉ phép, tri thức nội bộ hoặc thực hiện tác vụ cần phê duyệt. Bạn cần gì?"}}, "approval_message": null}}
+- Input "mày làm được gì" → {{"action": "core.chat.reply", "effect": "read", "parameters": {{"reply": "Tôi có thể giúp bạn:\n🔍 Tra cứu, báo cáo (trả lời ngay): liệt kê plugin, tìm nhân sự, tra tri thức nội bộ...\n⚙️ Thực hiện (cần bạn phê duyệt): duyệt nghỉ phép, cài plugin...\nCứ hỏi cụ thể bằng tiếng Việt nhé!"}}, "approval_message": null}}"""
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_text},
         ]
 
-    def _greeting_plan(self, dto: AIChatDTO) -> list[AICommandDTO] | None:
-        """Trả về plan chào hỏi 1 step nếu input chỉ là chào/cảm ơn/tạm biệt."""
-        if _GREETING_RE.match(dto.natural_language_input.strip()):
-            return [
-                AICommandDTO(
-                    command_id=uuid.uuid4(),
-                    session_id=dto.session_id,
-                    dsl_version="1.0",
-                    action="core.chat.reply",
-                    effect="read",
-                    parameters={"reply": _GREETING_REPLY},
-                    approval_message=None,
-                )
-            ]
-        return None
-
     def _single_fallback(self, dto: AIChatDTO) -> AICommandDTO:
+        """Safety net khi LLM trả về parse không được (không phải fast-path)."""
         return AICommandDTO(
             command_id=uuid.uuid4(),
             session_id=dto.session_id,
             dsl_version="1.0",
             action="core.chat.reply",
             effect="read",
-            parameters={
-                "reply": (
-                    "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn tra cứu "
-                    "nhân sự, nghỉ phép, tri thức nội bộ hoặc thực hiện các tác vụ "
-                    "quản trị (cần phê duyệt). Bạn cần gì?"
-                )
-            },
+            parameters={"reply": _FALLBACK_REPLY},
             approval_message=None,
         )
 
@@ -555,15 +535,13 @@ CHỈ trả về JSON, không text thừa:
         logger.info(f"Sending natural language to LLM: {dto.natural_language_input}")
 
         try:
-            greeting = self._greeting_plan(dto)
-            if greeting is not None:
-                plan = greeting
+            # Mọi input đều qua LLM (kể cả chào hỏi — prompt đã dạy tool
+            # core.chat.reply). Chỉ parse-rớt mới dùng fallback an toàn.
+            if hasattr(self.llm_port, "ainvoke_json"):
+                llm_response = await self.llm_port.ainvoke_json(messages)
             else:
-                if hasattr(self.llm_port, "ainvoke_json"):
-                    llm_response = await self.llm_port.ainvoke_json(messages)
-                else:
-                    llm_response = await self.llm_port.ainvoke(messages)
-                plan = self._parse_plan(llm_response.content, dto)
+                llm_response = await self.llm_port.ainvoke(messages)
+            plan = self._parse_plan(llm_response.content, dto)
             await self._persist_turn(
                 ctx, dto.session_id, "user", dto.natural_language_input
             )
@@ -591,46 +569,35 @@ CHỈ trả về JSON, không text thừa:
             }
             return
         messages = await self._build_messages(ctx, dto.natural_language_input)
-        greeting = self._greeting_plan(dto)
-        if greeting is not None:
-            command_dtos = greeting
+        full_text: list[str] = []
+        try:
+            if hasattr(self.llm_port, "astream"):
+                async for delta in self.llm_port.astream(messages):
+                    if delta:
+                        full_text.append(delta)
+                        yield {"event": "token", "delta": delta}
+                content = "".join(full_text)
+            elif hasattr(self.llm_port, "ainvoke_json"):
+                content = (await self.llm_port.ainvoke_json(messages)).content
+            else:
+                content = (await self.llm_port.ainvoke(messages)).content
+        except Exception as e:
+            logger.error(f"LLM stream error: {e}")
             yield {
-                "event": "plan",
-                "total": len(command_dtos),
-                "steps": [
-                    {"action": c.action, "effect": c.effect} for c in command_dtos
-                ],
+                "event": "result",
+                "status": AICommandStatus.FAILED.value,
+                "message": f"Lỗi hệ thống: {e}",
+                "result": {"detail": str(e)},
             }
-        else:
-            full_text: list[str] = []
-            try:
-                if hasattr(self.llm_port, "astream"):
-                    async for delta in self.llm_port.astream(messages):
-                        if delta:
-                            full_text.append(delta)
-                            yield {"event": "token", "delta": delta}
-                    content = "".join(full_text)
-                elif hasattr(self.llm_port, "ainvoke_json"):
-                    content = (await self.llm_port.ainvoke_json(messages)).content
-                else:
-                    content = (await self.llm_port.ainvoke(messages)).content
-            except Exception as e:
-                logger.error(f"LLM stream error: {e}")
-                yield {
-                    "event": "result",
-                    "status": AICommandStatus.FAILED.value,
-                    "message": f"Lỗi hệ thống: {e}",
-                    "result": {"detail": str(e)},
-                }
-                return
-            command_dtos = self._parse_plan(content, dto)
-            yield {
-                "event": "plan",
-                "total": len(command_dtos),
-                "steps": [
-                    {"action": c.action, "effect": c.effect} for c in command_dtos
-                ],
-            }
+            return
+        command_dtos = self._parse_plan(content, dto)
+        yield {
+            "event": "plan",
+            "total": len(command_dtos),
+            "steps": [
+                {"action": c.action, "effect": c.effect} for c in command_dtos
+            ],
+        }
         await self._persist_turn(
             ctx, dto.session_id, "user", dto.natural_language_input
         )

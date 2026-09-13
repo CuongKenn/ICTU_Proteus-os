@@ -318,22 +318,32 @@ async def test_run_plan_all_completed():
 
 
 @pytest.mark.asyncio
-async def test_greeting_plan_skips_llm():
+async def test_prompt_teaches_chitchat_via_llm():
+    """Chitchat do LLM xử lý (không fast-path regex): prompt phải dạy tool
+    core.chat.reply + ví dụ chào hỏi và hỏi khả năng."""
     from app.core.use_cases.ai_chat import AIChatDTO
 
-    use_case, cmds = _chat_case()
-    for text in ["xin chào", "Hello!", "  Chào bạn  ", "cảm ơn", "tạm biệt nhé"]:
-        dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input=text)
-        plan = use_case._greeting_plan(dto)
-        assert plan is not None and len(plan) == 1
-        assert plan[0].action == "core.chat.reply"
-    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="duyệt đơn nghỉ phép")
-    assert use_case._greeting_plan(dto) is None
-    dto = AIChatDTO(
-        session_id=uuid.uuid4(),
-        natural_language_input="chào, cho tôi xem đơn nghỉ phép",
+    use_case, _ = _chat_case()
+    use_case.plugin_repo = None
+    use_case.manifest_parser = None
+    messages = await use_case._build_messages(
+        {"tenant_id": "t", "user_id": "u"}, "xin chào"
     )
-    assert use_case._greeting_plan(dto) is None
+    system = messages[0]["content"]
+    assert "core.chat.reply" in system
+    assert "xin chào" in system  # ví dụ few-shot chào hỏi
+    assert "làm được gì" in system  # ví dụ hỏi khả năng
+
+
+@pytest.mark.asyncio
+async def test_fallback_is_safe_reply():
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, _ = _chat_case()
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="???")
+    fallback = use_case._single_fallback(dto)
+    assert fallback.action == "core.chat.reply"
+    assert fallback.effect == "read"
 
 
 @pytest.mark.asyncio
@@ -448,3 +458,14 @@ async def test_react_parse_variants():
     assert finish is True and nxt is None
     thought, nxt, finish = use_case._parse_react("rác không json")
     assert finish is True and nxt is None
+
+
+@pytest.mark.asyncio
+async def test_no_regex_fast_paths():
+    """Không còn fast-path regex: mọi input đều qua LLM."""
+    import app.core.use_cases.ai_chat as mod
+
+    assert not hasattr(mod.AIChatUseCase, "_greeting_plan")
+    assert not hasattr(mod.AIChatUseCase, "_direct_plan")
+    assert not hasattr(mod, "_GREETING_RE")
+    assert not hasattr(mod, "_CAPABILITY_RE")
