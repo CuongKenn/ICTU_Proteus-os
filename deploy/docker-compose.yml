@@ -225,7 +225,7 @@ services:
     networks:
       - proteus-net
     command: >
-      sh -c "echo 'Fetching llama3...' && curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"llama3\"}' && echo 'Done!'"
+      sh -c "echo 'Fetching qwen3:8b...' && curl -X POST http://ollama:11434/api/pull -d '{"name": "qwen3:8b"}' && echo 'Done!'"
     labels:
       - "proteus.log=true"
 
@@ -507,7 +507,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ALLOWED_ORIGINS: '["${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}","http://localhost:3000"]'
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
-      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-llama3}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-qwen3:8b}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN}${PUBLIC_URL_SUFFIX}
       METABASE_INTERNAL_URL: http://metabase:3000
