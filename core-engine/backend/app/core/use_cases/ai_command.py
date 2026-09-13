@@ -483,7 +483,10 @@ class AICommandUseCase:
     async def _approver_allowed(self, cmd: dict, approver) -> tuple[bool, str]:
         """Policy duyệt lệnh: đúng người trong tenant + có quyền +
         không tự duyệt + critical cần 2 người khác nhau."""
-        from app.core.domain.permissions import has_admin_role
+        from app.core.domain.permissions import (
+            has_admin_role,
+            has_wildcard_permission,
+        )
 
         if approver is None:
             return False, "không xác định được người duyệt trong tổ chức"
@@ -492,7 +495,9 @@ class AICommandUseCase:
             parts = action.split(".")
             perms = await self.role_repo.get_user_permissions(approver.id)
             perms = [str(p) for p in perms or []]
-            if len(parts) == 2 and all(parts):
+            if has_wildcard_permission(perms):
+                pass
+            elif len(parts) == 2 and all(parts):
                 if not any(p.startswith(f"{parts[0]}:") for p in perms):
                     return False, f"thiếu quyền '{parts[0]}:*'"
             elif len(parts) >= 3:

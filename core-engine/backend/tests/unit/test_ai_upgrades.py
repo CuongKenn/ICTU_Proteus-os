@@ -605,3 +605,29 @@ async def test_conversation_rejects_unknown_user():
     repo = ConversationRepository(session)
     with pytest.raises(ValueError):
         await repo.ensure_session(uuid.uuid4(), uuid.uuid4(), None)
+
+
+@pytest.mark.asyncio
+async def test_approver_wildcard_permission_allowed():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from app.core.use_cases.ai_command import AICommandUseCase
+
+    use_case = AICommandUseCase(
+        plugin_repo=MagicMock(),
+        ai_command_repo=MagicMock(),
+        dsl_dry_run_repo=MagicMock(),
+        role_repo=MagicMock(),
+        mattermost_adapter=MagicMock(),
+        n8n_adapter=MagicMock(),
+    )
+    use_case.role_repo.get_user_permissions = AsyncMock(return_value=["*"])
+    approver = SimpleNamespace(
+        id=uuid.uuid4(), tenant_id=uuid.uuid4(), roles=["general_manager"],
+        is_active=True,
+    )
+    cmd = {"action": "hr.wf_leave_request", "effect": "write",
+           "issued_by_user_id": str(uuid.uuid4())}
+    allowed, reason = await use_case._approver_allowed(cmd, approver)
+    assert allowed is True, reason
