@@ -443,6 +443,7 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
     # SiteURL lấy từ MM_SERVICESETTINGS_SITEURL trong compose (theo URL_SUFFIX).
     curl $CURL_K -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
     jq '.ServiceSettings.EnableUserAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true |
+        .ServiceSettings.AllowedUntrustedInternalConnections = "proteus-backend" |
         .GitLabSettings.Enable = true |
         .GitLabSettings.Secret = "mattermost-secret" |
         .GitLabSettings.Id = "mattermost" |
