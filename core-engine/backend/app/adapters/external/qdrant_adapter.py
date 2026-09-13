@@ -34,23 +34,47 @@ class QdrantAdapter(AbstractVectorDBPort):
         self.collection_name = "knowledge_base"
         self._collection_ensured = False
         self._models_ensured = False
+        self._hybrid = False
+        self._embedder = None
 
     async def aclose(self) -> None:
         """Đóng kết nối Qdrant client."""
         await self.client.close()
 
     def _ensure_models(self) -> None:
-        """Cấu hình embedding models (chạy 1 lần, lazy)."""
+        """Cấu hình embedding models (chạy 1 lần, lazy).
+
+        Dense là bắt buộc. Sparse (BM25/SPLADE) là tùy chọn: môi trường
+        thiếu thì fallback dense-only thay vì sập cả RAG.
+        """
         if self._models_ensured:
             return
         try:
             self.client.set_model(self.dense_model)
-            self.client.set_sparse_model(self.sparse_model)
         except Exception as e:
             raise QdrantAdapterError(
                 f"Embedding model '{self.dense_model}' không khả dụng: {e}"
             ) from e
+        self._hybrid = False
+        try:
+            self.client.set_sparse_model(self.sparse_model)
+            self._hybrid = True
+        except Exception as e:
+            logger.warning(
+                "Sparse model '%s' không khả dụng, dùng dense-only: %s",
+                self.sparse_model,
+                e,
+            )
         self._models_ensured = True
+
+    def _dense_vector(self, text: str) -> list[float]:
+        """Embed 1 câu query bằng dense model (dùng khi dense-only)."""
+        if self._embedder is None:
+            from fastembed import TextEmbedding
+
+            self._embedder = TextEmbedding(self.dense_model)
+        vec = next(iter(self._embedder.embed([text])))
+        return vec.tolist() if hasattr(vec, "tolist") else list(vec)
 
     async def _ensure_collection_exists(self):
         """Khởi tạo collection nếu chưa tồn tại"""
@@ -60,12 +84,18 @@ class QdrantAdapter(AbstractVectorDBPort):
         if not await self.client.collection_exists(self.collection_name):
             logger.info("Creating Qdrant collection: %s", self.collection_name)
             # recreate_collection sẽ tạo collection với cấu hình embedding hiện tại
-            # từ fastembed model đã set.
-            await self.client.recreate_collection(
-                collection_name=self.collection_name,
-                vectors_config=self.client.get_fastembed_vector_params(),
-                sparse_vectors_config=self.client.get_fastembed_sparse_vector_params(),
-            )
+            # từ fastembed model đã set (hybrid hoặc dense-only tùy môi trường).
+            if self._hybrid:
+                await self.client.recreate_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=self.client.get_fastembed_vector_params(),
+                    sparse_vectors_config=self.client.get_fastembed_sparse_vector_params(),
+                )
+            else:
+                await self.client.recreate_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=self.client.get_fastembed_vector_params(),
+                )
         self._collection_ensured = True
 
     async def upsert_vectors(
@@ -118,25 +148,44 @@ class QdrantAdapter(AbstractVectorDBPort):
 
             tenant_filter = Filter(must=must_conditions)
 
-            # query method của fastembed client hỗ trợ query_text và hybrid RRF
-            results = await self.client.query(
-                collection_name=self.collection_name,
-                query_text=query,
-                query_filter=tenant_filter,
-                limit=limit,
-            )
-
-            # Format kết quả
-            formatted_results = []
-            for hit in results:
-                formatted_results.append(
-                    {
-                        "id": hit.id,
-                        "score": hit.score,
-                        "document": hit.document,
-                        "metadata": hit.metadata,
-                    }
+            # Hybrid (Dense+BM25) khi đủ models, ngược lại dense-only.
+            if self._hybrid:
+                # query method của fastembed client hỗ trợ query_text và hybrid RRF
+                results = await self.client.query(
+                    collection_name=self.collection_name,
+                    query_text=query,
+                    query_filter=tenant_filter,
+                    limit=limit,
                 )
+                formatted_results = []
+                for hit in results:
+                    formatted_results.append(
+                        {
+                            "id": hit.id,
+                            "score": hit.score,
+                            "document": hit.document,
+                            "metadata": hit.metadata,
+                        }
+                    )
+            else:
+                points = await self.client.search(
+                    collection_name=self.collection_name,
+                    query_vector=self._dense_vector(query),
+                    query_filter=tenant_filter,
+                    limit=limit,
+                    with_payload=True,
+                )
+                formatted_results = []
+                for hit in points:
+                    payload = dict(hit.payload or {})
+                    formatted_results.append(
+                        {
+                            "id": hit.id,
+                            "score": hit.score,
+                            "document": payload.pop("document", None),
+                            "metadata": payload,
+                        }
+                    )
 
             return formatted_results
         except Exception as e:
