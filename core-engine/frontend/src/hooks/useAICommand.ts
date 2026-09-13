@@ -123,10 +123,14 @@ export interface DslPreview {
           if (!msgRes.ok) return;
           const items = await msgRes.json();
           if (cancelled || !Array.isArray(items) || items.length === 0) return;
+          const clean = items.filter(
+            (m: any) => m && typeof m.content === "string" && m.content.length > 0
+          );
+          if (cancelled || clean.length === 0) return;
           setMessages(
-            items.map((m: any) => ({
-              id: m.id || uuid(),
-              role: m.role,
+            clean.map((m: any) => ({
+              id: typeof m.id === "string" ? m.id : uuid(),
+              role: m.role === "user" || m.role === "system" ? m.role : "assistant",
               content: m.content,
               timestamp: m.created_at ? new Date(m.created_at) : new Date(),
             }))
