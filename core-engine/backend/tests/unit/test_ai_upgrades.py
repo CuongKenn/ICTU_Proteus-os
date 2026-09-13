@@ -315,3 +315,43 @@ async def test_run_plan_all_completed():
     assert status == AICommandStatus.COMPLETED
     assert cmds.execute.call_count == 2
     assert len(result["steps"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_greeting_plan_skips_llm():
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, cmds = _chat_case()
+    for text in ["xin chào", "Hello!", "  Chào bạn  ", "cảm ơn", "tạm biệt nhé"]:
+        dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input=text)
+        plan = use_case._greeting_plan(dto)
+        assert plan is not None and len(plan) == 1
+        assert plan[0].action == "core.chat.reply"
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="duyệt đơn nghỉ phép")
+    assert use_case._greeting_plan(dto) is None
+    dto = AIChatDTO(
+        session_id=uuid.uuid4(),
+        natural_language_input="chào, cho tôi xem đơn nghỉ phép",
+    )
+    assert use_case._greeting_plan(dto) is None
+
+
+@pytest.mark.asyncio
+async def test_chat_reply_public_and_local():
+    from app.core.use_cases.ai_command import AICommandDTO
+    from app.core.use_cases.dsl_validator import DSLValidator
+
+    v = DSLValidator(
+        plugin_repo=_PluginRepo(),
+        role_repo=_role_repo([]),
+        tenant_id="t1",
+        user_id="12345678-1234-5678-1234-567812345678",
+    )
+    assert await v.validate(
+        {
+            "dsl_version": "1.0",
+            "action": "core.chat.reply",
+            "effect": "read",
+            "parameters": {"reply": "chào bạn"},
+        }
+    ) is True

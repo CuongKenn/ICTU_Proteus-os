@@ -39,7 +39,13 @@ class CatalogAction:
     description: str
 
 
-CORE_ACTIONS: list[CatalogAction] = [    CatalogAction("core.plugins.list", "read", "Liệt kê plugin đã cài của tổ chức."),
+CORE_ACTIONS: list[CatalogAction] = [
+    CatalogAction(
+        "core.chat.reply",
+        "read",
+        "Trả lời chào hỏi / câu chuyện ngoài nghiệp vụ. Không chạm dữ liệu.",
+    ),
+    CatalogAction("core.plugins.list", "read", "Liệt kê plugin đã cài của tổ chức."),
     CatalogAction(
         "core.plugins.install", "write", "Cài plugin mới (cần tenant_admin)."
     ),
@@ -59,6 +65,7 @@ CORE_ACTIONS: list[CatalogAction] = [    CatalogAction("core.plugins.list", "rea
 # clarification §9 RAG Assistant): chỉ đọc dữ liệu tenant mình, không duyệt.
 CORE_PUBLIC_READ_ACTIONS: frozenset[str] = frozenset(
     {
+        "core.chat.reply",
         "core.plugins.list",
         "core.knowledge.search",
     }
