@@ -38,6 +38,11 @@ class AIChatDTO:
 # Plan dài dễ ảo giác → giới hạn steps, validate từng step như lệnh đơn.
 MAX_PLAN_STEPS = 4
 
+# P1 ReAct: số vòng nghĩ-lại tối đa SAU step mồi (mỗi vòng = 1 LLM call).
+# Tổng ≤ 1 (plan) + MAX_REACT_ITERS calls để vừa timeout BFF (120-180s).
+MAX_REACT_ITERS = 2
+REACT_TIME_BUDGET_S = 75
+
 # Chào hỏi/cảm ơn/tạm biệt thuần túy (toàn bộ tin nhắn, không kèm nội dung
 # khác) → trả lời ngay, khỏi tốn 1 LLM call mà model nhỏ còn dễ đoán bậy.
 _GREETING_RE = re.compile(
@@ -232,6 +237,246 @@ Nếu câu lệnh nghiệp vụ không nằm trong các hành động trên, hã
         except Exception as e:
             logger.warning("Persist memory thất bại (best-effort): %s", e)
 
+    def _parse_react(self, content: str) -> tuple[str, dict | None, bool]:
+        """Parse 1 vòng ReAct → (thought, next_action_dict|None, finish).
+
+        Chấp nhận {thought, next_action} | {thought, finish:true} |
+        legacy {action,...} (1 action rồi dừng). Parse rớt → (thought, None, True).
+        """
+        try:
+            parsed = json.loads(extract_json_object(content.strip()))
+        except (ValueError, json.JSONDecodeError):
+            logger.warning("ReAct output không parse được, dừng loop.")
+            return "", None, True
+        if not isinstance(parsed, dict):
+            return "", None, True
+        thought = str(parsed.get("thought", ""))[:500]
+        if parsed.get("finish"):
+            return thought, None, True
+        raw = parsed.get("next_action")
+        if isinstance(raw, dict) and raw.get("action"):
+            return thought, raw, False
+        if parsed.get("action"):
+            return thought, parsed, True
+        return thought, None, True
+
+    async def _react_messages(
+        self,
+        ctx: Any,
+        goal: str,
+        done: list[dict[str, Any]],
+        suggestion: list[AICommandDTO],
+    ) -> list[dict[str, str]]:
+        """Prompt 1 vòng ReAct: mục tiêu + đã làm + gợi ý + tools."""
+        try:
+            tenant_id = ctx.get("tenant_id") if isinstance(ctx, dict) else getattr(
+                ctx, "tenant_id", None
+            )
+            catalog = await build_catalog_for_tenant(
+                self.plugin_repo, self.manifest_parser, tenant_id
+            )
+        except Exception as e:
+            logger.warning("Không dựng được catalog động, dùng fallback: %s", e)
+            catalog = []
+        action_list = (
+            render_for_prompt(catalog, limit=40)
+            if catalog
+            else FALLBACK_PROMPT_ACTIONS
+        )
+
+        def _obs_text(o: dict[str, Any]) -> str:
+            base = f"{o['status']}: {o['message']}"
+            res = o.get("result")
+            if o["status"] == AICommandStatus.COMPLETED.value and res:
+                try:
+                    return base + " | KQ: " + json.dumps(res, default=str)[:500]
+                except Exception:
+                    return base
+            return base
+
+        done_lines = "\n".join(
+            f"{o['index']}. `{o['action']}` — {_obs_text(o)}" for o in done
+        ) or "(chưa làm gì)"
+        sugg_lines = "\n".join(
+            f"- `{s.action}` ({s.effect})" for s in suggestion
+        ) or "(hết gợi ý — tự quyết định bước tiếp hoặc kết thúc)"
+        system = f"""Bạn là Proteus AI đang thực hiện mục tiêu: {goal}
+
+Đã làm xong:
+{done_lines}
+
+Gợi ý plan ban đầu còn lại:
+{sugg_lines}
+
+Tools khả dụng:
+{action_list}
+
+Quy tắc effect: read (trả lời ngay), write (1 duyệt), critical (2 duyệt).
+Chào hỏi/linh tinh → dùng "core.chat.reply".
+CHỈ trả về JSON, không text thừa:
+- Còn việc cần làm: {{"thought": "<suy luận ngắn gọn vì sao chọn bước này>", "next_action": {{"action": "...", "effect": "...", "parameters": {{"raw_input": "{goal}"}}, "approval_message": "..."}}}}
+- Xong hoặc không làm thêm được: {{"thought": "<lý do>", "finish": true}}"""
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"Tiếp tục mục tiêu: {goal}"},
+        ]
+
+    async def _llm_text(self, messages: list[dict[str, str]]) -> str:
+        if hasattr(self.llm_port, "ainvoke_json"):
+            return (await self.llm_port.ainvoke_json(messages)).content
+        return (await self.llm_port.ainvoke(messages)).content
+
+    async def _run_react(
+        self,
+        seed_plan: list[AICommandDTO],
+        dto: AIChatDTO,
+        ctx: Any,
+        on_event=None,
+    ) -> tuple[AICommandStatus, str, dict]:
+        """ReAct in-turn: step mồi chạy ngay, các bước sau do LLM quyết định.
+
+        Dừng khi: finish / hết gợi ý+không đề xuất / PENDING (chờ duyệt) /
+        FAILED sau khi đã cho LLM cứu 1 lần / hết vòng / hết budget.
+        on_event(type, payload) nhận 'thought' | 'step' (cho SSE).
+        """
+        import time as _time
+
+        async def _emit(etype: str, payload: dict[str, Any]) -> None:
+            if on_event is None:
+                return
+            maybe = on_event(etype, payload)
+            if hasattr(maybe, "__await__"):
+                await maybe
+
+        outcomes: list[dict[str, Any]] = []
+        thoughts: list[str] = []
+        total_hint = len(seed_plan)
+        t0 = _time.monotonic()
+
+        async def _do_step(index: int, step: AICommandDTO):
+            params = dict(step.parameters or {})
+            params["_plan"] = {"index": index, "total": total_hint, "react": True}
+            step.parameters = params
+            status, message, result = await self.ai_command_use_case.execute(
+                step, ctx
+            )
+            outcomes.append(
+                {
+                    "index": index,
+                    "command_id": str(step.command_id),
+                    "action": step.action,
+                    "effect": step.effect,
+                    "status": status.value,
+                    "message": message,
+                    "result": result,
+                }
+            )
+            await _emit(
+                "step",
+                {
+                    "index": index,
+                    "command_id": str(step.command_id),
+                    "action": step.action,
+                    "status": status.value,
+                    "message": message,
+                },
+            )
+            return status
+
+        # Step mồi: chạy ngay không tốn thêm LLM call.
+        first, rest = seed_plan[0], seed_plan[1:]
+        first_status = await _do_step(1, first)
+        if first_status == AICommandStatus.PENDING_APPROVAL:
+            # Dừng chờ duyệt: step sau có thể phụ thuộc mutation chưa duyệt.
+            return self._summarize(outcomes, total_hint, thoughts)
+        if first_status == AICommandStatus.COMPLETED and not rest:
+            # Việc đơn xong ngay: khỏi tốn thêm vòng ReAct.
+            return self._summarize(outcomes, total_hint, thoughts)
+        # FAILED hoặc còn gợi ý: vào loop cho LLM cứu/tiếp tục (giới hạn vòng).
+
+        suggestion = list(rest)
+        end_reason = "finish"
+        for _ in range(MAX_REACT_ITERS):
+            if _time.monotonic() - t0 > REACT_TIME_BUDGET_S:
+                logger.warning("ReAct hết budget thời gian, dừng.")
+                end_reason = "timeout"
+                break
+            try:
+                react_msgs = await self._react_messages(
+                    ctx, dto.natural_language_input, outcomes, suggestion
+                )
+                thought, raw_next, finish = self._parse_react(
+                    await self._llm_text(react_msgs)
+                )
+            except Exception as e:
+                logger.error("ReAct LLM error: %s", e)
+                break
+            if thought:
+                thoughts.append(thought)
+                await _emit("thought", {"text": thought})
+            if finish or raw_next is None:
+                break
+            nxt = self._step_from_dict(raw_next, dto)
+            if nxt is None:
+                break
+            suggestion = []
+            st = await _do_step(len(outcomes) + 1, nxt)
+            if st == AICommandStatus.PENDING_APPROVAL:
+                break
+            # FAILED: cho LLM 1 cơ hội cứu ở vòng sau (obs đã ghi) —
+            # vòng lặp tự kết thúc nhờ MAX_REACT_ITERS.
+        else:
+            end_reason = "iters"
+        return self._summarize(outcomes, total_hint, thoughts, end_reason)
+
+    def _summarize(
+        self,
+        outcomes: list[dict[str, Any]],
+        total_hint: int,
+        thoughts: list[str] | None = None,
+        end_reason: str = "done",
+    ) -> tuple[AICommandStatus, str, dict]:
+        """Kết luận 1 turn: COMPLETED nếu bước cuối xong (kèm note khi dừng
+        do giới hạn vòng/thời gian), PENDING nếu chờ duyệt, FAILED nếu lỗi."""
+        done = [o for o in outcomes if o["status"] == AICommandStatus.COMPLETED.value]
+        last = outcomes[-1]
+        lines = [
+            f"{o['index']}. `{o['action']}` — {o['status']}: {o['message']}"
+            for o in outcomes
+        ]
+        thought_block = ""
+        if thoughts:
+            thought_block = "\n\n💭 Suy luận:\n" + "\n".join(
+                f"- {t[:200]}" for t in thoughts[:3]
+            )
+        if last["status"] == AICommandStatus.COMPLETED.value:
+            note = (
+                f" (dừng sau giới hạn vòng lặp, đã xong {len(done)} bước)"
+                if end_reason in ("iters", "timeout")
+                else ""
+            )
+            summary = f"✅ Hoàn thành ({len(outcomes)} bước){note}:\n" + "\n".join(
+                lines
+            )
+            overall = AICommandStatus.COMPLETED
+        elif last["status"] == AICommandStatus.PENDING_APPROVAL.value:
+            summary = (
+                f"⏳ Xong {len(done)} bước, dừng ở bước {last['index']} "
+                f"(`{last['action']}`): chờ phê duyệt trên Mattermost.\n"
+                + "\n".join(lines)
+            )
+            overall = AICommandStatus.PENDING_APPROVAL
+        else:
+            summary = (
+                f"❌ Dừng ở bước {last['index']} "
+                f"(`{last['action']}`): {last['message']}\n" + "\n".join(lines)
+            )
+            overall = AICommandStatus.FAILED
+        result: dict[str, Any] = {"plan_total": total_hint, "steps": outcomes}
+        if thoughts:
+            result["thoughts"] = thoughts
+        return overall, summary + thought_block, result
+
     async def _run_plan(
         self,
         plan: list[AICommandDTO],
@@ -322,7 +567,7 @@ Nếu câu lệnh nghiệp vụ không nằm trong các hành động trên, hã
             await self._persist_turn(
                 ctx, dto.session_id, "user", dto.natural_language_input
             )
-            status, message, result = await self._run_plan(plan, dto, ctx)
+            status, message, result = await self._run_react(plan, dto, ctx)
             first_cmd = plan[0].command_id if plan else None
             await self._persist_turn(
                 ctx, dto.session_id, "assistant", message, first_cmd
@@ -391,20 +636,15 @@ Nếu câu lệnh nghiệp vụ không nằm trong các hành động trên, hã
         )
         step_events: list[dict[str, Any]] = []
 
-        async def _emit(i: int, step: AICommandDTO, status, message: str) -> None:
-            step_events.append(
-                {
-                    "index": i + 1,
-                    "command_id": str(step.command_id),
-                    "action": step.action,
-                    "status": status.value,
-                    "message": message,
-                }
-            )
+        async def _emit(etype: str, payload: dict[str, Any]) -> None:
+            if etype == "thought":
+                step_events.append({"thought": True, **payload})
+            else:
+                step_events.append(payload)
 
         try:
-            overall, message, result = await self._run_plan(
-                command_dtos, dto, ctx, on_step=_emit
+            overall, message, result = await self._run_react(
+                command_dtos, dto, ctx, on_event=_emit
             )
         except Exception as e:
             logger.error(f"Error in AIChatUseCase stream: {e}")
@@ -414,7 +654,7 @@ Nếu câu lệnh nghiệp vụ không nằm trong các hành động trên, hã
                 {"detail": str(e)},
             )
         for se in step_events:
-            yield {"event": "step", **se}
+            yield {"event": "thought" if se.pop("thought", False) else "step", **se}
         first_cmd = command_dtos[0].command_id if command_dtos else None
         await self._persist_turn(
             ctx, dto.session_id, "assistant", message, first_cmd

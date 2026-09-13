@@ -355,3 +355,96 @@ async def test_chat_reply_public_and_local():
             "parameters": {"reply": "chào bạn"},
         }
     ) is True
+
+
+def _react_case(first_status, react_script):
+    """LLM plan 2 steps + script các vòng ReAct tiếp theo."""
+    from unittest.mock import MagicMock
+
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
+
+    llm = MagicMock()
+    llm.ainvoke_json = AsyncMock(
+        side_effect=[
+            SimpleNamespace(content=s) for s in react_script
+        ]
+    )
+    cmds = MagicMock()
+    use_case = AIChatUseCase(llm_port=llm, ai_command_use_case=cmds)
+    return use_case, cmds
+
+
+@pytest.mark.asyncio
+async def test_react_single_step_no_extra_llm():
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, cmds = _chat_case()
+    cmds.execute = AsyncMock(return_value=(AICommandStatus.COMPLETED, "ok", {}))
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="tra cứu")
+    seed = use_case._parse_plan(
+        '{"action": "hr.a", "effect": "read", "parameters": {}}', dto
+    )
+    status, _, result = await use_case._run_react(seed, dto, {"tenant_id": "t"})
+    assert status == AICommandStatus.COMPLETED
+    assert cmds.execute.call_count == 1
+    assert len(result["steps"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_react_repairs_failed_step():
+    import json as _json
+
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, cmds = _react_case(
+        None,
+        [
+            _json.dumps(
+                {
+                    "thought": "bước 1 lỗi, thử action khác",
+                    "next_action": {
+                        "action": "hr.c",
+                        "effect": "read",
+                        "parameters": {},
+                    },
+                }
+            ),
+            _json.dumps({"thought": "xong", "finish": True}),
+        ],
+    )
+    cmds.execute = AsyncMock(
+        side_effect=[
+            (AICommandStatus.FAILED, "lỗi", None),
+            (AICommandStatus.COMPLETED, "ok cứu", {"r": 1}),
+        ]
+    )
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="việc khó")
+    seed = use_case._parse_plan(
+        '{"goal": "g", "steps": ['
+        '{"action": "hr.a", "effect": "read", "parameters": {}},'
+        '{"action": "hr.b", "effect": "read", "parameters": {}}]}',
+        dto,
+    )
+    status, message, result = await use_case._run_react(seed, dto, {"tenant_id": "t"})
+    assert status == AICommandStatus.COMPLETED
+    assert cmds.execute.call_count == 2
+    assert any(s["action"] == "hr.c" for s in result["steps"])
+    assert "Suy luận" in message
+
+
+@pytest.mark.asyncio
+async def test_react_parse_variants():
+    from app.core.use_cases.ai_chat import AIChatDTO
+
+    use_case, _ = _chat_case()
+    thought, nxt, finish = use_case._parse_react(
+        '{"thought": "làm tiếp", "next_action": {"action": "hr.b", "parameters": {}}}'
+    )
+    assert thought == "làm tiếp" and nxt["action"] == "hr.b" and finish is False
+    thought, nxt, finish = use_case._parse_react('{"thought": "xong", "finish": true}')
+    assert finish is True and nxt is None
+    thought, nxt, finish = use_case._parse_react("rác không json")
+    assert finish is True and nxt is None
