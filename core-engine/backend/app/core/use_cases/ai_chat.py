@@ -430,6 +430,18 @@ CHỈ trả về JSON, không text thừa:
                 f"- {t[:200]}" for t in thoughts[:3]
             )
         if last["status"] == AICommandStatus.COMPLETED.value:
+            # Reply trò chuyện thuần túy: trả thẳng nội dung, bỏ wrapper kỹ thuật
+            # để UI nào cũng hiển thị sạch.
+            if (
+                len(outcomes) == 1
+                and outcomes[0].get("action") == "core.chat.reply"
+                and isinstance(outcomes[0].get("result"), str)
+            ):
+                return (
+                    AICommandStatus.COMPLETED,
+                    outcomes[0]["result"],
+                    {"plan_total": total_hint, "steps": outcomes},
+                )
             note = (
                 f" (dừng sau giới hạn vòng lặp, đã xong {len(done)} bước)"
                 if end_reason in ("iters", "timeout")

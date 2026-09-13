@@ -469,3 +469,28 @@ async def test_no_regex_fast_paths():
     assert not hasattr(mod.AIChatUseCase, "_direct_plan")
     assert not hasattr(mod, "_GREETING_RE")
     assert not hasattr(mod, "_CAPABILITY_RE")
+
+
+@pytest.mark.asyncio
+async def test_chatreply_renders_clean_text():
+    """Reply thuần trả thẳng text (string), summary bỏ wrapper kỹ thuật."""
+    from unittest.mock import MagicMock
+
+    from app.core.domain.entities import AICommandStatus
+    from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
+
+    cmds = MagicMock()
+    cmds.execute = AsyncMock(
+        return_value=(AICommandStatus.COMPLETED, "Lệnh đọc xong.", "Xin chào bạn!")
+    )
+    use_case = AIChatUseCase(llm_port=MagicMock(), ai_command_use_case=cmds)
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="hello")
+    seed = use_case._parse_plan(
+        '{"action": "core.chat.reply", "effect": "read", '
+        '"parameters": {"reply": "Xin chào bạn!"}}',
+        dto,
+    )
+    status, message, result = await use_case._run_react(seed, dto, {"t": "t"})
+    assert status == AICommandStatus.COMPLETED
+    assert message == "Xin chào bạn!"
+    assert result["steps"][0]["result"] == "Xin chào bạn!"

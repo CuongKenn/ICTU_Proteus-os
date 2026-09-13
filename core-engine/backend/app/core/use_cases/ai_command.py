@@ -121,10 +121,10 @@ class AICommandUseCase:
         Trả về (handled, result). core.knowledge.search trả kèm citations.
         """
         if body.action == "core.chat.reply":
+            # Trả thẳng text (string, không bọc dict) để mọi UI — kể cả bản
+            # cũ còn cache — đều render sạch, không dump JSON.
             reply = ((body.parameters or {}).get("reply") or "").strip()
-            return True, {
-                "reply": reply or "Xin chào! Tôi có thể giúp gì cho bạn?"
-            }
+            return True, reply or "Xin chào! Tôi có thể giúp gì cho bạn?"
         if body.action == "core.plugins.list":
             plugins, total = await self.plugin_repo.list_installed(
                 tenant_id=ctx.tenant_id

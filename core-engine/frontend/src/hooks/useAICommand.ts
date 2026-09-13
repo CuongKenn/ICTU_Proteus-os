@@ -242,6 +242,15 @@ export interface DslPreview {
     /** Render kết quả read: stringify + dòng trích dẫn RAG nếu có. */
     const formatResult = useCallback((result: any): string => {
       if (typeof result === "string") return result;
+      // Reply trò chuyện: hiện thẳng nội dung, không dump JSON.
+      if (
+        typeof result === "object" &&
+        result !== null &&
+        typeof result.reply === "string" &&
+        Object.keys(result).length === 1
+      ) {
+        return result.reply;
+      }
       const cites = result?.citations;
       const body =
         typeof result === "object" && result !== null && "citations" in result
@@ -276,6 +285,27 @@ export interface DslPreview {
           // Backend trả summary ở message + data thật trong result.steps[].result.
           // Hiện summary trước, data chi tiết sau (không dump JSON trạng thái).
           const steps = (data.result as any)?.steps;
+          // Reply trò chuyện thuần túy: message đã là nội dung sạch từ server.
+          if (
+            Array.isArray(steps) &&
+            steps.length === 1 &&
+            steps[0].action === "core.chat.reply" &&
+            typeof steps[0].result === "string"
+          ) {
+            appendMessage("assistant", data.message || steps[0].result);
+            setWidgetState("expanded");
+            return;
+          }
+          if (
+            Array.isArray(steps) &&
+            steps.length === 1 &&
+            steps[0].action === "core.chat.reply" &&
+            typeof steps[0].result?.reply === "string"
+          ) {
+            appendMessage("assistant", steps[0].result.reply);
+            setWidgetState("expanded");
+            return;
+          }
           const details: string[] = [];
           if (Array.isArray(steps)) {
             for (const s of steps) {
