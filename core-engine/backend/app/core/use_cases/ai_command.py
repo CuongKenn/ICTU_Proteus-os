@@ -658,9 +658,22 @@ class AICommandUseCase:
                 {"action": cmd.get("action"), "approver": str(approver.id)},
             )
             try:
+                # parameters không có cột riêng — nằm trong dsl_payload JSON.
+                params = cmd.get("parameters")
+                if params is None and cmd.get("dsl_payload"):
+                    try:
+                        payload = cmd["dsl_payload"]
+                        if isinstance(payload, str):
+                            payload = json.loads(payload)
+                        params = (payload or {}).get("parameters", {})
+                    except Exception as e:
+                        logger.warning(
+                            "Parse dsl_payload thất bại cho %s: %s", cmd_id, e
+                        )
+                        params = {}
                 webhook_url = self._resolve_action_url(cmd["action"])
                 await self.n8n_adapter.trigger_webhook(
-                    webhook_url=webhook_url, payload=cmd["parameters"]
+                    webhook_url=webhook_url, payload=params or {}
                 )
             except Exception as e:
                 logger.error(
