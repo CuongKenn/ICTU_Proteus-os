@@ -188,10 +188,26 @@ async def test_execute_critical_command(
 async def test_process_approval_write_success(
     use_case, mock_ai_command_repo, mock_n8n_adapter
 ):
+    from types import SimpleNamespace
+
+    tenant_id = uuid.uuid4()
+    requester_id = uuid.uuid4()
+    approver_id = uuid.uuid4()
     cmd_id = uuid.uuid4()
-    approver_id = str(uuid.uuid4())
+    use_case.user_repo = AsyncMock()
+    use_case.user_repo.get_by_email = AsyncMock(return_value=None)
+    approver = SimpleNamespace(
+        id=approver_id, tenant_id=tenant_id, roles=[], is_active=True
+    )
+    use_case.user_repo.get = AsyncMock(return_value=approver)
+    use_case.mattermost_adapter.get_user_by_id = AsyncMock(return_value=None)
+    use_case.role_repo.get_user_permissions = AsyncMock(
+        return_value=["hr:leave_requests:approve"]
+    )
     mock_ai_command_repo.get_command_by_id.return_value = {
         "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
         "status": "PENDING_APPROVAL",
         "effect": "write",
         "action": "hr.leave_requests.approve",
@@ -199,12 +215,12 @@ async def test_process_approval_write_success(
         "approved_by_user_id": None,
     }
 
-    result = await use_case.process_approval(cmd_id, approver_id, "approve")
+    result = await use_case.process_approval(cmd_id, str(approver_id), "approve")
 
-    assert result is True
-    # Không ghi approved_by (Mattermost user ID không phải UUID — xem 96c01f3)
+    assert result == "approved"
+    # Ghi nhận đúng UUID nội bộ của người duyệt
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, status="APPROVED"
+        cmd_id=cmd_id, status="APPROVED", approved_by=str(approver_id)
     )
     mock_ai_command_repo.commit.assert_called_once()
     mock_n8n_adapter.trigger_webhook.assert_called_once()
@@ -214,13 +230,30 @@ async def test_process_approval_write_success(
 async def test_process_approval_critical_two_approvers(
     use_case, mock_ai_command_repo, mock_n8n_adapter
 ):
+    from types import SimpleNamespace
+
+    tenant_id = uuid.uuid4()
+    requester_id = uuid.uuid4()
     cmd_id = uuid.uuid4()
-    approver1_id = str(uuid.uuid4())
-    approver2_id = str(uuid.uuid4())
+    approver1_id = uuid.uuid4()
+    approver2_id = uuid.uuid4()
+    use_case.user_repo = AsyncMock()
+    use_case.user_repo.get_by_email = AsyncMock(return_value=None)
+    use_case.mattermost_adapter.get_user_by_id = AsyncMock(return_value=None)
+
+    def _approver(uid):
+        return SimpleNamespace(id=uid, tenant_id=tenant_id, roles=[], is_active=True)
+
+    use_case.role_repo.get_user_permissions = AsyncMock(
+        return_value=["finance:invoices:create"]
+    )
 
     # Step 1: First approver (chưa có approved_by) → ghi nhận, chưa chạy n8n
+    use_case.user_repo.get = AsyncMock(return_value=_approver(approver1_id))
     mock_ai_command_repo.get_command_by_id.return_value = {
         "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
         "status": "PENDING_APPROVAL",
         "effect": "critical",
         "action": "finance.invoices.create",
@@ -228,37 +261,74 @@ async def test_process_approval_critical_two_approvers(
         "approved_by": None,
     }
 
-    result1 = await use_case.process_approval(cmd_id, approver1_id, "approve")
-    assert result1 is True
-    mock_ai_command_repo.update_command_approval.assert_called_once_with(cmd_id=cmd_id)
+    result1 = await use_case.process_approval(cmd_id, str(approver1_id), "approve")
+    assert result1 == "approved"
+    mock_ai_command_repo.update_command_approval.assert_called_once_with(
+        cmd_id=cmd_id, approved_by=str(approver1_id)
+    )
     mock_n8n_adapter.trigger_webhook.assert_not_called()
 
-    # Step 2: Second (distinct) approver → APPROVED và chạy n8n.
-    # LƯU Ý: guard "cùng người duyệt 2 lần" đã bỏ theo thiết kế hiện tại
-    # (Mattermost user ID không map được vào UUID column) — xem 96c01f3.
+    # Step 1b: CÙNG người duyệt lần 2 → denied (cần 2 người khác nhau)
     mock_ai_command_repo.update_command_approval.reset_mock()
     mock_ai_command_repo.get_command_by_id.return_value = {
         "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
         "status": "PENDING_APPROVAL",
         "effect": "critical",
         "action": "finance.invoices.create",
         "parameters": {"amount": 1000},
         "approved_by": approver1_id,
     }
-    result2 = await use_case.process_approval(cmd_id, approver2_id, "approve")
-    assert result2 is True
+    result_same = await use_case.process_approval(cmd_id, str(approver1_id), "approve")
+    assert result_same == "denied"
+    mock_ai_command_repo.update_command_approval.assert_not_called()
+    mock_n8n_adapter.trigger_webhook.assert_not_called()
+
+    # Step 2: Second (distinct) approver → APPROVED và chạy n8n.
+    use_case.user_repo.get = AsyncMock(return_value=_approver(approver2_id))
+    mock_ai_command_repo.update_command_approval.reset_mock()
+    mock_ai_command_repo.get_command_by_id.return_value = {
+        "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
+        "status": "PENDING_APPROVAL",
+        "effect": "critical",
+        "action": "finance.invoices.create",
+        "parameters": {"amount": 1000},
+        "approved_by": approver1_id,
+    }
+    result2 = await use_case.process_approval(cmd_id, str(approver2_id), "approve")
+    assert result2 == "approved"
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, status="APPROVED"
+        cmd_id=cmd_id, status="APPROVED", second_approver=str(approver2_id)
     )
     mock_n8n_adapter.trigger_webhook.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_process_approval_reject(use_case, mock_ai_command_repo):
+    from types import SimpleNamespace
+
+    tenant_id = uuid.uuid4()
+    requester_id = uuid.uuid4()
+    approver_id = uuid.uuid4()
     cmd_id = uuid.uuid4()
-    approver_id = str(uuid.uuid4())
+    use_case.user_repo = AsyncMock()
+    use_case.user_repo.get_by_email = AsyncMock(return_value=None)
+    use_case.user_repo.get = AsyncMock(
+        return_value=SimpleNamespace(
+            id=approver_id, tenant_id=tenant_id, roles=[], is_active=True
+        )
+    )
+    use_case.mattermost_adapter.get_user_by_id = AsyncMock(return_value=None)
+    use_case.role_repo.get_user_permissions = AsyncMock(
+        return_value=["hr:leave_requests:approve"]
+    )
     mock_ai_command_repo.get_command_by_id.return_value = {
         "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
         "status": "PENDING_APPROVAL",
         "effect": "write",
         "action": "hr.leave_requests.approve",
@@ -266,9 +336,63 @@ async def test_process_approval_reject(use_case, mock_ai_command_repo):
         "approved_by_user_id": None,
     }
 
-    result = await use_case.process_approval(cmd_id, approver_id, "reject")
-    assert result is True
+    result = await use_case.process_approval(cmd_id, str(approver_id), "reject")
+    assert result == "rejected"
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, status="REJECTED"
+        cmd_id=cmd_id, status="REJECTED", approved_by=str(approver_id)
     )
     mock_ai_command_repo.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_process_approval_denies_stranger_and_self(
+    use_case, mock_ai_command_repo, mock_n8n_adapter
+):
+    from types import SimpleNamespace
+
+    tenant_id = uuid.uuid4()
+    requester_id = uuid.uuid4()
+    stranger_id = uuid.uuid4()
+    cmd_id = uuid.uuid4()
+    use_case.user_repo = AsyncMock()
+    use_case.user_repo.get_by_email = AsyncMock(return_value=None)
+    use_case.mattermost_adapter.get_user_by_id = AsyncMock(return_value=None)
+
+    base_cmd = {
+        "id": cmd_id,
+        "tenant_id": tenant_id,
+        "issued_by_user_id": requester_id,
+        "status": "PENDING_APPROVAL",
+        "effect": "write",
+        "action": "hr.leave_requests.approve",
+        "parameters": {},
+        "approved_by": None,
+    }
+
+    # Người lạ không có quyền → denied, không đụng DB execution
+    use_case.user_repo.get = AsyncMock(
+        return_value=SimpleNamespace(
+            id=stranger_id, tenant_id=tenant_id, roles=[], is_active=True
+        )
+    )
+    use_case.role_repo.get_user_permissions = AsyncMock(return_value=[])
+    mock_ai_command_repo.get_command_by_id.return_value = dict(base_cmd)
+    assert (
+        await use_case.process_approval(cmd_id, str(stranger_id), "approve")
+    ) == "denied"
+    mock_n8n_adapter.trigger_webhook.assert_not_called()
+
+    # Người ra lệnh tự duyệt → denied
+    use_case.user_repo.get = AsyncMock(
+        return_value=SimpleNamespace(
+            id=requester_id, tenant_id=tenant_id, roles=[], is_active=True
+        )
+    )
+    use_case.role_repo.get_user_permissions = AsyncMock(
+        return_value=["hr:leave_requests:approve"]
+    )
+    mock_ai_command_repo.get_command_by_id.return_value = dict(base_cmd)
+    assert (
+        await use_case.process_approval(cmd_id, str(requester_id), "approve")
+    ) == "denied"
+    mock_n8n_adapter.trigger_webhook.assert_not_called()

@@ -44,6 +44,11 @@ describe("LaunchpadClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     global.fetch = vi.fn();
+    // Runtime env cho iframe URLs (LaunchpadClient đọc env trong component,
+    // fallback "" an toàn — test phải set rõ để assert src).
+    process.env.NEXT_PUBLIC_N8N_URL = "http://workflow.proteus.local";
+    process.env.NEXT_PUBLIC_APPSMITH_URL = "http://apps.proteus.local";
+    process.env.NEXT_PUBLIC_MATTERMOST_URL = "http://chat.proteus.local";
   });
 
   it("renders system apps correctly", () => {

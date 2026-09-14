@@ -30,7 +30,10 @@ echo "Bắt đầu phục hồi CSDL từ file ${BACKUP_FILE}..."
 
 # Giải nén và đẩy vào container postgres đang chạy
 # Giả sử file script này được chạy ở thư mục deploy/ (chứa docker-compose.yml)
-gunzip -c "${BACKUP_FILE}" | docker compose exec -T postgres psql -U proteus -d proteus
+# Đọc POSTGRES_USER/DB thực tế từ .env (tránh hardcode -U proteus).
+_PGU=$(grep -E "^POSTGRES_USER=" .env 2>/dev/null | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' '); _PGU=${_PGU:-proteus}
+_PGD=$(grep -E "^POSTGRES_DB=" .env 2>/dev/null | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' '); _PGD=${_PGD:-proteus}
+gunzip -c "${BACKUP_FILE}" | docker compose exec -T postgres psql -U "$_PGU" -d "$_PGD"
 
 if [ $? -eq 0 ]; then
     echo "✅ Phục hồi CSDL thành công!"

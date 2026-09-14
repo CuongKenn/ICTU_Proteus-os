@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "procurement/sync-payment",
         "responseMode": "lastNode",
         "options": {}

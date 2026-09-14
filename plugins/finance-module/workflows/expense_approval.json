@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "finance/expense-approval",
         "responseMode": "lastNode",
         "options": {}

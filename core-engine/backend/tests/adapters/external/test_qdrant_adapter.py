@@ -94,3 +94,32 @@ async def test_qdrant_error_handling(mock_qdrant_client):
 
     with pytest.raises(QdrantAdapterError, match="Upsert failed: Connection error"):
         await adapter.upsert_vectors("tenant-1", ["chunk"], [{}])
+
+
+@pytest.mark.asyncio
+async def test_search_dense_only_when_sparse_unsupported(mock_qdrant_client):
+    """Môi trường thiếu sparse model (VD: không có BM25) → dense-only."""
+    from unittest.mock import MagicMock as _MagicMock
+
+    mock_qdrant_client.set_sparse_model.side_effect = ValueError("unsupported")
+    point = _MagicMock()
+    point.id = "p1"
+    point.score = 0.8
+    point.payload = {
+        "document": "Nội dung",
+        "tenant_id": "tenant-1",
+        "doc_title": "Policy",
+    }
+    mock_qdrant_client.search = AsyncMock(return_value=[point])
+
+    adapter = QdrantAdapter()
+    adapter._dense_vector = lambda text: [0.1, 0.2, 0.3]
+
+    results = await adapter.search("tenant-1", "chính sách", limit=3)
+
+    assert len(results) == 1
+    assert results[0]["document"] == "Nội dung"
+    assert results[0]["metadata"]["doc_title"] == "Policy"
+    assert "document" not in results[0]["metadata"]
+    mock_qdrant_client.search.assert_called_once()
+    mock_qdrant_client.query.assert_not_called()

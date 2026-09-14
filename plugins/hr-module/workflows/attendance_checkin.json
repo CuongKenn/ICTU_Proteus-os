@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "hr/attendance",
         "responseMode": "lastNode",
         "options": {}

@@ -44,9 +44,23 @@ const ThinkingIndicator: React.FC = () => (
   </div>
 );
 
-/** Render nội dung tin nhắn với basic markdown bold */
-function renderMessageContent(content: string): React.ReactNode {
-  const parts = content.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+/** Render nội dung tin nhắn với basic markdown bold.
+ *  Phòng thủ: content lạ (null/object do cache cũ) thì ép về text,
+ *  không bao giờ throw để khỏi sập cả widget. */
+function renderMessageContent(content: unknown): React.ReactNode {
+  let text: string;
+  if (typeof content === "string") {
+    text = content;
+  } else if (content === null || content === undefined) {
+    text = "";
+  } else {
+    try {
+      text = JSON.stringify(content, null, 2);
+    } catch {
+      text = "〈nội dung không hiển thị được〉";
+    }
+  }
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, idx) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={idx} className="font-semibold text-text-primary">{part.slice(2, -2)}</strong>;
@@ -70,7 +84,19 @@ function renderMessageContent(content: string): React.ReactNode {
 
 /** Bubble hiển thị tin nhắn */
 const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
-  const isUser = message.role === "user";
+  const isUser = message?.role === "user";
+  const timeLabel = (() => {
+    try {
+      const d =
+        message?.timestamp instanceof Date
+          ? message.timestamp
+          : new Date(message?.timestamp ?? Date.now());
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  })();
   return (
     <div className={clsx("flex gap-2 mb-3", isUser ? "flex-row-reverse" : "flex-row")}>
       {/* Avatar */}
@@ -90,7 +116,7 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
       >
         {renderMessageContent(message.content)}
         <div className={clsx("text-[10px] mt-1 opacity-60", isUser ? "text-right" : "text-left")}>
-          {message.timestamp.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+          {timeLabel}
         </div>
       </div>
     </div>
@@ -103,8 +129,18 @@ const DslPreviewPanel: React.FC<{
   onApprove: () => void;
   onCancel: () => void;
 }> = ({ preview, onApprove, onCancel }) => {
-  const deadline = new Date(preview.approval_deadline);
-  const isWrite = preview.effect === "write";
+  const deadline = (() => {
+    try {
+      const raw = preview?.approval_deadline;
+      if (!raw) return null;
+      const d = new Date(raw);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  })();
+  const effectLabel = String(preview?.effect ?? "write").toUpperCase();
+  const isWrite = String(preview?.effect ?? "write") === "write";
 
   return (
     <div className="mx-3 mb-3 rounded-xl border border-warning/40 bg-warning/5 overflow-hidden">
@@ -120,7 +156,7 @@ const DslPreviewPanel: React.FC<{
               : "bg-danger/20 text-danger"
           )}
         >
-          {preview.effect.toUpperCase()}
+          {effectLabel}
         </span>
       </div>
 
@@ -164,10 +200,12 @@ const DslPreviewPanel: React.FC<{
         <div className="flex items-center gap-1 text-[10px] text-text-disabled mb-3">
           <Clock className="w-3 h-3" />
           Hết hạn:{" "}
-          {deadline.toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {deadline
+            ? deadline.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "—"}
         </div>
       </div>
 
@@ -262,7 +300,7 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [isPage, isExpanded, openWidget, minimizeWidget]);
 
-  const isInputDisabled = widgetState === "thinking" || widgetState === "awaiting_approval";
+  const isInputDisabled = widgetState === "thinking";
   const canSend = inputValue.trim().length > 0 && !isInputDisabled;
   const statusText =
     widgetState === "thinking"
@@ -343,8 +381,8 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
       className={clsx("flex-1 overflow-y-auto", isPage ? "px-4 py-5 sm:px-6" : "px-3 pt-3")}
     >
       <div className={clsx(isPage && "mx-auto w-full max-w-4xl")}>
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+        {messages.map((msg, idx) => (
+          <MessageBubble key={msg?.id || `msg-${idx}`} message={msg} />
         ))}
 
         {widgetState === "thinking" && (
@@ -384,7 +422,7 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
           disabled={isInputDisabled}
           placeholder={
             widgetState === "awaiting_approval"
-              ? "Đang chờ phê duyệt…"
+              ? "Đang chờ phê duyệt — vẫn có thể hỏi tiếp…"
               : "Nhập lệnh bằng tiếng Việt… (Enter để gửi)"
           }
           aria-label="Nhập lệnh cho AI"

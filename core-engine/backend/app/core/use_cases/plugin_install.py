@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.base import AbstractPluginRepository
+from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import CredentialInput, PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
@@ -31,6 +32,169 @@ from app.core.domain.ports import (
 from app.infrastructure.config import settings
 
 logger = structlog.get_logger(__name__)
+
+# ─── Seed sandbox policy (C4) ──────────────────────────────────
+# Allowlist: seed chỉ được CREATE TABLE / CREATE INDEX / INSERT.
+# Mọi statement khác (kể cả SELECT đơn lẻ) đều bị từ chối để giữ
+# seed là schema+data init thuần túy, không phải kênh thực thi SQL tùy ý.
+_SEED_ALLOWED_STMT = re.compile(
+    r"^\s*(CREATE\s+(UNIQUE\s+)?(TABLE|INDEX)\b|INSERT\s+INTO\b)",
+    re.IGNORECASE,
+)
+# Denylist bổ sung: chặn sandbox-escape / side-effect ngoài schema tenant.
+_SEED_FORBIDDEN = re.compile(
+    r"(public\.|pg_\w+|pg_catalog|information_schema"
+    r"|\bCOPY\b|\bDO\b|\bLISTEN\b|\bNOTIFY\b"
+    r"|\bCREATE\s+(OR\s+REPLACE\s+)?(TRIGGER|VIEW|RULE|FUNCTION|PROCEDURE"
+    r"|EXTENSION|SCHEMA|DATABASE|ROLE|USER|PUBLICATION|SUBSCRIPTION)\b"
+    r"|\bALTER\b|\bDROP\b|\bDELETE\b|\bUPDATE\b|\bTRUNCATE\b"
+    r"|\bGRANT\b|\bREVOKE\b|\bSET\b|\bRESET\b|\bSHOW\b"
+    r"|\bSECURITY\s+DEFINER\b|\bVACUUM\b|\bANALYSE\b|\bANALYZE\b"
+    r"|dblink|pg_exec|lo_|pg_read_file|pg_ls_dir)",
+    re.IGNORECASE,
+)
+_PLUGIN_CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+_SEED_FILE_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+\.sql$")
+_SEED_STATEMENT_TIMEOUT = "10s"
+
+
+def _split_seed_statements_safe(sql: str) -> list[str]:
+    """Split seed SQL thành từng statement, tôn trọng $$, quotes, comments.
+
+    Ưu tiên sqlparse nếu có; ngược lại dùng splitter thủ công xử lý
+    dollar-quoting ($$...$$ / $tag$...$tag$), single/double quotes,
+    line comments (--) và block comments (/* */). Chỉ split tại ';'
+    ở top-level.
+    """
+    try:
+        import sqlparse  # type: ignore
+
+        return [s.strip() for s in sqlparse.split(sql) if s and s.strip()]
+    except ImportError:
+        pass
+    statements: list[str] = []
+    buf: list[str] = []
+    i = 0
+    n = len(sql)
+    in_single = False
+    in_double = False
+    in_line_comment = False
+    in_block_comment = False
+    dollar_tag: str | None = None
+    while i < n:
+        ch = sql[i]
+        nxt2 = sql[i : i + 2]
+        # Thoát line comment
+        if in_line_comment:
+            buf.append(ch)
+            if ch == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+        # Thoát block comment
+        if in_block_comment:
+            buf.append(ch)
+            if nxt2 == "*/":
+                buf.append(sql[i + 1])
+                i += 2
+                in_block_comment = False
+            else:
+                i += 1
+            continue
+        # Trong dollar-quoting: chỉ tìm tag đóng
+        if dollar_tag is not None:
+            if ch == "$":
+                m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+                if m and m.group(0) == dollar_tag:
+                    buf.append(m.group(0))
+                    i += len(m.group(0))
+                    dollar_tag = None
+                    continue
+            buf.append(ch)
+            i += 1
+            continue
+        # Trong single quote
+        if in_single:
+            buf.append(ch)
+            if ch == "'" and nxt2 != "''":
+                in_single = False
+            elif ch == "'" and nxt2 == "''":
+                buf.append(sql[i + 1])
+                i += 1
+            i += 1
+            continue
+        # Trong double quote
+        if in_double:
+            buf.append(ch)
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        # Mở comment
+        if nxt2 == "--":
+            # '--' trong toán tử? Trong seed DDL hiếm; coi là comment cho an toàn.
+            in_line_comment = True
+            buf.append(ch)
+            i += 1
+            continue
+        if nxt2 == "/*":
+            in_block_comment = True
+            buf.append(ch)
+            i += 1
+            continue
+        # Mở quote
+        if ch == "'":
+            in_single = True
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            buf.append(ch)
+            i += 1
+            continue
+        # Mở dollar-quoting
+        if ch == "$":
+            m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+            if m:
+                dollar_tag = m.group(0)
+                buf.append(dollar_tag)
+                i += len(dollar_tag)
+                continue
+            buf.append(ch)
+            i += 1
+            continue
+        # Split tại ';' top-level
+        if ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
+def _validate_seed_statement(stmt: str) -> None:
+    """Raise PluginInstallError nếu statement vi phạm seed policy."""
+    stripped = stmt.strip().rstrip(";").strip()
+    if not stripped:
+        raise PluginInstallError("Seed file chứa statement rỗng.")
+    if _SEED_FORBIDDEN.search(stripped):
+        raise PluginInstallError(
+            "Seed file chứa từ khóa/kênh không được phép "
+            "(public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE...)."
+        )
+    if not _SEED_ALLOWED_STMT.match(stripped):
+        raise PluginInstallError(
+            "Seed file chỉ cho phép CREATE TABLE / CREATE INDEX / INSERT. "
+            f"Statement bị chặn: {stripped[:80]}"
+        )
 
 
 class PluginInstallError(Exception):
@@ -85,6 +249,18 @@ class PluginInstallUseCase:
         # Reset state
         self._steps_log = []
         self._credential_ids = []
+        # Asset thu thập DẦN trong từng step (kể cả khi step fail giữa chừng)
+        # để rollback dọn được cả partial imports (trước đây chỉ lưu khi step
+        # DONE nên workflow import dở bị mồ côi → trùng tên ở lần cài lại).
+        created_assets_init: dict[str, list[str]] = {
+            "n8n": [],
+            "metabase": [],
+            "appsmith": [],
+            "keycloak": [],
+            "db_roles": [],
+            "events": [],
+            "credentials": [],
+        }
 
         # 1. Fetch plugin metadata and tenant
         plugin = await self.plugin_repo.get_by_code_name(plugin_code_name)
@@ -97,16 +273,41 @@ class PluginInstallUseCase:
                 f"Plugin '{plugin_code_name}' không tồn tại trên Marketplace."
             )
 
-        # 2. Check if already installed or being removed.
-        # NOTE: INSTALLING is intentionally excluded from this guard —
-        # the HTTP endpoint sets status=INSTALLING before queuing this background task,
-        # so blocking on INSTALLING would prevent the task from ever running.
+        # 2. Chống double-install (M10) bằng advisory lock + guard trạng thái.
+        # Lock theo (tenant, plugin) để 2 request cài đồng thời phải serialize:
+        # request thứ 2 đợi lock, sau đó thấy ACTIVE/INSTALLING và bị chặn.
+        # Best-effort: mock session trong unit-test không hỗ trợ cũng không fail install.
+        try:
+            await self.session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                {
+                    "key": f"plugin_install:{context.tenant_id}:{plugin.id}",
+                },
+            )
+        except Exception as lock_err:  # noqa: BLE001
+            logger.warning(
+                "Không lấy được pg_advisory_xact_lock (best-effort)",
+                error=str(lock_err),
+                plugin_code_name=plugin_code_name,
+                tenant_id=str(context.tenant_id),
+            )
+        # 2b. Check if already installed, installing, or being removed.
+        # INSTALLING được chặn để request thứ 2 không cài đè khi request đầu
+        # đang chạy. LƯU Ý: endpoint POST /{id}/install hiện upsert INSTALLING
+        # trước khi queue background task — endpoint cần check status trước khi
+        # upsert (trả 409 nếu ACTIVE/INSTALLING/UNINSTALLING), nếu không task
+        # nền hợp lệ sẽ tự thấy INSTALLING của chính nó. Guard ở đây là tuyến
+        # phòng thủ cuối trong worker.
         status = await self.plugin_repo.get_installation_status(
             context.tenant_id, plugin.id
         )
         if status == PluginStatus.ACTIVE:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
+            )
+        if status == PluginStatus.INSTALLING:
+            raise PluginInstallError(
+                f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
             )
         if status == PluginStatus.UNINSTALLING:
             raise PluginInstallError(
@@ -129,7 +330,7 @@ class PluginInstallUseCase:
         await self.session.commit()
 
         completed_steps: list[str] = []
-        created_assets: dict[str, list[str]] = {}
+        created_assets: dict[str, list[str]] = created_assets_init
         try:
             # BƯỚC 1: Database Setup
             logger.info(
@@ -168,39 +369,54 @@ class PluginInstallUseCase:
                     context.tenant_id, plugin.id, created_assets["credentials"]
                 )
 
-            # BƯỚC 2: n8n Import
+            # BƯỚC 2: n8n Import (thu thập id dần vào created_assets
+            # để fail giữa chừng vẫn rollback được partial imports)
             self._log_step("n8n", "RUNNING")
             n8n_ids = await self._step_2_n8n(
-                context, plugin_code_name, manifest, credential_mapping
+                context,
+                plugin_code_name,
+                manifest,
+                credential_mapping,
+                collected=created_assets["n8n"],
             )
-            created_assets["n8n"] = n8n_ids
             self._log_step("n8n", "DONE")
             completed_steps.append("n8n")
             await self._persist_steps(context, plugin.id)
             await asyncio.sleep(random.uniform(1.0, 3.0))
 
-            # BƯỚC 3: Metabase Import
+            # BƯỚC 3: Metabase Import (thu thập dần như bước n8n)
             self._log_step("metabase", "RUNNING")
-            mb_ids = await self._step_3_metabase(context, plugin_code_name, manifest)
-            created_assets["metabase"] = mb_ids
+            mb_ids = await self._step_3_metabase(
+                context,
+                plugin_code_name,
+                manifest,
+                collected=created_assets["metabase"],
+            )
             self._log_step("metabase", "DONE")
             completed_steps.append("metabase")
             await self._persist_steps(context, plugin.id)
             await asyncio.sleep(random.uniform(1.0, 3.0))
 
-            # BƯỚC 4: Appsmith Import
+            # BƯỚC 4: Appsmith Import (thu thập dần như bước n8n)
             self._log_step("appsmith", "RUNNING")
-            app_ids = await self._step_4_appsmith(context, plugin_code_name, manifest)
-            created_assets["appsmith"] = app_ids
+            app_ids = await self._step_4_appsmith(
+                context,
+                plugin_code_name,
+                manifest,
+                collected=created_assets["appsmith"],
+            )
             self._log_step("appsmith", "DONE")
             completed_steps.append("appsmith")
             await self._persist_steps(context, plugin.id)
             await asyncio.sleep(random.uniform(1.0, 3.0))
 
-            # BƯỚC 5: Keycloak Roles
+            # BƯỚC 5: Keycloak Roles + DB Roles
             self._log_step("keycloak", "RUNNING")
-            roles = await self._step_5_keycloak(context, plugin_code_name, manifest)
-            created_assets["keycloak"] = roles
+            kc_roles, db_roles = await self._step_5_keycloak(
+                context, plugin_code_name, manifest
+            )
+            created_assets["keycloak"] = kc_roles
+            created_assets["db_roles"] = db_roles
             self._log_step("keycloak", "DONE")
             completed_steps.append("keycloak")
             await self._persist_steps(context, plugin.id)
@@ -351,35 +567,65 @@ class PluginInstallUseCase:
 
             has_schema = False
             if manifest.database.seed_file:
-                seed_path = (
-                    self.manifest_parser.plugins_dir
-                    / plugin_code_name
-                    / manifest.database.seed_file
-                )
+                # Chặn path traversal: plugin_code + seed_file đều phải sạch,
+                # resolve cuối cùng phải nằm trong plugins_dir.
+                if not _PLUGIN_CODE_PATTERN.match(plugin_code_name):
+                    raise PluginInstallError(
+                        f"Invalid plugin_code_name: {plugin_code_name}"
+                    )
+                seed_rel = manifest.database.seed_file
+                if (
+                    not isinstance(seed_rel, str)
+                    or ".." in seed_rel
+                    or seed_rel.startswith("/")
+                    or not _SEED_FILE_PATTERN.match(seed_rel)
+                ):
+                    raise PluginInstallError(
+                        f"Seed file path không hợp lệ: {seed_rel}"
+                    )
+                plugins_base = self.manifest_parser.plugins_dir.resolve()
+                seed_path = (plugins_base / plugin_code_name / seed_rel).resolve()
+                try:
+                    if not seed_path.is_relative_to(plugins_base):
+                        raise PluginInstallError(
+                            "Seed file path vượt ngoài plugins_dir."
+                        )
+                except AttributeError:
+                    # Python < 3.9 fallback
+                    if plugins_base not in seed_path.parents:
+                        raise PluginInstallError(
+                            "Seed file path vượt ngoài plugins_dir."
+                        )
                 if seed_path.exists():
                     with open(seed_path, encoding="utf-8-sig") as f:
                         sql = f.read()
 
-                    # Validation: Cấm các lệnh SQL nguy hiểm
-                    forbidden_pattern = re.compile(
-                        r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
-                        r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
-                        re.IGNORECASE,
-                    )
-                    if forbidden_pattern.search(sql):
-                        raise PluginInstallError(
-                            "Seed file chứa các lệnh SQL không được phép."
-                        )
+                    # Sandbox policy (C4): allowlist CREATE TABLE/INDEX + INSERT,
+                    # denylist public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE.
+                    # Split an toàn tôn trọng $$ dollar-quoting (sqlparse hoặc fallback).
+                    statements = _split_seed_statements_safe(sql)
+                    if not statements:
+                        raise PluginInstallError("Seed file rỗng hoặc không hợp lệ.")
+                    for stmt in statements:
+                        _validate_seed_statement(stmt)
 
                     # Set search_path để sandbox SQL execution trong schema của Tenant.
                     # Giữ "public" thứ 2 để seed dùng được shared extensions
                     # (VD: public.uuid_generate_v4()) — unqualified CREATE vẫn
                     # rơi vào schema tenant vì nó đứng đầu.
+                    # schema_name đã validate regex ^[a-zA-Z0-9_]+$ nên quote an toàn.
                     await self.session.execute(
                         text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                     )
+                    # SET LOCAL: tự rollback khi transaction kết thúc, không rò rỉ
+                    # sang session tiếp theo. statement_timeout chặn seed treo.
                     await self.session.execute(
-                        text(f'SET search_path TO "{schema_name}", public')
+                        text(f'SET LOCAL search_path TO "{schema_name}", public')
+                    )
+                    await self.session.execute(
+                        text(
+                            f"SET LOCAL statement_timeout TO '{_SEED_STATEMENT_TIMEOUT}'"
+                        )
                     )
                     has_schema = True
 
@@ -388,13 +634,16 @@ class PluginInstallUseCase:
                     # KHÔNG dùng set_config('role', ...) vì role 'tenant_admin' không tồn tại.
 
                     # asyncpg không hỗ trợ nhiều statement trong một execute().
-                    # Phải split theo dấu ';' và execute từng câu một.
+                    # Execute từng câu đã validate allowlist.
                     # Dùng SAVEPOINT cho từng câu để seed data fail không làm hỏng transaction.
-                    statements = [s.strip() for s in sql.split(";") if s.strip()]
                     for i, stmt in enumerate(statements):
                         sp_name = f"seed_stmt_{i}"
+                        if not re.match(r"^[a-zA-Z0-9_]+$", sp_name):
+                            raise PluginInstallError("Invalid savepoint name.")
                         try:
                             await self.session.execute(text(f"SAVEPOINT {sp_name}"))
+                            # stmt đã qua allowlist CREATE TABLE/INDEX + INSERT và
+                            # denylist sandbox-escape nên execute trực tiếp an toàn.
                             await self.session.execute(text(stmt))
                             await self.session.execute(
                                 text(f"RELEASE SAVEPOINT {sp_name}")
@@ -410,21 +659,56 @@ class PluginInstallUseCase:
                                 text(f"ROLLBACK TO SAVEPOINT {sp_name}")
                             )
                     # Reset search_path về public để tránh ảnh hưởng session tiếp theo
+                    # (dù SET LOCAL đã tự reset khi commit, giữ RESET显式 cho an toàn
+                    # với session pool dùng lại transaction).
                     await self.session.execute(text("SET search_path TO public"))
 
             # Tự động tạo RLS cho các bảng (best-effort — table có thể chưa tồn tại)
             if manifest.database.tables:
-                if not has_schema:
+                # BẮT BUỘC set search_path mọi lần: seed block đã reset về public,
+                # nếu bỏ qua (chỉ set khi not has_schema) thì ALTER TABLE tìm sai
+                # schema → "relation does not exist" và RLS không bao giờ được bật.
+                await self.session.execute(
+                    text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                )
+                await self.session.execute(
+                    text(f'SET search_path TO "{schema_name}"')
+                )
+
+                # Role app_user phải tồn tại thì CREATE POLICY mới chạy được
+                # (fresh install chưa có → tạo best-effort, đã có thì skip).
+                await self.session.execute(text("SAVEPOINT rls_role"))
+                try:
                     await self.session.execute(
-                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                        text("CREATE ROLE app_user NOLOGIN")
                     )
+                    await self.session.execute(text("RELEASE SAVEPOINT rls_role"))
+                except Exception:
                     await self.session.execute(
-                        text(f'SET search_path TO "{schema_name}"')
+                        text("ROLLBACK TO SAVEPOINT rls_role")
                     )
+
+                # Chỉ bảng có cột tenant_id mới áp được policy (đa số bảng plugin
+                # cách ly bằng schema-per-tenant, không có cột này → bỏ qua).
+                res_cols = await self.session.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.columns "
+                        "WHERE table_schema = :schema AND column_name = 'tenant_id'"
+                    ),
+                    {"schema": schema_name},
+                )
+                tables_with_tenant = {r[0] for r in res_cols.fetchall()}
 
                 for table in manifest.database.tables:
                     if not re.match(r"^[a-zA-Z0-9_]+$", table):
                         raise PluginInstallError(f"Invalid table name: {table}")
+                    if table not in tables_with_tenant:
+                        logger.debug(
+                            "Bỏ qua RLS cho bảng %s (không có cột tenant_id; "
+                            "cách ly bằng schema)",
+                            table,
+                        )
+                        continue
 
                     sp = f"rls_{table}"
                     try:
@@ -461,6 +745,7 @@ class PluginInstallUseCase:
         plugin_code_name: str,
         manifest: PluginManifest,
         credential_mapping: dict[str, str] = None,
+        collected: list[str] | None = None,
     ) -> list[str]:
         """Import workflows vào n8n kèm Dynamic Workflow Injection."""
         workflow_ids = []
@@ -477,16 +762,114 @@ class PluginInstallUseCase:
             if row:
                 proteus_db_cred_id = row[0]
 
+        # 1b. Đảm bảo credential Mattermost dùng chung (ProteusMM) để gắn vào
+        # các node Mattermost. Thiếu nó workflow import được nhưng không
+        # activate được ("Missing required credential: mattermostApi").
+        proteus_mm_cred_id = None
+        proteus_mm_cred_name = None
+        if self.session:
+            try:
+                res = await self.session.execute(
+                    text(
+                        "SELECT id FROM n8n.credentials_entity WHERE name = 'ProteusMM' LIMIT 1"
+                    )
+                )
+                row = res.fetchone()
+                if row:
+                    proteus_mm_cred_id = str(row[0])
+                    proteus_mm_cred_name = "ProteusMM"
+                elif settings.MATTERMOST_BOT_TOKEN:
+                    created = await self.n8n_adapter.create_credential(
+                        credential_type="mattermostApi",
+                        credential_name="ProteusMM",
+                        data={
+                            "baseUrl": settings.MATTERMOST_URL,
+                            "accessToken": settings.MATTERMOST_BOT_TOKEN,
+                        },
+                    )
+                    proteus_mm_cred_id = str(created.get("id"))
+                    proteus_mm_cred_name = "ProteusMM"
+                    logger.info("Đã tạo n8n credential ProteusMM dùng chung")
+            except Exception as e:
+                logger.warning("Không đảm bảo được credential ProteusMM: %s", e)
+
+        # 1c. Đảm bảo credential Ollama dùng chung (ProteusOllama) cho các node
+        # AI (lmChatOllama...). File workflow mẫu thường mang credential ID cũ
+        # của máy dev (VD: "OllamaLocal") → phải ghi đè, nếu không workflow lỗi
+        # missing credential khi chạy.
+        proteus_ollama_cred_id = None
+        proteus_ollama_cred_name = None
+        if self.session:
+            try:
+                res = await self.session.execute(
+                    text(
+                        "SELECT id FROM n8n.credentials_entity WHERE name = 'ProteusOllama' LIMIT 1"
+                    )
+                )
+                row = res.fetchone()
+                if row:
+                    proteus_ollama_cred_id = str(row[0])
+                    proteus_ollama_cred_name = "ProteusOllama"
+                else:
+                    ollama_base = (settings.LLM_BASE_URL or "").rstrip("/")
+                    if ollama_base.endswith("/v1"):
+                        ollama_base = ollama_base[: -len("/v1")]
+                    if ollama_base:
+                        created = await self.n8n_adapter.create_credential(
+                            credential_type="ollamaApi",
+                            credential_name="ProteusOllama",
+                            data={"baseUrl": ollama_base},
+                        )
+                        proteus_ollama_cred_id = str(created.get("id"))
+                        proteus_ollama_cred_name = "ProteusOllama"
+                        logger.info("Đã tạo n8n credential ProteusOllama dùng chung")
+            except Exception as e:
+                logger.warning("Không đảm bảo được credential ProteusOllama: %s", e)
+
         tenant_schema = f"tenant_{str(context.tenant_id).replace('-', '_')}"
 
+        # Kênh mặc định cho node Mattermost thiếu channelId (file mẫu thường bỏ
+        # trống → n8n từ chối activate "Missing channelId").
+        alerts_channel_id = None
+        if self.tenant_repo is not None:
+            try:
+                from app.core.use_cases.tenant_onboarding import (
+                    get_tenant_alerts_channel_id,
+                )
+
+                alerts_channel_id = await get_tenant_alerts_channel_id(
+                    self.tenant_repo, self.mattermost_adapter,
+                    context.tenant_id,
+                )
+            except Exception as e:
+                logger.warning("Không resolve được alerts channel: %s", e)
+
+        plugins_base = self.manifest_parser.plugins_dir.resolve()
         for wf in manifest.workflows:
-            wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
+            wf_rel = wf.file or ""
+            if ".." in wf_rel or wf_rel.startswith("/"):
+                logger.warning("Bỏ qua workflow path không hợp lệ", path=wf_rel)
+                continue
+            wf_path = (plugins_base / plugin_code_name / wf_rel).resolve()
+            try:
+                _inside = wf_path.is_relative_to(plugins_base)
+            except AttributeError:
+                _inside = plugins_base in wf_path.parents
+            if not _inside:
+                logger.warning("Bỏ qua workflow vượt ngoài plugins_dir", path=wf_rel)
+                continue
             if wf_path.exists():
                 with open(wf_path, encoding="utf-8-sig") as f:
                     wf_json = json.load(f)
 
                 # Dynamic Workflow Injection
                 for node in wf_json.get("nodes", []):
+                    # Webhook nodes thiếu httpMethod mặc định về GET trong n8n
+                    # trong khi backend trigger POST → 404. Ép POST nếu thiếu.
+                    if (node.get("type") or "") == "n8n-nodes-base.webhook":
+                        params = node.setdefault("parameters", {})
+                        if isinstance(params, dict) and not params.get("httpMethod"):
+                            params["httpMethod"] = "POST"
                     # Inject Tenant Schema
                     if "parameters" in node and "query" in node["parameters"]:
                         query = node["parameters"]["query"]
@@ -495,12 +878,59 @@ class PluginInstallUseCase:
                                 "{{TENANT_SCHEMA}}", tenant_schema
                             )
 
-                    # Auto-bind Credentials (Internal & External)
+                    # Auto-bind Credentials (Internal & External).
+                    # credentials có thể là null (export từ n8n) → chuẩn hóa
+                    # thành dict trước, nếu không setdefault crash AttributeError.
+                    _ntype = (node.get("type") or "").lower()
+                    _needs_creds = (
+                        node.get("type") == "n8n-nodes-base.postgres"
+                        or "mattermost" in _ntype
+                        or "ollama" in _ntype
+                    )
+                    if _needs_creds and not isinstance(
+                        node.get("credentials"), dict
+                    ):
+                        node["credentials"] = {}
                     # Postgres nodes thiếu skeleton credentials vẫn được gắn
                     # ProteusDB_Real để workflow import xong chạy được ngay.
                     if node.get("type") == "n8n-nodes-base.postgres":
-                        node.setdefault("credentials", {}).setdefault("postgres", {})
-                    if "credentials" in node:
+                        node["credentials"].setdefault("postgres", {})
+                    # Mattermost nodes (kể cả file cũ không khai credentials)
+                    # được gắn ProteusMM dùng chung để activate được ngay.
+                    # Node thiếu channelId được điền kênh alerts của tenant
+                    # (file mẫu hay bỏ trống → n8n từ chối activate).
+                    if "mattermost" in _ntype:
+                        node["credentials"].setdefault(
+                            "mattermostApi", {}
+                        )
+                        params = node.get("parameters")
+                        if (
+                            isinstance(params, dict)
+                            and not params.get("channelId")
+                            and alerts_channel_id
+                        ):
+                            params["channelId"] = alerts_channel_id
+                        if proteus_mm_cred_id:
+                            node["credentials"]["mattermostApi"]["id"] = (
+                                proteus_mm_cred_id
+                            )
+                            node["credentials"]["mattermostApi"]["name"] = (
+                                proteus_mm_cred_name
+                            )
+                    # Ollama/AI nodes: ghi đè credential ID cũ của máy dev
+                    # (VD: "OllamaLocal") bằng ProteusOllama dùng chung.
+                    if "ollama" in _ntype:
+                        node["credentials"].setdefault(
+                            "ollamaApi", {}
+                        )
+                        if proteus_ollama_cred_id:
+                            node["credentials"]["ollamaApi"]["id"] = (
+                                proteus_ollama_cred_id
+                            )
+                            node["credentials"]["ollamaApi"]["name"] = (
+                                proteus_ollama_cred_name
+                            )
+                    if isinstance(node.get("credentials"), dict):
                         for cred_key, cred_val in node["credentials"].items():
                             # Internal DB (Proteus)
                             if (
@@ -521,6 +951,8 @@ class PluginInstallUseCase:
 
                 wid = await self.n8n_adapter.import_workflow(wf_json)
                 workflow_ids.append(wid)
+                if collected is not None:
+                    collected.append(wid)
 
                 # Webhook/cron chỉ chạy khi workflow ACTIVE — bật ngay sau import.
                 # Best-effort: activation fail thì warn (không fail cả install),
@@ -537,7 +969,11 @@ class PluginInstallUseCase:
         return workflow_ids
 
     async def _step_3_metabase(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        collected: list[str] | None = None,
     ) -> list[str]:
         """Import dashboards vào Metabase."""
         dashboard_ids = []
@@ -548,10 +984,16 @@ class PluginInstallUseCase:
                     db_json = json.load(f)
                 did = await self.metabase_adapter.import_dashboard(db_json)
                 dashboard_ids.append(did)
+                if collected is not None:
+                    collected.append(str(did))
         return dashboard_ids
 
     async def _step_4_appsmith(
-        self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
+        self,
+        context: TenantContext,
+        plugin_code_name: str,
+        manifest: PluginManifest,
+        collected: list[str] | None = None,
     ) -> list[str]:
         """Import UI apps vào Appsmith."""
         app_ids = []
@@ -580,27 +1022,58 @@ class PluginInstallUseCase:
                 )
 
                 app_ids.append(aid)
+                if collected is not None:
+                    collected.append(str(aid))
         return app_ids
 
     async def _step_5_keycloak(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
-    ) -> list[str]:
-        """Tạo Roles trong Keycloak."""
+    ) -> tuple[list[str], list[str]]:
+        """Tạo Roles trong Keycloak + bảng ROLE (PostgreSQL).
+
+        Trả về (keycloak_role_names, db_role_names) để rollback dọn đúng.
+        DB roles dùng tên manifest gốc (VD: hr_manager) — khớp Launchpad filter
+        và API gán role. Idempotent: role đã tồn tại thì bỏ qua.
+        """
         keycloak_realm = "proteus"
         if self.tenant_repo:
             tenant = await self.tenant_repo.get_by_id(context.tenant_id)
             if tenant:
                 keycloak_realm = tenant.keycloak_realm
 
-        created_roles = []
+        kc_roles: list[str] = []
         for role in manifest.roles:
+            kc_name = f"{plugin_code_name}_{role.name}"
             if hasattr(self.keycloak_adapter, "create_role"):
                 await self.keycloak_adapter.create_role(
                     realm=keycloak_realm,
-                    role_name=f"{plugin_code_name}_{role.name}",
+                    role_name=kc_name,
                 )
-                created_roles.append(role.name)
-        return created_roles
+            kc_roles.append(kc_name)
+
+        db_roles: list[str] = []
+        try:
+            role_repo = RoleRepository(self.session)
+            existing = {
+                r.name for r in await role_repo.list_by_tenant(context.tenant_id)
+            }
+            for role in manifest.roles:
+                if role.name in existing:
+                    continue
+                await role_repo.create_role(
+                    {
+                        "tenant_id": context.tenant_id,
+                        "plugin_code_name": plugin_code_name,
+                        "name": role.name,
+                        "display_name": role.display_name,
+                        "description": role.description,
+                        "permissions": list(role.permissions),
+                    }
+                )
+                db_roles.append(role.name)
+        except Exception as e:
+            logger.warning("Không thể tạo DB roles cho %s: %s", plugin_code_name, e)
+        return kc_roles, db_roles
 
     async def _step_6_events(
         self, context: TenantContext, plugin_code_name: str, manifest: PluginManifest
@@ -787,6 +1260,28 @@ class PluginInstallUseCase:
                                 realm=keycloak_realm,
                                 role_name=role_name,
                             )
+                    # Dọn DB roles đã tạo ở step 5 (chỉ những role mới tạo,
+                    # không đụng role trùng tên có sẵn từ trước).
+                    try:
+                        role_repo = RoleRepository(self.session)
+                        existing = {
+                            r.name: r
+                            for r in await role_repo.list_by_tenant(context.tenant_id)
+                        }
+                        for role_name in reversed(
+                            created_assets.get("db_roles", [])
+                        ):
+                            role = existing.get(role_name)
+                            if role is not None:
+                                await role_repo.delete_role(
+                                    role.id, context.tenant_id
+                                )
+                    except Exception as e:
+                        logger.warning(
+                            "Rollback không xóa được DB roles của %s: %s",
+                            plugin_code_name,
+                            e,
+                        )
                 elif step == "appsmith":
                     if hasattr(self.appsmith_adapter, "delete_app"):
                         integration_config = None

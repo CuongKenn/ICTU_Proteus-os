@@ -14,9 +14,15 @@ services:
   # TRAEFIK — Edge Proxy (Ingress)
   # ────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:latest
+    image: traefik:v3.1.7
     container_name: proteus-traefik
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "${TRAEFIK_HTTP_PORT:-80}:80"
       - "${TRAEFIK_HTTPS_PORT:-443}:443"
@@ -42,9 +48,20 @@ services:
   # POSTGRESQL — Primary Database
   # ────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:latest
+    image: postgres:16.4
     container_name: proteus-postgres
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-proteus}
       POSTGRES_USER: ${POSTGRES_USER:-proteus}
@@ -57,7 +74,10 @@ services:
     networks:
       - proteus-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proteus}"]
+      # NOTE: phải chỉ rõ -d ${POSTGRES_DB}. Nếu chỉ -U mà không -d,
+      # pg_isready mặc định thử DB trùng tên user (VD: AdminProteus) vốn
+      # không tồn tại → log "FATAL: database ... does not exist" liên tục.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proteus} -d ${POSTGRES_DB:-proteus}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,7 +88,10 @@ services:
   # POSTGRES-BACKUP — Automated Database Backup
   # ────────────────────────────────────────────────────────────
   postgres-backup:
-    image: postgres:latest
+    # Image postgres:16.4-alpine (busybox crond + /etc/crontabs sẵn có).
+    # Image postgres:16 (Debian) KHÔNG có crond → container crash-loop
+    # "exec: crond: not found" + "cannot create /etc/crontabs/root".
+    image: postgres:16.4-alpine
     container_name: proteus-postgres-backup
     restart: unless-stopped
     environment:
@@ -98,6 +121,17 @@ services:
     image: redis:latest
     container_name: proteus-redis
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999"
     command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1
     volumes:
       - redis-data:/data
@@ -115,10 +149,24 @@ services:
   # KEYCLOAK — SSO / Identity Provider
   # ────────────────────────────────────────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:26.0.7
     container_name: proteus-keycloak
     restart: unless-stopped
-    command: ${KEYCLOAK_START_MODE:-start-dev} --db=postgres --import-realm
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    # NOTE: DB config comes from KC_DB* env vars below — do NOT append
+    # --db=... on the command line. --db is a build-time option and is
+    # rejected when combined with `start --optimized`. Likewise --optimized
+    # requires a prior `kc.sh build`, so the default production mode is
+    # plain `start` (see KEYCLOAK_START_MODE in .env.example).
+    command: ${KEYCLOAK_START_MODE:-start-dev} --import-realm
     environment:
 
       KC_DB: postgres
@@ -163,7 +211,7 @@ services:
   # QDRANT — Vector Database (RAG / AI)
   # ────────────────────────────────────────────────────────────
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.8.4
     container_name: proteus-qdrant
     restart: unless-stopped
     volumes:
@@ -178,10 +226,20 @@ services:
   # OLLAMA — Local LLM Provider (Optional)
   # ────────────────────────────────────────────────────────────
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.3.14
     container_name: proteus-ollama
     restart: unless-stopped
     profiles: ["ollama"]
+    # Dùng GPU host khi có (inference nhanh gấp hàng chục lần CPU).
+    # Docker CDI (nvidia.com/gpu) đã có sẵn trên máy. Nếu host không có GPU,
+    # bỏ block deploy này để chạy CPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     volumes:
       - ollama-data:/root/.ollama
     networks:
@@ -195,7 +253,7 @@ services:
       - "proteus.log=true"
 
   ollama-init:
-    image: curlimages/curl:latest
+    image: curlimages/curl:8.9.1
     container_name: proteus-ollama-init
     profiles: ["ollama"]
     depends_on:
@@ -204,7 +262,7 @@ services:
     networks:
       - proteus-net
     command: >
-      sh -c "echo 'Fetching llama3...' && curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"llama3\"}' && echo 'Done!'"
+      sh -c "echo 'Fetching qwen3:8b...' && curl -X POST http://ollama:11434/api/pull -d '{"name": "qwen3:8b"}' && echo 'Done!'"
     labels:
       - "proteus.log=true"
 
@@ -212,7 +270,7 @@ services:
   # vLLM — High-Performance Local LLM (Optional)
   # ────────────────────────────────────────────────────────────
   vllm:
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:v0.5.4
     container_name: proteus-vllm
     restart: unless-stopped
     profiles: ["vllm"]
@@ -240,7 +298,7 @@ services:
   # N8N — Workflow Automation Engine
   # ────────────────────────────────────────────────────────────
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.54.4
     container_name: proteus-n8n
     restart: unless-stopped
     environment:
@@ -277,7 +335,7 @@ services:
   # MATTERMOST — Chat & Collaboration
   # ────────────────────────────────────────────────────────────
   mattermost:
-    image: mattermost/mattermost-enterprise-edition:latest
+    image: mattermost/mattermost-enterprise-edition:10.0.2
     container_name: proteus-mattermost
     restart: unless-stopped
     environment:
@@ -310,7 +368,7 @@ services:
   # METABASE — Business Intelligence / Dashboard
   # ────────────────────────────────────────────────────────────
   metabase:
-    image: metabase/metabase:latest
+    image: metabase/metabase:v0.49.9
     container_name: proteus-metabase
     restart: unless-stopped
     environment:
@@ -351,7 +409,7 @@ services:
     environment:
       APPSMITH_DISABLE_TELEMETRY: "true"
       APPSMITH_OAUTH2_GITHUB_CLIENT_ID: appsmith
-      APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET}
+      APPSMITH_OAUTH2_GITHUB_CLIENT_SECRET: ${APPSMITH_OIDC_SECRET:-}
       APPSMITH_OAUTH2_GITHUB_AUTH_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/proteus/protocol/openid-connect/auth
       APPSMITH_OAUTH2_GITHUB_TOKEN_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/token
       APPSMITH_OAUTH2_GITHUB_PROFILE_URL: http://keycloak:8080/realms/proteus/protocol/openid-connect/userinfo
@@ -371,7 +429,7 @@ services:
   # OUTLINE — Wiki / Knowledge Base
   # ────────────────────────────────────────────────────────────
   outline:
-    image: outlinewiki/outline:latest
+    image: outlinewiki/outline:0.76.1
     container_name: proteus-outline
     restart: unless-stopped
     environment:
@@ -414,7 +472,7 @@ services:
   # OBSERVABILITY — Grafana, Loki, Promtail
   # ────────────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:2.9.8
     container_name: proteus-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
@@ -425,7 +483,7 @@ services:
       - proteus-net
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.8
     container_name: proteus-promtail
     restart: unless-stopped
     volumes:
@@ -439,7 +497,7 @@ services:
       - loki
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.3
     container_name: proteus-grafana
     restart: unless-stopped
     environment:
@@ -469,6 +527,15 @@ services:
       target: backend
     container_name: proteus-backend
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -486,7 +553,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ALLOWED_ORIGINS: '["${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}","http://localhost:3000"]'
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
-      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-llama3}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-qwen3:8b}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
       METABASE_SITE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN}${PUBLIC_URL_SUFFIX}
       METABASE_INTERNAL_URL: http://metabase:3000
@@ -496,7 +563,10 @@ services:
       MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN}
       MATTERMOST_WEBHOOK_SECRET: ${MATTERMOST_WEBHOOK_SECRET}
       MATTERMOST_SYSTEM_CHANNEL_ID: ${MATTERMOST_SYSTEM_CHANNEL_ID}
+      PLUGINS_MFE_URL: ${PLUGINS_MFE_URL:-http://plugins.proteus.local}
       PLUGINS_DIR: /plugins
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ../plugins:/plugins:ro
     depends_on:
@@ -530,8 +600,18 @@ services:
         NEXT_PUBLIC_N8N_URL: ${PUBLIC_SCHEME:-http}://workflow.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
         NEXT_PUBLIC_METABASE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
         NEXT_PUBLIC_APPSMITH_URL: ${PUBLIC_SCHEME:-http}://apps.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+        NEXT_PUBLIC_KEYCLOAK_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
     container_name: proteus-frontend
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
     environment:
       NEXTAUTH_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -545,6 +625,8 @@ services:
       NEXT_PUBLIC_N8N_URL: ${PUBLIC_SCHEME:-http}://workflow.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
       NEXT_PUBLIC_METABASE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
       NEXT_PUBLIC_APPSMITH_URL: ${PUBLIC_SCHEME:-http}://apps.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      NEXT_PUBLIC_KEYCLOAK_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      PYTHONDONTWRITEBYTECODE: "1"
     depends_on:
       - backend
     networks:

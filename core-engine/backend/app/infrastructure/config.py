@@ -48,6 +48,9 @@ class Settings(BaseSettings):
 
     # Plugins Directory
     PLUGINS_DIR: str = "/plugins"  # Container path
+    # Base URL public của Plugin Micro-Frontend gateway (dùng dựng external_url
+    # cho plugin, tránh hardcode domain local trong manifest.yaml).
+    PLUGINS_MFE_URL: str = "http://plugins.proteus.local"
 
     # ─── Metabase (Analytics) ───────────────────────────────
     METABASE_INTERNAL_URL: str | None = None
@@ -61,6 +64,12 @@ class Settings(BaseSettings):
 
     # ─── Qdrant (Vector DB) ───────────────────────────────────
     QDRANT_URL: str = "http://localhost:6333"
+    # Model embedding đa ngữ (có tiếng Việt) được fastembed hỗ trợ.
+    # e5-small KHÔNG có trong bản fastembed hiện tại → dùng mpnet-multilingual.
+    # Đổi model sau khi đã có data đòi recreate collection (khác vector dims).
+    QDRANT_DENSE_MODEL: str = (
+        "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    )
 
     # ─── Mattermost (ChatOps) ─────────────────────────────────
     MATTERMOST_URL: str = "http://mattermost:8065"

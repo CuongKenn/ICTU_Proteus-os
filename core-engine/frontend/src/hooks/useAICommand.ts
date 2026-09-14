@@ -8,12 +8,22 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useAuthStore } from "@/store/authStore";
 
 // Helper: dùng fallback khi chạy trên HTTP không có crypto.randomUUID
 const uuid = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
+
+// Mock chỉ dùng khi dev + flag bật — dynamic import để tree-shake khỏi bundle prod.
+function isMockEnabled(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true"
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,11 +43,11 @@ export interface DslPreview {
   action: string;
   effect: "read" | "write" | "critical";
   approval_message: string;
+  approval_deadline?: string | null;
   dry_run_result?: {
     affected_count: number;
     preview: Array<Record<string, unknown>>;
   };
-  approval_deadline: string;
 }
 
   interface AICommandBFFResponse {
@@ -69,6 +79,7 @@ export interface DslPreview {
   // ─── Hook Implementation ───────────────────────────────────────────────────────
   
   export function useAICommand(): UseAICommandReturn {
+    const userId = useAuthStore((s) => s.user?.id ?? null);
     const [widgetState, setWidgetState] = useState<WidgetState>("collapsed");
     const [messages, setMessages] = useState<ChatMessage[]>([
       {
@@ -84,12 +95,86 @@ export interface DslPreview {
   
     const { addToast } = useNotificationStore();
 
-    // ─── Lịch sử Chat (LocalStorage) ─────────────────────────────────────────────
+    // Key per-user: user sau trên cùng máy không đọc được chat user trước.
+    const histKey = userId ? `proteus_ai_chat_history:${userId}` : null;
+    const sessKey = userId ? `proteus_ai_session_id:${userId}` : null;
 
+    const freshGreeting = (): ChatMessage[] => [
+      {
+        id: uuid(),
+        role: "assistant",
+        content:
+          "Xin chào! Tôi là Proteus AI. Tôi có thể giúp bạn truy vấn dữ liệu hoặc thực hiện các tác vụ quản trị. Hãy nhập lệnh bằng tiếng Việt tự nhiên.",
+        timestamp: new Date(),
+      },
+    ];
+
+    // ─── Lịch sử Chat (server là source of truth, localStorage là cache) ────
+    // Đọc history server sau khi login; rớt mạng mới dùng cache per-user.
+    useEffect(() => {
+      if (!histKey || !sessKey) return;
+      let cancelled = false;
+      (async () => {
+        try {
+          const localSession = localStorage.getItem(sessKey);
+          const ensureRes = await fetch("/api/proxy/v1/ai/sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: localSession || undefined }),
+          });
+          if (!ensureRes.ok) return;
+          const { session_id } = await ensureRes.json();
+          if (!session_id || cancelled) return;
+          setSessionId(session_id);
+          const msgRes = await fetch(
+            `/api/proxy/v1/ai/sessions/${session_id}/messages?limit=100`
+          );
+          if (!msgRes.ok) return;
+          const items = await msgRes.json();
+          if (cancelled || !Array.isArray(items) || items.length === 0) return;
+          const clean = items.filter(
+            (m: any) => m && typeof m.content === "string" && m.content.length > 0
+          );
+          if (cancelled || clean.length === 0) return;
+          setMessages(
+            clean.map((m: any) => ({
+              id: typeof m.id === "string" ? m.id : uuid(),
+              role: m.role === "user" || m.role === "system" ? m.role : "assistant",
+              content: m.content,
+              timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+            }))
+          );
+        } catch {
+          // Rớt mạng: giữ cache localStorage đã load ở effect trước.
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [histKey]);
+
+    // Dọn key chung legacy 1 lần (nguồn rò rỉ) — không migrate vì không biết của ai.
     useEffect(() => {
       try {
-        const savedMessages = localStorage.getItem("proteus_ai_chat_history");
-        const savedSession = localStorage.getItem("proteus_ai_session_id");
+        localStorage.removeItem("proteus_ai_chat_history");
+        localStorage.removeItem("proteus_ai_session_id");
+      } catch {
+        // Bỏ qua.
+      }
+    }, []);
+
+    useEffect(() => {
+      if (!histKey || !sessKey) {
+        // Chưa login / vừa logout: reset RAM ngay, không đọc gì.
+        setMessages(freshGreeting());
+        setSessionId(uuid());
+        setDslPreview(null);
+        return;
+      }
+      try {
+        const savedMessages = localStorage.getItem(histKey);
+        const savedSession = localStorage.getItem(sessKey);
         if (savedMessages) {
           const parsed = JSON.parse(savedMessages);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -99,26 +184,31 @@ export interface DslPreview {
                 timestamp: new Date(m.timestamp),
               }))
             );
+          } else {
+            setMessages(freshGreeting());
           }
+        } else {
+          setMessages(freshGreeting());
         }
-        if (savedSession) {
-          setSessionId(savedSession);
-        }
+        setSessionId(savedSession || uuid());
+        setDslPreview(null);
       } catch (e) {
         /* eslint-disable-next-line no-console */
         console.error("Failed to load AI chat history", e);
       }
-    }, []);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [histKey, sessKey]);
 
     useEffect(() => {
+      if (!histKey || !sessKey) return;
       try {
-        localStorage.setItem("proteus_ai_chat_history", JSON.stringify(messages));
-        localStorage.setItem("proteus_ai_session_id", sessionId);
+        localStorage.setItem(histKey, JSON.stringify(messages));
+        localStorage.setItem(sessKey, sessionId);
       } catch (e) {
         /* eslint-disable-next-line no-console */
         console.error("Failed to save AI chat history", e);
       }
-    }, [messages, sessionId]);
+    }, [messages, sessionId, histKey, sessKey]);
   
     // ─── Actions ─────────────────────────────────────────────────────────────────
   
@@ -131,6 +221,12 @@ export interface DslPreview {
     }, []);
 
     const clearHistory = useCallback(() => {
+      try {
+        if (histKey) localStorage.removeItem(histKey);
+        if (sessKey) localStorage.removeItem(sessKey);
+      } catch {
+        // Bỏ qua.
+      }
       setMessages([
         {
           id: uuid(),
@@ -141,7 +237,7 @@ export interface DslPreview {
       ]);
       setSessionId(uuid());
       setDslPreview(null);
-    }, []);
+    }, [histKey, sessKey]);
   
     const resetAndClose = useCallback(() => {
       setWidgetState("collapsed");
@@ -156,8 +252,192 @@ export interface DslPreview {
       ]);
     }, []);
   
+    /** Render kết quả read: stringify + dòng trích dẫn RAG nếu có. */
+    const formatResult = useCallback((result: any): string => {
+      if (typeof result === "string") return result;
+      // Reply trò chuyện: hiện thẳng nội dung, không dump JSON.
+      if (
+        typeof result === "object" &&
+        result !== null &&
+        typeof result.reply === "string" &&
+        Object.keys(result).length === 1
+      ) {
+        return result.reply;
+      }
+      const cites = result?.citations;
+      const body =
+        typeof result === "object" && result !== null && "citations" in result
+          ? { query: (result as any).query }
+          : result;
+      let text = JSON.stringify(body, null, 2);
+      const MAX_LEN = 4000;
+      if (text.length > MAX_LEN) {
+        text =
+          text.slice(0, MAX_LEN) +
+          `\n… (đã rút gọn, còn ${text.length - MAX_LEN} ký tự)`;
+      }
+      if (Array.isArray(cites) && cites.length > 0) {
+        const lines = cites.map((c: any, i: number) => {
+          const title = c?.doc_title || c?.source_url || `Tài liệu ${i + 1}`;
+          const score = typeof c?.score === "number" ? ` (${c.score.toFixed(2)})` : "";
+          return `${i + 1}. ${title}${score}`;
+        });
+        text += `\n\n📚 Nguồn tham khảo:\n${lines.join("\n")}`;
+      }
+      return text;
+    }, []);
+
+    /** Áp dụng response (chuẩn BFF hoặc event result SSE) vào UI. */
+    const applyResult = useCallback(
+      (data: AICommandBFFResponse) => {
+        // Xử lý status phân biệt hoa/thường để match Enum từ Python
+        const statusUpper =
+          typeof data.status === "string" ? data.status.toUpperCase() : "ERROR";
+
+        if (statusUpper === "COMPLETED") {
+          // Backend trả summary ở message + data thật trong result.steps[].result.
+          // Hiện summary trước, data chi tiết sau (không dump JSON trạng thái).
+          const steps = (data.result as any)?.steps;
+          // Reply trò chuyện thuần túy: message đã là nội dung sạch từ server.
+          if (
+            Array.isArray(steps) &&
+            steps.length === 1 &&
+            steps[0].action === "core.chat.reply" &&
+            typeof steps[0].result === "string"
+          ) {
+            appendMessage("assistant", data.message || steps[0].result);
+            setWidgetState("expanded");
+            return;
+          }
+          if (
+            Array.isArray(steps) &&
+            steps.length === 1 &&
+            steps[0].action === "core.chat.reply" &&
+            typeof steps[0].result?.reply === "string"
+          ) {
+            appendMessage("assistant", steps[0].result.reply);
+            setWidgetState("expanded");
+            return;
+          }
+          const details: string[] = [];
+          if (Array.isArray(steps)) {
+            for (const s of steps) {
+              if (
+                s &&
+                s.status === "COMPLETED" &&
+                s.result !== null &&
+                s.result !== undefined
+              ) {
+                details.push(formatResult(s.result));
+              }
+            }
+          } else if (data.result) {
+            details.push(formatResult(data.result));
+          }
+          const content =
+            details.length > 0
+              ? `${data.message}\n\n📦 Kết quả:\n${details.join("\n\n")}`
+              : data.message || "Hoàn thành.";
+          appendMessage("assistant", content);
+          setWidgetState("expanded");
+        } else if (statusUpper === "PENDING_APPROVAL") {
+          const preview = (data as any).dsl_preview ||
+            (data as any).dry_run_result ||
+            (data.result as any)?.dsl_preview ||
+            data.result || {
+              action: "System Command",
+              effect: "write",
+            };
+          setDslPreview({
+            command_id:
+              (preview as any).command_id || (data as any).command_id || uuid(),
+            action: (preview as any).action || "Execute",
+            effect: (preview as any).effect === "critical" ? "critical" : "write",
+            approval_message:
+              (preview as any).approval_message || data.message || "",
+            approval_deadline: (preview as any).approval_deadline || null,
+            dry_run_result: (preview as any).dry_run_result,
+          });
+          appendMessage(
+            "assistant",
+            `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${(preview as any).action || "Execute"}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục, hoặc **Huỷ** để hủy lệnh.`
+          );
+          setWidgetState("awaiting_approval");
+        } else {
+          setDslPreview(null);
+          appendMessage("assistant", data.message || "Đã xảy ra lỗi không xác định.");
+          setWidgetState("expanded");
+        }
+      },
+      [appendMessage, formatResult]
+    );
+
     /**
-     * sendCommand — Gửi lệnh tới BFF /api/ai/command
+     * sendViaStream — Gửi lệnh qua SSE /api/ai/chat/stream.
+     * Trả về true nếu stream hoàn tất (kể cả FAILED nghiệp vụ),
+     * false nếu lỗi kỹ thuật để caller fallback sang POST thường.
+     */
+    const sendViaStream = useCallback(
+      async (trimmed: string): Promise<boolean> => {
+        let response: Response;
+        try {
+          response = await fetch("/api/ai/chat/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              natural_language_input: trimmed,
+              session_id: sessionId,
+            }),
+          });
+        } catch {
+          return false;
+        }
+        const contentType = response.headers.get("content-type") ?? "";
+        if (!response.ok || !response.body || !contentType.includes("text/event-stream")) {
+          return false;
+        }
+        try {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let currentEvent = "message";
+          let done = false;
+          while (!done) {
+            const { value, done: readerDone } = await reader.read();
+            done = readerDone;
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+            let idx;
+            while ((idx = buffer.indexOf("\n\n")) !== -1) {
+              const raw = buffer.slice(0, idx);
+              buffer = buffer.slice(idx + 2);
+              let dataStr = "";
+              for (const line of raw.split("\n")) {
+                if (line.startsWith("event:")) currentEvent = line.slice(6).trim();
+                else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+              }
+              if (currentEvent === "result" && dataStr) {
+                const payload = JSON.parse(dataStr);
+                applyResult({
+                  status: payload.status,
+                  message: payload.message,
+                  result: payload.result,
+                  dry_run_result: payload.dry_run_result,
+                } as AICommandBFFResponse);
+                currentEvent = "message";
+              }
+              // event started/token/dsl: chỉ giữ kết nối sống, UI vẫn "thinking".
+            }
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      [sessionId, applyResult]
+    );
+
+    /**
+     * sendCommand — Ưu tiên SSE stream, fallback POST /api/ai/command.
      * BFF sẽ inject JWT Token từ HttpOnly Cookie và forward tới FastAPI.
      * effect=read → hiển thị kết quả ngay.
      * effect=write/critical → chuyển sang state awaiting_approval + hiện DSL preview.
@@ -165,12 +445,14 @@ export interface DslPreview {
     const sendCommand = useCallback(async () => {
       const trimmed = inputValue.trim();
       if (!trimmed || widgetState === "thinking") return;
-  
+
       // Thêm tin nhắn người dùng
       appendMessage("user", trimmed);
       setInputValue("");
       setWidgetState("thinking");
-  
+
+      if (await sendViaStream(trimmed)) return;
+
       try {
         const response = await fetch("/api/ai/command", {
           method: "POST",
@@ -180,10 +462,10 @@ export interface DslPreview {
             session_id: sessionId,
           }),
         });
-  
+
         let data: AICommandBFFResponse;
-  
-        if (!response.ok && process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+
+        if (!response.ok && isMockEnabled()) {
           // Dev fallback: mock response khi API chưa có
           const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
           const detectedEffect = detectEffectFromInput(trimmed);
@@ -196,34 +478,10 @@ export interface DslPreview {
         } else {
           data = await response.json();
         }
-  
-        // Xử lý status phân biệt hoa/thường để match Enum từ Python
-        const statusUpper = typeof data.status === "string" ? data.status.toUpperCase() : "ERROR";
-  
-        if (statusUpper === "COMPLETED" && data.result) {
-          // effect=read: hiển thị kết quả ngay
-          // Backend trả về dict, cần stringify hoặc extract text hợp lý
-          const resultText = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
-          appendMessage("assistant", resultText);
-          setWidgetState("expanded");
-        } else if (statusUpper === "PENDING_APPROVAL") {
-          // effect=write/critical: chờ phê duyệt
-          // Nếu backend không trả về dsl_preview, fallback mock data hoặc parse info từ result/message
-          const preview = data.dry_run_result || (data as any).dsl_preview || data.result || {
-            action: "System Command", effect: "write"
-          };
-          setDslPreview(preview);
-          appendMessage(
-            "assistant",
-            `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${preview.action || "Execute"}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
-          );
-          setWidgetState("awaiting_approval");
-        } else {
-          appendMessage("assistant", data.message || "Đã xảy ra lỗi không xác định.");
-          setWidgetState("expanded");
-        }
+
+        applyResult(data);
       } catch (error) {
-        if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+        if (isMockEnabled()) {
           // Dev fallback
           const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
           const detectedEffect = detectEffectFromInput(trimmed);
@@ -253,7 +511,7 @@ export interface DslPreview {
           setWidgetState("expanded");
         }
       }
-    }, [inputValue, widgetState, appendMessage, addToast, sessionId]);
+    }, [inputValue, widgetState, appendMessage, addToast, sessionId, applyResult, sendViaStream]);
 
   /**
    * openMattermostApproval — Mở Mattermost để phê duyệt.
@@ -272,13 +530,32 @@ export interface DslPreview {
   }, [addToast]);
 
   /**
-   * cancelApproval — Huỷ lệnh đang chờ phê duyệt.
+   * cancelApproval — Hủy thật lệnh đang chờ duyệt (backend REJECTED),
+   * không chỉ xóa panel local như trước.
    */
-  const cancelApproval = useCallback(() => {
+  const cancelApproval = useCallback(async () => {
+    const cmdId = dslPreview?.command_id;
+    if (cmdId) {
+      try {
+        const res = await fetch(
+          `/api/proxy/v1/ai/commands/${cmdId}/cancel`,
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.cancelled === false) {
+          addToast(
+            "warning",
+            (data as any).reason || "Không hủy được lệnh (có thể đã được xử lý)."
+          );
+        }
+      } catch {
+        addToast("warning", "Không kết nối được để hủy lệnh.");
+      }
+    }
     setDslPreview(null);
     appendMessage("assistant", "🚫 Lệnh đã được huỷ bỏ.");
     setWidgetState("expanded");
-  }, [appendMessage]);
+  }, [dslPreview, appendMessage, addToast]);
 
   return {
     widgetState,

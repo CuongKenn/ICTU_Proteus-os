@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "helpdesk/ticket/feedback",
         "responseMode": "lastNode",
         "options": {}

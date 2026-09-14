@@ -1592,6 +1592,68 @@ paths:
                         items:
                           $ref: '#/components/schemas/AIHistoryItem'
 
+  /ai/sessions:
+    post:
+      summary: Ensure AI chat session của user (memory server-side)
+      tags: [Agentic AI]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Session hiện có hoặc vừa tạo (scope user+tenant)
+    get:
+      summary: Liệt kê AI chat sessions của user
+      tags: [Agentic AI]
+      responses:
+        '200':
+          description: Danh sách sessions mới nhất trước
+
+  /ai/sessions/{session_id}/messages:
+    get:
+      summary: Lịch sử 1 AI chat session (rỗng nếu session không thuộc user)
+      tags: [Agentic AI]
+      responses:
+        '200':
+          description: Danh sách turns (role/content/citations/command_id)
+    post:
+      summary: Lưu 1 turn chat vào session
+      tags: [Agentic AI]
+      responses:
+        '201':
+          description: Turn đã lưu
+
+  /ai/actions:
+    get:
+      summary: Catalog actions AI được phép gọi (động theo plugin đã cài)
+      tags: [Agentic AI]
+      responses:
+        '200':
+          description: Danh sách action + effect_hint + description
+
+  /ai/knowledge/search:
+    post:
+      summary: Tìm kiếm tri thức nội bộ (hybrid, cô lập tenant, kèm citations)
+      tags: [Agentic AI]
+      responses:
+        '200':
+          description: Query + citations (doc_title/source_url/score)
+
+  /ai/chat/stream:
+    post:
+      summary: Chat Proteus AI, stream SSE (started/token/dsl/result)
+      tags: [Agentic AI]
+      responses:
+        '200':
+          description: Stream text/event-stream
+
   # ==============================
   # KNOWLEDGE BASE
   # ==============================

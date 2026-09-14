@@ -18,20 +18,77 @@
 //   - docs/dsl-spec.md §4 (Effect Levels)
 //   - docs/api-swagger.yaml POST /ai/command
 
-import { getToken } from "next-auth/jwt";
+import { encode, getToken } from "next-auth/jwt";
+import type { JWT } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { refreshAccessToken } from "@/lib/tokenRefresh";
+import {
+  SESSION_MAX_AGE,
+  isSecureCookies,
+  sessionCookieDomain,
+  sessionCookieName,
+} from "@/lib/sessionCookie";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
+// Persist JWT đã refresh vào session cookie (copy từ BFF proxy — Keycloak bật
+// rotate refresh token nên không persist thì request sau dùng token cũ → chết session).
+async function attachRefreshedSession(
+  response: NextResponse,
+  refreshed: JWT | null
+): Promise<NextResponse> {
+  if (!refreshed) return response;
+  const sealed = await encode({
+    token: refreshed,
+    secret: process.env.NEXTAUTH_SECRET ?? "",
+    maxAge: SESSION_MAX_AGE,
+  });
+  response.cookies.set(sessionCookieName(), sealed, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: isSecureCookies(),
+    maxAge: SESSION_MAX_AGE,
+    ...(sessionCookieDomain() ? { domain: sessionCookieDomain() } : {}),
+  });
+  return response;
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // 1. Xác thực session — Token được đọc từ HttpOnly Cookie phía server
-  const token = await getToken({ req: request });
+  // 1. Xác thực session — BẮT BUỘC truyền secret để giải mã session cookie (JWE).
+  // Thiếu secret getToken() luôn trả null → 401 vĩnh viễn dù session còn sống
+  // (đây chính là bug "phiên hết hạn" của Proteus AI trước đây).
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token?.accessToken) {
     return NextResponse.json(
       { error: "Unauthorized", message: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." },
       { status: 401 }
     );
+  }
+
+  // 1b. access_token hết hạn giữa phiên → refresh inline (giống BFF proxy)
+  // thay vì trả 401 oan.
+  let accessToken = token.accessToken as string;
+  let refreshedJwt: JWT | null = null;
+  const expires = token.accessTokenExpires as number | undefined;
+  if (expires && Date.now() > expires - 10_000) {
+    try {
+      const refreshed = await refreshAccessToken(token as Parameters<typeof refreshAccessToken>[0]);
+      if (refreshed.error) {
+        return NextResponse.json(
+          { error: "Unauthorized", message: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." },
+          { status: 401 }
+        );
+      }
+      accessToken = refreshed.accessToken as string;
+      refreshedJwt = refreshed;
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." },
+        { status: 401 }
+      );
+    }
   }
 
   let body: unknown;
@@ -61,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       headers: {
         "Content-Type": "application/json",
         // BFF inject Bearer Token — browser không biết token này
-        Authorization: `Bearer ${token.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
       body: JSON.stringify(backendPayload),
@@ -84,7 +141,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       } catch (e) {
         data = { error: "JSON Parse Error" };
       }
-      return NextResponse.json(data, { status: backendResponse.status });
+      return attachRefreshedSession(
+        NextResponse.json(data, { status: backendResponse.status }),
+        refreshedJwt
+      );
     }
 
     // Trường hợp Backend trả non-JSON (unexpected)
