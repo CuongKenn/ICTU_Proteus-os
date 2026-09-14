@@ -57,16 +57,16 @@ class AITimeoutWorker:
                     cmd_id, AICommandStatus.TIMEOUT
                 )
 
-                # 3. Ghi audit_logs
-                metadata = '{"reason": "Approval deadline exceeded"}'
+                # 3. Ghi audit_logs (schema mới: payload/result/status)
                 await self.audit_log_repo.insert_log(
                     tenant_id=tenant_id,
+                    user_id=None,
                     actor_type="SYSTEM",
                     action="ai_command.timeout",
                     resource_type="AI_COMMAND",
                     resource_id=cmd_id,
-                    command_id=cmd_id,
-                    metadata_json=metadata,
+                    payload={"reason": "Approval deadline exceeded"},
+                    status="failed",
                 )
 
                 # 4. Gửi thông báo Mattermost

@@ -84,6 +84,15 @@ class RoleManagementUseCase:
         role = await self.role_repo.get_role(role_id, tenant_id)
         if not role:
             raise ValueError(f"Role {role_id} not found in tenant {tenant_id}")
+        # C5: chặn cross-tenant — target user phải cùng tenant.
+        if self.user_repo is not None:
+            target = await self.user_repo.get(user_id)
+            if not target:
+                raise ValueError(f"User {user_id} not found")
+            if str(target.tenant_id) != str(tenant_id):
+                raise PermissionError(
+                    "Không có quyền gán role cho user thuộc tenant khác."
+                )
 
         admin_internal_id = None
         if self.user_repo and granted_by:
@@ -100,5 +109,14 @@ class RoleManagementUseCase:
         role = await self.role_repo.get_role(role_id, tenant_id)
         if not role:
             raise ValueError(f"Role {role_id} not found in tenant {tenant_id}")
+        # C5: chặn cross-tenant — target user phải cùng tenant.
+        if self.user_repo is not None:
+            target = await self.user_repo.get(user_id)
+            if not target:
+                raise ValueError(f"User {user_id} not found")
+            if str(target.tenant_id) != str(tenant_id):
+                raise PermissionError(
+                    "Không có quyền thu hồi role của user thuộc tenant khác."
+                )
 
         await self.role_repo.revoke_role(user_id, role_id)

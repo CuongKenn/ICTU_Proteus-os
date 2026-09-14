@@ -440,9 +440,14 @@ async def get_plugin_records_use_case(
 
 
 async def get_ai_command_repo(
-    db: AsyncSession = Depends(get_db_readonly),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> AbstractAICommandRepository:
-    """Inject AI Command Repository."""
+    """Inject AI Command Repository (transactional).
+
+    Write path (create/approve) cần SELECT FOR UPDATE + UPDATE conditional
+    trong cùng transaction để chống approval race — vì vậy KHÔNG dùng
+    get_db_readonly ở đây.
+    """
     return SQLAlchemyAICommandRepository(session=db)
 
 
@@ -470,6 +475,7 @@ async def get_ai_command_use_case(
     qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
     audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),
     user_repo: AbstractUserRepository = Depends(get_user_repo),
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
 ) -> AICommandUseCase:
     """Inject AICommandUseCase (dynamic DSL + local core actions + audit)."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -485,6 +491,7 @@ async def get_ai_command_use_case(
         qdrant_adapter=qdrant_adapter,
         audit_log_repo=audit_log_repo,
         user_repo=user_repo,
+        conversation_repo=conversation_repo,
     )
 
 

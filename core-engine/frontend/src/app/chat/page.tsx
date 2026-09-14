@@ -9,8 +9,9 @@ function joinUrl(base: string, path: string): string {
 }
 
 export default function ChatPage() {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://chat.proteus.local";
+  // Đọc env tại runtime; fallback "" an toàn thay vì hardcode proteus.local.
+  // Nếu thiếu config, SsoEmbed sẽ hiện thông báo thay vì trỏ nhầm domain.
+  const baseUrl = process.env.NEXT_PUBLIC_MATTERMOST_URL || "";
 
   return (
     <AppShell>

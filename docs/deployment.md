@@ -29,17 +29,21 @@ Dành cho lập trình viên chạy thử nghiệm (có thể tắt bớt một 
 Để giải quyết bài toán giao tiếp giữa các dịch vụ, nhúng Iframe an toàn (vượt rào cản SameSite Cookie), và cung cấp HTTPS tự động, Proteus OS sử dụng **Traefik Proxy** làm cửa ngõ duy nhất (Edge Router).
 
 *   **Ports:** Traefik là dịch vụ duy nhất được phép "mở" cổng (Bind) ra bên ngoài tại Port `80` (HTTP) và `443` (HTTPS). Tất cả các dịch vụ khác (Keycloak, n8n, Appsmith) chỉ giao tiếp nội bộ trong Docker Network.
-*   **Single-Domain Path-Based Routing:** Để các ứng dụng có thể chia sẻ Cookie bảo mật với nhau (đặc biệt quan trọng cho Single Sign-On và Iframe), toàn bộ hệ thống chạy trên **CÙNG MỘT TÊN MIỀN GỐC** (Ví dụ: `proteus.local`). Traefik sẽ định tuyến dựa vào Path (đường dẫn):
-    - `https://proteus.local/` 👉 Chuyển về **Next.js App Shell (Launchpad)**
-    - `https://proteus.local/api/` 👉 Chuyển về **FastAPI Core Engine**
-    - `https://proteus.local/auth/` 👉 Chuyển về **Keycloak**
-    - `https://proteus.local/chat/` 👉 Chuyển về **Mattermost**
-    - `https://proteus.local/files/` 👉 Chuyển về **Nextcloud** (lưu trữ file)
-    - `https://proteus.local/wiki/` 👉 Chuyển về **Outline** (Wiki/CMS)
-    - `https://proteus.local/workflow/` 👉 Chuyển về **n8n** (Workflow Admin UI)
-    - `https://proteus.local/analytics/` 👉 Chuyển về **Metabase** (BI Dashboard)
-    - `https://proteus.local/proxy/appsmith/` 👉 Chuyển về **Appsmith** (Để nhúng Iframe)
-    - `https://proteus.local/monitoring/` 👉 Chuyển về **Grafana** (Log Observability)
+*   **Subdomain-Based Routing:** Toàn bộ hệ thống chạy trên **CÙNG MỘT DOMAIN GỐC** (Ví dụ: `proteus.local`, cấu hình qua biến `DOMAIN` trong `deploy/.env`). Traefik định tuyến dựa vào Host (subdomain), khớp với `deploy/docker-compose.yml`:
+    - `https://proteus.local/` 👉 **Next.js App Shell (Launchpad)** (`Host(\`${DOMAIN}\`)`, priority 1; `/api/v1`, `/docs`, `/openapi.json`, `/health` → **FastAPI Core Engine**, priority 10)
+    - `https://auth.proteus.local/` 👉 **Keycloak** (`Host(\`auth.${DOMAIN}\`)`)
+    - `https://chat.proteus.local/` 👉 **Mattermost** (`Host(\`chat.${DOMAIN}\`)`)
+    - `https://wiki.proteus.local/` 👉 **Outline Wiki** (`Host(\`wiki.${DOMAIN}\`)`)
+    - `https://workflow.proteus.local/` 👉 **n8n** (`Host(\`workflow.${DOMAIN}\`)`)
+    - `https://analytics.proteus.local/` 👉 **Metabase** (`Host(\`analytics.${DOMAIN}\`)`)
+    - `https://apps.proteus.local/` (+ `PathPrefix(\`/proxy/appsmith\`)` trên domain gốc) 👉 **Appsmith**
+    - `https://plugins.proteus.local/{plugin-code}` 👉 **Plugin Micro-Frontend Gateway** (`Host(\`plugins.${DOMAIN}\`)`)
+    - `https://traefik.proteus.local/` 👉 **Traefik Dashboard** (`Host(\`traefik.${DOMAIN}\`)`)
+    - `https://proteus.local/monitoring/` 👉 **Grafana** (`Host(\`${DOMAIN}\`) && PathPrefix(\`/monitoring/\`)`)
+> [!NOTE]
+> Cùng-site subdomain (`*.proteus.local`) cho phép chia sẻ cookie SSO (SameSite=Lax) giữa
+> Launchpad và iframe (Mattermost/Outline/n8n...). Production cộng thêm overlay
+> `docker-compose.prod.yml` để chuyển mọi router sang `websecure` + TLS Let's Encrypt.
 
 ### 2.2. Sơ đồ Mạng (Docker Network Diagram)
 
@@ -50,28 +54,28 @@ graph TD
     subgraph DockerNetwork
         UI["Next.js App Shell"]
         Core["FastAPI Core Engine"]
-        Keycloak["Keycloak"]
-        Appsmith["Appsmith"]
-        Mattermost["Mattermost"]
-        Nextcloud["Nextcloud (Files)"]
-        Outline["Outline (Wiki)"]
-        N8n["n8n (Workflow)"]
-        Metabase["Metabase (BI)"]
-        Grafana["Grafana (Monitoring)"]
+        Keycloak["Keycloak (auth.*)"]
+        Appsmith["Appsmith (apps.*)"]
+        Mattermost["Mattermost (chat.*)"]
+        Outline["Outline Wiki (wiki.*)"]
+        N8n["n8n Workflow (workflow.*)"]
+        Metabase["Metabase BI (analytics.*)"]
+        PluginsMFE["Plugins MFE (plugins.*)"]
+        Grafana["Grafana (monitoring/)"]
         PG[("PostgreSQL")]
         Qdrant[("Qdrant")]
         Redis[["Redis (Event Bus)"]]
         
-        Traefik -->|"/"| UI
-        Traefik -->|"/api"| Core
-        Traefik -->|"/auth"| Keycloak
-        Traefik -->|"/proxy/appsmith"| Appsmith
-        Traefik -->|"/chat"| Mattermost
-        Traefik -->|"/files"| Nextcloud
-        Traefik -->|"/wiki"| Outline
-        Traefik -->|"/workflow"| N8n
-        Traefik -->|"/analytics"| Metabase
-        Traefik -->|"/monitoring"| Grafana
+        Traefik -->|Host domain gốc| UI
+        Traefik -->|Host domain gốc + /api/v1, /docs, /health| Core
+        Traefik -->|Host auth.*| Keycloak
+        Traefik -->|Host apps.*| Appsmith
+        Traefik -->|Host chat.*| Mattermost
+        Traefik -->|Host wiki.*| Outline
+        Traefik -->|Host workflow.*| N8n
+        Traefik -->|Host analytics.*| Metabase
+        Traefik -->|Host plugins.*| PluginsMFE
+        Traefik -->|Host domain gốc + /monitoring/| Grafana
         
         Core --> PG
         Core --> Qdrant
@@ -131,9 +135,11 @@ Sử dụng file `.env` để cấu hình:
 ```env
 KEYCLOAK_START_MODE=start
 ```
-(TLS terminate tại Traefik; Keycloak phục vụ HTTP nội bộ trên `:8080` với
-`KC_HOSTNAME_STRICT=false`, `KC_HOSTNAME_STRICT_HTTPS=false`,
-`KC_PROXY_HEADERS=xforwarded` đã cấu hình trong `docker-compose.yml`.)
+(TLS terminate tại Traefik; Keycloak phục vụ HTTP nội bộ trên `:8080`.
+Dev (`docker-compose.yml`): `KC_HOSTNAME_STRICT=false`, `KC_HOSTNAME_STRICT_HTTPS=false`
+để chạy HTTP local. Production (overlay `docker-compose.prod.yml` ghi đè):
+`KC_HOSTNAME_STRICT=true`, `KC_HOSTNAME_STRICT_HTTPS=true`,
+`KC_PROXY_HEADERS=xforwarded` + `KEYCLOAK_START_MODE=start`.)
 
 > [!WARNING]
 > Không dùng `KEYCLOAK_START_MODE=start --optimized` với image stock

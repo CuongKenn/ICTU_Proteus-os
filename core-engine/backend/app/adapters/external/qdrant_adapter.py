@@ -1,7 +1,9 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import logging
+import threading
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient
@@ -11,6 +13,11 @@ from app.core.domain.ports import AbstractVectorDBPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
+
+# M14: cache TextEmbedding theo model (singleton) — tránh load lại model
+# nặng mỗi query. Khóa thread-safe cho tạo model sync trong to_thread.
+_EMBEDDER_CACHE: dict[str, Any] = {}
+_EMBEDDER_LOCK = threading.Lock()
 
 
 class QdrantAdapterError(Exception):
@@ -67,13 +74,39 @@ class QdrantAdapter(AbstractVectorDBPort):
             )
         self._models_ensured = True
 
-    def _dense_vector(self, text: str) -> list[float]:
-        """Embed 1 câu query bằng dense model (dùng khi dense-only)."""
-        if self._embedder is None:
-            from fastembed import TextEmbedding
+    def _get_embedder_sync(self) -> Any:
+        """Lấy (hoặc tạo) TextEmbedding singleton cho dense_model — chạy sync."""
+        cached = _EMBEDDER_CACHE.get(self.dense_model)
+        if cached is not None:
+            return cached
+        if self._embedder is not None:
+            _EMBEDDER_CACHE[self.dense_model] = self._embedder
+            return self._embedder
+        from fastembed import TextEmbedding
 
-            self._embedder = TextEmbedding(self.dense_model)
-        vec = next(iter(self._embedder.embed([text])))
+        with _EMBEDDER_LOCK:
+            # Double-check sau khi giữ lock.
+            cached = _EMBEDDER_CACHE.get(self.dense_model)
+            if cached is not None:
+                self._embedder = cached
+                return cached
+            embedder = TextEmbedding(self.dense_model)
+            _EMBEDDER_CACHE[self.dense_model] = embedder
+            self._embedder = embedder
+            return embedder
+
+    async def _dense_vector(self, text: str) -> list[float]:
+        """Embed 1 câu query bằng dense model (dùng khi dense-only).
+
+        M14: fastembed TextEmbedding.embed là sync/blocking → offload sang
+        asyncio.to_thread để không chặn event loop; model được cache singleton.
+        """
+        embedder = await asyncio.to_thread(self._get_embedder_sync)
+
+        def _embed_once() -> Any:
+            return next(iter(embedder.embed([text])))
+
+        vec = await asyncio.to_thread(_embed_once)
         return vec.tolist() if hasattr(vec, "tolist") else list(vec)
 
     async def _ensure_collection_exists(self):
@@ -168,9 +201,10 @@ class QdrantAdapter(AbstractVectorDBPort):
                         }
                     )
             else:
+                query_vector = await self._dense_vector(query)
                 points = await self.client.search(
                     collection_name=self.collection_name,
-                    query_vector=self._dense_vector(query),
+                    query_vector=query_vector,
                     query_filter=tenant_filter,
                     limit=limit,
                     with_payload=True,

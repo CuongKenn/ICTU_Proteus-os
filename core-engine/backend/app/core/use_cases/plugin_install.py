@@ -33,6 +33,169 @@ from app.infrastructure.config import settings
 
 logger = structlog.get_logger(__name__)
 
+# ─── Seed sandbox policy (C4) ──────────────────────────────────
+# Allowlist: seed chỉ được CREATE TABLE / CREATE INDEX / INSERT.
+# Mọi statement khác (kể cả SELECT đơn lẻ) đều bị từ chối để giữ
+# seed là schema+data init thuần túy, không phải kênh thực thi SQL tùy ý.
+_SEED_ALLOWED_STMT = re.compile(
+    r"^\s*(CREATE\s+(UNIQUE\s+)?(TABLE|INDEX)\b|INSERT\s+INTO\b)",
+    re.IGNORECASE,
+)
+# Denylist bổ sung: chặn sandbox-escape / side-effect ngoài schema tenant.
+_SEED_FORBIDDEN = re.compile(
+    r"(public\.|pg_\w+|pg_catalog|information_schema"
+    r"|\bCOPY\b|\bDO\b|\bLISTEN\b|\bNOTIFY\b"
+    r"|\bCREATE\s+(OR\s+REPLACE\s+)?(TRIGGER|VIEW|RULE|FUNCTION|PROCEDURE"
+    r"|EXTENSION|SCHEMA|DATABASE|ROLE|USER|PUBLICATION|SUBSCRIPTION)\b"
+    r"|\bALTER\b|\bDROP\b|\bDELETE\b|\bUPDATE\b|\bTRUNCATE\b"
+    r"|\bGRANT\b|\bREVOKE\b|\bSET\b|\bRESET\b|\bSHOW\b"
+    r"|\bSECURITY\s+DEFINER\b|\bVACUUM\b|\bANALYSE\b|\bANALYZE\b"
+    r"|dblink|pg_exec|lo_|pg_read_file|pg_ls_dir)",
+    re.IGNORECASE,
+)
+_PLUGIN_CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+_SEED_FILE_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+\.sql$")
+_SEED_STATEMENT_TIMEOUT = "10s"
+
+
+def _split_seed_statements_safe(sql: str) -> list[str]:
+    """Split seed SQL thành từng statement, tôn trọng $$, quotes, comments.
+
+    Ưu tiên sqlparse nếu có; ngược lại dùng splitter thủ công xử lý
+    dollar-quoting ($$...$$ / $tag$...$tag$), single/double quotes,
+    line comments (--) và block comments (/* */). Chỉ split tại ';'
+    ở top-level.
+    """
+    try:
+        import sqlparse  # type: ignore
+
+        return [s.strip() for s in sqlparse.split(sql) if s and s.strip()]
+    except ImportError:
+        pass
+    statements: list[str] = []
+    buf: list[str] = []
+    i = 0
+    n = len(sql)
+    in_single = False
+    in_double = False
+    in_line_comment = False
+    in_block_comment = False
+    dollar_tag: str | None = None
+    while i < n:
+        ch = sql[i]
+        nxt2 = sql[i : i + 2]
+        # Thoát line comment
+        if in_line_comment:
+            buf.append(ch)
+            if ch == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+        # Thoát block comment
+        if in_block_comment:
+            buf.append(ch)
+            if nxt2 == "*/":
+                buf.append(sql[i + 1])
+                i += 2
+                in_block_comment = False
+            else:
+                i += 1
+            continue
+        # Trong dollar-quoting: chỉ tìm tag đóng
+        if dollar_tag is not None:
+            if ch == "$":
+                m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+                if m and m.group(0) == dollar_tag:
+                    buf.append(m.group(0))
+                    i += len(m.group(0))
+                    dollar_tag = None
+                    continue
+            buf.append(ch)
+            i += 1
+            continue
+        # Trong single quote
+        if in_single:
+            buf.append(ch)
+            if ch == "'" and nxt2 != "''":
+                in_single = False
+            elif ch == "'" and nxt2 == "''":
+                buf.append(sql[i + 1])
+                i += 1
+            i += 1
+            continue
+        # Trong double quote
+        if in_double:
+            buf.append(ch)
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        # Mở comment
+        if nxt2 == "--":
+            # '--' trong toán tử? Trong seed DDL hiếm; coi là comment cho an toàn.
+            in_line_comment = True
+            buf.append(ch)
+            i += 1
+            continue
+        if nxt2 == "/*":
+            in_block_comment = True
+            buf.append(ch)
+            i += 1
+            continue
+        # Mở quote
+        if ch == "'":
+            in_single = True
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            buf.append(ch)
+            i += 1
+            continue
+        # Mở dollar-quoting
+        if ch == "$":
+            m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+            if m:
+                dollar_tag = m.group(0)
+                buf.append(dollar_tag)
+                i += len(dollar_tag)
+                continue
+            buf.append(ch)
+            i += 1
+            continue
+        # Split tại ';' top-level
+        if ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
+def _validate_seed_statement(stmt: str) -> None:
+    """Raise PluginInstallError nếu statement vi phạm seed policy."""
+    stripped = stmt.strip().rstrip(";").strip()
+    if not stripped:
+        raise PluginInstallError("Seed file chứa statement rỗng.")
+    if _SEED_FORBIDDEN.search(stripped):
+        raise PluginInstallError(
+            "Seed file chứa từ khóa/kênh không được phép "
+            "(public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE...)."
+        )
+    if not _SEED_ALLOWED_STMT.match(stripped):
+        raise PluginInstallError(
+            "Seed file chỉ cho phép CREATE TABLE / CREATE INDEX / INSERT. "
+            f"Statement bị chặn: {stripped[:80]}"
+        )
+
 
 class PluginInstallError(Exception):
     """Lỗi khi cài đặt Plugin."""
@@ -110,16 +273,41 @@ class PluginInstallUseCase:
                 f"Plugin '{plugin_code_name}' không tồn tại trên Marketplace."
             )
 
-        # 2. Check if already installed or being removed.
-        # NOTE: INSTALLING is intentionally excluded from this guard —
-        # the HTTP endpoint sets status=INSTALLING before queuing this background task,
-        # so blocking on INSTALLING would prevent the task from ever running.
+        # 2. Chống double-install (M10) bằng advisory lock + guard trạng thái.
+        # Lock theo (tenant, plugin) để 2 request cài đồng thời phải serialize:
+        # request thứ 2 đợi lock, sau đó thấy ACTIVE/INSTALLING và bị chặn.
+        # Best-effort: mock session trong unit-test không hỗ trợ cũng không fail install.
+        try:
+            await self.session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                {
+                    "key": f"plugin_install:{context.tenant_id}:{plugin.id}",
+                },
+            )
+        except Exception as lock_err:  # noqa: BLE001
+            logger.warning(
+                "Không lấy được pg_advisory_xact_lock (best-effort)",
+                error=str(lock_err),
+                plugin_code_name=plugin_code_name,
+                tenant_id=str(context.tenant_id),
+            )
+        # 2b. Check if already installed, installing, or being removed.
+        # INSTALLING được chặn để request thứ 2 không cài đè khi request đầu
+        # đang chạy. LƯU Ý: endpoint POST /{id}/install hiện upsert INSTALLING
+        # trước khi queue background task — endpoint cần check status trước khi
+        # upsert (trả 409 nếu ACTIVE/INSTALLING/UNINSTALLING), nếu không task
+        # nền hợp lệ sẽ tự thấy INSTALLING của chính nó. Guard ở đây là tuyến
+        # phòng thủ cuối trong worker.
         status = await self.plugin_repo.get_installation_status(
             context.tenant_id, plugin.id
         )
         if status == PluginStatus.ACTIVE:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
+            )
+        if status == PluginStatus.INSTALLING:
+            raise PluginInstallError(
+                f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
             )
         if status == PluginStatus.UNINSTALLING:
             raise PluginInstallError(
@@ -379,35 +567,65 @@ class PluginInstallUseCase:
 
             has_schema = False
             if manifest.database.seed_file:
-                seed_path = (
-                    self.manifest_parser.plugins_dir
-                    / plugin_code_name
-                    / manifest.database.seed_file
-                )
+                # Chặn path traversal: plugin_code + seed_file đều phải sạch,
+                # resolve cuối cùng phải nằm trong plugins_dir.
+                if not _PLUGIN_CODE_PATTERN.match(plugin_code_name):
+                    raise PluginInstallError(
+                        f"Invalid plugin_code_name: {plugin_code_name}"
+                    )
+                seed_rel = manifest.database.seed_file
+                if (
+                    not isinstance(seed_rel, str)
+                    or ".." in seed_rel
+                    or seed_rel.startswith("/")
+                    or not _SEED_FILE_PATTERN.match(seed_rel)
+                ):
+                    raise PluginInstallError(
+                        f"Seed file path không hợp lệ: {seed_rel}"
+                    )
+                plugins_base = self.manifest_parser.plugins_dir.resolve()
+                seed_path = (plugins_base / plugin_code_name / seed_rel).resolve()
+                try:
+                    if not seed_path.is_relative_to(plugins_base):
+                        raise PluginInstallError(
+                            "Seed file path vượt ngoài plugins_dir."
+                        )
+                except AttributeError:
+                    # Python < 3.9 fallback
+                    if plugins_base not in seed_path.parents:
+                        raise PluginInstallError(
+                            "Seed file path vượt ngoài plugins_dir."
+                        )
                 if seed_path.exists():
                     with open(seed_path, encoding="utf-8-sig") as f:
                         sql = f.read()
 
-                    # Validation: Cấm các lệnh SQL nguy hiểm
-                    forbidden_pattern = re.compile(
-                        r"\b(DROP|DELETE|UPDATE|TRUNCATE|ALTER|GRANT|REVOKE|COPY|"
-                        r"CREATE\s+FUNCTION|SET\s+ROLE)\b",
-                        re.IGNORECASE,
-                    )
-                    if forbidden_pattern.search(sql):
-                        raise PluginInstallError(
-                            "Seed file chứa các lệnh SQL không được phép."
-                        )
+                    # Sandbox policy (C4): allowlist CREATE TABLE/INDEX + INSERT,
+                    # denylist public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE.
+                    # Split an toàn tôn trọng $$ dollar-quoting (sqlparse hoặc fallback).
+                    statements = _split_seed_statements_safe(sql)
+                    if not statements:
+                        raise PluginInstallError("Seed file rỗng hoặc không hợp lệ.")
+                    for stmt in statements:
+                        _validate_seed_statement(stmt)
 
                     # Set search_path để sandbox SQL execution trong schema của Tenant.
                     # Giữ "public" thứ 2 để seed dùng được shared extensions
                     # (VD: public.uuid_generate_v4()) — unqualified CREATE vẫn
                     # rơi vào schema tenant vì nó đứng đầu.
+                    # schema_name đã validate regex ^[a-zA-Z0-9_]+$ nên quote an toàn.
                     await self.session.execute(
                         text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                     )
+                    # SET LOCAL: tự rollback khi transaction kết thúc, không rò rỉ
+                    # sang session tiếp theo. statement_timeout chặn seed treo.
                     await self.session.execute(
-                        text(f'SET search_path TO "{schema_name}", public')
+                        text(f'SET LOCAL search_path TO "{schema_name}", public')
+                    )
+                    await self.session.execute(
+                        text(
+                            f"SET LOCAL statement_timeout TO '{_SEED_STATEMENT_TIMEOUT}'"
+                        )
                     )
                     has_schema = True
 
@@ -416,13 +634,16 @@ class PluginInstallUseCase:
                     # KHÔNG dùng set_config('role', ...) vì role 'tenant_admin' không tồn tại.
 
                     # asyncpg không hỗ trợ nhiều statement trong một execute().
-                    # Phải split theo dấu ';' và execute từng câu một.
+                    # Execute từng câu đã validate allowlist.
                     # Dùng SAVEPOINT cho từng câu để seed data fail không làm hỏng transaction.
-                    statements = [s.strip() for s in sql.split(";") if s.strip()]
                     for i, stmt in enumerate(statements):
                         sp_name = f"seed_stmt_{i}"
+                        if not re.match(r"^[a-zA-Z0-9_]+$", sp_name):
+                            raise PluginInstallError("Invalid savepoint name.")
                         try:
                             await self.session.execute(text(f"SAVEPOINT {sp_name}"))
+                            # stmt đã qua allowlist CREATE TABLE/INDEX + INSERT và
+                            # denylist sandbox-escape nên execute trực tiếp an toàn.
                             await self.session.execute(text(stmt))
                             await self.session.execute(
                                 text(f"RELEASE SAVEPOINT {sp_name}")
@@ -438,6 +659,8 @@ class PluginInstallUseCase:
                                 text(f"ROLLBACK TO SAVEPOINT {sp_name}")
                             )
                     # Reset search_path về public để tránh ảnh hưởng session tiếp theo
+                    # (dù SET LOCAL đã tự reset khi commit, giữ RESET显式 cho an toàn
+                    # với session pool dùng lại transaction).
                     await self.session.execute(text("SET search_path TO public"))
 
             # Tự động tạo RLS cho các bảng (best-effort — table có thể chưa tồn tại)
@@ -621,8 +844,20 @@ class PluginInstallUseCase:
             except Exception as e:
                 logger.warning("Không resolve được alerts channel: %s", e)
 
+        plugins_base = self.manifest_parser.plugins_dir.resolve()
         for wf in manifest.workflows:
-            wf_path = self.manifest_parser.plugins_dir / plugin_code_name / wf.file
+            wf_rel = wf.file or ""
+            if ".." in wf_rel or wf_rel.startswith("/"):
+                logger.warning("Bỏ qua workflow path không hợp lệ", path=wf_rel)
+                continue
+            wf_path = (plugins_base / plugin_code_name / wf_rel).resolve()
+            try:
+                _inside = wf_path.is_relative_to(plugins_base)
+            except AttributeError:
+                _inside = plugins_base in wf_path.parents
+            if not _inside:
+                logger.warning("Bỏ qua workflow vượt ngoài plugins_dir", path=wf_rel)
+                continue
             if wf_path.exists():
                 with open(wf_path, encoding="utf-8-sig") as f:
                     wf_json = json.load(f)

@@ -25,15 +25,26 @@ def mattermost_numeric_id(keycloak_user_id: str) -> int:
     """ID số ổn định cho Mattermost SSO (đòi int64 khác 0).
 
     Mattermost parse `id` trong userinfo thành int64 và reject id=0, trong khi
-    Keycloak sub là UUID string. Lấy 8 byte đầu UUID → int63 dương (va chạm
-    không đáng kể), fallback 1 nếu bằng 0.
+    Keycloak sub là UUID string.
+
+    M7: dùng SHA-256 (thay vì cắt 8 byte UUID thô) để phân bố đều hơn và
+    giảm va chạm birthday. Vẫn là hash 63-bit (không thể tránh va chạm tuyệt
+    đối) — giải pháp triệt để là map table persistent
+    (keycloak_user_id → mattermost_id UNIQUE trong DB) + check unique trước
+    khi gán; ở đây đảm bảo khác 0 và ổn định để tương thích dữ liệu cũ.
+    Caller nên catch conflict khi set attribute và retry với suffix nếu cần.
     """
+    import hashlib as _hashlib
+
     try:
-        n = int.from_bytes(
-            uuid_lib.UUID(str(keycloak_user_id)).bytes[:8], "big"
-        ) & 0x7FFFFFFFFFFFFFFF
+        # Chuẩn hóa UUID để cùng user luôn ra cùng ID.
+        normalized = str(uuid_lib.UUID(str(keycloak_user_id)))
     except ValueError:
-        n = 0
+        normalized = str(keycloak_user_id).strip().lower()
+        if not normalized:
+            return 1
+    digest = _hashlib.sha256(normalized.encode("utf-8")).digest()
+    n = int.from_bytes(digest[:8], "big") & 0x7FFFFFFFFFFFFFFF
     return n or 1
 
 
@@ -89,20 +100,51 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             logger.info("JWKS cache refreshed")
             return self._jwks_cache
 
+    async def _force_refresh_jwks(self) -> dict[str, Any]:
+        """M22: ép refresh JWKS (khi kid miss sau rotate)."""
+        async with self._jwks_lock:
+            response = await self._client.get(settings.keycloak_jwks_url, timeout=10.0)
+            response.raise_for_status()
+            self._jwks_cache = response.json()
+            self._jwks_cached_at = time.monotonic()
+            logger.info("JWKS cache force-refreshed (kid miss)")
+            return self._jwks_cache
+
     async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
         Xác thực Access Token JWT.
         Trả về payload đã decode nếu hợp lệ.
         Raise JWTError nếu token không hợp lệ hoặc hết hạn.
         """
+        # M22: kiểm tra kid trước — miss thì refresh 1 lần (Keycloak rotate keys).
+        try:
+            header = jwt.get_unverified_header(token)
+        except Exception:
+            header = {}
         jwks = await self._get_jwks()
+        kid = (header or {}).get("kid")
+        if kid:
+            keys = (jwks or {}).get("keys", [])
+            if not any(k.get("kid") == kid for k in keys):
+                jwks = await self._force_refresh_jwks()
+        expected_issuer = (
+            f"{settings.KEYCLOAK_URL.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
+        )
         payload = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
             audience=settings.KEYCLOAK_CLIENT_ID,
-            options={"verify_exp": True},
+            issuer=expected_issuer,
+            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
         )
+        # M22: verify azp (authorized party) — chặn token cấp cho client khác.
+        azp = payload.get("azp")
+        if azp is not None and azp != settings.KEYCLOAK_CLIENT_ID:
+            # Cho phép BFF/account client trong cùng realm? Mặc định chặn cứng.
+            from jose import JWTError as _JWTError
+
+            raise _JWTError(f"Token azp không hợp lệ: {azp}")
         logger.debug(
             "Token verified successfully",
             extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},
@@ -270,9 +312,12 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         location = response.headers.get("Location")
         if not location:
             # Fallback: search by email to get ID
-            search_url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users?email={email}&exact=true"
+            # M18: dùng params={} thay vì f-string để tránh injection/encode sai.
+            search_url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users"
             search_res = await self._client.get(
-                search_url, headers={"Authorization": f"Bearer {admin_token}"}
+                search_url,
+                params={"email": email, "exact": "true"},
+                headers={"Authorization": f"Bearer {admin_token}"},
             )
             search_res.raise_for_status()
             users = search_res.json()

@@ -11,6 +11,10 @@ deploy/scratch/
 !.env.example
 !.env.local.example
 
+# Traefik rendered static config (chứa email + domain thật, sinh bởi setup.sh
+# từ traefik.dev.yml / traefik.prod.yml). Chỉ commit template, không commit file render.
+deploy/traefik/traefik.yml
+
 
 # Ignore backups
 deploy/backups/

@@ -38,6 +38,10 @@ services:
       - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
 
   keycloak:
+    environment:
+      KC_HOSTNAME_STRICT: "true"
+      KC_HOSTNAME_STRICT_HTTPS: "true"
+      KC_PROXY_HEADERS: xforwarded
     labels:
       - "traefik.http.routers.keycloak.entrypoints=websecure"
       - "traefik.http.routers.keycloak.tls=true"

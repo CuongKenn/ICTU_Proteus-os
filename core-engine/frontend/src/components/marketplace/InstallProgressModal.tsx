@@ -42,10 +42,21 @@ export const InstallProgressModal: React.FC<InstallProgressModalProps> = ({
   // Only show if we have an active installation sequence
   if (!isOpen && status !== "failed" && status !== "active") return null;
 
+  const isBusy =
+    status === "installing" || status === "uninstalling" || status === "upgrading";
+
+  // Chặn đóng modal khi đang chạy (backdrop/Escape/X) để user không mất
+  // tiến trình polling; hook tự reset installingId khi xong. Chỉ cho đóng
+  // khi đã terminal (failed/active) hoặc không còn isOpen.
+  const handleClose = () => {
+    if (isBusy) return;
+    onClose();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={status === "uninstalling" ? `Đang gỡ cài đặt ${pluginName || "Plugin"}...` : status === "upgrading" ? `Đang nâng cấp ${pluginName || "Plugin"}...` : `Đang cài đặt ${pluginName || "Plugin"}...`}
 
       confirmLabel={status === "installing" ? "Đang cài đặt..." : status === "uninstalling" ? "Đang gỡ cài đặt..." : status === "upgrading" ? "Đang nâng cấp..." : status === "active" ? "Hoàn tất" : "Đóng"}

@@ -13,6 +13,20 @@ import { usePlugins } from "@/hooks/usePlugins";
 import type { PluginInfo, InstallTaskStatus, CredentialInput, InstallTaskStep } from "@/types";
 import type { PluginStatus } from "@/components/ui/PluginCard";
 
+// Tổng số bước cài đặt/gỡ (database/credentials/n8n/metabase/appsmith/keycloak/events/complete).
+// Giữ NHẤT QUÁN install/uninstall để progress không nhảy (trước đây install=7, uninstall=6).
+const TOTAL_STEPS = 7;
+
+// Mock chỉ dùng khi dev + flag bật — dynamic import để tree-shake khỏi bundle prod.
+// Next.js inline NEXT_PUBLIC_* lúc build; khi flag falsy, chunk mock không được load.
+function isMockEnabled(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true"
+  );
+}
+
 interface UseMarketplaceReturn {
   plugins: PluginInfo[];
   isLoading: boolean;
@@ -67,7 +81,7 @@ export function useMarketplace(): UseMarketplaceReturn {
       } catch (err: unknown) {
         logger.error("[useMarketplace] fetch error:", err);
         if (!cancelled) {
-          if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+          if (isMockEnabled()) {
             import("../__tests__/marketplace.mock").then(({ MOCK_PLUGINS }) => {
               setPlugins(MOCK_PLUGINS);
             });
@@ -100,7 +114,6 @@ export function useMarketplace(): UseMarketplaceReturn {
           const completedSteps = statusData.steps.filter(
             (s) => s.status === "DONE"
           ).length;
-          const TOTAL_STEPS = 7;
           const realProgress = Math.min(95, Math.round((completedSteps / TOTAL_STEPS) * 100));
           setInstallProgress((prev) => Math.max(prev, realProgress));
         } else {
@@ -181,7 +194,7 @@ export function useMarketplace(): UseMarketplaceReturn {
         throw new Error("No task_id returned");
       }
     } catch (error) {
-      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+      if (isMockEnabled()) {
         // Simulate install progress locally
         let mockProgress = 0;
         pollingRef.current = setInterval(() => {
@@ -223,7 +236,6 @@ export function useMarketplace(): UseMarketplaceReturn {
       setInstallStatus("uninstalling" as PluginStatus);
 
       try {
-        const { default: api } = await import("@/lib/api");
         const res = await api.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
         const data = res.data;
         const taskId = data.task_id;
@@ -239,7 +251,6 @@ export function useMarketplace(): UseMarketplaceReturn {
               if (statusData.steps && statusData.steps.length > 0) {
                 setInstallSteps(statusData.steps);
                 const completedSteps = statusData.steps.filter((s: any) => s.status === "DONE").length;
-                const TOTAL_STEPS = 6;
                 const realProgress = Math.min(95, Math.round((completedSteps / TOTAL_STEPS) * 100));
                 setInstallProgress((prev) => Math.max(prev, realProgress));
               } else {

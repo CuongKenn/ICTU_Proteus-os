@@ -72,17 +72,28 @@ class MattermostAdapter(AbstractChatOpsPort):
         context = extra_context or {}
         context["action_id"] = action_id
 
-        # Webhook callback URL mà Mattermost sẽ gọi về
-        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình
-        # qua biến môi trường ở thực tế,
-        # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
-        # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
-        # Phải dùng internal URL để Mattermost server gọi sang Backend server
-        backend_url = "http://proteus-backend:8000"
+        # Webhook callback URL mà Mattermost sẽ gọi về.
+        # C10: dùng settings.BACKEND_URL (không hardcode proteus-backend) để
+        # Mattermost gọi đúng domain theo môi trường (dev/staging/prod).
+        # Bảo mật: KHÔNG gắn raw secret vào query (?token=...) vì URL lọt vào
+        # log/proxy; thay bằng HMAC(action_id+ts) trong integration context
+        # (trả về trong body callback, verify bằng secrets.compare_digest).
+        import hashlib as _hashlib
+        import hmac as _hmac
+        import time as _time
+
+        backend_url = settings.BACKEND_URL.rstrip("/")
         secret = getattr(settings, "MATTERMOST_WEBHOOK_SECRET", "")
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
         if secret:
-            webhook_url += f"?token={secret}"
+            _ts = str(int(_time.time()))
+            _sig = _hmac.new(
+                secret.encode("utf-8"),
+                f"{action_id}.{_ts}".encode("utf-8"),
+                _hashlib.sha256,
+            ).hexdigest()
+            context["_sig"] = _sig
+            context["_ts"] = _ts
 
         payload = {
             "channel_id": channel_id,

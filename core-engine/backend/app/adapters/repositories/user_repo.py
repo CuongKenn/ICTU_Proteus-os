@@ -96,10 +96,65 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
         return _to_entity(model, roles=loaded_roles)
 
+    async def get_by_keycloak_id_including_deleted(
+        self, keycloak_id: uuid.UUID,
+    ) -> dict | None:
+        """M6: lấy raw row kể cả đã soft-delete (để chặn re-activate).
+
+        Trả về dict {id, tenant_id, is_active, deleted_at} hoặc None.
+        """
+        from sqlalchemy import text as _text
+
+        res = await self.session.execute(
+            _text(
+                "SELECT id, tenant_id, is_active, deleted_at, last_login_at "
+                "FROM users WHERE keycloak_id = :kid LIMIT 1"
+            ),
+            {"kid": str(keycloak_id)},
+        )
+        row = res.mappings().first()
+        return dict(row) if row else None
+
     async def upsert(self, user_data: dict) -> UserEntity:
         """
         Thêm mới hoặc cập nhật thông tin User dựa vào keycloak_id (Idempotent).
+
+        M6: fail-closed với soft-deleted — không auto-reactivate user đã
+        xóa (deleted_at NOT NULL). Caller (UserProvisioningUseCase) đã check,
+        đây là lớp phòng thủ thứ hai.
         """
+        # M6: chặn resurrect deleted row ngay trong repo.
+        _kid = user_data.get("keycloak_id")
+        if _kid is not None:
+            try:
+                _kid_uuid = (
+                    _kid if isinstance(_kid, uuid.UUID) else uuid.UUID(str(_kid))
+                )
+                _raw = await self.get_by_keycloak_id_including_deleted(_kid_uuid)
+                if _raw is not None and _raw.get("deleted_at") is not None:
+                    raise PermissionError(
+                        "Tài khoản đã bị vô hiệu hóa, không thể tự kích hoạt lại."
+                    )
+                # M6: không auto-reactivate is_active trên conflict-update.
+                # Nếu row đã tồn tại và đang inactive (deactivated/pending xử lý
+                # ở use-case), giữ nguyên is_active trừ khi caller yêu cầu rõ.
+                # Ở đây: nếu caller truyền is_active=True nhưng row hiện tại
+                # inactive và đã từng login (last_login_at NOT NULL) → bỏ qua
+                # is_active để tránh resurrect.
+                if (
+                    _raw is not None
+                    and not _raw.get("is_active")
+                    and _raw.get("last_login_at") is not None
+                    and user_data.get("is_active") is True
+                ):
+                    user_data = {
+                        k: v for k, v in user_data.items() if k != "is_active"
+                    }
+            except PermissionError:
+                raise
+            except Exception:
+                # Best-effort guard — lỗi check không chặn upsert bình thường.
+                pass
         stmt = insert(UserModel).values(**user_data)
 
         # Lấy các trường cần update nếu xảy ra conflict

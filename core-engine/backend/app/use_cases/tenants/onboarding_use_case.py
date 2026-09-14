@@ -134,14 +134,29 @@ class OnboardingUseCase:
             raise RuntimeError(f"Lỗi hệ thống khi cấu hình tài khoản: {str(e)}") from e
 
         # 5. Lưu Tenant vào Database
-        tenant_entity = TenantEntity(
-            id=tenant_id,
-            name=req.company_name,
-            slug=slug,
-            keycloak_realm=keycloak_realm,
-            is_active=True,
-        )
-        await self.tenant_repo.create(tenant_entity)
+        # C10: chống race slug — DB có UNIQUE(slug), catch IntegrityError và
+        # retry với suffix thay vì check-then-insert (TOCTOU).
+        from sqlalchemy.exc import IntegrityError as _IntegrityError
+
+        _attempt = 0
+        while True:
+            tenant_entity = TenantEntity(
+                id=tenant_id,
+                name=req.company_name,
+                slug=slug,
+                keycloak_realm=keycloak_realm,
+                is_active=True,
+            )
+            try:
+                await self.tenant_repo.create(tenant_entity)
+                break
+            except _IntegrityError:
+                _attempt += 1
+                if _attempt >= 3:
+                    raise ValueError(
+                        "Tên tổ chức vừa được đăng ký, vui lòng thử lại."
+                    )
+                slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
 
         # 6. Lưu User vào Database
         user_entity = UserEntity(
@@ -177,9 +192,12 @@ class OnboardingUseCase:
                 team_cfg = await ensure_tenant_mattermost_team(
                     self.tenant_repo, self.mattermost_adapter, tenant_id
                 )
-                username = (
-                    req.admin_email.split("@")[0].lower().replace("+", "")
-                )
+                # M17: sanitize username MM về ^[a-z0-9._-]+$.
+                username = re.sub(
+                    r"[^a-z0-9._-]+",
+                    "-",
+                    req.admin_email.split("@")[0].lower(),
+                ).strip(".-")[:64].strip(".-") or f"user-{uuid.uuid4().hex[:8]}"
                 await self.mattermost_adapter.ensure_user_in_team_by_email(
                     team_id=team_cfg["team_id"],
                     email=req.admin_email,

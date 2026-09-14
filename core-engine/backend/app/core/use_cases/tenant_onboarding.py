@@ -255,14 +255,21 @@ class TenantOnboardingUseCase:
                 return False
             return True
 
-        async def check_service(url: str, is_configured_bool: bool) -> bool:
+        # M4: KHÔNG dùng verify=False (MITM). Dùng SSLContext mặc định
+        # (verify=True) + reuse 1 connection pool cho mọi check.
+        import ssl as _ssl
+
+        _ssl_ctx = _ssl.create_default_context()
+
+        async def check_service(
+            client: httpx.AsyncClient, url: str, is_configured_bool: bool
+        ) -> bool:
             if not is_configured_bool:
                 return False
             if not url:
                 return False
             try:
-                async with httpx.AsyncClient(verify=False) as client:
-                    await client.get(url, timeout=1.5)
+                await client.get(url, timeout=1.5)
                 return True
             except Exception:
                 return False
@@ -276,19 +283,37 @@ class TenantOnboardingUseCase:
         n8n_config = is_configured(settings.N8N_API_KEY)
         mb_config = is_configured(settings.METABASE_SECRET_KEY)
 
-        # Run pings concurrently
-        kc_active, mm_active, appsmith_active, n8n_active, mb_active = (
-            await asyncio.gather(
-                check_service(settings.KEYCLOAK_URL, kc_config),
-                check_service(settings.MATTERMOST_URL, mm_config),
-                check_service(settings.APPSMITH_URL, appsmith_config),
-                check_service(settings.N8N_URL, n8n_config),
-                check_service(
-                    settings.METABASE_INTERNAL_URL or settings.METABASE_SITE_URL,
-                    mb_config,
-                ),
-            )
-        )
+        # M4: reuse 1 pool + gather parallel với overall timeout (5s).
+        async with httpx.AsyncClient(verify=_ssl_ctx, timeout=1.5) as _client:
+            try:
+                kc_active, mm_active, appsmith_active, n8n_active, mb_active = (
+                    await asyncio.wait_for(
+                        asyncio.gather(
+                            check_service(
+                                _client, settings.KEYCLOAK_URL, kc_config
+                            ),
+                            check_service(
+                                _client, settings.MATTERMOST_URL, mm_config
+                            ),
+                            check_service(
+                                _client, settings.APPSMITH_URL, appsmith_config
+                            ),
+                            check_service(_client, settings.N8N_URL, n8n_config),
+                            check_service(
+                                _client,
+                                settings.METABASE_INTERNAL_URL
+                                or settings.METABASE_SITE_URL,
+                                mb_config,
+                            ),
+                        ),
+                        timeout=5.0,
+                    )
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Kiểm tra integrations timeout sau 5s.")
+                kc_active = mm_active = appsmith_active = n8n_active = (
+                    mb_active
+                ) = False
 
         sys_integrations = [
             TenantIntegrationEntity(

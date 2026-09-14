@@ -11,6 +11,15 @@ import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import type { Plugin, PluginListResponse, CredentialInput, InstallTaskStatus, InstallTaskStep } from "@/types";
 
+// Mock chỉ dùng khi dev + flag bật — dynamic import để tree-shake khỏi bundle prod.
+function isMockEnabled(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true"
+  );
+}
+
 interface UsePluginsReturn {
   plugins: Plugin[];
   isLoading: boolean;
@@ -83,7 +92,7 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Gỡ cài đặt Plugin thành công!");
       refetch();
     } catch (err) {
-      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+      if (isMockEnabled()) {
         import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
           useNotificationStore.getState().addToast("success", MOCK_TOASTS.uninstall);
           refetch();
@@ -102,7 +111,7 @@ export function usePlugins(): UsePluginsReturn {
       useNotificationStore.getState().addToast("success", "Đã vô hiệu hoá Plugin.");
       refetch();
     } catch (err) {
-      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+      if (isMockEnabled()) {
         import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
           useNotificationStore.getState().addToast("success", MOCK_TOASTS.disable);
           refetch();
@@ -184,7 +193,7 @@ export function usePlugins(): UsePluginsReturn {
       stopUpgradePolling();
       upgradingRef.current = setInterval(() => pollUpgrade(taskId), 3000);
     } catch (err) {
-      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+      if (isMockEnabled()) {
         import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
           useNotificationStore.getState().addToast("success", MOCK_TOASTS.upgrade);
           refetch();

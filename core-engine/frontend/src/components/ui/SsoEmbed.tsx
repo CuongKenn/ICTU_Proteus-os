@@ -36,6 +36,16 @@ function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+/** Chỉ cho phép http/https — chặn javascript:/data: chống open-redirect/XSS. */
+function isSafeEmbedUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export const SsoEmbed: React.FC<SsoEmbedProps> = ({
   baseUrl,
   ssoUrl,
@@ -79,9 +89,20 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
     [ssoUrl, safeBase]
   );
   const embedSrc = safeBase;
+  const isEmbedUrlSafe = isSafeEmbedUrl(embedSrc);
 
   const openInNewTab = (url: string) => {
+    if (!isSafeEmbedUrl(url)) return;
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleIframeError = () => {
+    setIsLoading(false);
+  };
+
+  const handleRetry = () => {
+    setIsLoading(true);
+    setIframeKey((k) => k + 1);
   };
 
   return (
@@ -177,24 +198,37 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
 
       {/* Iframe */}
       <div className="relative flex-1 w-full h-full min-h-0">
-        {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-surface z-10 animate-pulse">
-            <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-            <p className="text-text-secondary font-medium animate-pulse">
-              Đang SSO tới {title}...
+        {!isEmbedUrlSafe ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-surface z-10 p-8 text-center">
+            <p className="text-text-secondary font-medium">
+              URL nhúng không hợp lệ hoặc chưa được cấu hình. Vui lòng liên hệ Admin để thiết lập.
             </p>
           </div>
+        ) : (
+          <>
+            {isLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-surface z-10 animate-pulse">
+                <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+                <p className="text-text-secondary font-medium animate-pulse">
+                  Đang SSO tới {title}...
+                </p>
+              </div>
+            )}
+            <iframe
+              key={iframeKey}
+              src={embedSrc}
+              title={title}
+              className={`w-full h-full border-0 transition-opacity duration-300 ${
+                isLoading ? "opacity-0" : "opacity-100"
+              }`}
+              onLoad={() => setIsLoading(false)}
+              onError={handleIframeError}
+              allow="microphone; camera; display-capture; autoplay; clipboard-read; clipboard-write; fullscreen"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          </>
         )}
-        <iframe
-          key={iframeKey}
-          src={embedSrc}
-          title={title}
-          className={`w-full h-full border-0 transition-opacity duration-300 ${
-            isLoading ? "opacity-0" : "opacity-100"
-          }`}
-          onLoad={() => setIsLoading(false)}
-          allow="microphone; camera; display-capture; autoplay; clipboard-read; clipboard-write; fullscreen"
-        />
       </div>
     </div>
   );

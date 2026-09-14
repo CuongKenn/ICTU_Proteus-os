@@ -6,7 +6,8 @@ import { SsoEmbed } from "@/components/ui/SsoEmbed";
 import { BookOpen } from "lucide-react";
 
 export default function WikiPage() {
-  const wikiUrl = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://wiki.proteus.local";
+  // Runtime env, fallback "" an toàn (không hardcode proteus.local).
+  const wikiUrl = process.env.NEXT_PUBLIC_OUTLINE_URL || "";
 
   return (
     <AppShell>

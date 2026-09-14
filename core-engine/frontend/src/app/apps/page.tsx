@@ -6,7 +6,8 @@ import { SsoEmbed } from "@/components/ui/SsoEmbed";
 import { AppWindow } from "lucide-react";
 
 export default function AppsPage() {
-  const appsUrl = process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local";
+  // Runtime env, fallback "" an toàn (không hardcode proteus.local).
+  const appsUrl = process.env.NEXT_PUBLIC_APPSMITH_URL || "";
 
   return (
     <AppShell>

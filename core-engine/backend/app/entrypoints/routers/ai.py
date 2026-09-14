@@ -7,7 +7,7 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.core.domain.entities import AICommandStatus, TenantContext
@@ -62,7 +62,10 @@ async def submit_ai_chat(
     dto = AIChatDTO(
         session_id=body.session_id, natural_language_input=body.natural_language_input
     )
-    status_code, message, result = await use_case.execute(dto, ctx)
+    try:
+        status_code, message, result = await use_case.execute(dto, ctx)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
     # We reuse AICommandResponse but command_id might be newly generated
     preview = None
@@ -118,7 +121,10 @@ async def submit_ai_command(
         parameters=body.parameters,
         approval_message=body.approval_message,
     )
-    status_code, message, result = await use_case.execute(dto, ctx)
+    try:
+        status_code, message, result = await use_case.execute(dto, ctx)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
     return AICommandResponse(
         command_id=body.command_id,
@@ -396,6 +402,13 @@ async def stream_ai_chat(
     dto = AIChatDTO(
         session_id=body.session_id, natural_language_input=body.natural_language_input
     )
+    # M1: chặn IDOR session trước khi stream (đồng bộ, để trả 403 ngay).
+    try:
+        await use_case.ai_command_use_case._assert_session_owned(
+            ctx.tenant_id, ctx.user_id, body.session_id
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
     async def event_gen():
         async for payload in use_case.execute_stream(dto, ctx):

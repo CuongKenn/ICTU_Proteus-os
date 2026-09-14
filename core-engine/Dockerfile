@@ -26,10 +26,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY backend/ .
 
+# Hardening: chạy backend bằng user không phải root
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" || exit 1
+
 # Không dùng --workers nhiều hơn 1 nếu chưa test throughput
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# --proxy-headers: tin tưởng X-Forwarded-* từ Traefik (đúng client IP/scheme khi qua proxy)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers"]
 
 
 # ─────────────────────────────────────────────
@@ -55,12 +63,16 @@ ARG NEXT_PUBLIC_OUTLINE_URL=http://wiki.proteus.local
 ARG NEXT_PUBLIC_N8N_URL=http://workflow.proteus.local
 ARG NEXT_PUBLIC_METABASE_URL=http://analytics.proteus.local
 ARG NEXT_PUBLIC_APPSMITH_URL=http://apps.proteus.local
+ARG NEXT_PUBLIC_KEYCLOAK_URL=http://auth.proteus.local
 ENV NEXT_PUBLIC_MATTERMOST_URL=$NEXT_PUBLIC_MATTERMOST_URL
 ENV NEXT_PUBLIC_OUTLINE_URL=$NEXT_PUBLIC_OUTLINE_URL
 ENV NEXT_PUBLIC_N8N_URL=$NEXT_PUBLIC_N8N_URL
 ENV NEXT_PUBLIC_METABASE_URL=$NEXT_PUBLIC_METABASE_URL
 ENV NEXT_PUBLIC_APPSMITH_URL=$NEXT_PUBLIC_APPSMITH_URL
+ENV NEXT_PUBLIC_KEYCLOAK_URL=$NEXT_PUBLIC_KEYCLOAK_URL
 RUN npm run build
+# Verify Next.js standalone output (next.config.mjs: output "standalone")
+RUN test -f .next/standalone/server.js || (echo "ERROR: standalone output missing — check next.config.mjs output:'standalone'" && exit 1)
 
 
 # ─────────────────────────────────────────────
@@ -79,6 +91,12 @@ COPY --from=frontend-builder /app/.next/standalone ./
 COPY --from=frontend-builder /app/.next/static ./.next/static
 COPY --from=frontend-builder /app/public ./public
 
+# Hardening: chạy frontend bằng user node có sẵn (uid 1000), không root
+USER node
+
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/api/health 2>/dev/null || wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1
 
 CMD ["node", "server.js"]

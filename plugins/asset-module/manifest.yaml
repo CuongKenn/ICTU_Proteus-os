@@ -9,7 +9,7 @@ version: "1.0.0"
 description: |
   Quản lý tài sản cố định, cấp phát, bảo trì, khấu hao và thanh lý tài sản cho tổ chức.
 author: "ICTU Team"
-license: "AGPL-3.0"
+license: "AGPL-3.0-or-later"
 icon_url: "/plugins/asset-module/icon.png"
 is_official: true
 homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
@@ -68,7 +68,7 @@ dashboards:
 
 ui:
   # appsmith_app: "ui/appsmith_app.json"
-  external_url: "http://plugins.proteus.local/asset-module"
+  external_url: "${PLUGINS_MFE_URL}/asset-module"
 
 roles:
   - name: "asset_admin"

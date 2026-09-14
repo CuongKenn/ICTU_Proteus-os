@@ -59,11 +59,65 @@ class ConversationRepository:
             )
             if (await self.session.execute(stmt)).scalar_one_or_none() is not None:
                 return session_id
-            # session_id lạ (của user khác/tenant khác) → tạo mới, không reuse.
+            # M1: session_id lạ (của user khác/tenant khác) → tạo mới với ID
+            # mới, KHÔNG reuse ID lạ (caller so sánh return != requested để
+            # phát hiện IDOR và trả 403). Giữ ID do client yêu cầu khi tạo
+            # mới hợp lệ để ownership check qua return-value hoạt động.
+            # Kiểm tra xem session_id có tồn tại nhưng thuộc người khác không.
+            exists_stmt = select(AISessionModel.id).where(
+                and_(
+                    AISessionModel.id == session_id,
+                    AISessionModel.deleted_at.is_(None),
+                )
+            )
+            if (
+                await self.session.execute(exists_stmt)
+            ).scalar_one_or_none() is not None:
+                # Tồn tại nhưng không thuộc user+tenant hiện tại → tạo mới
+                # với ID ngẫu nhiên để caller phát hiện mismatch → 403.
+                row = AISessionModel(tenant_id=tenant_id, user_id=internal_id)
+                self.session.add(row)
+                await self.session.flush()
+                return row.id
+            # Session hoàn toàn mới do client sinh → giữ nguyên ID yêu cầu.
+            row = AISessionModel(
+                id=session_id, tenant_id=tenant_id, user_id=internal_id
+            )
+            self.session.add(row)
+            await self.session.flush()
+            return row.id
         row = AISessionModel(tenant_id=tenant_id, user_id=internal_id)
         self.session.add(row)
         await self.session.flush()
         return row.id
+
+    async def assert_session_owned(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID,
+    ) -> None:
+        """M1: raise PermissionError nếu session tồn tại nhưng không thuộc
+        user+tenant hiện tại (IDOR). Session chưa tồn tại → cho qua (sẽ được
+        tạo mới với ID yêu cầu ở ensure_session)."""
+        internal_id = await self._internal_user_id(tenant_id, user_id)
+        from sqlalchemy import select as _select
+
+        stmt = _select(AISessionModel).where(
+            and_(
+                AISessionModel.id == session_id,
+                AISessionModel.deleted_at.is_(None),
+            )
+        )
+        row = (await self.session.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            return
+        if str(row.tenant_id) != str(tenant_id) or str(row.user_id) != str(
+            internal_id
+        ):
+            raise PermissionError(
+                "Không có quyền sử dụng session của người dùng khác."
+            )
 
     async def list_sessions(
         self, tenant_id: uuid.UUID, user_id: uuid.UUID, limit: int = 20

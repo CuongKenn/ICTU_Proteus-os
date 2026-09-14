@@ -16,6 +16,15 @@ const uuid = () => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
+// Mock chỉ dùng khi dev + flag bật — dynamic import để tree-shake khỏi bundle prod.
+function isMockEnabled(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true"
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type WidgetState = "collapsed" | "expanded" | "thinking" | "awaiting_approval";
@@ -457,7 +466,7 @@ export interface DslPreview {
 
         let data: AICommandBFFResponse;
 
-        if (!response.ok && process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+        if (!response.ok && isMockEnabled()) {
           // Dev fallback: mock response khi API chưa có
           const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
           const detectedEffect = detectEffectFromInput(trimmed);
@@ -473,7 +482,7 @@ export interface DslPreview {
 
         applyResult(data);
       } catch (error) {
-        if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
+        if (isMockEnabled()) {
           // Dev fallback
           const { MOCK_RESPONSES, detectEffectFromInput } = await import("../__tests__/useAICommand.mock");
           const detectedEffect = detectEffectFromInput(trimmed);

@@ -17,13 +17,20 @@ logger = logging.getLogger(__name__)
 def public_plugin_url(raw_url: str | None, code_name: str) -> str | None:
     """Dựng external_url public cho plugin theo môi trường deploy.
 
-    Manifest hardcode URL local dev (http://plugins.proteus.local/...) → ở
-    production gây DNS fail + Mixed Content khi nhúng iframe. Hàm này giữ path
-    của manifest nhưng thay scheme+host bằng PLUGINS_MFE_URL hiện tại.
+    Manifest dùng template ${PLUGINS_MFE_URL}/<code> (không hardcode domain).
+    Hàm này expand template bằng settings.PLUGINS_MFE_URL hiện tại; đồng thời
+    giữ tương thích manifest cũ hardcode http://plugins.proteus.local/... bằng
+    cách thay scheme+host bằng PLUGINS_MFE_URL.
     """
     base = settings.PLUGINS_MFE_URL.rstrip("/")
     if not raw_url:
         return f"{base}/{code_name}"
+    # Expand ${PLUGINS_MFE_URL} / $PLUGINS_MFE_URL template (manifest mới)
+    expanded = raw_url.replace("${PLUGINS_MFE_URL}", base).replace(
+        "$PLUGINS_MFE_URL", base
+    )
+    if expanded != raw_url:
+        return expanded
     try:
         parts = urlparse(raw_url)
         if not parts.netloc:

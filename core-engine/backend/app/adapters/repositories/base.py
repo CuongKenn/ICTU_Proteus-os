@@ -362,10 +362,19 @@ class AbstractAICommandRepository(ABC):
         self,
         cmd_id: uuid.UUID,
         status: str | None = None,
+        approved_by_user_id: str | None = None,
+        second_approver_id: str | None = None,
         approved_by: str | None = None,
         second_approver: str | None = None,
-    ) -> None:
-        """Cập nhật thông tin phê duyệt của lệnh."""
+        mattermost_message_id: str | None = None,
+    ) -> int:
+        """Cập nhật thông tin phê duyệt của lệnh (schema mới).
+
+        Dùng cột approved_by_user_id / second_approver_id /
+        mattermost_message_id. approved_by / second_approver chỉ là alias
+        deprecated cho backward-compat. Trả về rowcount để chống
+        double-execution (0 = race lost / đã xử lý).
+        """
         ...
 
     @abstractmethod
@@ -385,15 +394,24 @@ class AbstractAuditLogRepository(ABC):
     @abstractmethod
     async def insert_log(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         actor_type: str,
         action: str,
         resource_type: str,
-        resource_id: uuid.UUID,
-        command_id: uuid.UUID,
-        metadata_json: str,
+        resource_id: uuid.UUID | None,
+        status: str = "success",
+        payload: dict | None = None,
+        result: dict | None = None,
+        user_id: uuid.UUID | None = None,
+        ip_address: str | None = None,
+        **kwargs,
     ) -> None:
-        """Thêm một audit log."""
+        """Thêm một audit log (schema mới).
+
+        status NOT NULL ('success'/'failed'/'pending'). kwargs nuốt các
+        tham số legacy (command_id, metadata_json, metadata) để
+        backward-compat với caller cũ.
+        """
         ...
 
 

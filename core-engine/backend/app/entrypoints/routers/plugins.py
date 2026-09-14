@@ -202,22 +202,11 @@ async def _run_install_plugin_background(
     credentials: list[CredentialInput],
     app_state,
 ):
-    import sys
-
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
 
     # Set tenant_id contextvar để after_begin event listener cài RLS đúng
     tenant_id_ctx.set(str(ctx.tenant_id))
-    print(
-        f"[BG_TASK] _run_install_plugin_background STARTED: {plugin_code_name}",
-        flush=True,
-        file=sys.stderr,
-    )
-    logger.info(
-        "Background task started for plugin %s, tenant %s",
-        plugin_code_name,
-        ctx.tenant_id,
-    )
+    logger.info("[BG_TASK] _run_install_plugin_background STARTED: %s", plugin_code_name)
 
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
@@ -248,14 +237,14 @@ async def _run_install_plugin_background(
                 plugin_code_name=plugin_code_name,
                 credentials=credentials,
             )
-        print(f"[BG_TASK] COMPLETED: {plugin_code_name}", flush=True, file=sys.stderr)
+        logger.info("[BG_TASK] COMPLETED: %s", plugin_code_name)
     except BaseException as e:
-        print(
-            f"[BG_TASK] FAILED: {plugin_code_name} — {type(e).__name__}: {e}",
-            flush=True,
-            file=sys.stderr,
+        logger.exception(
+            "[BG_TASK] FAILED: %s — %s: %s",
+            plugin_code_name,
+            type(e).__name__,
+            e,
         )
-        logger.error("Background task plugin install failed: %s", e, exc_info=True)
 
 
 @router.post(
@@ -404,16 +393,10 @@ async def _run_uninstall_plugin_background(
     confirm_name: str,
     app_state,
 ):
-    import sys
-
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
 
     tenant_id_ctx.set(str(ctx.tenant_id))
-    print(
-        f"[BG_TASK] _run_uninstall_plugin_background STARTED: {plugin_id}",
-        flush=True,
-        file=sys.stderr,
-    )
+    logger.info("[BG_TASK] _run_uninstall_plugin_background STARTED: %s", plugin_id)
 
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
@@ -450,13 +433,10 @@ async def _run_uninstall_plugin_background(
                 confirm_name=confirm_name,
             )
 
-            print(f"[BG_TASK] SUCCESS: {plugin_id}", flush=True, file=sys.stderr)
+            logger.info("[BG_TASK] SUCCESS: %s", plugin_id)
 
-    except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        print(f"[BG_TASK] FAILED: {plugin_id} — {repr(e)}", flush=True, file=sys.stderr)
+    except Exception:
+        logger.exception("[BG_TASK] FAILED: %s", plugin_id)
 
 
 @router.delete(
@@ -571,16 +551,10 @@ async def _run_upgrade_plugin_background(
     app_state,
 ):
     """Chạy pipeline upgrade trong background (mirror install)."""
-    import sys
-
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
 
     tenant_id_ctx.set(str(ctx.tenant_id))
-    print(
-        f"[BG_TASK] _run_upgrade_plugin_background STARTED: {plugin_code_name}",
-        flush=True,
-        file=sys.stderr,
-    )
+    logger.info("[BG_TASK] _run_upgrade_plugin_background STARTED: %s", plugin_code_name)
 
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
@@ -614,14 +588,9 @@ async def _run_upgrade_plugin_background(
                 plugin_code_name=plugin_code_name,
                 task_id=task_id,
             )
-        print(f"[BG_TASK] UPGRADE COMPLETED: {plugin_code_name}", flush=True, file=sys.stderr)
-    except BaseException as e:
-        print(
-            f"[BG_TASK] UPGRADE FAILED: {plugin_code_name} — {type(e).__name__}: {e}",
-            flush=True,
-            file=sys.stderr,
-        )
-        logger.error("Background task plugin upgrade failed: %s", e, exc_info=True)
+        logger.info("[BG_TASK] UPGRADE COMPLETED: %s", plugin_code_name)
+    except BaseException:
+        logger.exception("[BG_TASK] UPGRADE FAILED: %s", plugin_code_name)
 
 
 @router.post(
@@ -745,7 +714,6 @@ async def get_upgrade_status(
         steps=steps,
         plugin_id=str(plugin_uuid),
     )
-    return {"message": "Nâng cấp Plugin thành công."}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -967,11 +935,12 @@ async def synthesize_plugin(
             "message": f"Đã sinh và nạp thành công Plugin: {plugin_name}",
             "plugin_code_name": plugin_name,
         }
-    except Exception as e:
+    except Exception:
+        logger.exception("Plugin synthesize failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi sinh Plugin: {e}",
-        ) from e
+            detail="Internal server error khi sinh Plugin.",
+        ) from None
 
 
 # ─────────────────────────────────────────────────────────────

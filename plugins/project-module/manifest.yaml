@@ -9,7 +9,7 @@ version: "1.0.0"
 description: |
   Quản lý dự án, theo dõi tiến độ, phân công công việc, milestone và KPIs.
 author: "ICTU Team"
-license: "AGPL-3.0"
+license: "AGPL-3.0-or-later"
 icon_url: "/plugins/project-module/icon.png"
 is_official: true
 homepage_url: "https://github.com/CuongKenn/ICTU_Proteus-os"
@@ -66,7 +66,7 @@ dashboards:
 
 ui:
   appsmith_app: "ui/appsmith_app.json"
-  external_url: "http://plugins.proteus.local/project-module"
+  external_url: "${PLUGINS_MFE_URL}/project-module"
 
 roles:
   - name: "project_manager"

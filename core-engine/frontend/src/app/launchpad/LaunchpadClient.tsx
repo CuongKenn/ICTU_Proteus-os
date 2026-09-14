@@ -3,19 +3,26 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { useSession } from "next-auth/react";
 
-const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://chat.proteus.local";
-const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://wiki.proteus.local";
-const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://workflow.proteus.local";
-const APPSMITH_URL = process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local";
 import { useNotificationStore } from "@/store/notificationStore";
 import { AppWindow, Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+
+/** Chỉ cho phép http/https để chống open-redirect / javascript: trong iframe. */
+function isSafeHttpUrl(url: string | null | undefined): url is string {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const u = new URL(url, typeof window !== "undefined" ? window.location.origin : undefined);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 export function LaunchpadClient() {
   const { data: session } = useSession();
@@ -29,6 +36,14 @@ export function LaunchpadClient() {
   const addToast = useNotificationStore((state) => state.addToast);
   const router = useRouter();
 
+  // Env đọc tại runtime (trong component) để nhận đúng giá trị deploy-time,
+  // không bake cứng proteus.local ở module-scope. Fallback "" an toàn:
+  // nút iframe sẽ bị disable/toast thay vì trỏ nhầm domain.
+  const MATTERMOST_URL = useMemo(() => process.env.NEXT_PUBLIC_MATTERMOST_URL || "", []);
+  const OUTLINE_URL = useMemo(() => process.env.NEXT_PUBLIC_OUTLINE_URL || "", []);
+  const N8N_URL = useMemo(() => process.env.NEXT_PUBLIC_N8N_URL || "", []);
+  const APPSMITH_URL = useMemo(() => process.env.NEXT_PUBLIC_APPSMITH_URL || "", []);
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape" && activeApp) closeIframe();
@@ -38,10 +53,18 @@ export function LaunchpadClient() {
   }, [activeApp]);
 
   const openInNewTab = (url: string) => {
+    if (!isSafeHttpUrl(url)) {
+      addToast("error", "URL không hợp lệ, đã chặn để bảo mật.");
+      return;
+    }
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const openIframe = (appId: string, url: string) => {
+    if (!isSafeHttpUrl(url)) {
+      addToast("error", "URL ứng dụng chưa được cấu hình hoặc không hợp lệ.");
+      return;
+    }
     setActiveApp(appId);
     setIframeUrl(url);
     setIsIframeLoading(true);
@@ -54,25 +77,33 @@ export function LaunchpadClient() {
       const res = await fetch("/api/embed/metabase?dashboard_id=1");
       if (!res.ok) throw new Error("Failed to fetch signed URL");
       const data = await res.json();
+      if (!data?.url || !isSafeHttpUrl(data.url)) {
+        throw new Error("Invalid signed URL");
+      }
       setIframeUrl(data.url);
     } catch (err) {
       addToast("error", "Không thể tải báo cáo Metabase");
       setActiveApp(null);
+      setIframeUrl(null);
+      setIsIframeLoading(false);
     }
   };
 
   const closeIframe = () => {
     setActiveApp(null);
     setIframeUrl(null);
+    setIsIframeLoading(false);
   };
 
   const handleOpenPlugin = (code_name: string) => {
     const plugin = plugins.find(p => p.code_name === code_name);
-    if (plugin?.external_url) {
+    if (plugin?.external_url && isSafeHttpUrl(plugin.external_url)) {
       openIframe(code_name, plugin.external_url);
-    } else {
-      const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
+    } else if (APPSMITH_URL) {
+      const appsmithUrl = `${APPSMITH_URL.replace(/\/+$/, "")}/app/${encodeURIComponent(code_name)}`;
       openIframe(code_name, appsmithUrl);
+    } else {
+      addToast("error", "URL ứng dụng chưa được cấu hình.");
     }
   };
 
@@ -226,7 +257,7 @@ export function LaunchpadClient() {
           
           {/* Iframe Content */}
           <div className="flex-1 relative bg-bg-base">
-            {isIframeLoading && activeApp !== "metabase" && (
+            {isIframeLoading && (
                <div className="absolute inset-0 flex items-center justify-center bg-bg-base z-10 animate-pulse-slow">
                  <div className="flex flex-col items-center gap-4">
                    <div className="w-10 h-10 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
@@ -238,7 +269,14 @@ export function LaunchpadClient() {
               src={iframeUrl}
               className="w-full h-full border-none"
               onLoad={() => setIsIframeLoading(false)}
+              onError={() => {
+                setIsIframeLoading(false);
+                addToast("error", "Không thể tải ứng dụng trong iframe.");
+              }}
               allow="clipboard-read; clipboard-write; fullscreen"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title={activeApp}
             />
           </div>
         </div>

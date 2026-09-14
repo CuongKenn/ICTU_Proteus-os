@@ -302,10 +302,9 @@ export const MarketplaceClient: React.FC = () => {
         overallProgress={installProgress}
         status={installStatus}
         onClose={() => {
-           // Will be auto-closed by hook when complete, or user can close if failed
-           if (installStatus === "failed" || installStatus === "active") {
-             // Let the hook timeout handle the reset, or you can force clear installingId if needed
-           }
+          // Hook tự reset installingId/installStatus sau 2s khi xong.
+          // Chặn đóng thủ công khi đang installing/uninstalling (guard thêm
+          // trong InstallProgressModal); khi failed/active modal tự ẩn.
         }}
       />
 
@@ -315,7 +314,9 @@ export const MarketplaceClient: React.FC = () => {
         steps={upgradeSteps}
         overallProgress={upgradeProgress}
         status={upgradeStatus}
-        onClose={() => {}}
+        onClose={() => {
+          // Tương tự install: chặn đóng khi upgrading, tự ẩn khi xong.
+        }}
       />
 
       {/* Uninstall Confirm Modal */}

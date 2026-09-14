@@ -84,15 +84,58 @@ class InviteUserRequest(BaseModel):
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
+def _sanitize_mm_username(raw: str) -> str:
+    """M17: sanitize Mattermost username về ^[a-z0-9._-]+$ (MM yêu cầu).
+
+    Lowercase, thay ký tự lạ bằng '-', cắt 64 ký tự, fallback user-xxxx.
+    """
+    import re as _re
+
+    name = (raw or "").lower().strip()
+    # Bỏ phần domain nếu vô tình truyền email.
+    if "@" in name:
+        name = name.split("@")[0]
+    name = _re.sub(r"[^a-z0-9._-]+", "-", name).strip(".-")[:64].strip(".-")
+    if not name or not _re.match(r"^[a-z0-9._-]+$", name):
+        name = f"user-{uuid.uuid4().hex[:8]}"
+    return name
+
+
 def _invite_redirect_uri(request: Request) -> str:
     """Dựng redirect_uri cho link trong email mời.
 
     Ưu tiên X-Forwarded-Proto/Host khi chạy sau reverse proxy/tunnel
     (production dùng https), local dev giữ http.
+
+    M17: chống open-redirect — chỉ cho phép host nằm trong
+    settings.ALLOWED_ORIGINS / FRONTEND_URL, còn lại fallback về
+    FRONTEND_URL.
     """
+    from urllib.parse import urlparse as _urlparse
+
+    allowed_hosts: set[str] = set()
+    for origin in list(settings.ALLOWED_ORIGINS or []):
+        try:
+            allowed_hosts.add(_urlparse(origin).hostname or "")
+        except Exception:
+            continue
+    try:
+        allowed_hosts.add(_urlparse(settings.FRONTEND_URL).hostname or "")
+    except Exception:
+        pass
+    allowed_hosts.discard("")
+
     host = request.headers.get("x-forwarded-host") or request.headers.get(
         "host", "proteus.local"
     )
+    # X-Forwarded-Host có thể chứa list "a, b" — lấy phần đầu.
+    host = (host or "").split(",")[0].strip().split(":")[0].lower()
+    if host not in allowed_hosts:
+        # Fail-closed về frontend chính thống thay vì host do client gửi.
+        fallback = _urlparse(settings.FRONTEND_URL)
+        proto = fallback.scheme or "https"
+        host = fallback.hostname or "proteus.local"
+        return f"{proto}://{host}/login"
     proto = (request.headers.get("x-forwarded-proto") or "").lower()
     if not proto:
         proto = (
@@ -273,7 +316,8 @@ async def invite_user(
         team_cfg = await ensure_tenant_mattermost_team(
             tenant_repo, mattermost, context.tenant_id
         )
-        username = payload.email.split("@")[0].lower().replace("+", "")
+        # M17: sanitize username MM về ^[a-z0-9._-]+$.
+        username = _sanitize_mm_username(payload.email.split("@")[0])
         await mattermost.ensure_user_in_team_by_email(
             team_id=team_cfg["team_id"],
             email=payload.email,
@@ -323,9 +367,13 @@ async def resend_invite(
 ):
     """Gửi lại email đặt mật khẩu (dùng khi lần mời đầu mail fail do SMTP)."""
     user_repo = SQLAlchemyUserRepository(session=db)
-    users = await user_repo.list_by_tenant(tenant_id=context.tenant_id)
-    target = next((u for u in users if u.id == user_id), None)
-    if not target or not target.keycloak_id:
+    # M12: dùng get trực tiếp + check tenant (tránh list 100 + filter, chặn IDOR).
+    target = await user_repo.get(user_id)
+    if (
+        not target
+        or str(target.tenant_id) != str(context.tenant_id)
+        or not target.keycloak_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Không tìm thấy nhân viên (có thể đã bị vô hiệu hóa).",
@@ -388,9 +436,9 @@ async def deactivate_user(
     user_repo = SQLAlchemyUserRepository(session=db)
 
     # Lấy thông tin user để có keycloak_id
-    users = await user_repo.list_by_tenant(tenant_id=context.tenant_id)
-    target = next((u for u in users if u.id == user_id), None)
-    if not target:
+    # M12: dùng get trực tiếp + check tenant (tránh list 100 + filter, chặn IDOR).
+    target = await user_repo.get(user_id)
+    if not target or str(target.tenant_id) != str(context.tenant_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy user."
         )

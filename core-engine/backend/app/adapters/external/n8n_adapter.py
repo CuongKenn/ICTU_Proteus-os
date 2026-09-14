@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -63,12 +64,36 @@ class N8nAdapter(AbstractWorkflowEnginePort):
         """Tạo URL đầy đủ từ base URL và path tương đối (dành cho REST API của n8n)."""
         return f"{self._base_url}/api/v1/{path.lstrip('/')}"
 
+    # M3: action 3-part classic plugin.resource.method, mỗi segment an toàn.
+    _ACTION_3PART_PATTERN = re.compile(r"^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$")
+    _SEGMENT_PATTERN = re.compile(r"^[a-z0-9_-]+$")
+
     def build_webhook_url(self, action: str) -> str:
         """
         Xây dựng webhook URL từ action của DSL Command.
         Ví dụ: 'hr.leave_requests.batch_approve' -> '{N8N_URL}/webhook/hr-leave_requests-batch_approve'
+
+        Validate nghiêm (M3): action phải khớp
+        ^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$, chặn '../', '/', '\\'.
         """
+        if not isinstance(action, str) or not action:
+            raise N8nAdapterError("Invalid action: empty")
+        if ".." in action or "/" in action or "\\" in action:
+            raise N8nAdapterError(f"Invalid action (path traversal): {action!r}")
+        if not self._ACTION_3PART_PATTERN.match(action):
+            # Fallback: kiểm tra từng segment để báo lỗi rõ, vẫn từ chối.
+            parts = action.split(".")
+            if len(parts) != 3 or not all(
+                p and self._SEGMENT_PATTERN.match(p) for p in parts
+            ):
+                raise N8nAdapterError(
+                    f"Invalid action format: {action!r}. "
+                    "Expected plugin.resource.method ([a-z0-9_-])."
+                )
+            raise N8nAdapterError(f"Invalid action: {action!r}")
         path = action.replace(".", "-")
+        if ".." in path or "/" in path or "\\" in path:
+            raise N8nAdapterError(f"Invalid action path: {action!r}")
         return f"{self._base_url}/webhook/{path}"
 
     async def _request_with_retry(

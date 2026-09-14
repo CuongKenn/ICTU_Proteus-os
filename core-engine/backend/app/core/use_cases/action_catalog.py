@@ -13,10 +13,27 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+_ACTION_SEGMENT_PATTERN = re.compile(r"^[a-z0-9_-]+$")
+_PLUGIN_CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
+def _ensure_inside_plugins_dir(plugins_dir: Path, target: Path) -> Path:
+    """Resolve + chặn path traversal (../) — raise ValueError nếu vượt ngoài."""
+    base = plugins_dir.resolve()
+    resolved = (base / target).resolve() if not target.is_absolute() else target.resolve()
+    try:
+        _inside = resolved.is_relative_to(base)
+    except AttributeError:  # Python < 3.9
+        _inside = base in resolved.parents or resolved == base
+    if not _inside:
+        raise ValueError(f"Path vượt ngoài plugins_dir: {target}")
+    return resolved
 
 READ_HINTS = (
     "list",
@@ -183,9 +200,20 @@ def resolve_workflow_webhook_url(
 
     Đọc workflow JSON của plugin, lấy webhook node path (giống
     PluginActionUseCase._resolve_webhook_url để 2 đường gọi nhất quán).
+    Validate regex từng segment + chặn ../ + resolve().is_relative_to().
     """
     from app.infrastructure.config import settings
 
+    if not isinstance(plugin_code, str) or not _PLUGIN_CODE_PATTERN.match(plugin_code):
+        raise ValueError(f"Plugin '{plugin_code}' không hợp lệ.")
+    if (
+        not isinstance(action_id, str)
+        or ".." in action_id
+        or "/" in action_id
+        or "\\" in action_id
+        or not _ACTION_SEGMENT_PATTERN.match(action_id)
+    ):
+        raise ValueError(f"Action '{action_id}' không hợp lệ.")
     manifest = manifest_parser.parse(plugin_code)
     wf_file: str | None = None
     for wf in manifest.workflows or []:
@@ -198,9 +226,13 @@ def resolve_workflow_webhook_url(
             f"Action '{action_id}' không thuộc plugin '{plugin_code}' "
             f"hoặc không phải webhook trigger."
         )
+    if ".." in wf_file or wf_file.startswith("/"):
+        raise ValueError(f"File workflow '{wf_file}' không hợp lệ.")
     plugins_dir = manifest_parser.plugins_dir
-    wf_path = plugins_dir / plugin_code / wf_file
-    if not wf_path.exists():
+    wf_path = _ensure_inside_plugins_dir(
+        Path(plugins_dir), Path(plugin_code) / wf_file
+    )
+    if not wf_path.is_file():
         raise ValueError(f"File workflow '{wf_file}' không tồn tại.")
     try:
         with open(wf_path, encoding="utf-8-sig") as f:
@@ -226,8 +258,15 @@ def split_plugin_action(action: str) -> tuple[str, str] | None:
     """Tách action 2-part {prefix}.{workflow_id} → (plugin_code, workflow_id).
 
     plugin_code suy ra {prefix}-module (VD: hr → hr-module).
+    Validate mỗi segment ^[a-z0-9_-]+$, chặn '../' và '/' (M3).
     """
+    if not isinstance(action, str) or not action:
+        return None
+    if ".." in action or "/" in action or "\\" in action:
+        return None
     parts = action.split(".")
     if len(parts) != 2 or not all(parts):
+        return None
+    if not all(_ACTION_SEGMENT_PATTERN.match(p) for p in parts):
         return None
     return f"{parts[0]}-module", parts[1]

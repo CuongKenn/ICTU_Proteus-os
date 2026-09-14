@@ -1,8 +1,8 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import hmac
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
@@ -29,17 +29,25 @@ async def handle_keycloak_event(
     authorization: str = Header(None),
     use_case: KeycloakWebhookUseCase = Depends(get_keycloak_webhook_use_case),
 ):
+    # C7: fail-closed — secret rỗng thì từ chối mọi event (không so sánh
+    # chuỗi rỗng với rỗng = bypass).
+    if not settings.KEYCLOAK_WEBHOOK_SECRET:
+        logger.error("KEYCLOAK_WEBHOOK_SECRET chưa cấu hình — từ chối webhook.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhook chưa được cấu hình.",
+        )
     # Xác thực token
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Missing or invalid Authorization header",
         )
 
     token = authorization.split(" ")[1]
-    if not hmac.compare_digest(token, settings.KEYCLOAK_WEBHOOK_SECRET):
+    if not secrets.compare_digest(token, settings.KEYCLOAK_WEBHOOK_SECRET):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid webhook secret",
         )
 

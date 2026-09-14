@@ -15,6 +15,7 @@ from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_db_transactional,
     get_keycloak_adapter,
+    require_permission,
 )
 from app.entrypoints.schemas.role import (
     ApplyTemplateRequest,
@@ -42,7 +43,7 @@ def get_role_use_case(
 @router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
 async def create_role(
     data: RoleCreate,
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles:manage")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
 ):
     """
@@ -78,7 +79,7 @@ async def list_role_templates(
 @router.post("/apply-template", response_model=ApplyTemplateResponse)
 async def apply_role_template(
     data: ApplyTemplateRequest,
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles:manage")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
 ):
     """
@@ -112,7 +113,7 @@ async def get_role(
 async def update_role(
     role_id: uuid.UUID,
     data: RoleUpdate,
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles:manage")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
 ):
     """
@@ -130,7 +131,7 @@ async def update_role(
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_role(
     role_id: uuid.UUID,
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles:manage")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
 ):
     """
@@ -146,7 +147,7 @@ async def delete_role(
 async def assign_role_to_user(
     role_id: uuid.UUID,
     data: RoleAssign,
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles:manage")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
     keycloak: KeycloakAdapter = Depends(get_keycloak_adapter),
 ):
@@ -158,6 +159,12 @@ async def assign_role_to_user(
         user = await use_case.user_repo.get(data.user_id)
         if not user or not user.keycloak_id:
             raise ValueError("User not found or missing keycloak_id")
+        # C5: chặn cross-tenant — user phải cùng tenant với caller.
+        if str(user.tenant_id) != str(tenant_context.tenant_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Không có quyền gán role cho user thuộc tenant khác.",
+            )
 
         role = await use_case.get_role(role_id, tenant_context.tenant_id)
         if not role:
@@ -180,6 +187,10 @@ async def assign_role_to_user(
             )
 
         return {"detail": "Role assigned successfully"}
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -188,7 +199,7 @@ async def assign_role_to_user(
 async def revoke_role_from_user(
     role_id: uuid.UUID,
     data: RoleAssign,
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles:manage")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
     keycloak: KeycloakAdapter = Depends(get_keycloak_adapter),
 ):
@@ -200,6 +211,12 @@ async def revoke_role_from_user(
         user = await use_case.user_repo.get(data.user_id)
         if not user or not user.keycloak_id:
             raise ValueError("User not found or missing keycloak_id")
+        # C5: chặn cross-tenant — user phải cùng tenant với caller.
+        if str(user.tenant_id) != str(tenant_context.tenant_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Không có quyền thu hồi role của user thuộc tenant khác.",
+            )
 
         role = await use_case.get_role(role_id, tenant_context.tenant_id)
         if not role:
@@ -222,6 +239,10 @@ async def revoke_role_from_user(
             )
 
         return {"detail": "Role revoked successfully"}
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except NotFoundError as e:
