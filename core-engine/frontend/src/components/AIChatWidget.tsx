@@ -131,7 +131,9 @@ const DslPreviewPanel: React.FC<{
 }> = ({ preview, onApprove, onCancel }) => {
   const deadline = (() => {
     try {
-      const d = new Date(preview?.approval_deadline);
+      const raw = preview?.approval_deadline;
+      if (!raw) return null;
+      const d = new Date(raw);
       return isNaN(d.getTime()) ? null : d;
     } catch {
       return null;

@@ -118,7 +118,7 @@ services:
   # REDIS — Event Bus (Pub/Sub) + Cache
   # ────────────────────────────────────────────────────────────
   redis:
-    image: redis:7.2.5-alpine
+    image: redis:latest
     container_name: proteus-redis
     restart: unless-stopped
     mem_limit: 256m

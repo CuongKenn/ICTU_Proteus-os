@@ -341,9 +341,8 @@ export interface DslPreview {
           appendMessage("assistant", content);
           setWidgetState("expanded");
         } else if (statusUpper === "PENDING_APPROVAL") {
-          const preview = data.dsl_preview ||
-            data.dry_run_result ||
-            (data as any).dsl_preview ||
+          const preview = (data as any).dsl_preview ||
+            (data as any).dry_run_result ||
             (data.result as any)?.dsl_preview ||
             data.result || {
               action: "System Command",
