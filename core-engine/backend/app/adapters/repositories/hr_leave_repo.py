@@ -53,3 +53,40 @@ class SQLAlchemyHRLeaveRepository(AbstractHRLeaveRepository):
         res_leaves = await self._session.execute(stmt)
         rows = res_leaves.mappings().all()
         return [dict(row) for row in rows]
+
+    async def count_leaves_spike(self) -> dict | None:
+        check_table = await self._session.execute(
+            text(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'hr_leave_requests')"
+            )
+        )
+        if not check_table.scalar():
+            return None
+        now = datetime.now(UTC)
+        recent_since = now - timedelta(days=7)
+        base_since = now - timedelta(days=35)
+        recent = (
+            await self._session.execute(
+                text(
+                    "SELECT COUNT(*) FROM hr_leave_requests "
+                    "WHERE created_at >= :since"
+                ),
+                {"since": recent_since},
+            )
+        ).scalar() or 0
+        base = (
+            await self._session.execute(
+                text(
+                    "SELECT COUNT(*) FROM hr_leave_requests "
+                    "WHERE created_at >= :bstart AND created_at < :bend"
+                ),
+                {"bstart": base_since, "bend": recent_since},
+            )
+        ).scalar() or 0
+        baseline_daily_avg = base / 28
+        ratio = (recent / 7 / baseline_daily_avg) if baseline_daily_avg > 0 else 0.0
+        return {
+            "recent": int(recent),
+            "baseline_daily_avg": round(baseline_daily_avg, 2),
+            "ratio": round(ratio, 2),
+        }

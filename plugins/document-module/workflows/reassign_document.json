@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "document/reassign",
         "responseMode": "lastNode",
         "options": {}

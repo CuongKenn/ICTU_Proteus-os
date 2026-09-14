@@ -87,7 +87,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
 
         result = await self._session.execute(
             text(
-                "SELECT p.*, tp.status "
+                "SELECT p.*, tp.status, tp.installed_version "
                 "FROM plugins p "
                 "JOIN tenant_plugins tp ON tp.plugin_id = p.id "
                 "WHERE tp.tenant_id = :tenant_id AND tp.status = 'ACTIVE' "
@@ -128,6 +128,86 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         # Convert UUID string if needed or directly return
         pid = row[1] if isinstance(row[1], uuid.UUID) else uuid.UUID(row[1])
         return PluginStatus(row[0]), pid
+
+    async def set_upgrade_task_id(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        task_id: uuid.UUID | None,
+    ) -> None:
+        """Gán/xóa upgrade_task_id cho polling tiến trình nâng cấp."""
+        await self._session.execute(
+            text(
+                "UPDATE tenant_plugins SET upgrade_task_id = :task_id, "
+                "updated_at = NOW() "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "task_id": task_id,
+            },
+        )
+
+    async def get_upgrade_status_by_task_id(
+        self, tenant_id: uuid.UUID, upgrade_task_id: uuid.UUID
+    ) -> tuple[PluginStatus, uuid.UUID] | None:
+        """Trả về (status, plugin_id) dựa vào upgrade_task_id."""
+        result = await self._session.execute(
+            text(
+                "SELECT status, plugin_id FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND upgrade_task_id = :upgrade_task_id"
+            ),
+            {"tenant_id": tenant_id, "upgrade_task_id": upgrade_task_id},
+        )
+        row = result.first()
+        if not row:
+            return None
+        pid = row[1] if isinstance(row[1], uuid.UUID) else uuid.UUID(row[1])
+        return PluginStatus(row[0]), pid
+
+    async def list_applied_migrations(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> dict[str, dict[str, str]]:
+        """Map version -> {filename, checksum} của migration đã chạy."""
+        result = await self._session.execute(
+            text(
+                "SELECT version, filename, checksum FROM plugin_schema_migrations "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        return {
+            row[0]: {"filename": row[1], "checksum": row[2]}
+            for row in result.all()
+        }
+
+    async def record_applied_migration(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        version: str,
+        filename: str,
+        checksum: str,
+    ) -> None:
+        """Ghi nhận 1 migration đã chạy thành công (idempotent)."""
+        await self._session.execute(
+            text(
+                "INSERT INTO plugin_schema_migrations "
+                "(tenant_id, plugin_id, version, filename, checksum) "
+                "VALUES (:tenant_id, :plugin_id, :version, :filename, :checksum) "
+                "ON CONFLICT (tenant_id, plugin_id, version) DO UPDATE SET "
+                "filename = EXCLUDED.filename, checksum = EXCLUDED.checksum, "
+                "applied_at = NOW()"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "plugin_id": plugin_id,
+                "version": version,
+                "filename": filename,
+                "checksum": checksum,
+            },
+        )
 
     async def upsert_installation(
         self,
@@ -459,5 +539,6 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             download_count=row.get("download_count", 0),
             published_at=row.get("published_at"),
             status=PluginStatus(row["status"]) if row.get("status") else None,
+            installed_version=row.get("installed_version"),
             credentials_schema=credentials_schema,
         )

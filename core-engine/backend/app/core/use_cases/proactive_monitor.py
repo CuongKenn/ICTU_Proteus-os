@@ -81,6 +81,20 @@ class ProactiveMonitorAgent:
         except Exception as e:
             logger.error("[Proactive Monitor] Lỗi quét ai_commands: %s", e)
 
+        # 3. Spike lệnh FAILED trong 1h qua (prompt lỗi / abuse / n8n down)
+        try:
+            failed = await self.ai_command_repo.count_failed_since(minutes=60)
+            if failed >= 10:
+                msg = (
+                    f"🔴 **[AI bất thường]** Có **{failed}** lệnh AI FAILED trong 1 giờ qua. "
+                    f"Kiểm tra prompt/LLM/n8n hoặc dấu hiệu lạm dụng."
+                )
+                await self.mattermost_adapter.send_message(
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                )
+        except Exception as e:
+            logger.error("[Proactive Monitor] Lỗi đếm AI FAILED: %s", e)
+
     async def morning_report(self):
         """
         Cron `0 7 * * *`:
@@ -107,6 +121,40 @@ class ProactiveMonitorAgent:
                 )
         except Exception as e:
             logger.error("[Proactive Monitor] Lỗi quét HR leaves: %s", e)
+
+        # Spike đơn nghỉ phép: 7 ngày qua gấp ≥2 lần trung bình 28 ngày trước (≥5 đơn)
+        try:
+            spike = await self.hr_leave_repo.count_leaves_spike()
+            if spike and spike["recent"] >= 5 and spike["ratio"] >= 2.0:
+                msg = (
+                    f"📊 **[Bất thường nghỉ phép]** 7 ngày qua có **{spike['recent']}** đơn "
+                    f"(gấp {spike['ratio']} lần trung bình). HR nên kiểm tra: "
+                    f"[Duyệt Nghỉ Phép]({settings.FRONTEND_URL}/apps/hr)"
+                )
+                await self.mattermost_adapter.send_message(
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                )
+        except Exception as e:
+            logger.error("[Proactive Monitor] Lỗi quét spike nghỉ phép: %s", e)
+
+        # Digest lệnh tồn đọng > 60 phút chưa ai duyệt
+        try:
+            backlog = await self.ai_command_repo.get_pending_older_than(
+                minutes=60, limit=5
+            )
+            if backlog:
+                lines = "\n".join(
+                    f"- `{c['action']}` (ID: {c['id']})" for c in backlog
+                )
+                msg = (
+                    f"📥 **[Tồn đọng phê duyệt]** {len(backlog)} lệnh chờ duyệt quá 60 phút:\n"
+                    f"{lines}"
+                )
+                await self.mattermost_adapter.send_message(
+                    settings.MATTERMOST_SYSTEM_CHANNEL_ID, msg
+                )
+        except Exception as e:
+            logger.error("[Proactive Monitor] Lỗi quét tồn đọng: %s", e)
 
         # Báo cáo hệ thống chung
         try:

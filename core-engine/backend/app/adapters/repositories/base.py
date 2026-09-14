@@ -63,6 +63,42 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def set_upgrade_task_id(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        task_id: uuid.UUID | None,
+    ) -> None:
+        """Gán/xóa upgrade_task_id cho polling tiến trình nâng cấp."""
+        ...
+
+    @abstractmethod
+    async def get_upgrade_status_by_task_id(
+        self, tenant_id: uuid.UUID, upgrade_task_id: uuid.UUID
+    ) -> tuple[PluginStatus, uuid.UUID] | None:
+        """Trả về (status, plugin_id) dựa vào upgrade_task_id."""
+        ...
+
+    @abstractmethod
+    async def list_applied_migrations(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> dict[str, dict[str, str]]:
+        """Map version -> {filename, checksum} của migration đã chạy."""
+        ...
+
+    @abstractmethod
+    async def record_applied_migration(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        version: str,
+        filename: str,
+        checksum: str,
+    ) -> None:
+        """Ghi nhận 1 migration đã chạy thành công (idempotent)."""
+        ...
+
+    @abstractmethod
     async def upsert_installation(
         self,
         tenant_id: uuid.UUID,
@@ -252,6 +288,13 @@ class AbstractUserRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_by_email(
+        self, tenant_id: uuid.UUID, email: str
+    ) -> UserEntity | None:
+        """Lấy User theo email trong tenant (so khớp không phân biệt hoa/thường)."""
+        ...
+
+    @abstractmethod
     async def upsert(self, user_data: dict) -> UserEntity:
         """Thêm mới hoặc cập nhật thông tin User dựa vào keycloak_id."""
         ...
@@ -288,6 +331,16 @@ class AbstractAICommandRepository(ABC):
         ...
 
     @abstractmethod
+    async def count_failed_since(self, minutes: int) -> int:
+        """Đếm lệnh FAILED trong N phút qua (phát hiện abuse/lỗi prompt)."""
+        ...
+
+    @abstractmethod
+    async def get_pending_older_than(self, minutes: int, limit: int = 5) -> list[dict]:
+        """Lệnh PENDING_APPROVAL tồn đọng quá N phút (để digest)."""
+        ...
+
+    @abstractmethod
     async def update_status(self, cmd_id: uuid.UUID, status: AICommandStatus) -> None:
         """Cập nhật trạng thái của lệnh."""
         ...
@@ -309,10 +362,19 @@ class AbstractAICommandRepository(ABC):
         self,
         cmd_id: uuid.UUID,
         status: str | None = None,
+        approved_by_user_id: str | None = None,
+        second_approver_id: str | None = None,
         approved_by: str | None = None,
         second_approver: str | None = None,
-    ) -> None:
-        """Cập nhật thông tin phê duyệt của lệnh."""
+        mattermost_message_id: str | None = None,
+    ) -> int:
+        """Cập nhật thông tin phê duyệt của lệnh (schema mới).
+
+        Dùng cột approved_by_user_id / second_approver_id /
+        mattermost_message_id. approved_by / second_approver chỉ là alias
+        deprecated cho backward-compat. Trả về rowcount để chống
+        double-execution (0 = race lost / đã xử lý).
+        """
         ...
 
     @abstractmethod
@@ -332,15 +394,24 @@ class AbstractAuditLogRepository(ABC):
     @abstractmethod
     async def insert_log(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         actor_type: str,
         action: str,
         resource_type: str,
-        resource_id: uuid.UUID,
-        command_id: uuid.UUID,
-        metadata_json: str,
+        resource_id: uuid.UUID | None,
+        status: str = "success",
+        payload: dict | None = None,
+        result: dict | None = None,
+        user_id: uuid.UUID | None = None,
+        ip_address: str | None = None,
+        **kwargs,
     ) -> None:
-        """Thêm một audit log."""
+        """Thêm một audit log (schema mới).
+
+        status NOT NULL ('success'/'failed'/'pending'). kwargs nuốt các
+        tham số legacy (command_id, metadata_json, metadata) để
+        backward-compat với caller cũ.
+        """
         ...
 
 
@@ -350,6 +421,14 @@ class AbstractHRLeaveRepository(ABC):
     @abstractmethod
     async def get_pending_leaves_older_than(self, days: int) -> list[dict] | None:
         """Lấy các đơn xin nghỉ phép chưa duyệt quá hạn."""
+        ...
+
+    @abstractmethod
+    async def count_leaves_spike(self) -> dict | None:
+        """So sánh đơn tạo 7 ngày qua vs trung bình 28 ngày trước đó.
+
+        Trả về {recent, baseline_daily_avg, ratio} hoặc None nếu thiếu bảng.
+        """
         ...
 
 
@@ -362,4 +441,55 @@ class AbstractDSLDryRunRepository(ABC):
         Thực thi dry run, trả về dict chứa affected_count và preview data.
         Ví dụ: {"affected_count": 5, "preview": [...]}
         """
+
+
+class AbstractConversationRepository(ABC):
+    """Port: Giao tiếp với ai_sessions + ai_messages (memory server-side)."""
+
+    @abstractmethod
+    async def ensure_session(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID | None = None,
+    ) -> uuid.UUID:
+        """Trả về session hiện có (thuộc user+tenant) hoặc tạo mới."""
+        ...
+
+    @abstractmethod
+    async def list_sessions(
+        self, tenant_id: uuid.UUID, user_id: uuid.UUID, limit: int = 20
+    ) -> list[dict]:
+        """Liệt kê sessions của user (mới nhất trước)."""
+        ...
+
+    @abstractmethod
+    async def append_message(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID,
+        role: str,
+        content: str,
+        command_id: uuid.UUID | None = None,
+        citations: list[dict] | None = None,
+    ) -> uuid.UUID:
+        """Thêm 1 turn chat, trả về message id."""
+        ...
+
+    @abstractmethod
+    async def list_messages(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session_id: uuid.UUID,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Lịch sử 1 session (cũ nhất trước), rỗng nếu session không thuộc user."""
+        ...
+
+    @abstractmethod
+    async def commit(self) -> None:
+        """Commit transaction."""
+        ...
         ...

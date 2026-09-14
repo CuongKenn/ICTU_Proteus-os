@@ -8,7 +8,9 @@ export const config = {
   // (plugins.proteus.local, không kèm cookie) về 204+CORS thay vì 307 signin;
   // (2) request thiếu session nhận 401 JSON thay vì redirect HTML.
   // Auth vẫn enforced trong từng BFF route bằng getToken().
+  // NOTE 09/2026: thêm `images` (thư mục public/) vào exclude — trước đây
+  // /images/* bị next-auth 307 về signin khiến logo/ảnh landing gãy với khách vãng lai.
   matcher: [
-    "/((?!$|login|signup|api/auth|api/onboarding|api/proxy|_next/static|_next/image|favicon.ico).*)",
+    "/((?!$|login|signup|api/auth|api/onboarding|api/proxy|_next/static|_next/image|favicon.ico|images).*)",
   ],
 };

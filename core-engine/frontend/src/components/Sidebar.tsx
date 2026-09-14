@@ -38,7 +38,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
 
 
   const handleLogout = async () => {
-    // Federated Logout: đăng xuất khỏi cả NextAuth lẫn Keycloak SSO session
+    // Xóa cờ SSO đã xong để lần login sau toolbar hiện lại nếu cần.
+    try {
+      localStorage.removeItem("proteus:sso:chat:done");
+      localStorage.removeItem("proteus:sso:wiki:done");
+      localStorage.removeItem("proteus:sso:apps:done");
+    } catch {
+      // Bỏ qua.
+    }
+    // 1. Thu hồi Mattermost sessions (best-effort, khi BFF session còn hạn).
+    // Nếu không, user logout hệ thống nhưng chat vẫn còn session cũ.
+    try {
+      const { default: api } = await import("@/lib/api");
+      await api.post("/v1/auth/logout");
+    } catch {
+      // MM down cũng không chặn logout hệ thống.
+    }
+    // 2. Federated Logout: đăng xuất khỏi cả NextAuth lẫn Keycloak SSO session
     // Nếu không làm bước này, Keycloak vẫn nhớ session và tự login lại ngay
     const res = await fetch("/api/auth/federated-logout");
     const data = await res.json();

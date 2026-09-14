@@ -3,6 +3,7 @@
 #
 # Entrypoint — Tenants Router (REST API)
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,6 +28,18 @@ from app.entrypoints.schemas.tenant import (
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
 
+logger = logging.getLogger(__name__)
+
+
+def _internal_error(request_id: str = "") -> HTTPException:
+    detail = "Internal server error."
+    if request_id:
+        detail += f" request_id={request_id}"
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=detail,
+    )
+
 
 @router.post(
     "",
@@ -50,10 +63,9 @@ async def create_tenant(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.get(
@@ -72,10 +84,9 @@ async def get_my_tenant(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.patch(
@@ -96,10 +107,9 @@ async def update_my_tenant(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.get(
@@ -115,10 +125,9 @@ async def get_my_integrations(
         return await use_case.get_integrations(context)
     except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.post(
@@ -135,10 +144,9 @@ async def add_my_integration(
         return await use_case.add_integration(context, request.provider, request.config)
     except TenantPermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.get(
@@ -158,10 +166,9 @@ async def get_tenant(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.patch(
@@ -183,10 +190,9 @@ async def update_tenant(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
 
 
 @router.delete(
@@ -205,7 +211,6 @@ async def delete_tenant(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     except TenantOnboardingError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    except Exception:
+        logger.exception("Unhandled tenant error")
+        raise _internal_error() from None
