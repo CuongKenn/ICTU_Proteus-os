@@ -85,6 +85,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Next standalone bind theo $HOSTNAME; Docker mặc định gán HOSTNAME=<container-id>
+# khiến server chỉ nghe trên IP eth0, healthcheck 127.0.0.1 fail → unhealthy vĩnh viễn
+# → Traefik v3 lọc container unhealthy, mất router frontend (404). Bind 0.0.0.0 để fix.
+ENV HOSTNAME=0.0.0.0
 
 # Copy chỉ những gì cần thiết từ builder
 COPY --from=frontend-builder /app/.next/standalone ./

@@ -16,6 +16,7 @@ import {
   Bot,
   BriefcaseBusiness,
   CheckCircle2,
+  ChevronDown,
   Database,
   FileText,
   GitBranch,
@@ -24,6 +25,7 @@ import {
   KeyRound,
   Layers,
   LockKeyhole,
+  Menu,
   MessageSquare,
   PlayCircle,
   Puzzle,
@@ -35,6 +37,7 @@ import {
   Sparkles,
   Users,
   Workflow,
+  X,
   Zap,
 } from "lucide-react";
 
@@ -188,6 +191,41 @@ const security = [
   },
 ];
 
+// ─── Hero terminal script (demo vòng đời lệnh AI) ─────────────
+
+const terminalScenes = [
+  {
+    user: "Duyệt nghỉ phép cho An từ mai đến hết tuần",
+    command: "hr.leave.approve",
+    lines: [
+      "Hiểu intent · đúng tenant, đúng quyền của bạn",
+      "Dry-run: 5 ngày phép · tác động 2 bảng dữ liệu",
+      "Đã gửi Mattermost xin phê duyệt của sếp",
+    ],
+    result: "Sếp đã duyệt · Workflow chạy xong",
+  },
+  {
+    user: "Tổng hợp công nợ quá hạn tháng này",
+    command: "finance.ar.overdue",
+    lines: [
+      "Quét 3 bảng: hóa đơn, thanh toán, khách hàng",
+      "Dry-run: 47 hóa đơn · 1,2 tỷ · risk thấp",
+      "Dashboard Metabase đã cập nhật realtime",
+    ],
+    result: "Báo cáo sẵn sàng · đã gửi vào chat",
+  },
+  {
+    user: "Onboard nhân viên mới tên Linh, phòng Kinh doanh",
+    command: "hr.employee.onboard",
+    lines: [
+      "Tạo hồ sơ + tài khoản SSO + phân quyền role",
+      "Dry-run: 1 nhân sự · 6 checklist · risk thấp",
+      "Gửi IT cấp laptop · gửi HR lịch đào tạo",
+    ],
+    result: "Onboard xong · 6/6 checklist hoàn tất",
+  },
+] as const;
+
 // ─── Page ──────────────────────────────────────────────────────
 
 export function LandingPage() {
@@ -214,12 +252,20 @@ export function LandingPage() {
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  // Khóa scroll nền khi mở menu mobile
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open ]);
   const links = [
     ["Tính năng", "#features"],
     ["Cách hoạt động", "#how"],
@@ -229,20 +275,26 @@ function Navbar() {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "border-b border-border bg-bg-base/85 backdrop-blur-xl"
+        scrolled || open
+          ? "border-b border-border bg-bg-base/85 shadow-lg shadow-black/20 backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Image
-            src="/images/proteus_logo.png"
-            alt="Proteus OS"
-            width={36}
-            height={36}
-            className="h-9 w-9 rounded-xl object-cover shadow-lg shadow-brand-primary/25"
-          />
+      <nav
+        className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
+        aria-label="Điều hướng chính"
+      >
+        <Link href="/" className="flex items-center gap-2.5" aria-label="Proteus OS — Trang chủ">
+          <span className="rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary p-[2px] shadow-lg shadow-brand-primary/30">
+            <Image
+              src="/images/proteus_logo.png"
+              alt="Proteus OS"
+              width={36}
+              height={36}
+              priority
+              className="h-9 w-9 rounded-[10px] bg-bg-base object-cover"
+            />
+          </span>
           <span className="text-lg font-bold tracking-tight">
             Proteus<span className="text-brand-primary"> OS</span>
           </span>
@@ -267,13 +319,55 @@ function Navbar() {
           </Link>
           <Link
             href="/signup"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-primary/30 transition hover:-translate-y-px hover:bg-brand-primary/90"
+            className="hidden items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-primary/30 transition hover:-translate-y-px hover:bg-brand-primary/90 sm:inline-flex"
           >
             Dùng thử miễn phí
             <ArrowRight className="h-4 w-4" />
           </Link>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? "Đóng menu" : "Mở menu"}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-text-secondary transition hover:bg-bg-hover hover:text-text-primary md:hidden"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+      {/* Mobile menu */}
+      {open && (
+        <div className="border-t border-border bg-bg-base/95 backdrop-blur-xl md:hidden">
+          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4 sm:px-6">
+            {links.map(([label, href]) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-3 py-3 text-[15px] font-medium text-text-secondary transition hover:bg-bg-hover hover:text-text-primary"
+              >
+                {label}
+              </a>
+            ))}
+            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-4">
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold transition hover:bg-bg-hover"
+              >
+                Đăng nhập
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-primary/30"
+              >
+                Dùng thử <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
@@ -282,31 +376,38 @@ function Navbar() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden pb-16 pt-32 sm:pt-36">
-      {/* Backdrop */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]" />
-        <div className="absolute -top-32 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full bg-brand-primary/20 blur-[120px]" />
-        <div className="absolute right-[-10rem] top-40 h-72 w-72 rounded-full bg-brand-secondary/15 blur-[100px]" />
+    <section className="relative flex min-h-screen flex-col overflow-hidden pb-14 pt-28 sm:pt-32">
+      {/* Aurora backdrop */}
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40 [mask-image:radial-gradient(ellipse_75%_65%_at_50%_35%,black,transparent)]" />
+        <div className="animate-proteus-aurora-a absolute -top-40 left-[8%] h-[28rem] w-[28rem] rounded-full bg-brand-primary/25 blur-[130px]" />
+        <div className="animate-proteus-aurora-b absolute right-[4%] top-1/3 h-[24rem] w-[24rem] rounded-full bg-brand-secondary/20 blur-[130px]" />
+        <div className="animate-proteus-aurora-a absolute bottom-[-10rem] left-[30%] h-[20rem] w-[30rem] rounded-full bg-sky-500/10 blur-[120px]" />
+        <div className="absolute left-1/2 top-0 h-px w-[80%] -translate-x-1/2 bg-gradient-to-r from-transparent via-brand-primary/60 to-transparent" />
       </div>
 
-      <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:gap-8 lg:px-8">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-14 px-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:px-8">
         <div>
           <Reveal>
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-3.5 py-1.5 text-[13px] font-medium text-brand-primary">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 py-1.5 pl-3.5 pr-2.5 text-[13px] font-medium text-brand-primary">
               <Sparkles className="h-3.5 w-3.5" />
               Hệ điều hành doanh nghiệp · Mã nguồn mở AGPL
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+                Live
               </span>
             </div>
           </Reveal>
           <Reveal delay={90}>
-            <h1 className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.6rem]">
-              Mọi hoạt động doanh nghiệp,{" "}
-              <span className="bg-gradient-to-r from-brand-primary via-[#7dd3fc] to-brand-secondary bg-clip-text text-transparent">
-                gói gọn trong một workspace
+            <h1 className="mt-6 text-[2.75rem] font-extrabold leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.4rem]">
+              Ra lệnh bằng
+              <br />
+              tiếng Việt,{" "}
+              <span className="animate-proteus-gradient bg-gradient-to-r from-brand-primary via-[#8ab8ff] to-brand-secondary bg-clip-text text-transparent">
+                AI làm phần còn lại
               </span>
             </h1>
           </Reveal>
@@ -314,21 +415,21 @@ function Hero() {
             <p className="mt-6 max-w-xl text-base leading-7 text-text-secondary sm:text-lg sm:leading-8">
               Chat, wiki, BI, low-code, workflow và{" "}
               <strong className="font-semibold text-text-primary">Proteus AI chạy 100% nội bộ</strong> —
-              nhân viên ra lệnh bằng tiếng Việt, hệ thống tự thực thi có phê duyệt, dữ liệu không bao giờ rời máy chủ.
+              dry-run trước khi ghi, phê duyệt 2 lớp trên Mattermost, dữ liệu không bao giờ rời máy chủ.
             </p>
           </Reveal>
           <Reveal delay={260}>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/signup"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-6 py-3.5 font-semibold text-white shadow-xl shadow-brand-primary/30 transition hover:-translate-y-0.5 hover:bg-brand-primary/90"
+                className="btn-shine inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-7 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-brand-primary/40 transition hover:-translate-y-0.5 hover:bg-brand-primary/90 hover:shadow-brand-primary/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:translate-y-0"
               >
                 <Rocket className="h-5 w-5" />
                 Triển khai cho tổ chức
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-surface/60 px-6 py-3.5 font-semibold text-text-primary backdrop-blur transition hover:-translate-y-0.5 hover:bg-bg-hover"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-surface/60 px-7 py-3.5 text-[15px] font-semibold text-text-primary backdrop-blur transition hover:-translate-y-0.5 hover:border-brand-primary/40 hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:translate-y-0"
               >
                 <PlayCircle className="h-5 w-5 text-brand-primary" />
                 Vào hệ thống
@@ -336,79 +437,177 @@ function Hero() {
             </div>
           </Reveal>
           <Reveal delay={340}>
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-text-secondary">
-              {["Không cần thẻ tín dụng", "AI có phê duyệt 2 lớp", "Audit đầy đủ"].map((t) => (
-                <span key={t} className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  {t}
-                </span>
+            <dl className="mt-10 flex max-w-lg items-stretch gap-6 border-t border-border/70 pt-6 sm:gap-8">
+              {[
+                { v: 9, s: "", label: "module nghiệp vụ" },
+                { v: 39, s: "", label: "workflow đang chạy" },
+                { v: 100, s: "%", label: "AI on-premise" },
+              ].map((m) => (
+                <div key={m.label}>
+                  <dt className="sr-only">{m.label}</dt>
+                  <dd className="bg-gradient-to-br from-white to-brand-primary/80 bg-clip-text text-3xl font-extrabold tabular-nums text-transparent">
+                    <Counter to={m.v} suffix={m.s} />
+                  </dd>
+                  <dd className="mt-1 text-[13px] leading-5 text-text-secondary">{m.label}</dd>
+                </div>
               ))}
-            </div>
+            </dl>
           </Reveal>
         </div>
 
-        {/* Product visual */}
         <Reveal delay={200} className="relative">
-          <div className="relative">
-            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-brand-primary/25 via-transparent to-brand-secondary/25 blur-2xl" />
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-bg-surface shadow-2xl shadow-black/50">
-              <div className="flex items-center gap-1.5 border-b border-border bg-bg-base/80 px-4 py-2.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-                <span className="ml-3 hidden rounded-md bg-bg-surface px-2.5 py-1 font-mono text-[11px] text-text-secondary sm:block">
-                  proteus.local/launchpad
-                </span>
-              </div>
-              <Image
-                src="/images/proteus_os_launchpad.png"
-                alt="Giao diện Launchpad Proteus OS"
-                width={1024}
-                height={640}
-                priority
-                sizes="(min-width: 1024px) 55vw, 100vw"
-                className="h-auto w-full object-cover"
-              />
-            </div>
-
-            {/* Floating: approval card */}
-            <div className="animate-proteus-float absolute -left-3 top-10 hidden w-60 rounded-xl border border-border bg-bg-glass p-3.5 shadow-xl backdrop-blur-xl sm:block lg:-left-10">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
-                  <Shield className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold">Chờ phê duyệt</p>
-                  <p className="text-[11px] text-text-secondary">Duyệt nghỉ phép · HR</p>
-                </div>
-              </div>
-              <div className="mt-2.5 flex gap-2">
-                <span className="flex-1 rounded-md bg-emerald-500/90 px-2 py-1.5 text-center text-[11px] font-semibold text-white">
-                  Duyệt
-                </span>
-                <span className="flex-1 rounded-md bg-bg-surface px-2 py-1.5 text-center text-[11px] font-semibold text-text-secondary">
-                  Từ chối
-                </span>
-              </div>
-            </div>
-
-            {/* Floating: success toast */}
-            <div
-              className="animate-proteus-float absolute -right-3 bottom-12 hidden items-center gap-2.5 rounded-xl border border-border bg-bg-glass p-3.5 shadow-xl backdrop-blur-xl sm:flex lg:-right-8"
-              style={{ animationDelay: "1.4s" }}
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
-                <Zap className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold">Workflow đã chạy xong</p>
-                <p className="text-[11px] text-text-secondary">Onboarding nhân viên mới</p>
-              </div>
-            </div>
-          </div>
+          <AiTerminal />
         </Reveal>
       </div>
+
+      <div className="mt-10 flex justify-center" aria-hidden>
+        <a
+          href="#features"
+          tabIndex={-1}
+          className="flex flex-col items-center gap-1 text-[11px] font-medium uppercase tracking-[0.2em] text-text-disabled"
+        >
+          Khám phá
+          <ChevronDown className="animate-proteus-scroll-cue h-4 w-4 text-brand-primary" />
+        </a>
+      </div>
     </section>
+  );
+}
+
+// ─── AI Terminal (demo live vòng đời lệnh) ─────────────────────
+
+function AiTerminal() {
+  const [sceneIdx, setSceneIdx] = useState(0);
+  const [chars, setChars] = useState(0);
+  const [steps, setSteps] = useState(0);
+  const [done, setDone] = useState(false);
+  const [staticMode, setStaticMode] = useState(false);
+  const scene = terminalScenes[sceneIdx];
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setStaticMode(true);
+      setChars(terminalScenes[0].user.length);
+      setSteps(terminalScenes[0].lines.length);
+      setDone(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (staticMode) return;
+    let t: ReturnType<typeof setTimeout>;
+    if (chars < scene.user.length) {
+      t = setTimeout(() => setChars((c) => c + 1), 34);
+    } else if (steps < scene.lines.length) {
+      t = setTimeout(() => setSteps((s) => s + 1), 700);
+    } else if (!done) {
+      t = setTimeout(() => setDone(true), 600);
+    } else {
+      t = setTimeout(() => {
+        setSceneIdx((i) => (i + 1) % terminalScenes.length);
+        setChars(0);
+        setSteps(0);
+        setDone(false);
+      }, 3400);
+    }
+    return () => clearTimeout(t);
+  }, [chars, steps, done, sceneIdx, scene, staticMode]);
+
+  return (
+    <div className="relative">
+      <div
+        className="absolute -inset-5 rounded-[28px] bg-gradient-to-tr from-brand-primary/30 via-brand-secondary/10 to-transparent blur-2xl"
+        aria-hidden
+      />
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-[#0a1128]/90 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-xl">
+        {/* Title bar */}
+        <div className="flex items-center gap-1.5 border-b border-border/70 bg-bg-base/70 px-4 py-3">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+          <span className="ml-3 inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2.5 py-1 font-mono text-[11px] font-medium text-brand-primary">
+            <Bot className="h-3 w-3" />
+            proteus-ai · live demo
+          </span>
+          <span className="ml-auto hidden items-center gap-1.5 text-[11px] text-text-secondary sm:inline-flex">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            on-premise
+          </span>
+        </div>
+
+        {/* Body */}
+        <div className="min-h-[320px] space-y-4 p-5 sm:min-h-[340px]">
+          {/* User message */}
+          <div className="ml-auto w-fit max-w-[90%] rounded-2xl rounded-br-md bg-brand-primary px-4 py-2.5 text-sm leading-6 text-white shadow-lg shadow-brand-primary/25">
+            {scene.user.slice(0, chars)}
+            {chars < scene.user.length && (
+              <span className="animate-proteus-caret ml-0.5 inline-block h-4 w-[2px] translate-y-[3px] bg-white/90" />
+            )}
+          </div>
+
+          {/* AI working */}
+          {chars >= scene.user.length && (
+            <div className="w-fit max-w-[94%] rounded-2xl rounded-bl-md border border-border bg-bg-surface/80 px-4 py-3 text-sm">
+              <code className="font-mono text-[12px] font-medium text-brand-primary">{scene.command}</code>
+              <ul className="mt-2.5 space-y-2">
+                {scene.lines.slice(0, steps).map((l) => (
+                  <li key={l} className="flex items-start gap-2 text-[13px] leading-5 text-text-secondary">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    {l}
+                  </li>
+                ))}
+                {steps < scene.lines.length && (
+                  <li className="flex items-center gap-1.5 px-1 py-1" aria-hidden>
+                    <span className="typing-dot h-1.5 w-1.5 rounded-full bg-text-secondary" />
+                    <span className="typing-dot h-1.5 w-1.5 rounded-full bg-text-secondary" />
+                    <span className="typing-dot h-1.5 w-1.5 rounded-full bg-text-secondary" />
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* Result */}
+          {done && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-2.5 text-[13px] font-medium text-emerald-300">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+                <Zap className="h-3.5 w-3.5" />
+              </span>
+              {scene.result}
+            </div>
+          )}
+        </div>
+
+        {/* Scene dots */}
+        <div className="flex items-center justify-center gap-1.5 border-t border-border/70 bg-bg-base/50 px-4 py-2.5" aria-hidden>
+          {terminalScenes.map((s, i) => (
+            <span
+              key={s.command}
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                i === sceneIdx ? "w-6 bg-brand-primary" : "w-1.5 bg-border"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Floating chips */}
+      <div
+        className="animate-proteus-float absolute -left-3 -top-5 hidden items-center gap-2 rounded-xl border border-border bg-bg-glass px-3.5 py-2.5 shadow-xl backdrop-blur-xl sm:flex lg:-left-8"
+        aria-hidden
+      >
+        <ShieldCheck className="h-4 w-4 text-amber-400" />
+        <span className="text-xs font-semibold">Phê duyệt 2 lớp</span>
+      </div>
+      <div
+        className="animate-proteus-float absolute -bottom-5 -right-3 hidden items-center gap-2 rounded-xl border border-border bg-bg-glass px-3.5 py-2.5 shadow-xl backdrop-blur-xl sm:flex lg:-right-6"
+        style={{ animationDelay: "1.6s" }}
+        aria-hidden
+      >
+        <LockKeyhole className="h-4 w-4 text-emerald-400" />
+        <span className="text-xs font-semibold">Dữ liệu không rời máy chủ</span>
+      </div>
+    </div>
   );
 }
 
@@ -607,6 +806,16 @@ const showcaseTabs = [
 
 function ShowcaseTabs() {
   const [active, setActive] = useState<(typeof showcaseTabs)[number]["id"]>("launchpad");
+  const [paused, setPaused] = useState(false);
+  const [cycle, setCycle] = useState(0);
+  // Tự xoay tab mỗi 7s, dừng khi hover/focus; reset nhịp khi bấm tay
+  useEffect(() => {
+    if (paused) return;
+    const t = setTimeout(() => {
+      setActive((cur) => (cur === "launchpad" ? "marketplace" : "launchpad"));
+    }, 7000);
+    return () => clearTimeout(t);
+  }, [active, paused, cycle]);
   const tab = showcaseTabs.find((t) => t.id === active)!;
   return (
     <section className="border-y border-border/60 bg-bg-surface/30 py-20">
@@ -616,12 +825,25 @@ function ShowcaseTabs() {
           <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Nhìn là muốn dùng ngay</h2>
         </Reveal>
         <Reveal>
-          <div className="mb-8 flex justify-center gap-2">
+          <div
+            className="mb-8 flex justify-center gap-2"
+            role="tablist"
+            aria-label="Ảnh sản phẩm"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+          >
             {showcaseTabs.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setActive(t.id)}
-                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+                role="tab"
+                aria-selected={active === t.id}
+                onClick={() => {
+                  setActive(t.id);
+                  setCycle((c) => c + 1);
+                }}
+                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary ${
                   active === t.id
                     ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/30"
                     : "border border-border bg-bg-base text-text-secondary hover:text-text-primary"
@@ -838,13 +1060,16 @@ function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.2fr_1fr_1fr] lg:px-8">
         <div>
           <div className="flex items-center gap-2.5">
-            <Image
-              src="/images/proteus_logo.png"
-              alt="Proteus OS"
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-lg object-cover"
-            />
+            <span className="rounded-lg bg-gradient-to-br from-brand-primary to-brand-secondary p-[2px]">
+              <Image
+                src="/images/proteus_logo.png"
+                alt="Proteus OS"
+                width={32}
+                height={32}
+                loading="lazy"
+                className="h-8 w-8 rounded-[6px] bg-bg-base object-cover"
+              />
+            </span>
             <span className="font-bold">
               Proteus<span className="text-brand-primary"> OS</span>
             </span>

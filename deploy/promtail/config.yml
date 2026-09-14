@@ -24,11 +24,9 @@ scrape_configs:
         target_label: 'service'
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'stream'
-    # Optional pipeline to extract job from json logs if Proteus backend outputs it
+    # Pipeline tối giản: chỉ bóc envelope docker, giữ nguyên message gốc.
+    # (Trước đây có thêm json{job}→labels{job} nhưng stage `labels` với giá trị
+    # rỗng khiến Loki 400 "at least one label pair is required" trên promtail 3.x.
+    # Nhãn container/service/stream từ relabel là đủ để tra cứu.)
     pipeline_stages:
       - docker: {}
-      - json:
-          expressions:
-            job: job
-      - labels:
-          job:
