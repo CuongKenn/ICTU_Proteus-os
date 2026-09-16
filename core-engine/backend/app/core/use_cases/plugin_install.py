@@ -580,9 +580,7 @@ class PluginInstallUseCase:
                     or seed_rel.startswith("/")
                     or not _SEED_FILE_PATTERN.match(seed_rel)
                 ):
-                    raise PluginInstallError(
-                        f"Seed file path không hợp lệ: {seed_rel}"
-                    )
+                    raise PluginInstallError(f"Seed file path không hợp lệ: {seed_rel}")
                 plugins_base = self.manifest_parser.plugins_dir.resolve()
                 seed_path = (plugins_base / plugin_code_name / seed_rel).resolve()
                 try:
@@ -671,22 +669,16 @@ class PluginInstallUseCase:
                 await self.session.execute(
                     text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                 )
-                await self.session.execute(
-                    text(f'SET search_path TO "{schema_name}"')
-                )
+                await self.session.execute(text(f'SET search_path TO "{schema_name}"'))
 
                 # Role app_user phải tồn tại thì CREATE POLICY mới chạy được
                 # (fresh install chưa có → tạo best-effort, đã có thì skip).
                 await self.session.execute(text("SAVEPOINT rls_role"))
                 try:
-                    await self.session.execute(
-                        text("CREATE ROLE app_user NOLOGIN")
-                    )
+                    await self.session.execute(text("CREATE ROLE app_user NOLOGIN"))
                     await self.session.execute(text("RELEASE SAVEPOINT rls_role"))
                 except Exception:
-                    await self.session.execute(
-                        text("ROLLBACK TO SAVEPOINT rls_role")
-                    )
+                    await self.session.execute(text("ROLLBACK TO SAVEPOINT rls_role"))
 
                 # Chỉ bảng có cột tenant_id mới áp được policy (đa số bảng plugin
                 # cách ly bằng schema-per-tenant, không có cột này → bỏ qua).
@@ -838,7 +830,8 @@ class PluginInstallUseCase:
                 )
 
                 alerts_channel_id = await get_tenant_alerts_channel_id(
-                    self.tenant_repo, self.mattermost_adapter,
+                    self.tenant_repo,
+                    self.mattermost_adapter,
                     context.tenant_id,
                 )
             except Exception as e:
@@ -887,9 +880,7 @@ class PluginInstallUseCase:
                         or "mattermost" in _ntype
                         or "ollama" in _ntype
                     )
-                    if _needs_creds and not isinstance(
-                        node.get("credentials"), dict
-                    ):
+                    if _needs_creds and not isinstance(node.get("credentials"), dict):
                         node["credentials"] = {}
                     # Postgres nodes thiếu skeleton credentials vẫn được gắn
                     # ProteusDB_Real để workflow import xong chạy được ngay.
@@ -900,9 +891,7 @@ class PluginInstallUseCase:
                     # Node thiếu channelId được điền kênh alerts của tenant
                     # (file mẫu hay bỏ trống → n8n từ chối activate).
                     if "mattermost" in _ntype:
-                        node["credentials"].setdefault(
-                            "mattermostApi", {}
-                        )
+                        node["credentials"].setdefault("mattermostApi", {})
                         params = node.get("parameters")
                         if (
                             isinstance(params, dict)
@@ -911,25 +900,23 @@ class PluginInstallUseCase:
                         ):
                             params["channelId"] = alerts_channel_id
                         if proteus_mm_cred_id:
-                            node["credentials"]["mattermostApi"]["id"] = (
-                                proteus_mm_cred_id
-                            )
-                            node["credentials"]["mattermostApi"]["name"] = (
-                                proteus_mm_cred_name
-                            )
+                            node["credentials"]["mattermostApi"][
+                                "id"
+                            ] = proteus_mm_cred_id
+                            node["credentials"]["mattermostApi"][
+                                "name"
+                            ] = proteus_mm_cred_name
                     # Ollama/AI nodes: ghi đè credential ID cũ của máy dev
                     # (VD: "OllamaLocal") bằng ProteusOllama dùng chung.
                     if "ollama" in _ntype:
-                        node["credentials"].setdefault(
-                            "ollamaApi", {}
-                        )
+                        node["credentials"].setdefault("ollamaApi", {})
                         if proteus_ollama_cred_id:
-                            node["credentials"]["ollamaApi"]["id"] = (
-                                proteus_ollama_cred_id
-                            )
-                            node["credentials"]["ollamaApi"]["name"] = (
-                                proteus_ollama_cred_name
-                            )
+                            node["credentials"]["ollamaApi"][
+                                "id"
+                            ] = proteus_ollama_cred_id
+                            node["credentials"]["ollamaApi"][
+                                "name"
+                            ] = proteus_ollama_cred_name
                     if isinstance(node.get("credentials"), dict):
                         for cred_key, cred_val in node["credentials"].items():
                             # Internal DB (Proteus)
@@ -1268,14 +1255,10 @@ class PluginInstallUseCase:
                             r.name: r
                             for r in await role_repo.list_by_tenant(context.tenant_id)
                         }
-                        for role_name in reversed(
-                            created_assets.get("db_roles", [])
-                        ):
+                        for role_name in reversed(created_assets.get("db_roles", [])):
                             role = existing.get(role_name)
                             if role is not None:
-                                await role_repo.delete_role(
-                                    role.id, context.tenant_id
-                                )
+                                await role_repo.delete_role(role.id, context.tenant_id)
                     except Exception as e:
                         logger.warning(
                             "Rollback không xóa được DB roles của %s: %s",

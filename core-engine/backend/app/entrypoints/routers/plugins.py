@@ -206,7 +206,9 @@ async def _run_install_plugin_background(
 
     # Set tenant_id contextvar để after_begin event listener cài RLS đúng
     tenant_id_ctx.set(str(ctx.tenant_id))
-    logger.info("[BG_TASK] _run_install_plugin_background STARTED: %s", plugin_code_name)
+    logger.info(
+        "[BG_TASK] _run_install_plugin_background STARTED: %s", plugin_code_name
+    )
 
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
@@ -554,7 +556,9 @@ async def _run_upgrade_plugin_background(
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
 
     tenant_id_ctx.set(str(ctx.tenant_id))
-    logger.info("[BG_TASK] _run_upgrade_plugin_background STARTED: %s", plugin_code_name)
+    logger.info(
+        "[BG_TASK] _run_upgrade_plugin_background STARTED: %s", plugin_code_name
+    )
 
     from app.adapters.external.appsmith_adapter import AppsmithAdapter
     from app.adapters.external.keycloak_adapter import KeycloakAdapter
@@ -628,9 +632,7 @@ async def upgrade_plugin(
         status=_PluginStatus.UPGRADING,
         installed_version=from_version,
     )
-    await use_case.plugin_repo.set_upgrade_task_id(
-        ctx.tenant_id, plugin_id, task_id
-    )
+    await use_case.plugin_repo.set_upgrade_task_id(ctx.tenant_id, plugin_id, task_id)
     await use_case.plugin_repo.update_install_steps_log(
         ctx.tenant_id,
         plugin_id,

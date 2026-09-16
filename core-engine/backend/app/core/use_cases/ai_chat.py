@@ -69,8 +69,10 @@ class AIChatUseCase:
 
     async def _build_messages(self, ctx: dict, user_text: str) -> list[dict[str, str]]:
         try:
-            tenant_id = ctx.get("tenant_id") if isinstance(ctx, dict) else getattr(
-                ctx, "tenant_id", None
+            tenant_id = (
+                ctx.get("tenant_id")
+                if isinstance(ctx, dict)
+                else getattr(ctx, "tenant_id", None)
             )
             catalog = await build_catalog_for_tenant(
                 self.plugin_repo, self.manifest_parser, tenant_id
@@ -78,9 +80,7 @@ class AIChatUseCase:
         except Exception as e:
             logger.warning("Không dựng được catalog động, dùng fallback: %s", e)
             catalog = []
-        action_list = (
-            render_for_prompt(catalog) if catalog else FALLBACK_PROMPT_ACTIONS
-        )
+        action_list = render_for_prompt(catalog) if catalog else FALLBACK_PROMPT_ACTIONS
         system_prompt = f"""Bạn là trợ lý AI (Proteus AI) đóng vai trò là một Orchestrator. Nhiệm vụ của bạn là chuyển đổi câu lệnh ngôn ngữ tự nhiên của người dùng thành một lệnh hệ thống chuẩn DX-DSL.
 
 Bạn CHỈ ĐƯỢC PHÉP trả về một object JSON hợp lệ với 1 trong 2 dạng sau, tuyệt đối không trả lời thêm bất kỳ văn bản nào khác:
@@ -203,9 +203,7 @@ Ví dụ:
         if self.conversation_repo is None:
             return
         try:
-            tenant_id = (
-                ctx.get("tenant_id") if isinstance(ctx, dict) else ctx.tenant_id
-            )
+            tenant_id = ctx.get("tenant_id") if isinstance(ctx, dict) else ctx.tenant_id
             user_id = ctx.get("user_id") if isinstance(ctx, dict) else ctx.user_id
             real_session = await self.conversation_repo.ensure_session(
                 tenant_id, user_id, session_id
@@ -249,8 +247,10 @@ Ví dụ:
     ) -> list[dict[str, str]]:
         """Prompt 1 vòng ReAct: mục tiêu + đã làm + gợi ý + tools."""
         try:
-            tenant_id = ctx.get("tenant_id") if isinstance(ctx, dict) else getattr(
-                ctx, "tenant_id", None
+            tenant_id = (
+                ctx.get("tenant_id")
+                if isinstance(ctx, dict)
+                else getattr(ctx, "tenant_id", None)
             )
             catalog = await build_catalog_for_tenant(
                 self.plugin_repo, self.manifest_parser, tenant_id
@@ -259,9 +259,7 @@ Ví dụ:
             logger.warning("Không dựng được catalog động, dùng fallback: %s", e)
             catalog = []
         action_list = (
-            render_for_prompt(catalog, limit=40)
-            if catalog
-            else FALLBACK_PROMPT_ACTIONS
+            render_for_prompt(catalog, limit=40) if catalog else FALLBACK_PROMPT_ACTIONS
         )
 
         def _obs_text(o: dict[str, Any]) -> str:
@@ -274,12 +272,14 @@ Ví dụ:
                     return base
             return base
 
-        done_lines = "\n".join(
-            f"{o['index']}. `{o['action']}` — {_obs_text(o)}" for o in done
-        ) or "(chưa làm gì)"
-        sugg_lines = "\n".join(
-            f"- `{s.action}` ({s.effect})" for s in suggestion
-        ) or "(hết gợi ý — tự quyết định bước tiếp hoặc kết thúc)"
+        done_lines = (
+            "\n".join(f"{o['index']}. `{o['action']}` — {_obs_text(o)}" for o in done)
+            or "(chưa làm gì)"
+        )
+        sugg_lines = (
+            "\n".join(f"- `{s.action}` ({s.effect})" for s in suggestion)
+            or "(hết gợi ý — tự quyết định bước tiếp hoặc kết thúc)"
+        )
         system = f"""Bạn là Proteus AI đang thực hiện mục tiêu: {goal}
 
 Đã làm xong:
@@ -323,8 +323,10 @@ CHỈ trả về JSON, không text thừa:
             repo = self.ai_command_use_case.ai_command_repo
             row = await repo.get_command_by_id(last["command_id"])
             dl = (row or {}).get("approval_deadline")
-            deadline = dl.isoformat() if hasattr(dl, "isoformat") else (
-                str(dl) if dl else None
+            deadline = (
+                dl.isoformat()
+                if hasattr(dl, "isoformat")
+                else (str(dl) if dl else None)
             )
         except Exception as e:
             logger.warning("Lấy deadline duyệt thất bại (best-effort): %s", e)
@@ -369,9 +371,7 @@ CHỈ trả về JSON, không text thừa:
             params = dict(step.parameters or {})
             params["_plan"] = {"index": index, "total": total_hint, "react": True}
             step.parameters = params
-            status, message, result = await self.ai_command_use_case.execute(
-                step, ctx
-            )
+            status, message, result = await self.ai_command_use_case.execute(step, ctx)
             outcomes.append(
                 {
                     "index": index,
@@ -543,9 +543,7 @@ CHỈ trả về JSON, không text thừa:
             params = dict(step.parameters or {})
             params["_plan"] = {"index": i + 1, "total": total}
             step.parameters = params
-            status, message, result = await self.ai_command_use_case.execute(
-                step, ctx
-            )
+            status, message, result = await self.ai_command_use_case.execute(step, ctx)
             outcomes.append(
                 {
                     "index": i + 1,
@@ -662,9 +660,7 @@ CHỈ trả về JSON, không text thừa:
         yield {
             "event": "plan",
             "total": len(command_dtos),
-            "steps": [
-                {"action": c.action, "effect": c.effect} for c in command_dtos
-            ],
+            "steps": [{"action": c.action, "effect": c.effect} for c in command_dtos],
         }
         await self._persist_turn(
             ctx, dto.session_id, "user", dto.natural_language_input
@@ -691,9 +687,7 @@ CHỈ trả về JSON, không text thừa:
         for se in step_events:
             yield {"event": "thought" if se.pop("thought", False) else "step", **se}
         first_cmd = command_dtos[0].command_id if command_dtos else None
-        await self._persist_turn(
-            ctx, dto.session_id, "assistant", message, first_cmd
-        )
+        await self._persist_turn(ctx, dto.session_id, "assistant", message, first_cmd)
         yield {
             "event": "result",
             "status": overall.value,

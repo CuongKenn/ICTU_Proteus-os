@@ -38,6 +38,8 @@ def _check_password_complexity(password: str) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mật khẩu phải có ít nhất 1 chữ số.",
         )
+
+
 from app.use_cases.tenants.onboarding_use_case import (
     OnboardingRequest,
     OnboardingUseCase,

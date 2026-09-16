@@ -23,7 +23,6 @@ from app.adapters.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.domain.entities import TenantContext
 from app.core.domain.exceptions import NotFoundError
 from app.core.use_cases.tenant_onboarding import ensure_tenant_mattermost_team
-from app.infrastructure.config import settings
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
     get_db_transactional,
@@ -31,6 +30,7 @@ from app.entrypoints.dependencies import (
     get_mattermost_adapter,
     require_permission,
 )
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -235,9 +235,7 @@ async def invite_user(
         await keycloak.set_user_attributes(
             realm=realm,
             user_id=keycloak_user_id,
-            attributes={
-                "mattermostId": [str(mattermost_numeric_id(keycloak_user_id))]
-            },
+            attributes={"mattermostId": [str(mattermost_numeric_id(keycloak_user_id))]},
         )
     except Exception:
         logger.warning(

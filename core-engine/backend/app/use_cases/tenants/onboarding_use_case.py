@@ -153,9 +153,7 @@ class OnboardingUseCase:
             except _IntegrityError:
                 _attempt += 1
                 if _attempt >= 3:
-                    raise ValueError(
-                        "Tên tổ chức vừa được đăng ký, vui lòng thử lại."
-                    )
+                    raise ValueError("Tên tổ chức vừa được đăng ký, vui lòng thử lại.")
                 slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
 
         # 6. Lưu User vào Database
@@ -193,11 +191,16 @@ class OnboardingUseCase:
                     self.tenant_repo, self.mattermost_adapter, tenant_id
                 )
                 # M17: sanitize username MM về ^[a-z0-9._-]+$.
-                username = re.sub(
-                    r"[^a-z0-9._-]+",
-                    "-",
-                    req.admin_email.split("@")[0].lower(),
-                ).strip(".-")[:64].strip(".-") or f"user-{uuid.uuid4().hex[:8]}"
+                username = (
+                    re.sub(
+                        r"[^a-z0-9._-]+",
+                        "-",
+                        req.admin_email.split("@")[0].lower(),
+                    )
+                    .strip(".-")[:64]
+                    .strip(".-")
+                    or f"user-{uuid.uuid4().hex[:8]}"
+                )
                 await self.mattermost_adapter.ensure_user_in_team_by_email(
                     team_id=team_cfg["team_id"],
                     email=req.admin_email,
@@ -214,9 +217,7 @@ class OnboardingUseCase:
                     },
                 )
             except Exception as e:
-                logger.warning(
-                    "Bỏ qua tạo Mattermost team cho tenant %s: %s", slug, e
-                )
+                logger.warning("Bỏ qua tạo Mattermost team cho tenant %s: %s", slug, e)
 
         logger.info(
             "Đăng ký Tenant thành công",

@@ -127,9 +127,7 @@ class PluginActionUseCase:
             raise PluginNotFoundError(f"Plugin '{plugin_code}' không tồn tại.")
         wf_rel = getattr(wf, "file", "") or ""
         if not isinstance(wf_rel, str) or ".." in wf_rel or wf_rel.startswith("/"):
-            raise DSLInvalidParametersError(
-                f"File workflow '{wf_rel}' không hợp lệ."
-            )
+            raise DSLInvalidParametersError(f"File workflow '{wf_rel}' không hợp lệ.")
         plugins_dir = self.manifest_parser.plugins_dir.resolve()
         wf_path = (plugins_dir / plugin_code / wf_rel).resolve()
         try:

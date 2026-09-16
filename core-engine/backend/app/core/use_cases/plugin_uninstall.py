@@ -314,9 +314,7 @@ class PluginUninstallUseCase:
                 ):
                     await role_repo.delete_role(r.id, context.tenant_id)
         except Exception as e:
-            logger.warning(
-                "Không thể xóa DB roles của %s: %s", plugin_code_name, e
-            )
+            logger.warning("Không thể xóa DB roles của %s: %s", plugin_code_name, e)
 
     async def _step_3_appsmith(
         self,

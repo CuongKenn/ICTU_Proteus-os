@@ -103,9 +103,7 @@ class SQLAlchemyDSLDryRunRepository(AbstractDSLDryRunRepository):
             uuid.UUID(str(tenant_id))
         except (ValueError, AttributeError, TypeError) as exc:
             raise ValueError(f"Invalid tenant_id: {tenant_id!r}") from exc
-        schema_name = _validate_schema_name(
-            f"tenant_{tenant_id}".replace("-", "_")
-        )
+        schema_name = _validate_schema_name(f"tenant_{tenant_id}".replace("-", "_"))
 
         # 0b. Validate identifier từng phần plugin_code/resource.
         table_name = _validate_table_name(target_table)

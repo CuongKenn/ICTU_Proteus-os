@@ -45,9 +45,7 @@ async def get_me(
     try:
         user_entity = await use_case.sync_user_profile(tenant_context)
     except PermissionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     # Best-effort: đảm bảo user nằm trong Mattermost team của tenant.
     # Invite-time add hay bị nuốt lỗi (username trùng, MM down...) khiến user
     # SSO lần đầu rơi vào trạng thái "không thuộc tổ chức nào".
@@ -67,7 +65,9 @@ async def get_me(
                     r"[^a-z0-9._-]+",
                     "-",
                     email.split("@")[0].lower(),
-                ).strip(".-")[:64].strip(".-")
+                )
+                .strip(".-")[:64]
+                .strip(".-")
             )
             if not username:
                 username = f"user-{str(tenant_context.user_id)[:8]}"
@@ -109,5 +109,7 @@ async def logout(
         else:
             revoked = True
     except Exception as e:
-        logger.warning("Logout MM best-effort thất bại cho %s: %s", tenant_context.email, e)
+        logger.warning(
+            "Logout MM best-effort thất bại cho %s: %s", tenant_context.email, e
+        )
     return {"revoked": revoked}

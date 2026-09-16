@@ -36,7 +36,9 @@ def public_plugin_url(raw_url: str | None, code_name: str) -> str | None:
         if not parts.netloc:
             return f"{base}/{raw_url.lstrip('/')}"
         b = urlparse(base)
-        return urlunparse((b.scheme, b.netloc, parts.path or f"/{code_name}", "", "", ""))
+        return urlunparse(
+            (b.scheme, b.netloc, parts.path or f"/{code_name}", "", "", "")
+        )
     except Exception:
         return raw_url
 

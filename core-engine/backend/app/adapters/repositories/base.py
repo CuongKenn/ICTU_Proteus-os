@@ -288,9 +288,7 @@ class AbstractUserRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_by_email(
-        self, tenant_id: uuid.UUID, email: str
-    ) -> UserEntity | None:
+    async def get_by_email(self, tenant_id: uuid.UUID, email: str) -> UserEntity | None:
         """Lấy User theo email trong tenant (so khớp không phân biệt hoa/thường)."""
         ...
 
