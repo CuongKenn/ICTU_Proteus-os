@@ -6,6 +6,23 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Changed
+- [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
+
+### Fixed
+- [deploy/docker-compose.yml] Nâng Traefik `v3.1.7` → `v3.5` → `v3.7`: image cũ gửi Docker API 1.24 bị Docker Engine 29 từ chối (yêu cầu ≥1.44) khiến provider docker rỗng và toàn bộ route public 404.
+- [deploy/docker-compose.yml] Nâng `frontend` priority `1` → `2`: bằng priority với `http-catchall` khiến request `/` rơi vào catch-all 404.
+- [deploy/docker-compose.yml] + [core-engine/Dockerfile] Thêm `HOSTNAME=0.0.0.0` cho frontend: Docker gán `HOSTNAME=<container-id>` khiến Next standalone chỉ nghe trên IP eth0, healthcheck `127.0.0.1` fail → unhealthy vĩnh viễn → Traefik v3 lọc bỏ router frontend.
+- [deploy] Tạo lại database `outline`/`metabase` bị thiếu sau khi postgres recreate, xóa volume `qdrant-data` cũ (484K, format không tương thích với ảnh pin `v1.8.4`) để Qdrant khởi động lại sạch.
+- [deploy/docker-compose.yml] Nâng Promtail `2.9.8` → `3.5`: client cũ gửi Docker API 1.42 bị Docker Engine 29 từ chối nên Loki mất log; đơn giản `promtail/config.yml` (bỏ stage `json{job}→labels{job}` gây Loki 400) — log 14 container đã chảy lại vào Loki.
+- [deploy/keycloak/theme/proteus] Sửa `theme.properties` (`parent=keycloak.v3` → `parent=keycloak`, bỏ `import=common/keycloak.v3`): Keycloak 26 đã xóa theme v3 khiến trang login rơi về built-in.
+- [deploy/docker-compose.yml] Mattermost: bật `MM_SERVICESETTINGS_ENABLELOCALMODE=true`, tắt telemetry `MM_LOGSETTINGS_ENABLEDIAGNOSTICS=false` (spam Rudder 502), tạo user `sysadmin` system-admin (DB trước đó chỉ có feedbackbot, không ai đăng nhập admin được).
+
+### Fixed
+- [core-engine/frontend] Sửa logo/ảnh landing gãy (307 về signin): middleware next-auth chặn cả `/images/*` (thư mục public) — thêm `images` vào matcher exclude.
+- [core-engine/frontend] Refresh UI trang mở đầu (giữ tone Deep Blue/Neon Purple): navbar thêm menu mobile + logo viền gradient, hero tinh chỉnh backdrop/CTA/focus-ring, khung ảnh product thêm trạng thái, showcase tabs tự xoay 7s + hỗ trợ tablist ARIA.
+- [core-engine/frontend] Hero wow: aurora backdrop chuyển động + headline lớn gradient animated, terminal AI demo live (gõ lệnh → dry-run → phê duyệt → kết quả, xoay 3 kịch bản), mini-stats counter, nút CTA vệt sáng, scroll cue (`globals.css`: aurora/gradient-pan/caret/scroll-cue keyframes, tôn trọng reduced-motion).
+
 ### Added
 - [core-engine/backend] Memory hội thoại AI server-side: bảng `ai_sessions`/`ai_messages` (migration `k5f6g7h8i9j0`), API sessions/messages per-user theo tenant.
 - [core-engine/backend] Dynamic DX-DSL catalog (`GET /ai/actions`), thực thi local `core.plugins.list`/`core.knowledge.search`, knowledge search có citations, chat SSE `POST /ai/chat/stream`, audit trail AI, proactive rules mới (spike FAILED/tồn đọng/spike nghỉ phép).

@@ -14,7 +14,10 @@ services:
   # TRAEFIK — Edge Proxy (Ingress)
   # ────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.1.7
+    # NOTE 09/2026: Docker Engine 29 yêu cầu Docker API >= 1.44.
+    # Traefik <= v3.5 gửi API 1.24 nên provider docker gãy (404 toàn bộ).
+    # Ghim v3.7 (client tự negotiate API) — kiểm tra `traefik version` khi nâng Docker.
+    image: traefik:v3.7
     container_name: proteus-traefik
     restart: unless-stopped
     cap_drop:
@@ -344,6 +347,11 @@ services:
       - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
       - MM_SERVICESETTINGS_SITEURL=${PUBLIC_SCHEME:-http}://chat.${DOMAIN}${PUBLIC_URL_SUFFIX}
       - MM_PLUGINSETTINGS_CLIENTDIRECTORY=/mattermost/client/plugins
+      # Bật Local Mode để quản trị bằng mmctl từ host (socket nội bộ container,
+      # không expose ra ngoài). Cần cho setup.sh tạo sysadmin/bot khi DB trắng.
+      - MM_SERVICESETTINGS_ENABLELOCALMODE=true
+      # Tắt telemetry Rudder (môi trường chặn internet → spam 502 trong log)
+      - MM_LOGSETTINGS_ENABLEDIAGNOSTICS=false
     depends_on:
       postgres:
         condition: service_healthy
@@ -483,7 +491,10 @@ services:
       - proteus-net
 
   promtail:
-    image: grafana/promtail:2.9.8
+    # NOTE 09/2026: promtail 2.9.8 gửi Docker API 1.42, bị Docker Engine 29
+    # từ chối (yêu cầu ≥1.44) → không discovery được container → Loki mất log.
+    # Nâng lên 3.5 (tương thích push API với Loki 2.9.8, giữ nguyên loki).
+    image: grafana/promtail:3.5
     container_name: proteus-promtail
     restart: unless-stopped
     volumes:
@@ -613,6 +624,9 @@ services:
     tmpfs:
       - /tmp
     environment:
+      # Bind 0.0.0.0: Docker gán HOSTNAME=<container-id> khiến Next standalone
+      # chỉ nghe trên IP eth0 → healthcheck 127.0.0.1 fail → Traefik lọc bỏ router.
+      HOSTNAME: 0.0.0.0
       NEXTAUTH_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
@@ -637,7 +651,7 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-      - "traefik.http.routers.frontend.priority=1"   # Backend có priority cao hơn
+      - "traefik.http.routers.frontend.priority=2"   # Cao hơn http-catchall (=1) để không bị catch-all nuốt; backend (=10) vẫn cao nhất
 
 
 
