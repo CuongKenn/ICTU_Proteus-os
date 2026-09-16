@@ -673,7 +673,7 @@ async def test_pending_preview_has_real_details():
 
 @pytest.mark.asyncio
 async def test_cancel_own_command():
-    from unittest.mock import MagicMock
+    from unittest.mock import AsyncMock, MagicMock
     from uuid import uuid4
 
     from app.core.use_cases.ai_command import AICommandUseCase
@@ -684,15 +684,20 @@ async def test_cancel_own_command():
     def _use_case(cmd_row):
         uc = AICommandUseCase(
             plugin_repo=MagicMock(),
-            ai_command_repo=MagicMock(),
+            ai_command_repo=AsyncMock(),
             dsl_dry_run_repo=MagicMock(),
             role_repo=MagicMock(),
             mattermost_adapter=MagicMock(),
             n8n_adapter=MagicMock(),
         )
         uc.ai_command_repo.get_command_by_id = AsyncMock(return_value=cmd_row)
-        uc.user_repo = MagicMock()
+        # cancel_own_command await update/commit/rollback nên phải AsyncMock
+        uc.ai_command_repo.update_command_approval = AsyncMock(return_value=1)
+        uc.ai_command_repo.commit = AsyncMock()
+        uc.ai_command_repo.rollback = AsyncMock()
+        uc.user_repo = AsyncMock()
         uc.user_repo.get = AsyncMock(return_value=me)
+        uc.user_repo.get_by_keycloak_id = AsyncMock(return_value=me)
         return uc
 
     base = {

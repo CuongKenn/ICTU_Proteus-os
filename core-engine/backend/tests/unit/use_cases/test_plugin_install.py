@@ -154,8 +154,9 @@ async def test_execute_success(
     mock_plugin_repo.get_installation_status.return_value = None
     mock_manifest_parser.parse.return_value = sample_manifest
 
-    # Mock file reading and json loading
-    m_open = mock_open(read_data="SELECT 1;")
+    # Mock file reading and json loading (seed phải pass allowlist
+    # CREATE TABLE/INDEX/INSERT — SELECT bị chặn từ hardening C4)
+    m_open = mock_open(read_data="CREATE TABLE test (id UUID PRIMARY KEY);")
     with patch("builtins.open", m_open):
         with patch("pathlib.Path.exists", return_value=True):
             with patch("json.load", return_value={"mocked": "json"}):
@@ -173,9 +174,12 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    assert mock_session.execute.call_count == 12
-    # CREATE SCHEMA, SET search_path, SAVEPOINT, seed stmt, RELEASE SAVEPOINT,
-    # SET search_path TO public, RLS queries + 1 lookup credential ProteusDB_Real
+    assert mock_session.execute.call_count == 18
+    # advisory lock (1) + CREATE SCHEMA, SET LOCAL search_path,
+    # SET LOCAL statement_timeout, SAVEPOINT, seed stmt, RELEASE SAVEPOINT,
+    # SET search_path TO public (7) + RLS block (CREATE SCHEMA, SET search_path,
+    # SAVEPOINT, CREATE ROLE, RELEASE, SELECT columns = 6) + 3 lookups credential
+    # n8n (ProteusDB_Real/ProteusMM/ProteusOllama) + 1 list DB roles (asset tracking)
     mock_mattermost_adapter.send_message.assert_called_once()
     mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
         action="installed",
@@ -228,7 +232,10 @@ async def test_execute_rollback_on_failure(
     mock_manifest_parser.parse.return_value = sample_manifest
     mock_session.execute.side_effect = Exception("DB Error")
 
-    with patch("builtins.open", mock_open(read_data="SELECT 1;")):
+    # Dùng seed hợp lệ để qua được validation C4, lỗi DB mới bộc lộ ở
+    # CREATE SCHEMA (advisory lock best-effort đã nuốt lỗi đầu nên message
+    # vẫn là "DB Error" như kỳ vọng).
+    with patch("builtins.open", mock_open(read_data="CREATE TABLE test (id UUID PRIMARY KEY);")):
         with patch("pathlib.Path.exists", return_value=True):
             with pytest.raises(PluginInstallError, match="DB Error"):
                 await plugin_install_use_case.execute(tenant_context, "hr-module")
@@ -262,14 +269,15 @@ async def test_execute_fails_with_malicious_sql(
     mock_plugin_repo.get_installation_status.return_value = None
     mock_manifest_parser.parse.return_value = sample_manifest
 
-    # Provide malicious SQL with DROP TABLE
+    # Provide malicious SQL with DROP TABLE (rơi vào denylist C4:
+    # public./pg_/COPY/DO/TRIGGER/VIEW/RULE + DROP/DELETE/...)
     m_open = mock_open(read_data="DROP TABLE users;")
     with patch("builtins.open", m_open):
         with patch("pathlib.Path.exists", return_value=True):
             with pytest.raises(
-                PluginInstallError, match="Seed file chứa các lệnh SQL không được phép"
+                PluginInstallError, match="Seed file chứa từ khóa/kênh không được phép"
             ):
                 await plugin_install_use_case.execute(tenant_context, "hr-module")
 
-    # Only rollback session reset was called
-    assert mock_session.execute.call_count == 1
+    # Advisory lock (1) + reset search_path TO public trong error handler (1)
+    assert mock_session.execute.call_count == 2

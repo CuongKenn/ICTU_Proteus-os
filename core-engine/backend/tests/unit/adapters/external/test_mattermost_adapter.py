@@ -22,6 +22,8 @@ def adapter(mock_client):
     with patch("app.adapters.external.mattermost_adapter.settings") as mock_settings:
         mock_settings.MATTERMOST_URL = "http://mattermost.local"
         mock_settings.MATTERMOST_BOT_TOKEN = "test_token"
+        mock_settings.BACKEND_URL = "http://backend.local"
+        mock_settings.MATTERMOST_WEBHOOK_SECRET = "test-secret"
         yield MattermostAdapter(client=mock_client)
 
 

@@ -26,10 +26,49 @@ def mock_session():
 
 
 @pytest.fixture
-def use_case(mock_plugin_repo, mock_manifest_parser, mock_session):
+def mock_n8n_adapter():
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_metabase_adapter():
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_appsmith_adapter():
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_keycloak_adapter():
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_mattermost_adapter():
+    return AsyncMock()
+
+
+@pytest.fixture
+def use_case(
+    mock_plugin_repo,
+    mock_manifest_parser,
+    mock_session,
+    mock_n8n_adapter,
+    mock_metabase_adapter,
+    mock_appsmith_adapter,
+    mock_keycloak_adapter,
+    mock_mattermost_adapter,
+):
     return PluginUpgradeUseCase(
         plugin_repo=mock_plugin_repo,
         manifest_parser=mock_manifest_parser,
+        n8n_adapter=mock_n8n_adapter,
+        metabase_adapter=mock_metabase_adapter,
+        appsmith_adapter=mock_appsmith_adapter,
+        keycloak_adapter=mock_keycloak_adapter,
+        mattermost_adapter=mock_mattermost_adapter,
         session=mock_session,
     )
 

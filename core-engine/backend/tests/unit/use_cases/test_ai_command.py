@@ -103,8 +103,9 @@ async def test_execute_read_command(
         mock_n8n_adapter.trigger_webhook.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
         call_args_read = mock_ai_command_repo.create_command.call_args[0][0]
-        # session_id được persist vào record (schema hiện tại, xem 96c01f3)
-        assert call_args_read["session_id"] == request.session_id
+        # session_id là chat-memory only, KHÔNG persist (migration 7a6db0254da0
+        # drop cột session_id — xem _build_command_row).
+        assert "session_id" not in call_args_read
         mock_ai_command_repo.commit.assert_called_once()
 
 
@@ -137,13 +138,15 @@ async def test_execute_write_command(
         assert result.get("preview") == []
         mock_dsl_dry_run_repo.execute_dry_run.assert_called_once()
         mock_ai_command_repo.create_command.assert_called_once()
-        mock_ai_command_repo.commit.assert_called_once()
+        # 2 commit: create PENDING + best-effort lưu mattermost_message_id
+        # (xem ai_command.execute — send_interactive_message xong update+commit).
+        assert mock_ai_command_repo.commit.call_count == 2
         # Thông báo phê duyệt dùng interactive message (nút Approve/Reject)
         mock_mattermost_adapter.send_interactive_message.assert_called_once()
 
         # check deadline is 30 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]
-        assert call_args["session_id"] == request.session_id
+        assert "session_id" not in call_args
         assert call_args["status"] == "PENDING_APPROVAL"
         deadline = call_args["approval_deadline"]
         created = call_args["created_at"]
@@ -176,7 +179,7 @@ async def test_execute_critical_command(
 
         # check deadline is 15 minutes
         call_args = mock_ai_command_repo.create_command.call_args[0][0]
-        assert call_args["session_id"] == request.session_id
+        assert "session_id" not in call_args
         assert call_args["status"] == "PENDING_APPROVAL"
         deadline = call_args["approval_deadline"]
         created = call_args["created_at"]
@@ -218,9 +221,13 @@ async def test_process_approval_write_success(
     result = await use_case.process_approval(cmd_id, str(approver_id), "approve")
 
     assert result == "approved"
-    # Ghi nhận đúng UUID nội bộ của người duyệt
+    # Signature mới: approved_by_user_id + second_approver_id (schema
+    # approved_by_user_id/second_approver_id, xem ai_command.process_approval).
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, status="APPROVED", approved_by=str(approver_id)
+        cmd_id=cmd_id,
+        status="APPROVED",
+        approved_by_user_id=str(approver_id),
+        second_approver_id=None,
     )
     mock_ai_command_repo.commit.assert_called_once()
     mock_n8n_adapter.trigger_webhook.assert_called_once()
@@ -262,9 +269,10 @@ async def test_process_approval_critical_two_approvers(
     }
 
     result1 = await use_case.process_approval(cmd_id, str(approver1_id), "approve")
-    assert result1 == "approved"
+    # Critical lượt 1 giữ PENDING, trả partially_approved chờ lượt 2.
+    assert result1 == "partially_approved"
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, approved_by=str(approver1_id)
+        cmd_id=cmd_id, approved_by_user_id=str(approver1_id)
     )
     mock_n8n_adapter.trigger_webhook.assert_not_called()
 
@@ -301,7 +309,10 @@ async def test_process_approval_critical_two_approvers(
     result2 = await use_case.process_approval(cmd_id, str(approver2_id), "approve")
     assert result2 == "approved"
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, status="APPROVED", second_approver=str(approver2_id)
+        cmd_id=cmd_id,
+        status="APPROVED",
+        approved_by_user_id=str(approver1_id),
+        second_approver_id=str(approver2_id),
     )
     mock_n8n_adapter.trigger_webhook.assert_called_once()
 
@@ -339,7 +350,7 @@ async def test_process_approval_reject(use_case, mock_ai_command_repo):
     result = await use_case.process_approval(cmd_id, str(approver_id), "reject")
     assert result == "rejected"
     mock_ai_command_repo.update_command_approval.assert_called_once_with(
-        cmd_id=cmd_id, status="REJECTED", approved_by=str(approver_id)
+        cmd_id=cmd_id, status="REJECTED", approved_by_user_id=str(approver_id)
     )
     mock_ai_command_repo.commit.assert_called_once()
 

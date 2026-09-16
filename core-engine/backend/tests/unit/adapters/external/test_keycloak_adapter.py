@@ -20,6 +20,7 @@ def adapter(mock_client):
         mock_settings.keycloak_jwks_url = "http://keycloak/jwks"
         mock_settings.KEYCLOAK_CLIENT_ID = "proteus-client"
         mock_settings.KEYCLOAK_URL = "http://keycloak"
+        mock_settings.KEYCLOAK_REALM = "proteus"
         mock_settings.KEYCLOAK_ADMIN_CLIENT_ID = "admin-cli"
         mock_settings.KEYCLOAK_ADMIN_CLIENT_SECRET = "secret"
         yield KeycloakAdapter(client=mock_client)
@@ -46,7 +47,12 @@ async def test_verify_and_decode_token(adapter, mock_client):
         200, json={"keys": []}, request=mock_request
     )
 
-    with patch("app.adapters.external.keycloak_adapter.jwt.decode") as mock_jwt_decode:
+    with patch(
+        "app.adapters.external.keycloak_adapter.jwt.decode"
+    ) as mock_jwt_decode, patch(
+        "app.adapters.external.keycloak_adapter.jwt.get_unverified_header",
+        return_value={},
+    ):
         mock_jwt_decode.return_value = {"sub": "user-1", "tenant_id": "tenant-1"}
 
         payload = await adapter.verify_and_decode_token("fake-token")
@@ -57,7 +63,8 @@ async def test_verify_and_decode_token(adapter, mock_client):
             {"keys": []},
             algorithms=["RS256"],
             audience="proteus-client",
-            options={"verify_exp": True},
+            issuer="http://keycloak/realms/proteus",
+            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
         )
 
 
