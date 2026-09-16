@@ -43,6 +43,7 @@ vi.mock("@/store/authStore", () => ({
 describe("LaunchpadClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    window.localStorage.clear();
     global.fetch = vi.fn();
     // Runtime env cho iframe URLs (LaunchpadClient đọc env trong component,
     // fallback "" an toàn — test phải set rõ để assert src).
@@ -208,8 +209,7 @@ describe("LaunchpadClient", () => {
     expect(iframe).toHaveAttribute("src", "http://workflow.proteus.local");
   });
 
-  it("fetches signed url and opens Metabase in iframe overlay", async () => {
-    vi.mocked(usePluginsModule.usePlugins).mockReturnValue({
+  it("fetches signed url and opens Metabase in iframe overlay", async () => {    vi.mocked(usePluginsModule.usePlugins).mockReturnValue({
       plugins: [],
       isLoading: false,
       error: null,
@@ -243,5 +243,93 @@ describe("LaunchpadClient", () => {
     expect(screen.getByText(/Metabase Analytics/, { selector: "h2" })).toBeInTheDocument();
     const iframe = screen.getByTitle("Đóng (Esc)").parentElement?.nextElementSibling?.querySelector("iframe");
     expect(iframe).toHaveAttribute("src", "http://mocked-metabase-url");
+  });
+
+  it("filters apps by search query and shows suggestions on no result", () => {
+    vi.mocked(usePluginsModule.usePlugins).mockReturnValue({
+      plugins: [
+        {
+          id: "1",
+          code_name: "test_plugin",
+          display_name: "Test Plugin",
+          version: "1.0.0",
+          status: "ACTIVE",
+          is_official: false,
+          category: "Utilities",
+          tags: [],
+          credentials_schema: [],
+          download_count: 0,
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
+      configureCredentials: vi.fn(),
+    });
+
+    render(<LaunchpadClient />);
+
+    const search = screen.getByLabelText("Tìm ứng dụng");
+    fireEvent.change(search, { target: { value: "test plugin" } });
+
+    expect(screen.getByText("Test Plugin")).toBeInTheDocument();
+    expect(screen.queryByText("Mattermost")).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "zzz-khong-co-gi" } });
+    expect(screen.getByText("Không tìm thấy ứng dụng phù hợp")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Xóa tìm kiếm & bộ lọc"));
+    expect(screen.getByText("Mattermost")).toBeInTheDocument();
+    expect(screen.getByText("Test Plugin")).toBeInTheDocument();
+  });
+
+  it("toggles favorite and filters favorites only", () => {
+    vi.mocked(usePluginsModule.usePlugins).mockReturnValue({
+      plugins: [
+        {
+          id: "1",
+          code_name: "test_plugin",
+          display_name: "Test Plugin",
+          version: "1.0.0",
+          status: "ACTIVE",
+          is_official: false,
+          category: "Utilities",
+          tags: [],
+          credentials_schema: [],
+          download_count: 0,
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      install: vi.fn(),
+      uninstall: vi.fn(),
+      disable: vi.fn(),
+      upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
+      configureCredentials: vi.fn(),
+    });
+
+    render(<LaunchpadClient />);
+
+    const star = screen.getByLabelText("Yêu thích Test Plugin");
+    expect(star).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(star);
+    expect(star).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByText("Yêu thích", { selector: "button" }));
+    expect(screen.getByText("Test Plugin")).toBeInTheDocument();
+    expect(screen.queryByText("Mattermost")).not.toBeInTheDocument();
   });
 });

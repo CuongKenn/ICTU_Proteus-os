@@ -11,6 +11,6 @@ export const config = {
   // NOTE 09/2026: thêm `images` (thư mục public/) vào exclude — trước đây
   // /images/* bị next-auth 307 về signin khiến logo/ảnh landing gãy với khách vãng lai.
   matcher: [
-    "/((?!$|login|signup|api/auth|api/onboarding|api/proxy|_next/static|_next/image|favicon.ico|images).*)",
+    "/((?!$|login|signup|preview-launchpad|api/auth|api/onboarding|api/proxy|_next/static|_next/image|favicon.ico|images).*)",
   ],
 };
