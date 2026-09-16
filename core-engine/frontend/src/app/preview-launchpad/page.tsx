@@ -104,7 +104,7 @@ function seedPreviewOnce() {
   });
   api.interceptors.request.use((config) => {
     if (config.url?.includes("/v1/plugins/installed")) {
-      (config as Record<string, unknown>).adapter = async () => ({
+      (config as unknown as Record<string, unknown>).adapter = async () => ({
         data: { items: MOCK_PLUGINS, total: MOCK_PLUGINS.length },
         status: 200,
         statusText: "OK",

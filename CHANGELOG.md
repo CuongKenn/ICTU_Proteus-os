@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [core-engine/frontend] Sửa lỗi Docker build gãy do TypeScript strict ở trang preview tạm `preview-launchpad/page.tsx`: cast `config as Record<string, unknown>` không đủ overlap với `InternalAxiosRequestConfig` — chuyển qua `as unknown as Record<string, unknown>` khi gán mock `adapter` (Closes #669).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
