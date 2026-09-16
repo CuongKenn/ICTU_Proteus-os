@@ -18,9 +18,7 @@ router = APIRouter(prefix="/embed")
 def _verify_metabase_token(token: str) -> dict:
     """M11: verify JWT embed (tenant binding). Raise 403 nếu sai tenant/hết hạn."""
     try:
-        payload = jwt.decode(
-            token, settings.METABASE_SECRET_KEY, algorithms=["HS256"]
-        )
+        payload = jwt.decode(token, settings.METABASE_SECRET_KEY, algorithms=["HS256"])
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

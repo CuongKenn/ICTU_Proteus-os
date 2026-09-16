@@ -143,9 +143,7 @@ class ProactiveMonitorAgent:
                 minutes=60, limit=5
             )
             if backlog:
-                lines = "\n".join(
-                    f"- `{c['action']}` (ID: {c['id']})" for c in backlog
-                )
+                lines = "\n".join(f"- `{c['action']}` (ID: {c['id']})" for c in backlog)
                 msg = (
                     f"📥 **[Tồn đọng phê duyệt]** {len(backlog)} lệnh chờ duyệt quá 60 phút:\n"
                     f"{lines}"

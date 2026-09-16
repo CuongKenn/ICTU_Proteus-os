@@ -61,6 +61,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 
@@ -82,6 +86,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 
@@ -100,6 +108,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 
@@ -130,6 +142,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 
@@ -148,6 +164,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 
@@ -170,6 +190,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 
@@ -194,6 +218,10 @@ describe("LaunchpadClient", () => {
       uninstall: vi.fn(),
       disable: vi.fn(),
       upgrade: vi.fn(),
+      upgradingId: null,
+      upgradeProgress: 0,
+      upgradeStatus: null,
+      upgradeSteps: [],
       configureCredentials: vi.fn(),
     });
 

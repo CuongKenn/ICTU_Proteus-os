@@ -427,6 +427,4 @@ class AIMessageModel(BaseModel, SoftDeleteMixin):
     command_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
-    citations: Mapped[list[dict[str, Any]] | None] = mapped_column(
-        JSONB, nullable=True
-    )
+    citations: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)

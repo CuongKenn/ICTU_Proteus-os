@@ -134,7 +134,9 @@ class PluginEntity(BaseModel):
 
     # ─── Install info ─────────────────────────────────────────
     status: PluginStatus | None = None  # None nếu chưa cài cho Tenant này
-    installed_version: str | None = None  # Version thực tế đang chạy (so với manifest để báo update)
+    installed_version: str | None = (
+        None  # Version thực tế đang chạy (so với manifest để báo update)
+    )
     tables_count: int = 0
     workflows_count: int = 0
     external_url: str | None = None

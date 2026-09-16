@@ -466,9 +466,7 @@ class AICommandUseCase:
                 if user is not None and user.is_active:
                     return user
             except Exception as e:
-                logger.warning(
-                    "Lookup user theo email thất bại", error=str(e)
-                )
+                logger.warning("Lookup user theo email thất bại", error=str(e))
         try:
             candidate = await self.user_repo.get(uuid.UUID(str(mm_user_id)))
         except Exception:
@@ -695,9 +693,7 @@ class AICommandUseCase:
             return "partially_approved"
 
         # Lượt cuối (write, hoặc critical lượt 2): chuyển APPROVED có guard.
-        second_id = (
-            str(approver.id) if cmd["effect"] == "critical" else None
-        )
+        second_id = str(approver.id) if cmd["effect"] == "critical" else None
         rowcount = await self.ai_command_repo.update_command_approval(
             cmd_id=cmd_id,
             status="APPROVED",
@@ -735,9 +731,7 @@ class AICommandUseCase:
             )
             # Không báo approved giả: đánh FAILED để worker/retry xử lý.
             try:
-                await self.ai_command_repo.update_status(
-                    cmd_id, AICommandStatus.FAILED
-                )
+                await self.ai_command_repo.update_status(cmd_id, AICommandStatus.FAILED)
                 await self.ai_command_repo.commit()
             except Exception as persist_err:
                 logger.error(

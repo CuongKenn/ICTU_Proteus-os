@@ -26,9 +26,7 @@ class UserProvisioningUseCase:
         """
         # M6: fail-closed — kiểm tra deleted trước khi upsert. get_by_keycloak_id
         # thường lọc deleted_at IS NULL nên cần API including-deleted nếu có.
-        checker = getattr(
-            self.user_repo, "get_by_keycloak_id_including_deleted", None
-        )
+        checker = getattr(self.user_repo, "get_by_keycloak_id_including_deleted", None)
         if callable(checker):
             raw = await checker(tenant_context.user_id)
             if raw is not None and raw.get("deleted_at") is not None:

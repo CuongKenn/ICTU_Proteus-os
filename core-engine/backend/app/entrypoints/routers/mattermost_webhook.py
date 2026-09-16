@@ -162,7 +162,7 @@ async def mattermost_interactive_callback(
             import json as _json
 
             _raw = _json.loads(raw_body.decode("utf-8") or "{}")
-            _ctx = ((_raw.get("context") or {}))
+            _ctx = _raw.get("context") or {}
             _sig = _ctx.get("_sig")
             _ts = _ctx.get("_ts")
             _aid = _ctx.get("action_id")
@@ -241,8 +241,13 @@ async def mattermost_interactive_callback(
         if outcome == "partially_approved":
             if cmd:
                 await _audit_best_effort(
-                    audit_log_repo, db, cmd, action_id, user_id,
-                    "APPROVE_AI_COMMAND", outcome,
+                    audit_log_repo,
+                    db,
+                    cmd,
+                    action_id,
+                    user_id,
+                    "APPROVE_AI_COMMAND",
+                    outcome,
                 )
             return {
                 "ephemeral_text": (
@@ -260,8 +265,13 @@ async def mattermost_interactive_callback(
         if outcome == "approved" and cmd:
             # Audit best-effort: lỗi ghi log không được làm fail cả callback.
             await _audit_best_effort(
-                audit_log_repo, db, cmd, action_id, user_id,
-                "APPROVE_AI_COMMAND", outcome,
+                audit_log_repo,
+                db,
+                cmd,
+                action_id,
+                user_id,
+                "APPROVE_AI_COMMAND",
+                outcome,
             )
 
         return {
@@ -293,8 +303,13 @@ async def mattermost_interactive_callback(
         if outcome == "rejected" and cmd:
             # Audit best-effort: lỗi ghi log không được làm fail cả callback.
             await _audit_best_effort(
-                audit_log_repo, db, cmd, action_id, user_id,
-                "REJECT_AI_COMMAND", outcome,
+                audit_log_repo,
+                db,
+                cmd,
+                action_id,
+                user_id,
+                "REJECT_AI_COMMAND",
+                outcome,
             )
 
         return {

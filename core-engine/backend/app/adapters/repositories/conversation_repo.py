@@ -112,12 +112,8 @@ class ConversationRepository:
         row = (await self.session.execute(stmt)).scalar_one_or_none()
         if row is None:
             return
-        if str(row.tenant_id) != str(tenant_id) or str(row.user_id) != str(
-            internal_id
-        ):
-            raise PermissionError(
-                "Không có quyền sử dụng session của người dùng khác."
-            )
+        if str(row.tenant_id) != str(tenant_id) or str(row.user_id) != str(internal_id):
+            raise PermissionError("Không có quyền sử dụng session của người dùng khác.")
 
     async def list_sessions(
         self, tenant_id: uuid.UUID, user_id: uuid.UUID, limit: int = 20

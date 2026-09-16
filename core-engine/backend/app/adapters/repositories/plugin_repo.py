@@ -178,8 +178,7 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             {"tenant_id": tenant_id, "plugin_id": plugin_id},
         )
         return {
-            row[0]: {"filename": row[1], "checksum": row[2]}
-            for row in result.all()
+            row[0]: {"filename": row[1], "checksum": row[2]} for row in result.all()
         }
 
     async def record_applied_migration(

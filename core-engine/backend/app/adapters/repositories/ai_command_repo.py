@@ -78,9 +78,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
         if uid is None:
             return None
         res = await self._session.execute(
-            text(
-                "SELECT id FROM users WHERE id = :uid OR keycloak_id = :uid LIMIT 1"
-            ),
+            text("SELECT id FROM users WHERE id = :uid OR keycloak_id = :uid LIMIT 1"),
             {"uid": uid},
         )
         real_id = res.scalar()
@@ -202,9 +200,7 @@ class SQLAlchemyAICommandRepository(AbstractAICommandRepository):
             )
         for approver_col in ("approved_by_user_id", "second_approver_id"):
             if data.get(approver_col) is not None:
-                data[approver_col] = await self._resolve_user_id(
-                    data[approver_col]
-                )
+                data[approver_col] = await self._resolve_user_id(data[approver_col])
 
         columns = ", ".join(data.keys())
         placeholders = ", ".join(f":{k}" for k in data.keys())

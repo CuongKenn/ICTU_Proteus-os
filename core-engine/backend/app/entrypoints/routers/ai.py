@@ -287,9 +287,7 @@ async def append_ai_message(
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case: ConversationUseCase = Depends(get_conversation_use_case),
 ):
-    real_session = await use_case.ensure_session(
-        ctx.tenant_id, ctx.user_id, session_id
-    )
+    real_session = await use_case.ensure_session(ctx.tenant_id, ctx.user_id, session_id)
     msg_id = await use_case.save_turn(
         ctx.tenant_id,
         ctx.user_id,

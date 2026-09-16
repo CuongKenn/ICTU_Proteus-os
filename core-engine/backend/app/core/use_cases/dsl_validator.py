@@ -114,8 +114,7 @@ class DSLValidator:
         from app.core.use_cases.action_catalog import CORE_PUBLIC_READ_ACTIONS
 
         if not (
-            action in CORE_PUBLIC_READ_ACTIONS
-            and dsl_payload.get("effect") == "read"
+            action in CORE_PUBLIC_READ_ACTIONS and dsl_payload.get("effect") == "read"
         ):
             req_permission = f"{plugin_code}:{resource}:{method}"
             user_permissions = await self.role_repo.get_user_permissions(

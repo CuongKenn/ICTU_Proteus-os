@@ -26,7 +26,9 @@ _PLUGIN_CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 def _ensure_inside_plugins_dir(plugins_dir: Path, target: Path) -> Path:
     """Resolve + chặn path traversal (../) — raise ValueError nếu vượt ngoài."""
     base = plugins_dir.resolve()
-    resolved = (base / target).resolve() if not target.is_absolute() else target.resolve()
+    resolved = (
+        (base / target).resolve() if not target.is_absolute() else target.resolve()
+    )
     try:
         _inside = resolved.is_relative_to(base)
     except AttributeError:  # Python < 3.9
@@ -34,6 +36,7 @@ def _ensure_inside_plugins_dir(plugins_dir: Path, target: Path) -> Path:
     if not _inside:
         raise ValueError(f"Path vượt ngoài plugins_dir: {target}")
     return resolved
+
 
 READ_HINTS = (
     "list",
@@ -73,9 +76,7 @@ CORE_ACTIONS: list[CatalogAction] = [
     CatalogAction(
         "core.knowledge.search", "read", "Tìm kiếm tri thức nội bộ (RAG, có trích dẫn)."
     ),
-    CatalogAction(
-        "core.knowledge.ingest", "write", "Nạp tài liệu mới vào RAG."
-    ),
+    CatalogAction("core.knowledge.ingest", "write", "Nạp tài liệu mới vào RAG."),
 ]
 
 # Core read actions mở cho MỌI role đã đăng nhập (docs/dsl-spec.md §3.1,
@@ -229,9 +230,7 @@ def resolve_workflow_webhook_url(
     if ".." in wf_file or wf_file.startswith("/"):
         raise ValueError(f"File workflow '{wf_file}' không hợp lệ.")
     plugins_dir = manifest_parser.plugins_dir
-    wf_path = _ensure_inside_plugins_dir(
-        Path(plugins_dir), Path(plugin_code) / wf_file
-    )
+    wf_path = _ensure_inside_plugins_dir(Path(plugins_dir), Path(plugin_code) / wf_file)
     if not wf_path.is_file():
         raise ValueError(f"File workflow '{wf_file}' không tồn tại.")
     try:

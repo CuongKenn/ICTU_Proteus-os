@@ -89,9 +89,7 @@ async def get_tenant_alerts_channel_id(
     if mm_adapter is None:
         return None
     try:
-        config = await ensure_tenant_mattermost_team(
-            tenant_repo, mm_adapter, tenant_id
-        )
+        config = await ensure_tenant_mattermost_team(tenant_repo, mm_adapter, tenant_id)
         return config.get("alerts_channel_id")
     except Exception as e:
         logger.warning("Không lấy được alerts channel cho tenant %s: %s", tenant_id, e)
@@ -289,12 +287,8 @@ class TenantOnboardingUseCase:
                 kc_active, mm_active, appsmith_active, n8n_active, mb_active = (
                     await asyncio.wait_for(
                         asyncio.gather(
-                            check_service(
-                                _client, settings.KEYCLOAK_URL, kc_config
-                            ),
-                            check_service(
-                                _client, settings.MATTERMOST_URL, mm_config
-                            ),
+                            check_service(_client, settings.KEYCLOAK_URL, kc_config),
+                            check_service(_client, settings.MATTERMOST_URL, mm_config),
                             check_service(
                                 _client, settings.APPSMITH_URL, appsmith_config
                             ),
@@ -311,9 +305,7 @@ class TenantOnboardingUseCase:
                 )
             except asyncio.TimeoutError:
                 logger.warning("Kiểm tra integrations timeout sau 5s.")
-                kc_active = mm_active = appsmith_active = n8n_active = (
-                    mb_active
-                ) = False
+                kc_active = mm_active = appsmith_active = n8n_active = mb_active = False
 
         sys_integrations = [
             TenantIntegrationEntity(

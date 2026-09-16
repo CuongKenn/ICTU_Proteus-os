@@ -237,16 +237,12 @@ class PluginUpgradeUseCase:
         manifest = self.manifest_parser.parse(plugin_code_name)
 
         from_version = (
-            await self.plugin_repo.get_installed_version(
-                context.tenant_id, plugin.id
-            )
+            await self.plugin_repo.get_installed_version(context.tenant_id, plugin.id)
             or "unknown"
         )
         to_version = manifest.version
         was_disabled = (
-            await self.plugin_repo.get_installation_status(
-                context.tenant_id, plugin.id
-            )
+            await self.plugin_repo.get_installation_status(context.tenant_id, plugin.id)
         ) == PluginStatus.DISABLED
 
         # 0. Snapshot trạng thái cũ để rollback (n8n exports + config + version)
@@ -266,9 +262,7 @@ class PluginUpgradeUseCase:
             applied = await self._step_db_migrations(
                 context, plugin.id, plugin_code_name, manifest, from_version
             )
-            self._log_step(
-                "database", "DONE", f"{applied} migration(s) đã chạy"
-            )
+            self._log_step("database", "DONE", f"{applied} migration(s) đã chạy")
             await self._persist_steps(context, plugin.id)
 
             # 2. n8n update-in-place
@@ -320,11 +314,7 @@ class PluginUpgradeUseCase:
             )
             merged_config = dict(prev_config or {})
             merged_config.update(
-                {
-                    k: v
-                    for k, v in created_assets.items()
-                    if v is not None
-                }
+                {k: v for k, v in created_assets.items() if v is not None}
             )
             await self.plugin_repo.update_config(
                 tenant_id=context.tenant_id,
@@ -334,9 +324,7 @@ class PluginUpgradeUseCase:
             await self.plugin_repo.set_upgrade_task_id(
                 context.tenant_id, plugin.id, None
             )
-            self._log_step(
-                "complete", "DONE", f"{from_version} → {to_version}"
-            )
+            self._log_step("complete", "DONE", f"{from_version} → {to_version}")
             await self._persist_steps(context, plugin.id)
             await self.session.commit()
 
@@ -459,9 +447,7 @@ class PluginUpgradeUseCase:
             )
 
             plugins_dir = LocalManifestParser().plugins_dir
-        migrations_dir = os.path.join(
-            str(plugins_dir), plugin_code_name, "migrations"
-        )
+        migrations_dir = os.path.join(str(plugins_dir), plugin_code_name, "migrations")
         if not os.path.exists(migrations_dir):
             return []
 
@@ -512,9 +498,7 @@ class PluginUpgradeUseCase:
         applied = await self.plugin_repo.list_applied_migrations(
             context.tenant_id, plugin_id
         )
-        pending = self._discover_migrations(
-            plugin_code_name, from_version, applied
-        )
+        pending = self._discover_migrations(plugin_code_name, from_version, applied)
         if not pending:
             logger.info("Không có migration DB nào cần chạy.")
             return 0
@@ -523,12 +507,8 @@ class PluginUpgradeUseCase:
         if not re.match(r"^[a-zA-Z0-9_]+$", schema_name):
             raise PluginUpgradeError("Invalid schema name.")
         # Sandbox search_path giống luồng install (KHÔNG set role).
-        await self.session.execute(
-            text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
-        )
-        await self.session.execute(
-            text(f'SET search_path TO "{schema_name}", public')
-        )
+        await self.session.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"'))
+        await self.session.execute(text(f'SET search_path TO "{schema_name}", public'))
         try:
             for _, fpath, fname, checksum in pending:
                 with open(fpath, encoding="utf-8-sig") as f:
@@ -668,7 +648,9 @@ class PluginUpgradeUseCase:
             did = await self.metabase_adapter.import_dashboard(db_json)
             new_ids.append(str(did))
         # Xóa bản cũ sau khi bản mới đã lên (an toàn hơn xóa trước).
-        for old_id in (snapshot.get("config_override", {}) or {}).get("metabase", []) or []:
+        for old_id in (snapshot.get("config_override", {}) or {}).get(
+            "metabase", []
+        ) or []:
             try:
                 await self.metabase_adapter.delete_dashboard(str(old_id))
             except Exception as e:
@@ -720,7 +702,9 @@ class PluginUpgradeUseCase:
                     app_json, integration_config
                 )
                 new_ids.append(str(aid))
-        for old_id in (snapshot.get("config_override", {}) or {}).get("appsmith", []) or []:
+        for old_id in (snapshot.get("config_override", {}) or {}).get(
+            "appsmith", []
+        ) or []:
             try:
                 await self.appsmith_adapter.delete_application(
                     str(old_id), integration_config
@@ -772,9 +756,7 @@ class PluginUpgradeUseCase:
                         }
                     )
         except Exception as e:
-            logger.warning(
-                "Không thể đồng bộ DB roles cho %s: %s", plugin_code_name, e
-            )
+            logger.warning("Không thể đồng bộ DB roles cho %s: %s", plugin_code_name, e)
         return created_roles
 
     # ─── Helpers ──────────────────────────────────────────────────────
@@ -784,9 +766,7 @@ class PluginUpgradeUseCase:
             return None
         try:
             res = await self.session.execute(
-                text(
-                    "SELECT id FROM n8n.credentials_entity WHERE name = :n LIMIT 1"
-                ),
+                text("SELECT id FROM n8n.credentials_entity WHERE name = :n LIMIT 1"),
                 {"n": name},
             )
             row = res.fetchone()
@@ -924,7 +904,8 @@ class PluginUpgradeUseCase:
                 logger.warning("Không dọn được app mới %s: %s", aid, e)
         # n8n workflows MỚI import thêm (không update) → xóa.
         prev_ids = {
-            str(wid) for wid in (snapshot.get("config_override", {}) or {}).get("n8n", []) or []
+            str(wid)
+            for wid in (snapshot.get("config_override", {}) or {}).get("n8n", []) or []
         }
         for wid in created_assets.get("n8n", []) or []:
             if str(wid) not in prev_ids and str(wid) not in (
@@ -935,9 +916,7 @@ class PluginUpgradeUseCase:
                 except Exception as e:
                     logger.warning("Không dọn được workflow mới %s: %s", wid, e)
 
-    def _log_step(
-        self, step: str, status: str, message: str | None = None
-    ) -> None:
+    def _log_step(self, step: str, status: str, message: str | None = None) -> None:
         existing = next((s for s in self._steps_log if s["step"] == step), None)
         entry = {
             "step": step,

@@ -219,9 +219,7 @@ class N8nAdapter(AbstractWorkflowEnginePort):
         Gọi GET /api/v1/workflows. Trả về [] khi lỗi (caller tự fallback).
         """
         url = self._build_url("workflows")
-        response = await self._client.get(
-            url, headers=self._headers, timeout=30.0
-        )
+        response = await self._client.get(url, headers=self._headers, timeout=30.0)
         if response.status_code != 200:
             logger.warning(
                 "n8n list_workflows failed",
@@ -269,9 +267,7 @@ class N8nAdapter(AbstractWorkflowEnginePort):
         response = await self._request_with_retry("PUT", url, json=clean_workflow)
 
         if response.status_code == 404:
-            raise N8nWorkflowNotFoundError(
-                f"Workflow '{workflow_id}' not found on n8n"
-            )
+            raise N8nWorkflowNotFoundError(f"Workflow '{workflow_id}' not found on n8n")
         if response.status_code not in (200, 201):
             raise N8nAdapterError(
                 f"n8n update_workflow failed: HTTP {response.status_code} — {response.text[:200]}"

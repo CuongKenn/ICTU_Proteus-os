@@ -74,9 +74,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         loaded_roles = [role.name for role in model.__dict__.get("roles", [])]
         return _to_entity(model, roles=loaded_roles)
 
-    async def get_by_email(
-        self, tenant_id: uuid.UUID, email: str
-    ) -> UserEntity | None:
+    async def get_by_email(self, tenant_id: uuid.UUID, email: str) -> UserEntity | None:
         """Lấy User theo email trong tenant (case-insensitive)."""
         from sqlalchemy import func
 
@@ -97,7 +95,8 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         return _to_entity(model, roles=loaded_roles)
 
     async def get_by_keycloak_id_including_deleted(
-        self, keycloak_id: uuid.UUID,
+        self,
+        keycloak_id: uuid.UUID,
     ) -> dict | None:
         """M6: lấy raw row kể cả đã soft-delete (để chặn re-activate).
 
@@ -147,9 +146,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                     and _raw.get("last_login_at") is not None
                     and user_data.get("is_active") is True
                 ):
-                    user_data = {
-                        k: v for k, v in user_data.items() if k != "is_active"
-                    }
+                    user_data = {k: v for k, v in user_data.items() if k != "is_active"}
             except PermissionError:
                 raise
             except Exception:
