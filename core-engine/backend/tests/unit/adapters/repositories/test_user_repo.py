@@ -67,6 +67,9 @@ async def test_upsert(user_repo, mock_session):
 
     expected_user = UserModel(**user_data, id=uuid.uuid4(), is_active=True)
     mock_result.scalar_one.return_value = expected_user
+    # M6: upsert check soft-delete trước (get_by_keycloak_id_including_deleted
+    # dùng mappings().first()) — mock không có row deleted để qua guard.
+    mock_result.mappings.return_value.first.return_value = None
     mock_scalars = MagicMock()
     mock_scalars.first.return_value = expected_user
     mock_result.scalars.return_value = mock_scalars
@@ -77,7 +80,8 @@ async def test_upsert(user_repo, mock_session):
     # Assert
     assert result is not None
     assert result.id == expected_user.id
-    assert mock_session.execute.call_count == 2
+    # M6: 3 execute = check including_deleted + insert returning + reload roles
+    assert mock_session.execute.call_count == 3
     mock_result.scalar_one.assert_called_once()
 
 

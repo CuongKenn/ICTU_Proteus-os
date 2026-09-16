@@ -150,11 +150,18 @@ async def test_uninstall_success(
         realm="proteus", role_name="test_plugin_test_role"
     )
 
-    # Verify drop table executed
-    assert mock_session.execute.call_count == 3
-    # Check drop statement
-    sql_arg = mock_session.execute.call_args_list[1][0][0].text
-    assert 'DROP TABLE IF EXISTS "test_table" CASCADE;' in sql_arg
+    # Verify drop table executed (+1 list DB roles từ asset tracking
+    # RoleRepository.list_by_tenant ở _step_2_keycloak)
+    assert mock_session.execute.call_count == 4
+    # Check drop statement (tìm giữa các calls vì [0] giờ là SELECT roles
+    # của list_by_tenant, không còn cố định ở index 1)
+    drop_stmts = [
+        c[0][0].text
+        for c in mock_session.execute.call_args_list
+        if hasattr(c[0][0], "text") and "DROP TABLE" in c[0][0].text
+    ]
+    assert len(drop_stmts) == 1
+    assert 'DROP TABLE IF EXISTS "test_table" CASCADE;' in drop_stmts[0]
 
 
 async def test_uninstall_wrong_confirm_name(use_case, context, mock_plugin_repo):

@@ -26,11 +26,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # ALTER TYPE ... ADD VALUE không chạy được trong transaction block,
-    # nên toàn bộ migration này chạy ở chế độ AUTOCOMMIT (chỉ chứa DDL).
-    bind = op.get_bind()
-    bind.execution_options(isolation_level="AUTOCOMMIT")
-    op.execute("ALTER TYPE plugin_status ADD VALUE IF NOT EXISTS 'UPGRADING'")
+    # ALTER TYPE ... ADD VALUE không chạy được trong transaction block.
+    # Dùng autocommit_block (commit txn hiện tại, chạy DDL này ngoài txn),
+    # các DDL còn lại vẫn chạy trong transaction bình thường.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE plugin_status ADD VALUE IF NOT EXISTS 'UPGRADING'")
     op.add_column(
         "tenant_plugins",
         sa.Column("upgrade_task_id", sa.UUID(), nullable=True),
@@ -60,8 +60,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    bind.execution_options(isolation_level="AUTOCOMMIT")
     op.drop_index(
         "idx_plugin_schema_migrations_tenant_plugin",
         table_name="plugin_schema_migrations",

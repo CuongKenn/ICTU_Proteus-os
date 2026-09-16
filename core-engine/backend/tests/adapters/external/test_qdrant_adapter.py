@@ -113,7 +113,7 @@ async def test_search_dense_only_when_sparse_unsupported(mock_qdrant_client):
     mock_qdrant_client.search = AsyncMock(return_value=[point])
 
     adapter = QdrantAdapter()
-    adapter._dense_vector = lambda text: [0.1, 0.2, 0.3]
+    adapter._dense_vector = AsyncMock(return_value=[0.1, 0.2, 0.3])
 
     results = await adapter.search("tenant-1", "chính sách", limit=3)
 
