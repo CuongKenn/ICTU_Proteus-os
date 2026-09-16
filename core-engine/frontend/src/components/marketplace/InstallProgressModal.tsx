@@ -19,6 +19,8 @@ interface InstallProgressModalProps {
 }
 
 const STEP_LABELS: Record<string, string> = {
+  queued: "Xếp hàng tác vụ nâng cấp",
+  snapshot: "Chụp snapshot trạng thái cũ (Rollback)",
   database: "Thiết lập cơ sở dữ liệu (Database)",
   credentials: "Khởi tạo thông tin xác thực (Credentials)",
   n8n: "Nhập luồng công việc tự động (n8n Workflows)",
@@ -26,6 +28,7 @@ const STEP_LABELS: Record<string, string> = {
   appsmith: "Nhập giao diện người dùng (Appsmith Apps)",
   keycloak: "Đồng bộ phân quyền (Keycloak Roles)",
   events: "Cấu hình sự kiện (Event Pub/Sub)",
+  complete: "Hoàn tất",
 };
 
 export const InstallProgressModal: React.FC<InstallProgressModalProps> = ({
@@ -39,14 +42,25 @@ export const InstallProgressModal: React.FC<InstallProgressModalProps> = ({
   // Only show if we have an active installation sequence
   if (!isOpen && status !== "failed" && status !== "active") return null;
 
+  const isBusy =
+    status === "installing" || status === "uninstalling" || status === "upgrading";
+
+  // Chặn đóng modal khi đang chạy (backdrop/Escape/X) để user không mất
+  // tiến trình polling; hook tự reset installingId khi xong. Chỉ cho đóng
+  // khi đã terminal (failed/active) hoặc không còn isOpen.
+  const handleClose = () => {
+    if (isBusy) return;
+    onClose();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title={status === "uninstalling" ? `Đang gỡ cài đặt ${pluginName || "Plugin"}...` : `Đang cài đặt ${pluginName || "Plugin"}...`}
-      
-      confirmLabel={status === "installing" ? "Đang cài đặt..." : status === "uninstalling" ? "Đang gỡ cài đặt..." : status === "active" ? "Hoàn tất" : "Đóng"}
-      isConfirmLoading={status === "installing" || status === "uninstalling"}
+      onClose={handleClose}
+      title={status === "uninstalling" ? `Đang gỡ cài đặt ${pluginName || "Plugin"}...` : status === "upgrading" ? `Đang nâng cấp ${pluginName || "Plugin"}...` : `Đang cài đặt ${pluginName || "Plugin"}...`}
+
+      confirmLabel={status === "installing" ? "Đang cài đặt..." : status === "uninstalling" ? "Đang gỡ cài đặt..." : status === "upgrading" ? "Đang nâng cấp..." : status === "active" ? "Hoàn tất" : "Đóng"}
+      isConfirmLoading={status === "installing" || status === "uninstalling" || status === "upgrading"}
       onConfirm={onClose}
     >
       <div className="flex flex-col gap-6">

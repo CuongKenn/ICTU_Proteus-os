@@ -45,6 +45,10 @@ async def test_sync_user_profile(use_case, mock_user_repo):
     )
 
     mock_user_repo.upsert.return_value = expected_user
+    # M6: user_repo có check soft-delete (get_by_keycloak_id_including_deleted).
+    # AsyncMock mặc định trả MagicMock truthy -> bị coi là deleted. Mock không
+    # có row deleted để đi nhánh user mới (cho phép upsert + is_active=True).
+    mock_user_repo.get_by_keycloak_id_including_deleted.return_value = None
 
     result = await use_case.sync_user_profile(tenant_context)
 

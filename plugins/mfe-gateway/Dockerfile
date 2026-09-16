@@ -23,7 +23,7 @@ COPY it-helpdesk-module/frontend ../it-helpdesk-module/frontend
 RUN npm run build
 
 # Production Stage (Nginx)
-FROM nginx:alpine
+FROM nginx:1.27-alpine
 
 # Copy built assets
 COPY --from=builder /build/plugins/mfe-gateway/dist /usr/share/nginx/html
@@ -37,7 +37,15 @@ RUN echo 'server { \
         index index.html index.htm; \
         try_files $uri $uri/ /index.html; \
     } \
-}' > /etc/nginx/conf.d/default.conf
+}' > /etc/nginx/conf.d/default.conf \
+    && chown -R nginx:nginx /usr/share/nginx/html /etc/nginx/conf.d /var/cache/nginx /var/run
+
+# Hardening: chạy nginx worker bằng user không phải root (port 3001 > 1024)
+USER nginx
 
 EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3001/ >/dev/null || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]

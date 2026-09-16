@@ -123,9 +123,22 @@ class PluginActionUseCase:
 
     def _resolve_webhook_url(self, plugin_code: str, wf: Any) -> str:
         """Đọc workflow JSON, lấy webhook node path → dựng URL n8n."""
-        plugins_dir = self.manifest_parser.plugins_dir
-        wf_path = plugins_dir / plugin_code / wf.file
-        if not wf_path.exists():
+        if not _CODE_PATTERN.match(plugin_code):
+            raise PluginNotFoundError(f"Plugin '{plugin_code}' không tồn tại.")
+        wf_rel = getattr(wf, "file", "") or ""
+        if not isinstance(wf_rel, str) or ".." in wf_rel or wf_rel.startswith("/"):
+            raise DSLInvalidParametersError(f"File workflow '{wf_rel}' không hợp lệ.")
+        plugins_dir = self.manifest_parser.plugins_dir.resolve()
+        wf_path = (plugins_dir / plugin_code / wf_rel).resolve()
+        try:
+            _inside = wf_path.is_relative_to(plugins_dir)
+        except AttributeError:  # Python < 3.9
+            _inside = plugins_dir in wf_path.parents or wf_path == plugins_dir
+        if not _inside:
+            raise DSLInvalidParametersError(
+                f"File workflow '{wf_rel}' vượt ngoài plugins_dir."
+            )
+        if not wf_path.is_file():
             raise DSLInvalidParametersError(
                 f"File workflow '{wf.file}' của action không tồn tại."
             )
@@ -192,6 +205,8 @@ class PluginActionUseCase:
         """
         if not _CODE_PATTERN.match(plugin_code):
             raise PluginNotFoundError(f"Plugin '{plugin_code}' không tồn tại.")
+        if ".." in action or "/" in action or "\\" in action:
+            raise DSLInvalidActionError(f"Action '{action}' không hợp lệ.")
         if not _ACTION_PATTERN.match(action):
             raise DSLInvalidActionError(f"Action '{action}' không hợp lệ.")
         if not isinstance(payload, dict):

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -63,12 +64,36 @@ class N8nAdapter(AbstractWorkflowEnginePort):
         """Tạo URL đầy đủ từ base URL và path tương đối (dành cho REST API của n8n)."""
         return f"{self._base_url}/api/v1/{path.lstrip('/')}"
 
+    # M3: action 3-part classic plugin.resource.method, mỗi segment an toàn.
+    _ACTION_3PART_PATTERN = re.compile(r"^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$")
+    _SEGMENT_PATTERN = re.compile(r"^[a-z0-9_-]+$")
+
     def build_webhook_url(self, action: str) -> str:
         """
         Xây dựng webhook URL từ action của DSL Command.
         Ví dụ: 'hr.leave_requests.batch_approve' -> '{N8N_URL}/webhook/hr-leave_requests-batch_approve'
+
+        Validate nghiêm (M3): action phải khớp
+        ^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$, chặn '../', '/', '\\'.
         """
+        if not isinstance(action, str) or not action:
+            raise N8nAdapterError("Invalid action: empty")
+        if ".." in action or "/" in action or "\\" in action:
+            raise N8nAdapterError(f"Invalid action (path traversal): {action!r}")
+        if not self._ACTION_3PART_PATTERN.match(action):
+            # Fallback: kiểm tra từng segment để báo lỗi rõ, vẫn từ chối.
+            parts = action.split(".")
+            if len(parts) != 3 or not all(
+                p and self._SEGMENT_PATTERN.match(p) for p in parts
+            ):
+                raise N8nAdapterError(
+                    f"Invalid action format: {action!r}. "
+                    "Expected plugin.resource.method ([a-z0-9_-])."
+                )
+            raise N8nAdapterError(f"Invalid action: {action!r}")
         path = action.replace(".", "-")
+        if ".." in path or "/" in path or "\\" in path:
+            raise N8nAdapterError(f"Invalid action path: {action!r}")
         return f"{self._base_url}/webhook/{path}"
 
     async def _request_with_retry(
@@ -158,6 +183,9 @@ class N8nAdapter(AbstractWorkflowEnginePort):
         clean_workflow = {k: v for k, v in workflow_json.items() if k in ALLOWED_FIELDS}
         if not clean_workflow.get("name"):
             clean_workflow["name"] = workflow_json.get("name", "Untitled Workflow")
+        # n8n 2.x bắt buộc có `settings` (thiếu → 400 "must have required
+        # property 'settings'"). Nhiều file workflow cũ không có field này.
+        clean_workflow.setdefault("settings", {})
 
         response = await self._request_with_retry("POST", url, json=clean_workflow)
 
@@ -183,6 +211,72 @@ class N8nAdapter(AbstractWorkflowEnginePort):
             extra={"workflow_id": workflow_id, "workflow_name": data.get("name")},
         )
         return workflow_id
+
+    async def list_workflows(self, limit: int = 200) -> list[dict[str, Any]]:
+        """
+        Liệt kê workflows trên n8n (dùng match theo tên khi upgrade).
+
+        Gọi GET /api/v1/workflows. Trả về [] khi lỗi (caller tự fallback).
+        """
+        url = self._build_url("workflows")
+        response = await self._client.get(url, headers=self._headers, timeout=30.0)
+        if response.status_code != 200:
+            logger.warning(
+                "n8n list_workflows failed",
+                extra={"status": response.status_code},
+            )
+            return []
+        data = response.json()
+        if isinstance(data, dict) and isinstance(data.get("data"), list):
+            return data["data"]
+        return data if isinstance(data, list) else []
+
+    async def get_workflow(self, workflow_id: str) -> dict[str, Any] | None:
+        """
+        Lấy full workflow JSON từ n8n (dùng snapshot trước upgrade để rollback).
+
+        Gọi GET /api/v1/workflows/{id}. Trả về None nếu không tồn tại (404).
+        """
+        url = self._build_url(f"workflows/{workflow_id}")
+        response = await self._request_with_retry("GET", url)
+
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise N8nAdapterError(
+                f"n8n get_workflow failed: HTTP {response.status_code} — {response.text[:200]}"
+            )
+        data = response.json()
+        return data if isinstance(data, dict) else None
+
+    async def update_workflow(
+        self, workflow_id: str, workflow_json: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Cập nhật workflow đã tồn tại trên n8n (dùng khi upgrade version).
+
+        Gọi PUT /api/v1/workflows/{id} với payload đã clean + settings mặc định
+        (giống import_workflow). Giữ nguyên active state? n8n PUT không đổi
+        active — caller tự activate lại nếu cần.
+        """
+        url = self._build_url(f"workflows/{workflow_id}")
+        ALLOWED_FIELDS = {"name", "nodes", "connections", "settings", "triggerCount"}
+        clean_workflow = {k: v for k, v in workflow_json.items() if k in ALLOWED_FIELDS}
+        clean_workflow.setdefault("settings", {})
+
+        response = await self._request_with_retry("PUT", url, json=clean_workflow)
+
+        if response.status_code == 404:
+            raise N8nWorkflowNotFoundError(f"Workflow '{workflow_id}' not found on n8n")
+        if response.status_code not in (200, 201):
+            raise N8nAdapterError(
+                f"n8n update_workflow failed: HTTP {response.status_code} — {response.text[:200]}"
+            )
+        data = response.json()
+        logger.info(
+            "n8n workflow updated successfully", extra={"workflow_id": workflow_id}
+        )
+        return data if isinstance(data, dict) else {}
 
     async def activate_workflow(self, workflow_id: str) -> None:
         """

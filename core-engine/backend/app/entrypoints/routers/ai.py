@@ -7,22 +7,34 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.core.domain.entities import AICommandStatus, TenantContext
 from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
 from app.core.use_cases.ai_command import AICommandDTO, AICommandUseCase
+from app.core.use_cases.conversation import ConversationUseCase
 from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.entrypoints.dependencies import (
     get_ai_chat_use_case,
     get_ai_command_use_case,
+    get_conversation_use_case,
     get_current_tenant_context,
+    get_plugin_repo,
+    get_qdrant_adapter,
     get_rag_ingestion_use_case,
 )
 from app.entrypoints.schemas.ai_command import (
     AIChatRequest,
     AICommandRequest,
     AICommandResponse,
+)
+from app.entrypoints.schemas.conversation import (
+    ChatMessageResponse,
+    MessageAppendRequest,
+    SessionEnsureRequest,
+    SessionInfoResponse,
+    SessionResponse,
 )
 from app.infrastructure.rate_limiter import limiter
 
@@ -50,14 +62,21 @@ async def submit_ai_chat(
     dto = AIChatDTO(
         session_id=body.session_id, natural_language_input=body.natural_language_input
     )
-    status_code, message, result = await use_case.execute(dto, ctx)
+    try:
+        status_code, message, result = await use_case.execute(dto, ctx)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
     # We reuse AICommandResponse but command_id might be newly generated
+    preview = None
+    if isinstance(result, dict):
+        preview = result.get("dsl_preview")
     return AICommandResponse(
         command_id=uuid.uuid4(),  # Or return the one generated inside if available, but for simplicity we generate a new one if not passed out
         status=status_code,
         message=message,
         result=result if status_code == AICommandStatus.COMPLETED else None,
+        dsl_preview=preview,
     )
 
 
@@ -102,7 +121,10 @@ async def submit_ai_command(
         parameters=body.parameters,
         approval_message=body.approval_message,
     )
-    status_code, message, result = await use_case.execute(dto, ctx)
+    try:
+        status_code, message, result = await use_case.execute(dto, ctx)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
     return AICommandResponse(
         command_id=body.command_id,
@@ -177,3 +199,218 @@ async def transmit_kv_cache_ipc(
         latency_ms=latency_ms,
         message="Đã truyền tải Context Pointer thành công",
     )
+
+
+@router.post(
+    "/commands/{command_id}/cancel",
+    status_code=status.HTTP_200_OK,
+    summary="Người ra lệnh tự hủy lệnh đang chờ duyệt",
+)
+@limiter.limit("30/minute")
+async def cancel_ai_command(
+    command_id: uuid.UUID,
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+):
+    outcome = await use_case.cancel_own_command(str(command_id), str(ctx.user_id))
+    if outcome == "invalid":
+        return {"cancelled": False, "reason": "Lệnh không còn ở trạng thái chờ duyệt."}
+    if outcome == "denied":
+        return {"cancelled": False, "reason": "Bạn không có quyền hủy lệnh này."}
+    return {"cancelled": True}
+
+
+# ─── Conversation Memory (server-side, per user+tenant) ─────────────────────
+
+
+@router.post(
+    "/sessions",
+    response_model=SessionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Ensure AI chat session của user",
+)
+@limiter.limit("30/minute")
+async def ensure_ai_session(
+    request: Request,
+    body: SessionEnsureRequest,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: ConversationUseCase = Depends(get_conversation_use_case),
+):
+    session_id = await use_case.ensure_session(
+        ctx.tenant_id, ctx.user_id, body.session_id
+    )
+    await use_case.conversation_repo.commit()
+    return SessionResponse(session_id=session_id)
+
+
+@router.get(
+    "/sessions",
+    response_model=list[SessionInfoResponse],
+    summary="Liệt kê AI chat sessions của user",
+)
+@limiter.limit("30/minute")
+async def list_ai_sessions(
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: ConversationUseCase = Depends(get_conversation_use_case),
+):
+    return await use_case.sessions(ctx.tenant_id, ctx.user_id)
+
+
+@router.get(
+    "/sessions/{session_id}/messages",
+    response_model=list[ChatMessageResponse],
+    summary="Lịch sử 1 AI chat session",
+)
+@limiter.limit("60/minute")
+async def list_ai_messages(
+    session_id: uuid.UUID,
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: ConversationUseCase = Depends(get_conversation_use_case),
+):
+    return await use_case.history(ctx.tenant_id, ctx.user_id, session_id)
+
+
+@router.post(
+    "/sessions/{session_id}/messages",
+    response_model=ChatMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Lưu 1 turn chat vào session",
+)
+@limiter.limit("60/minute")
+async def append_ai_message(
+    session_id: uuid.UUID,
+    body: MessageAppendRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: ConversationUseCase = Depends(get_conversation_use_case),
+):
+    real_session = await use_case.ensure_session(ctx.tenant_id, ctx.user_id, session_id)
+    msg_id = await use_case.save_turn(
+        ctx.tenant_id,
+        ctx.user_id,
+        real_session,
+        body.role,
+        body.content,
+        body.command_id,
+        body.citations,
+    )
+    await use_case.conversation_repo.commit()
+    return ChatMessageResponse(
+        id=msg_id,
+        role=body.role,
+        content=body.content,
+        command_id=body.command_id,
+        citations=body.citations,
+    )
+
+
+# ─── Dynamic Action Catalog ─────────────────────────────────────────────────
+
+
+@router.get(
+    "/actions",
+    summary="Danh sách actions AI được phép gọi (catalog động theo plugin đã cài)",
+)
+@limiter.limit("30/minute")
+async def list_ai_actions(
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    plugin_repo=Depends(get_plugin_repo),
+):
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+    from app.core.use_cases.action_catalog import build_catalog_for_tenant
+
+    catalog = await build_catalog_for_tenant(
+        plugin_repo, LocalManifestParser(), ctx.tenant_id
+    )
+    return {
+        "actions": [
+            {
+                "action": a.action,
+                "effect_hint": a.effect_hint,
+                "description": a.description,
+            }
+            for a in catalog
+        ]
+    }
+
+
+# ─── Knowledge Search (RAG citations) ───────────────────────────────────────
+
+
+@router.post(
+    "/knowledge/search",
+    status_code=status.HTTP_200_OK,
+    summary="Tìm kiếm tri thức nội bộ (hybrid, cô lập theo tenant)",
+)
+@limiter.limit("20/minute")
+async def search_knowledge(
+    body: dict,
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    qdrant: QdrantAdapter = Depends(get_qdrant_adapter),
+):
+    query = str((body or {}).get("query", "")).strip()
+    if not query:
+        return {"query": "", "citations": []}
+    limit = int((body or {}).get("limit", 5) or 5)
+    limit = max(1, min(limit, 20))
+    try:
+        hits = await qdrant.search(
+            tenant_id=str(ctx.tenant_id), query=query, limit=limit
+        )
+    except Exception as e:
+        logger.warning("Knowledge search thất bại: %s", e)
+        return {"query": query, "citations": [], "warning": f"RAG chưa khả dụng: {e}"}
+    return {
+        "query": query,
+        "citations": [
+            {
+                "document": h.get("document"),
+                "score": h.get("score"),
+                "doc_title": (h.get("metadata") or {}).get("doc_title"),
+                "source_url": (h.get("metadata") or {}).get("source_url"),
+            }
+            for h in hits
+        ],
+    }
+
+
+# ─── Chat Streaming (SSE pipeline events) ───────────────────────────────────
+
+
+@router.post(
+    "/chat/stream",
+    summary="Chat với Proteus AI, stream SSE (started/token/dsl/result)",
+)
+@limiter.limit("5/minute")
+async def stream_ai_chat(
+    request: Request,
+    body: AIChatRequest,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: AIChatUseCase = Depends(get_ai_chat_use_case),
+):
+    import json as _json
+
+    from fastapi.responses import StreamingResponse
+
+    dto = AIChatDTO(
+        session_id=body.session_id, natural_language_input=body.natural_language_input
+    )
+    # M1: chặn IDOR session trước khi stream (đồng bộ, để trả 403 ngay).
+    try:
+        await use_case.ai_command_use_case._assert_session_owned(
+            ctx.tenant_id, ctx.user_id, body.session_id
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
+
+    async def event_gen():
+        async for payload in use_case.execute_stream(dto, ctx):
+            event = payload.pop("event", "message")
+            yield f"event: {event}\ndata: {_json.dumps(payload, default=str)}\n\n"
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream")

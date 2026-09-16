@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "hr/onboarding",
         "responseMode": "onReceived",
         "options": {}

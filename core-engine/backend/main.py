@@ -308,9 +308,10 @@ app.add_middleware(
 # ─── Tenant Context Middleware ────────────────────────────────
 class TenantIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        tenant_id = request.headers.get("X-Tenant-ID")
-        # Lưu vào ContextVar để SQLAlchemy Event có thể đọc được
-        token = current_tenant_id.set(tenant_id)
+        # C6: KHÔNG trust X-Tenant-ID chưa auth (client có thể spoof để qua
+        # mặt RLS). Luôn default '' ở tầng middleware; tenant thật chỉ được
+        # set SAU khi JWT verify trong get_current_tenant_context.
+        token = current_tenant_id.set("")
         try:
             response = await call_next(request)
             return response

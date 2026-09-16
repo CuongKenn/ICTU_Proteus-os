@@ -16,8 +16,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
   const email = session?.user?.email || "Chưa có email";
   const initial = name.charAt(0).toUpperCase();
 
-  const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "http://auth.proteus.local";
-  const accountUrl = `${keycloakUrl}/realms/proteus/account/`;
+  const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "";
+  const accountUrl = keycloakUrl ? `${keycloakUrl.replace(/\/+$/, "")}/realms/proteus/account/` : "";
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -71,7 +71,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ session }) => {
             <Button
               variant="secondary"
               className="mt-4"
-              onClick={() => window.open(accountUrl, "_blank")}
+              onClick={() => accountUrl && window.open(accountUrl, "_blank", "noopener,noreferrer")}
+              disabled={!accountUrl}
+              title={accountUrl ? "Mở Keycloak Account" : "Chưa cấu hình NEXT_PUBLIC_KEYCLOAK_URL"}
             >
               Quản lý Tài khoản <ExternalLink className="w-4 h-4 ml-2" />
             </Button>

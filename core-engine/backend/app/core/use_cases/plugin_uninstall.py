@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.local_manifest_parser import LocalManifestParser
 from app.adapters.repositories.base import AbstractPluginRepository
+from app.adapters.repositories.role_repo import RoleRepository
 from app.core.domain.entities import PluginStatus, TenantContext
 from app.core.domain.plugin_manifest import PluginManifest
 from app.core.domain.ports import (
@@ -300,6 +301,20 @@ class PluginUninstallUseCase:
                 )
             except Exception as e:
                 logger.warning("Không thể xóa role %s trong Keycloak: %s", role.name, e)
+
+        # Xóa DB roles của plugin (FK cascade thu hồi user_roles liên quan).
+        try:
+            role_repo = RoleRepository(self.session)
+            existing = await role_repo.list_by_tenant(context.tenant_id)
+            manifest_names = {r.name for r in manifest.roles}
+            for r in existing:
+                if (
+                    getattr(r, "plugin_code_name", None) == plugin_code_name
+                    or r.name in manifest_names
+                ):
+                    await role_repo.delete_role(r.id, context.tenant_id)
+        except Exception as e:
+            logger.warning("Không thể xóa DB roles của %s: %s", plugin_code_name, e)
 
     async def _step_3_appsmith(
         self,

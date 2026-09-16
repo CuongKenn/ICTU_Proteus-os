@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid as uuid_lib
 from typing import Any, cast
 
 import httpx
@@ -18,6 +19,33 @@ from app.core.domain.ports import AbstractIdentityProviderPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def mattermost_numeric_id(keycloak_user_id: str) -> int:
+    """ID số ổn định cho Mattermost SSO (đòi int64 khác 0).
+
+    Mattermost parse `id` trong userinfo thành int64 và reject id=0, trong khi
+    Keycloak sub là UUID string.
+
+    M7: dùng SHA-256 (thay vì cắt 8 byte UUID thô) để phân bố đều hơn và
+    giảm va chạm birthday. Vẫn là hash 63-bit (không thể tránh va chạm tuyệt
+    đối) — giải pháp triệt để là map table persistent
+    (keycloak_user_id → mattermost_id UNIQUE trong DB) + check unique trước
+    khi gán; ở đây đảm bảo khác 0 và ổn định để tương thích dữ liệu cũ.
+    Caller nên catch conflict khi set attribute và retry với suffix nếu cần.
+    """
+    import hashlib as _hashlib
+
+    try:
+        # Chuẩn hóa UUID để cùng user luôn ra cùng ID.
+        normalized = str(uuid_lib.UUID(str(keycloak_user_id)))
+    except ValueError:
+        normalized = str(keycloak_user_id).strip().lower()
+        if not normalized:
+            return 1
+    digest = _hashlib.sha256(normalized.encode("utf-8")).digest()
+    n = int.from_bytes(digest[:8], "big") & 0x7FFFFFFFFFFFFFFF
+    return n or 1
 
 
 class KeycloakAdapter(AbstractIdentityProviderPort):
@@ -72,20 +100,51 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             logger.info("JWKS cache refreshed")
             return self._jwks_cache
 
+    async def _force_refresh_jwks(self) -> dict[str, Any]:
+        """M22: ép refresh JWKS (khi kid miss sau rotate)."""
+        async with self._jwks_lock:
+            response = await self._client.get(settings.keycloak_jwks_url, timeout=10.0)
+            response.raise_for_status()
+            self._jwks_cache = response.json()
+            self._jwks_cached_at = time.monotonic()
+            logger.info("JWKS cache force-refreshed (kid miss)")
+            return self._jwks_cache
+
     async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
         Xác thực Access Token JWT.
         Trả về payload đã decode nếu hợp lệ.
         Raise JWTError nếu token không hợp lệ hoặc hết hạn.
         """
+        # M22: kiểm tra kid trước — miss thì refresh 1 lần (Keycloak rotate keys).
+        try:
+            header = jwt.get_unverified_header(token)
+        except Exception:
+            header = {}
         jwks = await self._get_jwks()
+        kid = (header or {}).get("kid")
+        if kid:
+            keys = (jwks or {}).get("keys", [])
+            if not any(k.get("kid") == kid for k in keys):
+                jwks = await self._force_refresh_jwks()
+        expected_issuer = (
+            f"{settings.KEYCLOAK_URL.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
+        )
         payload = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
             audience=settings.KEYCLOAK_CLIENT_ID,
-            options={"verify_exp": True},
+            issuer=expected_issuer,
+            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
         )
+        # M22: verify azp (authorized party) — chặn token cấp cho client khác.
+        azp = payload.get("azp")
+        if azp is not None and azp != settings.KEYCLOAK_CLIENT_ID:
+            # Cho phép BFF/account client trong cùng realm? Mặc định chặn cứng.
+            from jose import JWTError as _JWTError
+
+            raise _JWTError(f"Token azp không hợp lệ: {azp}")
         logger.debug(
             "Token verified successfully",
             extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},
@@ -219,8 +278,13 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         first_name: str,
         last_name: str,
         attributes: dict[str, list[str]],
+        email_verified: bool = True,
     ) -> str:
-        """Tạo User trong Keycloak, trả về user_id (sub)."""
+        """Tạo User trong Keycloak, trả về user_id (sub).
+
+        email_verified=False cho luồng mời nhân viên: giữ user ở trạng thái
+        "chờ kích hoạt" để required action VERIFY_EMAIL có ý nghĩa.
+        """
         admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users"
         user_data = {
@@ -229,7 +293,7 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             "firstName": first_name,
             "lastName": last_name,
             "enabled": True,
-            "emailVerified": True,
+            "emailVerified": email_verified,
             "attributes": attributes,
         }
         response = await self._client.post(
@@ -248,9 +312,12 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         location = response.headers.get("Location")
         if not location:
             # Fallback: search by email to get ID
-            search_url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users?email={email}&exact=true"
+            # M18: dùng params={} thay vì f-string để tránh injection/encode sai.
+            search_url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users"
             search_res = await self._client.get(
-                search_url, headers={"Authorization": f"Bearer {admin_token}"}
+                search_url,
+                params={"email": email, "exact": "true"},
+                headers={"Authorization": f"Bearer {admin_token}"},
             )
             search_res.raise_for_status()
             users = search_res.json()
@@ -307,12 +374,19 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         response.raise_for_status()
 
     async def send_invite_email(
-        self, realm: str, user_id: str, redirect_uri: str | None = None
+        self,
+        realm: str,
+        user_id: str,
+        redirect_uri: str | None = None,
+        client_id: str | None = None,
     ) -> None:
         """
         Kích hoạt luồng mời nhân viên qua email.
         Keycloak gửi email chứa link để user tự đặt mật khẩu và xác thực email.
         Yêu cầu SMTP được cấu hình trong Keycloak Realm Settings → Email.
+
+        LƯU Ý: khi truyền redirect_uri BẮT BUỘC kèm client_id, nếu không
+        Keycloak trả 400 "Client id missing" và mail không bao giờ được gửi.
         """
         admin_token = await self.get_admin_token()
         url = (
@@ -322,6 +396,8 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         params: dict[str, str] = {}
         if redirect_uri:
             params["redirect_uri"] = redirect_uri
+            if client_id:
+                params["client_id"] = client_id
 
         response = await self._client.put(
             url,
@@ -343,13 +419,54 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             extra={"user_id": user_id, "realm": realm},
         )
 
-    async def disable_user(self, realm: str, user_id: str) -> None:
-        """Vô hiệu hóa User trên Keycloak (enabled=false)."""
+    async def get_user(self, realm: str, user_id: str) -> dict[str, Any]:
+        """Lấy full UserRepresentation từ Keycloak (cần cho update an toàn)."""
         admin_token = await self.get_admin_token()
         url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        response = await self._client.get(
+            url,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def set_user_attributes(
+        self, realm: str, user_id: str, attributes: dict[str, list[str]]
+    ) -> None:
+        """Merge attributes vào Keycloak user (giữ nguyên attributes cũ).
+
+        CẢNH BÁO: Keycloak PUT /users/{id} là REPLACE toàn bộ representation —
+        gửi partial body sẽ XÓA email/tên/attributes (đã gây lỗi login thực tế).
+        Luôn GET full → merge → PUT.
+        """
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        user_rep = await self.get_user(realm, user_id)
+        merged = dict(user_rep.get("attributes") or {})
+        merged.update(attributes)
+        user_rep["attributes"] = merged
         response = await self._client.put(
             url,
-            json={"enabled": False},
+            json=user_rep,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info(
+            "User attributes updated on Keycloak",
+            extra={"user_id": user_id, "realm": realm, "keys": sorted(attributes)},
+        )
+
+    async def disable_user(self, realm: str, user_id: str) -> None:
+        """Vô hiệu hóa User trên Keycloak (enabled=false, giữ mọi field khác)."""
+        admin_token = await self.get_admin_token()
+        url = f"{settings.KEYCLOAK_URL}/admin/realms/{realm}/users/{user_id}"
+        user_rep = await self.get_user(realm, user_id)
+        user_rep["enabled"] = False
+        response = await self._client.put(
+            url,
+            json=user_rep,
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=10.0,
         )

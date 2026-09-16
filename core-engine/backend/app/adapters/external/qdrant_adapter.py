@@ -1,7 +1,9 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import logging
+import threading
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient
@@ -11,6 +13,11 @@ from app.core.domain.ports import AbstractVectorDBPort
 from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
+
+# M14: cache TextEmbedding theo model (singleton) — tránh load lại model
+# nặng mỗi query. Khóa thread-safe cho tạo model sync trong to_thread.
+_EMBEDDER_CACHE: dict[str, Any] = {}
+_EMBEDDER_LOCK = threading.Lock()
 
 
 class QdrantAdapterError(Exception):
@@ -25,36 +32,103 @@ class QdrantAdapter(AbstractVectorDBPort):
     """
 
     def __init__(self, qdrant_client: AsyncQdrantClient | None = None):
-        # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung
+        # Khởi tạo AsyncQdrantClient hoặc sử dụng instance dùng chung.
+        # Embedding models được cấu hình LAZY ở lần dùng đầu tiên: __init__
+        # tuyệt đối không raise để 1 RAG hỏng không kéo sập cả /ai/command.
         self.client = qdrant_client or AsyncQdrantClient(url=settings.QDRANT_URL)
-        # Sử dụng model hỗ trợ tiếng Việt nếu có thể, hoặc model multilingual.
-        # fastembed hỗ trợ BAAI/bge-m3 hoặc intfloat/multilingual-e5-small.
-        self.dense_model = "intfloat/multilingual-e5-small"
+        self.dense_model = settings.QDRANT_DENSE_MODEL
         self.sparse_model = "Qdrant/bm25"
         self.collection_name = "knowledge_base"
         self._collection_ensured = False
-
-        # Cấu hình embedding models
-        self.client.set_model(self.dense_model)
-        self.client.set_sparse_model(self.sparse_model)
+        self._models_ensured = False
+        self._hybrid = False
+        self._embedder = None
 
     async def aclose(self) -> None:
         """Đóng kết nối Qdrant client."""
         await self.client.close()
 
+    def _ensure_models(self) -> None:
+        """Cấu hình embedding models (chạy 1 lần, lazy).
+
+        Dense là bắt buộc. Sparse (BM25/SPLADE) là tùy chọn: môi trường
+        thiếu thì fallback dense-only thay vì sập cả RAG.
+        """
+        if self._models_ensured:
+            return
+        try:
+            self.client.set_model(self.dense_model)
+        except Exception as e:
+            raise QdrantAdapterError(
+                f"Embedding model '{self.dense_model}' không khả dụng: {e}"
+            ) from e
+        self._hybrid = False
+        try:
+            self.client.set_sparse_model(self.sparse_model)
+            self._hybrid = True
+        except Exception as e:
+            logger.warning(
+                "Sparse model '%s' không khả dụng, dùng dense-only: %s",
+                self.sparse_model,
+                e,
+            )
+        self._models_ensured = True
+
+    def _get_embedder_sync(self) -> Any:
+        """Lấy (hoặc tạo) TextEmbedding singleton cho dense_model — chạy sync."""
+        cached = _EMBEDDER_CACHE.get(self.dense_model)
+        if cached is not None:
+            return cached
+        if self._embedder is not None:
+            _EMBEDDER_CACHE[self.dense_model] = self._embedder
+            return self._embedder
+        from fastembed import TextEmbedding
+
+        with _EMBEDDER_LOCK:
+            # Double-check sau khi giữ lock.
+            cached = _EMBEDDER_CACHE.get(self.dense_model)
+            if cached is not None:
+                self._embedder = cached
+                return cached
+            embedder = TextEmbedding(self.dense_model)
+            _EMBEDDER_CACHE[self.dense_model] = embedder
+            self._embedder = embedder
+            return embedder
+
+    async def _dense_vector(self, text: str) -> list[float]:
+        """Embed 1 câu query bằng dense model (dùng khi dense-only).
+
+        M14: fastembed TextEmbedding.embed là sync/blocking → offload sang
+        asyncio.to_thread để không chặn event loop; model được cache singleton.
+        """
+        embedder = await asyncio.to_thread(self._get_embedder_sync)
+
+        def _embed_once() -> Any:
+            return next(iter(embedder.embed([text])))
+
+        vec = await asyncio.to_thread(_embed_once)
+        return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+
     async def _ensure_collection_exists(self):
         """Khởi tạo collection nếu chưa tồn tại"""
+        self._ensure_models()
         if getattr(self, "_collection_ensured", False):
             return
         if not await self.client.collection_exists(self.collection_name):
             logger.info("Creating Qdrant collection: %s", self.collection_name)
             # recreate_collection sẽ tạo collection với cấu hình embedding hiện tại
-            # từ fastembed model đã set.
-            await self.client.recreate_collection(
-                collection_name=self.collection_name,
-                vectors_config=self.client.get_fastembed_vector_params(),
-                sparse_vectors_config=self.client.get_fastembed_sparse_vector_params(),
-            )
+            # từ fastembed model đã set (hybrid hoặc dense-only tùy môi trường).
+            if self._hybrid:
+                await self.client.recreate_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=self.client.get_fastembed_vector_params(),
+                    sparse_vectors_config=self.client.get_fastembed_sparse_vector_params(),
+                )
+            else:
+                await self.client.recreate_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=self.client.get_fastembed_vector_params(),
+                )
         self._collection_ensured = True
 
     async def upsert_vectors(
@@ -107,25 +181,45 @@ class QdrantAdapter(AbstractVectorDBPort):
 
             tenant_filter = Filter(must=must_conditions)
 
-            # query method của fastembed client hỗ trợ query_text và hybrid RRF
-            results = await self.client.query(
-                collection_name=self.collection_name,
-                query_text=query,
-                query_filter=tenant_filter,
-                limit=limit,
-            )
-
-            # Format kết quả
-            formatted_results = []
-            for hit in results:
-                formatted_results.append(
-                    {
-                        "id": hit.id,
-                        "score": hit.score,
-                        "document": hit.document,
-                        "metadata": hit.metadata,
-                    }
+            # Hybrid (Dense+BM25) khi đủ models, ngược lại dense-only.
+            if self._hybrid:
+                # query method của fastembed client hỗ trợ query_text và hybrid RRF
+                results = await self.client.query(
+                    collection_name=self.collection_name,
+                    query_text=query,
+                    query_filter=tenant_filter,
+                    limit=limit,
                 )
+                formatted_results = []
+                for hit in results:
+                    formatted_results.append(
+                        {
+                            "id": hit.id,
+                            "score": hit.score,
+                            "document": hit.document,
+                            "metadata": hit.metadata,
+                        }
+                    )
+            else:
+                query_vector = await self._dense_vector(query)
+                points = await self.client.search(
+                    collection_name=self.collection_name,
+                    query_vector=query_vector,
+                    query_filter=tenant_filter,
+                    limit=limit,
+                    with_payload=True,
+                )
+                formatted_results = []
+                for hit in points:
+                    payload = dict(hit.payload or {})
+                    formatted_results.append(
+                        {
+                            "id": hit.id,
+                            "score": hit.score,
+                            "document": payload.pop("document", None),
+                            "metadata": payload,
+                        }
+                    )
 
             return formatted_results
         except Exception as e:

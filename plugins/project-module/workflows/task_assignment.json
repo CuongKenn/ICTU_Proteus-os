@@ -4,6 +4,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "project/task/assign",
         "responseMode": "lastNode",
         "options": {}

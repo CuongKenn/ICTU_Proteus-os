@@ -11,12 +11,19 @@ global.fetch = vi.fn();
 describe('useAICommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        status: 'completed',
-        result: 'Mock result',
-      }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (url: unknown) => {
+      if (typeof url === 'string' && url.includes('/api/ai/chat/stream')) {
+        return { ok: false, headers: { get: () => null }, body: null };
+      }
+      return {
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({
+          status: 'completed',
+          message: 'Mock result',
+          result: 'Mock result',
+        }),
+      };
     });
   });
 
@@ -57,6 +64,6 @@ describe('useAICommand', () => {
     expect(result.current.inputValue).toBe('');
     expect(result.current.messages.some(m => m.content === 'Hello AI' && m.role === 'user')).toBe(true);
     // Since mock fetch returns completed status:
-    expect(result.current.messages.some(m => m.content === 'Mock result' && m.role === 'assistant')).toBe(true);
+    expect(result.current.messages.some(m => m.content.includes('Mock result') && m.role === 'assistant')).toBe(true);
   });
 });

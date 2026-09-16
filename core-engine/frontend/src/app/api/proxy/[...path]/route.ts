@@ -215,6 +215,21 @@ async function proxyHandler(
     );
   }
 
+  // Null-body status (101/204/205/304) KHÔNG được mang body — Response
+  // constructor sẽ throw TypeError ("Invalid response status code 204") khiến
+  // route trả 500 (đây chính là lỗi khi deactivate nhân viên: backend trả 204).
+  if (
+    response.status === 101 ||
+    response.status === 204 ||
+    response.status === 205 ||
+    response.status === 304
+  ) {
+    return attachRefreshedSession(
+      withCors(new NextResponse(null, { status: response.status }), cors),
+      refreshedJwt
+    );
+  }
+
   // Non-JSON response (ví dụ: file download)
   const blob = await response.blob();
   return attachRefreshedSession(

@@ -18,16 +18,17 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a href="#hero" class="skip-link">Bỏ qua tới nội dung chính</a>
 
 <!-- BG EFFECTS -->
-<div class="bg-orbs"><div class="bg-orb-accent"></div></div>
-<div class="grid-overlay"></div>
+<div class="bg-orbs" aria-hidden="true"><div class="bg-orb-accent"></div></div>
+<div class="grid-overlay" aria-hidden="true"></div>
 
 <!-- NAVBAR -->
-<nav class="navbar" id="navbar">
+<nav class="navbar" id="navbar" aria-label="Điều hướng chính">
   <div class="navbar-inner">
-    <a href="#" class="navbar-brand">
-      <img src="images/proteus_logo.png" alt="Proteus OS">
+    <a href="#" class="navbar-brand" aria-label="Proteus OS - Trang chủ">
+      <img src="images/proteus_logo.png" alt="Proteus OS" width="40" height="40">
       Proteus <span>OS</span>
     </a>
     <ul class="navbar-links">
@@ -38,45 +39,47 @@
       <li><a href="#docs">Tài liệu</a></li>
       <li><a href="#roadmap">Lộ trình</a></li>
     </ul>
-    <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" class="btn-nav-github">
-      <i class="fab fa-github"></i> GitHub
+    <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" rel="noopener" class="btn-nav-github">
+      <i class="fab fa-github" aria-hidden="true"></i> GitHub
     </a>
-    <button class="hamburger" id="hamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
+    <button class="hamburger" id="hamburger" aria-label="Mở menu" aria-expanded="false" aria-controls="mobile-menu"><i class="fas fa-bars" aria-hidden="true"></i></button>
   </div>
 </nav>
-<ul class="mobile-menu" id="mobile-menu">
+<ul class="mobile-menu" id="mobile-menu" aria-label="Menu di động">
   <li><a href="#features" class="mobile-link">Tính năng</a></li>
   <li><a href="#ai" class="mobile-link">Agentic AI</a></li>
   <li><a href="#marketplace" class="mobile-link">Marketplace</a></li>
   <li><a href="#techstack" class="mobile-link">Tech Stack</a></li>
   <li><a href="#docs" class="mobile-link">Tài liệu</a></li>
   <li><a href="#roadmap" class="mobile-link">Lộ trình</a></li>
-  <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank">⭐ GitHub</a></li>
+  <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" rel="noopener">⭐ GitHub</a></li>
 </ul>
+
+<main id="main">
 
 <!-- HERO -->
 <section id="hero">
   <div class="container">
     <div class="hero-grid">
       <div class="hero-text">
-        <div class="hero-eyebrow"><i class="fas fa-rocket"></i> Open-Core · Multi-Tenancy · Agentic AI</div>
+        <div class="hero-eyebrow"><i class="fas fa-rocket" aria-hidden="true"></i> Open-Core · Multi-Tenancy · Agentic AI</div>
         <h1 class="hero-title">Hệ điều hành<br><span class="gradient-text">Đa năng</span> cho<br>mọi Tổ chức</h1>
-        <p class="hero-desc"><em>"Linux là hệ điều hành cho máy tính.<br>Proteus OS là hệ điều hành lõi cho mọi tổ chức."</em><br><br>Đập tan ốc đảo thông tin, tự động hóa toàn bộ quy trình và nhúng <strong style="color:#fff">AI Tự hành</strong> vào mọi ngóc ngách vận hành.</p>
+        <p class="hero-desc"><em>"Linux là hệ điều hành cho máy tính.<br>Proteus OS là hệ điều hành lõi cho mọi tổ chức."</em><br><br>Đập tan ốc đảo thông tin, tự động hóa toàn bộ quy trình và nhúng <strong>AI Tự hành</strong> vào mọi ngóc ngách vận hành.</p>
         <div class="hero-actions">
-          <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" class="btn btn-primary"><i class="fab fa-github"></i> Xem trên GitHub</a>
-          <a href="https://github.com/CuongKenn/ICTU_Proteus-os/tree/main/docs" target="_blank" class="btn btn-glass"><i class="fas fa-book-open"></i> Đọc Tài liệu</a>
+          <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" rel="noopener" class="btn btn-primary"><i class="fab fa-github" aria-hidden="true"></i> Xem trên GitHub</a>
+          <a href="https://github.com/CuongKenn/ICTU_Proteus-os/tree/main/docs" target="_blank" rel="noopener" class="btn btn-glass"><i class="fas fa-book-open" aria-hidden="true"></i> Đọc Tài liệu</a>
         </div>
         <div class="hero-badges">
-          <span class="hero-badge"><i class="fas fa-balance-scale"></i> GNU AGPLv3</span>
-          <span class="hero-badge"><i class="fab fa-docker"></i> Docker Ready</span>
-          <span class="hero-badge"><i class="fas fa-plug"></i> Plugin Marketplace</span>
-          <span class="hero-badge"><i class="fas fa-robot"></i> Agentic AI</span>
-          <span class="hero-badge"><i class="fas fa-shield-alt"></i> Multi-Tenancy</span>
+          <span class="hero-badge"><i class="fas fa-balance-scale" aria-hidden="true"></i> GNU AGPLv3</span>
+          <span class="hero-badge"><i class="fab fa-docker" aria-hidden="true"></i> Docker Ready</span>
+          <span class="hero-badge"><i class="fas fa-plug" aria-hidden="true"></i> Plugin Marketplace</span>
+          <span class="hero-badge"><i class="fas fa-robot" aria-hidden="true"></i> Agentic AI</span>
+          <span class="hero-badge"><i class="fas fa-shield-alt" aria-hidden="true"></i> Multi-Tenancy</span>
         </div>
       </div>
       <div class="hero-visual">
-        <div class="hero-visual-glow"></div>
-        <img src="images/hero_ai_network.png" alt="Proteus OS AI Network">
+        <div class="hero-visual-glow" aria-hidden="true"></div>
+        <img src="images/hero_ai_network.png" alt="Minh họa mạng lưới AI của Proteus OS" fetchpriority="high" decoding="async">
       </div>
     </div>
   </div>
@@ -99,25 +102,25 @@
 <section class="section reveal" id="problem">
   <div class="container">
     <div class="section-header-center">
-      <div class="section-label"><i class="fas fa-exclamation-triangle"></i> Bài toán</div>
+      <div class="section-label"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Bài toán</div>
       <h2 class="section-title">3 nỗi đau cốt lõi của mọi Tổ chức</h2>
       <p class="section-sub">Doanh nghiệp SME, cơ quan nhà nước và trường đại học đều đang chịu cùng một vấn đề hệ thống.</p>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
-      <div class="glass-card glass-card-lift" style="padding:2rem;text-align:center;">
-        <div style="font-size:2.5rem;margin-bottom:1rem;">🏝️</div>
-        <h3 style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.6rem;">Ốc đảo Thông tin</h3>
-        <p style="font-size:.85rem;color:var(--color-text-muted);line-height:1.65;">Dùng nhiều phần mềm rời rạc không kết nối — bẫy "rác đầu vào, rác đầu ra" và mất dữ liệu liên thông.</p>
+    <div class="pain-grid">
+      <div class="glass-card glass-card-lift pain-card">
+        <div class="pain-emoji" aria-hidden="true">🏝️</div>
+        <h3>Ốc đảo Thông tin</h3>
+        <p>Dùng nhiều phần mềm rời rạc không kết nối — bẫy "rác đầu vào, rác đầu ra" và mất dữ liệu liên thông.</p>
       </div>
-      <div class="glass-card glass-card-lift" style="padding:2rem;text-align:center;">
-        <div style="font-size:2.5rem;margin-bottom:1rem;">🔄</div>
-        <h3 style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.6rem;">Thiếu Tự động hóa</h3>
-        <p style="font-size:.85rem;color:var(--color-text-muted);line-height:1.65;">Nhân viên nhập liệu lặp lại, chuyển giao thủ công giữa bộ phận — lãng phí nguồn lực và chậm quyết định.</p>
+      <div class="glass-card glass-card-lift pain-card">
+        <div class="pain-emoji" aria-hidden="true">🔄</div>
+        <h3>Thiếu Tự động hóa</h3>
+        <p>Nhân viên nhập liệu lặp lại, chuyển giao thủ công giữa bộ phận — lãng phí nguồn lực và chậm quyết định.</p>
       </div>
-      <div class="glass-card glass-card-lift" style="padding:2rem;text-align:center;">
-        <div style="font-size:2.5rem;margin-bottom:1rem;">🤖</div>
-        <h3 style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.6rem;">AI Mù cục bộ</h3>
-        <p style="font-size:.85rem;color:var(--color-text-muted);line-height:1.65;">Chatbot chỉ hỏi-đáp trên file upload — không thể truy xuất "Nguồn sự thật duy nhất" để ra quyết định.</p>
+      <div class="glass-card glass-card-lift pain-card">
+        <div class="pain-emoji" aria-hidden="true">🤖</div>
+        <h3>AI Mù cục bộ</h3>
+        <p>Chatbot chỉ hỏi-đáp trên file upload — không thể truy xuất "Nguồn sự thật duy nhất" để ra quyết định.</p>
       </div>
     </div>
   </div>
@@ -203,7 +206,7 @@
 <section class="section reveal" id="marketplace" style="background:rgba(6,13,31,.5);border-top:1px solid var(--color-border);border-bottom:1px solid var(--color-border);">
   <div class="container">
     <div class="marketplace-grid">
-      <div><img src="images/proteus_os_marketplace.png" alt="Plugin Marketplace" class="marketplace-img"></div>
+      <div><img src="images/proteus_os_marketplace.png" alt="Giao diện Plugin Marketplace của Proteus OS" class="marketplace-img" loading="lazy" decoding="async"></div>
       <div>
         <div class="section-label"><i class="fas fa-store"></i> Plugin Marketplace</div>
         <h2 class="section-title">Mở rộng không giới hạn<br><span class="gradient-text-blue">bằng 1 click</span></h2>
@@ -235,19 +238,18 @@
 <section class="section reveal" id="ui">
   <div class="container">
     <div class="section-header-center">
-      <div class="section-label"><i class="fas fa-desktop"></i> Giao diện</div>
+      <div class="section-label"><i class="fas fa-desktop" aria-hidden="true"></i> Giao diện</div>
       <h2 class="section-title">Launchpad <span class="gradient-text">Glassmorphism</span></h2>
       <p class="section-sub">Dark Mode native với Glassmorphism, AI Widget thường trực và Responsive 100% — đẹp, tập trung, trực quan.</p>
     </div>
-    <div style="position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--color-border);box-shadow:0 40px 80px rgba(0,0,0,.5),0 0 60px var(--color-accent-glow);">
-      <img src="images/proteus_os_launchpad.png" alt="Proteus OS Launchpad" style="width:100%;">
-      <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(6,13,31,.3),transparent 40%);"></div>
+    <div class="launch-shot">
+      <img src="images/proteus_os_launchpad.png" alt="Giao diện Launchpad Glassmorphism của Proteus OS" loading="lazy" decoding="async">
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:2rem;">
-      <div class="glass-card" style="padding:1.25rem;text-align:center;"><span style="font-size:1.5rem;">🪟</span><h4 style="font-size:.85rem;font-weight:700;color:#fff;margin:.5rem 0 .3rem;">Glassmorphism</h4><p style="font-size:.75rem;color:var(--color-text-muted);">Backdrop-filter blur, nền kính mờ đa chiều</p></div>
-      <div class="glass-card" style="padding:1.25rem;text-align:center;"><span style="font-size:1.5rem;">🌙</span><h4 style="font-size:.85rem;font-weight:700;color:#fff;margin:.5rem 0 .3rem;">Dark Mode Native</h4><p style="font-size:.75rem;color:var(--color-text-muted);">Deep Blue / Neon Purple — không mỏi mắt</p></div>
-      <div class="glass-card" style="padding:1.25rem;text-align:center;"><span style="font-size:1.5rem;">🤖</span><h4 style="font-size:.85rem;font-weight:700;color:#fff;margin:.5rem 0 .3rem;">AI Widget Nổi</h4><p style="font-size:.75rem;color:var(--color-text-muted);">Floating chat widget luôn sẵn ở góc màn hình</p></div>
-      <div class="glass-card" style="padding:1.25rem;text-align:center;"><span style="font-size:1.5rem;">📱</span><h4 style="font-size:.85rem;font-weight:700;color:#fff;margin:.5rem 0 .3rem;">Responsive 100%</h4><p style="font-size:.75rem;color:var(--color-text-muted);">Duyệt đơn, xem báo cáo trên Smartphone</p></div>
+    <div class="mini-grid">
+      <div class="glass-card mini-card"><span class="mini-emoji" aria-hidden="true">🪟</span><h4>Glassmorphism</h4><p>Backdrop-filter blur, nền kính mờ đa chiều</p></div>
+      <div class="glass-card mini-card"><span class="mini-emoji" aria-hidden="true">🌙</span><h4>Dark Mode Native</h4><p>Deep Blue / Neon Purple — không mỏi mắt</p></div>
+      <div class="glass-card mini-card"><span class="mini-emoji" aria-hidden="true">🤖</span><h4>AI Widget Nổi</h4><p>Floating chat widget luôn sẵn ở góc màn hình</p></div>
+      <div class="glass-card mini-card"><span class="mini-emoji" aria-hidden="true">📱</span><h4>Responsive 100%</h4><p>Duyệt đơn, xem báo cáo trên Smartphone</p></div>
     </div>
   </div>
 </section>
@@ -297,14 +299,14 @@
       <p class="section-sub">8 tài liệu chuyên sâu từ BRD đến ERD, từ API spec đến AI DSL — tất cả public trên GitHub.</p>
     </div>
     <div class="docs-grid">
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/BRD.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">📄</span><h4>BRD — Đặc tả Nghiệp vụ</h4><p>Tầm nhìn, chức năng FR, yêu cầu phi chức năng NFR và kiến trúc tổng quan H-P-D-I.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/architecture.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🏗️</span><h4>SAD — Kiến trúc Hệ thống</h4><p>Hexagonal Architecture, BFF Pattern, SSO flow, ADR Redis &amp; Qdrant Hybrid Search.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/erd.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🗄️</span><h4>ERD — Lược đồ Dữ liệu</h4><p>Core tables, Multi-Tenancy RLS, bảng AI_COMMAND và chiến lược Migration an toàn.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/clarification.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🔐</span><h4>Clarification — Phân quyền</h4><p>Multi-Tenancy RBAC 3 tầng, Keycloak sync, Metabase embedding, AI capabilities matrix.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/dsl-spec.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🤖</span><h4>DX-DSL Spec — Đặc tả AI</h4><p>Cấu trúc JSON chuẩn, action whitelist + Required Role, effect levels, validation rules.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/api-swagger.yaml" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🔌</span><h4>API — OpenAPI 3.1 Spec</h4><p>18+ endpoint Core Engine, Pydantic schemas, error responses, security definitions.</p><span class="doc-link">Xem Swagger <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/deployment.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🚀</span><h4>Deployment Guide</h4><p>Traefik routing, mạng Docker, Observability stack Loki, chiến lược Backup &amp; Recovery.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
-      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/ui_ux_design.md" target="_blank" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🎨</span><h4>UI/UX Design System</h4><p>Color Palette, Typography, Spacing, Component Library, Animation &amp; Motion spec.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/BRD.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">📄</span><h4>BRD — Đặc tả Nghiệp vụ</h4><p>Tầm nhìn, chức năng FR, yêu cầu phi chức năng NFR và kiến trúc tổng quan H-P-D-I.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/architecture.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🏗️</span><h4>SAD — Kiến trúc Hệ thống</h4><p>Hexagonal Architecture, BFF Pattern, SSO flow, ADR Redis &amp; Qdrant Hybrid Search.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/erd.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🗄️</span><h4>ERD — Lược đồ Dữ liệu</h4><p>Core tables, Multi-Tenancy RLS, bảng AI_COMMAND và chiến lược Migration an toàn.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/clarification.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🔐</span><h4>Clarification — Phân quyền</h4><p>Multi-Tenancy RBAC 3 tầng, Keycloak sync, Metabase embedding, AI capabilities matrix.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/dsl-spec.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🤖</span><h4>DX-DSL Spec — Đặc tả AI</h4><p>Cấu trúc JSON chuẩn, action whitelist + Required Role, effect levels, validation rules.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/api-swagger.yaml" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🔌</span><h4>API — OpenAPI 3.1 Spec</h4><p>18+ endpoint Core Engine, Pydantic schemas, error responses, security definitions.</p><span class="doc-link">Xem Swagger <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/deployment.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🚀</span><h4>Deployment Guide</h4><p>Traefik routing, mạng Docker, Observability stack Loki, chiến lược Backup &amp; Recovery.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
+      <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/ui_ux_design.md" target="_blank" rel="noopener" class="glass-card glass-card-lift doc-card"><span class="doc-icon">🎨</span><h4>UI/UX Design System</h4><p>Color Palette, Typography, Spacing, Component Library, Animation &amp; Motion spec.</p><span class="doc-link">Đọc tài liệu <i class="fas fa-arrow-right"></i></span></a>
     </div>
   </div>
 </section>
@@ -312,15 +314,15 @@
 <!-- ROADMAP -->
 <section class="section reveal" id="roadmap" style="background:rgba(6,13,31,.5);border-top:1px solid var(--color-border);border-bottom:1px solid var(--color-border);">
   <div class="container">
-    <div style="display:grid;grid-template-columns:1fr 2fr;gap:5rem;align-items:start;">
+    <div class="roadmap-layout">
       <div>
-        <div class="section-label"><i class="fas fa-map-signs"></i> Lộ trình</div>
+        <div class="section-label"><i class="fas fa-map-signs" aria-hidden="true"></i> Lộ trình</div>
         <h2 class="section-title">Kế hoạch <span class="gradient-text">Phát triển</span></h2>
         <p class="section-sub">Từ nền tảng tài liệu vững chắc đến hệ thống AI tự hành hoàn chỉnh — từng bước có chủ đích.</p>
-        <div style="margin-top:2rem;display:flex;flex-direction:column;gap:.75rem;">
-          <div style="display:flex;align-items:center;gap:.6rem;font-size:.82rem;"><span style="width:12px;height:12px;border-radius:50%;background:var(--color-success);flex-shrink:0;"></span><span style="color:var(--color-text-muted);">Hoàn thành</span></div>
-          <div style="display:flex;align-items:center;gap:.6rem;font-size:.82rem;"><span style="width:12px;height:12px;border-radius:50%;background:var(--color-primary);flex-shrink:0;box-shadow:0 0 8px var(--color-primary-glow);"></span><span style="color:var(--color-text-muted);">Đang phát triển</span></div>
-          <div style="display:flex;align-items:center;gap:.6rem;font-size:.82rem;"><span style="width:12px;height:12px;border-radius:50%;background:#2d3a5e;flex-shrink:0;"></span><span style="color:var(--color-text-muted);">Lên kế hoạch</span></div>
+        <div class="roadmap-legend">
+          <div class="legend-row"><span class="legend-dot legend-dot-done"></span><span>Hoàn thành</span></div>
+          <div class="legend-row"><span class="legend-dot legend-dot-active"></span><span>Đang phát triển</span></div>
+          <div class="legend-row"><span class="legend-dot legend-dot-planned"></span><span>Lên kế hoạch</span></div>
         </div>
       </div>
       <div class="roadmap-timeline">
@@ -385,31 +387,31 @@
 <section class="section reveal" id="quickstart">
   <div class="container">
     <div class="section-header-center">
-      <div class="section-label"><i class="fas fa-terminal"></i> Quick Start</div>
+      <div class="section-label"><i class="fas fa-terminal" aria-hidden="true"></i> Quick Start</div>
       <h2 class="section-title">Chạy hệ thống trong <span class="gradient-text">3 bước</span></h2>
       <p class="section-sub">Yêu cầu: Docker Engine ≥ 24.0, Docker Compose ≥ 2.20, RAM ≥ 8GB.</p>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
-      <div class="glass-card" style="padding:2rem;">
-        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--color-primary);">1</div><h3 style="font-size:1rem;font-weight:700;color:#fff;">Clone mã nguồn</h3></div>
-        <pre style="background:rgba(0,0,0,.4);border:1px solid var(--color-border);border-radius:8px;padding:1rem;font-size:.78rem;color:#94a3b8;overflow-x:auto;font-family:var(--font-mono);line-height:1.6;">git clone https://github.com/CuongKenn/ICTU_Proteus-os.git
+    <div class="quick-grid">
+      <div class="glass-card quick-card">
+        <div class="quick-head"><div class="quick-num quick-num-1">1</div><h3>Clone mã nguồn</h3></div>
+        <pre class="code-block">git clone https://github.com/CuongKenn/ICTU_Proteus-os.git
 cd ICTU_Proteus-os</pre>
       </div>
-      <div class="glass-card" style="padding:2rem;">
-        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(34,196,122,.15);border:1px solid rgba(34,196,122,.3);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--color-success);">2</div><h3 style="font-size:1rem;font-weight:700;color:#fff;">Cấu hình .env</h3></div>
-        <pre style="background:rgba(0,0,0,.4);border:1px solid var(--color-border);border-radius:8px;padding:1rem;font-size:.78rem;color:#94a3b8;overflow-x:auto;font-family:var(--font-mono);line-height:1.6;">cp deploy/.env.example deploy/.env
+      <div class="glass-card quick-card">
+        <div class="quick-head"><div class="quick-num quick-num-2">2</div><h3>Cấu hình .env</h3></div>
+        <pre class="code-block">cp deploy/.env.example deploy/.env
 # Chỉnh sửa LLM API Key,
 # SMTP, domain settings...</pre>
       </div>
-      <div class="glass-card" style="padding:2rem;">
-        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--color-warning);">3</div><h3 style="font-size:1rem;font-weight:700;color:#fff;">Chạy 1-click Setup</h3></div>
-        <pre style="background:rgba(0,0,0,.4);border:1px solid var(--color-border);border-radius:8px;padding:1rem;font-size:.78rem;color:#94a3b8;overflow-x:auto;font-family:var(--font-mono);line-height:1.6;">cd deploy
+      <div class="glass-card quick-card">
+        <div class="quick-head"><div class="quick-num quick-num-3">3</div><h3>Chạy 1-click Setup</h3></div>
+        <pre class="code-block">cd deploy
 chmod +x setup.sh
 ./setup.sh</pre>
       </div>
     </div>
-    <div style="margin-top:2rem;padding:1.5rem 2rem;background:rgba(108,99,255,.06);border:1px solid rgba(108,99,255,.15);border-radius:12px;">
-      <p style="font-size:.88rem;color:var(--color-text-muted);"><strong style="color:#fff;">⚡ Sau ~2-3 phút:</strong> Launchpad: <code style="background:rgba(0,0,0,.3);padding:.1rem .4rem;border-radius:4px;font-family:var(--font-mono);color:var(--color-primary);">localhost:3000</code> · API Docs: <code style="background:rgba(0,0,0,.3);padding:.1rem .4rem;border-radius:4px;font-family:var(--font-mono);color:var(--color-primary);">localhost:8000/docs</code> · Keycloak Admin: <code style="background:rgba(0,0,0,.3);padding:.1rem .4rem;border-radius:4px;font-family:var(--font-mono);color:var(--color-primary);">localhost:8080</code></p>
+    <div class="info-box">
+      <p><strong>⚡ Sau ~2-3 phút:</strong> Launchpad: <code>localhost:3000</code> · API Docs: <code>localhost:8000/docs</code> · Keycloak Admin: <code>localhost:8080</code></p>
     </div>
   </div>
 </section>
@@ -421,57 +423,58 @@ chmod +x setup.sh
       <h2>Sẵn sàng xây dựng<br><span class="gradient-text">Hệ điều hành Tổ chức</span> của bạn?</h2>
       <p>Proteus OS là Open-Source, miễn phí, và được thiết kế để phát triển cùng tổ chức của bạn. Star repo để ủng hộ!</p>
       <div class="cta-actions">
-        <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" class="btn btn-primary"><i class="fab fa-github"></i> Star trên GitHub</a>
-        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CONTRIBUTING.md" target="_blank" class="btn btn-glass"><i class="fas fa-code-branch"></i> Đóng góp ngay</a>
-        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/tree/main/docs" target="_blank" class="btn btn-glass"><i class="fas fa-book"></i> Đọc Tài liệu</a>
+        <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" rel="noopener" class="btn btn-primary"><i class="fab fa-github" aria-hidden="true"></i> Star trên GitHub</a>
+        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" class="btn btn-glass"><i class="fas fa-code-branch" aria-hidden="true"></i> Đóng góp ngay</a>
+        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/tree/main/docs" target="_blank" rel="noopener" class="btn btn-glass"><i class="fas fa-book" aria-hidden="true"></i> Đọc Tài liệu</a>
       </div>
     </div>
   </div>
 </section>
+</main>
 
 <!-- FOOTER -->
 <footer>
   <div class="footer-inner">
     <div>
-      <div class="footer-brand"><img src="images/proteus_logo.png" alt="Proteus OS"><span>Proteus OS</span></div>
+      <div class="footer-brand"><img src="images/proteus_logo.png" alt="Proteus OS" width="36" height="36" loading="lazy"><span>Proteus OS</span></div>
       <p class="footer-desc">Hệ điều hành Đa năng (Universal OS) cho mọi tổ chức. Kiến trúc Open-Core + Plugin tích hợp Agentic AI, tự động hóa Workflow và Multi-Tenancy.</p>
       <div class="footer-socials">
-        <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" class="footer-social"><i class="fab fa-github"></i></a>
-        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/issues" target="_blank" class="footer-social"><i class="fas fa-bug"></i></a>
-        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CONTRIBUTING.md" target="_blank" class="footer-social"><i class="fas fa-code-branch"></i></a>
+        <a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" rel="noopener" class="footer-social" aria-label="GitHub"><i class="fab fa-github" aria-hidden="true"></i></a>
+        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/issues" target="_blank" rel="noopener" class="footer-social" aria-label="Báo lỗi"><i class="fas fa-bug" aria-hidden="true"></i></a>
+        <a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" class="footer-social" aria-label="Đóng góp"><i class="fas fa-code-branch" aria-hidden="true"></i></a>
       </div>
     </div>
     <div class="footer-col">
       <h5>Tài liệu</h5>
       <ul class="footer-links">
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/BRD.md" target="_blank">BRD — Đặc tả Nghiệp vụ</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/architecture.md" target="_blank">SAD — Kiến trúc</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/erd.md" target="_blank">ERD — Lược đồ DB</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/api-swagger.yaml" target="_blank">API — OpenAPI Spec</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/dsl-spec.md" target="_blank">DX-DSL Spec</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/deployment.md" target="_blank">Deployment Guide</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/BRD.md" target="_blank" rel="noopener">BRD — Đặc tả Nghiệp vụ</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/architecture.md" target="_blank" rel="noopener">SAD — Kiến trúc</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/erd.md" target="_blank" rel="noopener">ERD — Lược đồ DB</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/api-swagger.yaml" target="_blank" rel="noopener">API — OpenAPI Spec</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/dsl-spec.md" target="_blank" rel="noopener">DX-DSL Spec</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/docs/deployment.md" target="_blank" rel="noopener">Deployment Guide</a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h5>Dự án</h5>
       <ul class="footer-links">
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank">GitHub Repository</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CHANGELOG.md" target="_blank">Changelog</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CONTRIBUTING.md" target="_blank">Contributing Guide</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/LICENSE" target="_blank">Giấy phép AGPLv3</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/issues" target="_blank">Báo cáo Lỗi</a></li>
-        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CODE_OF_CONDUCT.md" target="_blank">Code of Conduct</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os" target="_blank" rel="noopener">GitHub Repository</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing Guide</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/LICENSE" target="_blank" rel="noopener">Giấy phép AGPLv3</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/issues" target="_blank" rel="noopener">Báo cáo Lỗi</a></li>
+        <li><a href="https://github.com/CuongKenn/ICTU_Proteus-os/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener">Code of Conduct</a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h5>Tech Stack</h5>
       <ul class="footer-links">
-        <li><a href="https://nextjs.org" target="_blank">Next.js 14</a></li>
-        <li><a href="https://fastapi.tiangolo.com" target="_blank">FastAPI</a></li>
-        <li><a href="https://www.keycloak.org" target="_blank">Keycloak</a></li>
-        <li><a href="https://n8n.io" target="_blank">n8n Workflow</a></li>
-        <li><a href="https://qdrant.tech" target="_blank">Qdrant</a></li>
-        <li><a href="https://mattermost.com" target="_blank">Mattermost</a></li>
+        <li><a href="https://nextjs.org" target="_blank" rel="noopener">Next.js 14</a></li>
+        <li><a href="https://fastapi.tiangolo.com" target="_blank" rel="noopener">FastAPI</a></li>
+        <li><a href="https://www.keycloak.org" target="_blank" rel="noopener">Keycloak</a></li>
+        <li><a href="https://n8n.io" target="_blank" rel="noopener">n8n Workflow</a></li>
+        <li><a href="https://qdrant.tech" target="_blank" rel="noopener">Qdrant</a></li>
+        <li><a href="https://mattermost.com" target="_blank" rel="noopener">Mattermost</a></li>
       </ul>
     </div>
   </div>
@@ -483,28 +486,36 @@ chmod +x setup.sh
 
 <script>
   const navbar = document.getElementById('navbar');
-  window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 30); });
+  window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 30); }, { passive: true });
 
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobile-menu');
-  hamburger.addEventListener('click', () => {
-    mobileMenu.classList.toggle('open');
-    hamburger.querySelector('i').className = mobileMenu.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
-  });
-  document.querySelectorAll('.mobile-link').forEach(l => l.addEventListener('click', () => {
-    mobileMenu.classList.remove('open');
-    hamburger.querySelector('i').className = 'fas fa-bars';
-  }));
+  const setMenu = (open) => {
+    mobileMenu.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
+    hamburger.setAttribute('aria-expanded', String(open));
+    hamburger.setAttribute('aria-label', open ? 'Đóng menu' : 'Mở menu');
+    hamburger.querySelector('i').className = open ? 'fas fa-times' : 'fas fa-bars';
+  };
+  hamburger.addEventListener('click', () => setMenu(!mobileMenu.classList.contains('open')));
+  document.querySelectorAll('.mobile-link').forEach(l => l.addEventListener('click', () => setMenu(false)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
 
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
   }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  document.querySelectorAll('.reveal').forEach(el => {
+    if (reduceMotion) { el.classList.add('visible'); } else { observer.observe(el); }
+  });
 
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     link.addEventListener('click', e => {
-      const t = document.querySelector(link.getAttribute('href'));
-      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      const id = link.getAttribute('href');
+      if (id.length > 1) {
+        const t = document.querySelector(id);
+        if (t) { e.preventDefault(); setMenu(false); t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }); }
+      }
     });
   });
 

@@ -29,12 +29,14 @@ from app.infrastructure.config import settings
 @dataclass
 class AICommandDTO:
     command_id: uuid.UUID
-    session_id: uuid.UUID
     dsl_version: str
     action: str
     effect: str
     parameters: dict[str, Any]
     approval_message: str | None = None
+    # Chat-memory only — KHÔNG persist vào ai_commands (cột session_id đã
+    # bị drop bởi migration 7a6db0254da0). Giữ optional để API cũ vẫn chạy.
+    session_id: uuid.UUID | None = None
 
 
 logger = structlog.get_logger(__name__)
@@ -54,6 +56,10 @@ class AICommandUseCase:
         role_repo: RoleRepository,
         mattermost_adapter: AbstractChatOpsPort,
         n8n_adapter: AbstractWorkflowEnginePort,
+        manifest_parser=None,
+        qdrant_adapter=None,
+        audit_log_repo=None,
+        user_repo=None,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
@@ -61,7 +67,167 @@ class AICommandUseCase:
         self.role_repo = role_repo
         self.mattermost_adapter = mattermost_adapter
         self.n8n_adapter = n8n_adapter
+        self.manifest_parser = manifest_parser
+        self.qdrant_adapter = qdrant_adapter
+        self.audit_log_repo = audit_log_repo
+        self.user_repo = user_repo
         self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
+
+    async def _audit(
+        self,
+        tenant_id,
+        actor_type: str,
+        action: str,
+        command_id,
+        payload: dict | None = None,
+        status: str = "success",
+        user_id=None,
+        result: dict | None = None,
+    ) -> None:
+        """Ghi audit best-effort (không bao giờ chặn luồng lệnh)."""
+        if self.audit_log_repo is None:
+            return
+        try:
+            await self.audit_log_repo.insert_log(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                actor_type=actor_type,
+                action=action,
+                resource_type="AI_COMMAND",
+                resource_id=command_id,
+                payload=payload or {},
+                result=result,
+                status=status,
+            )
+        except Exception as e:
+            logger.warning(
+                "Ghi audit AI thất bại (best-effort)",
+                error=str(e),
+                action=action,
+            )
+
+    def _build_command_row(
+        self,
+        body: AICommandDTO,
+        ctx: TenantContext,
+        status: str,
+        now: datetime,
+        execution_result: dict | None = None,
+        dry_run_result: dict | None = None,
+        approval_deadline: datetime | None = None,
+        mattermost_message_id: str | None = None,
+    ) -> dict:
+        """Dựng dict INSERT theo schema mới (dsl_version/parameters JSONB,
+        dry_run_result JSONB, approved_by_user_id/second_approver_id,
+        mattermost_message_id). Không ghi session_id / dsl_payload cũ."""
+        return {
+            "id": body.command_id,
+            "tenant_id": ctx.tenant_id,
+            "issued_by_user_id": ctx.user_id,
+            "dsl_version": body.dsl_version or "1.0",
+            "action": body.action,
+            "effect": body.effect,
+            "parameters": body.parameters or {},
+            "status": status,
+            "execution_result": execution_result,
+            "dry_run_result": dry_run_result,
+            "approval_deadline": approval_deadline,
+            "mattermost_message_id": mattermost_message_id,
+            "created_at": now,
+        }
+
+    @staticmethod
+    def _wrap_execution_result(response: Any) -> dict | None:
+        """Chuẩn hoá response thành dict cho cột execution_result JSONB."""
+        if response is None:
+            return None
+        if isinstance(response, dict):
+            return response
+        if isinstance(response, str):
+            return {"reply": response}
+        return {"result": response}
+
+    def _resolve_action_url(self, action: str) -> str:
+        """Dựng webhook URL cho action 3-part classic hoặc 2-part workflow."""
+        from app.core.use_cases.action_catalog import split_plugin_action
+
+        split = split_plugin_action(action)
+        if split is not None:
+            if self.manifest_parser is None:
+                raise ValueError(
+                    f"Action '{action}' cần manifest parser để resolve webhook."
+                )
+            from app.core.use_cases.action_catalog import (
+                resolve_workflow_webhook_url,
+            )
+
+            plugin_code, workflow_id = split
+            return resolve_workflow_webhook_url(
+                self.manifest_parser, plugin_code, workflow_id
+            )
+        return self.n8n_adapter.build_webhook_url(action)
+
+    async def _execute_local_read(
+        self, body: AICommandDTO, ctx: TenantContext
+    ) -> tuple[bool, Any]:
+        """Thực thi local các core read actions (không qua n8n).
+
+        Trả về (handled, result). core.knowledge.search trả kèm citations.
+        """
+        if body.action == "core.chat.reply":
+            # Trả thẳng text (string, không bọc dict) để mọi UI — kể cả bản
+            # cũ còn cache — đều render sạch, không dump JSON.
+            reply = ((body.parameters or {}).get("reply") or "").strip()
+            return True, reply or "Xin chào! Tôi có thể giúp gì cho bạn?"
+        if body.action == "core.plugins.list":
+            plugins, total = await self.plugin_repo.list_installed(
+                tenant_id=ctx.tenant_id
+            )
+            items = [
+                {
+                    "code_name": getattr(p, "code_name", None),
+                    "display_name": getattr(p, "display_name", None),
+                    "status": getattr(getattr(p, "status", None), "value", None)
+                    or str(getattr(p, "status", "")),
+                }
+                for p in plugins
+            ]
+            lines = "\n".join(
+                f"- **{p['display_name'] or p['code_name']}**"
+                + (f" (`{p['code_name']}`)" if p["display_name"] else "")
+                + f" — {p['status']}"
+                for p in items
+            )
+            return True, {
+                "total": total,
+                "plugins": items,
+                # Quy ước hiển thị: ai_command ưu tiên "markdown" cho UI.
+                "markdown": (
+                    f"Tổ chức đang có **{total}** plugin:\n{lines}"
+                    if items
+                    else "Tổ chức chưa cài plugin nào."
+                ),
+            }
+        if body.action == "core.knowledge.search":
+            if self.qdrant_adapter is None:
+                raise ValueError("RAG chưa cấu hình (thiếu Qdrant adapter).")
+            query = (body.parameters or {}).get("raw_input") or (
+                body.parameters or {}
+            ).get("query", "")
+            hits = await self.qdrant_adapter.search(
+                tenant_id=str(ctx.tenant_id), query=str(query), limit=5
+            )
+            citations = [
+                {
+                    "document": h.get("document"),
+                    "score": h.get("score"),
+                    "doc_title": (h.get("metadata") or {}).get("doc_title"),
+                    "source_url": (h.get("metadata") or {}).get("source_url"),
+                }
+                for h in hits
+            ]
+            return True, {"query": query, "citations": citations}
+        return False, None
 
     async def execute(
         self, body: AICommandDTO, ctx: TenantContext
@@ -75,41 +241,33 @@ class AICommandUseCase:
             role_repo=self.role_repo,
             tenant_id=str(ctx.tenant_id),
             user_id=str(ctx.user_id),
+            manifest_parser=self.manifest_parser,
         )
 
         try:
             await dsl_validator.validate(dsl_payload=asdict(body))
         except DSLValidationError as e:
             # Lưu lỗi vào log và trả về user-friendly message
-            logger.warning(f"AI Command Validation Failed: {e}")
+            logger.warning("AI Command validation failed", error=str(e))
 
-            # Ghi lịch sử lệnh bị fail do validation
+            # Ghi lịch sử lệnh bị fail do validation (schema mới)
             now = datetime.now(UTC)
             await self.ai_command_repo.create_command(
-                {
-                    "id": body.command_id,
-                    "tenant_id": ctx.tenant_id,
-                    "issued_by_user_id": ctx.user_id,
-                    "session_id": body.session_id,
-                    "dsl_payload": json.dumps(
-                        {
-                            "command_id": str(body.command_id),
-                            "session_id": str(body.session_id),
-                            "dsl_version": body.dsl_version,
-                            "action": body.action,
-                            "effect": body.effect,
-                            "parameters": body.parameters,
-                            "approval_message": body.approval_message,
-                        },
-                        default=str,
-                    ),
-                    "action": body.action,
-                    "effect": body.effect,
-                    "status": AICommandStatus.FAILED.value,
-                    "execution_result": json.dumps({"error": str(e)}, default=str),
-                    "executed_at": now,
-                    "created_at": now,
-                }
+                self._build_command_row(
+                    body,
+                    ctx,
+                    AICommandStatus.FAILED.value,
+                    now=now,
+                    execution_result={"error": str(e)},
+                )
+            )
+            await self._audit(
+                ctx.tenant_id,
+                "HUMAN",
+                "ai.command.rejected",
+                body.command_id,
+                payload={"action": body.action, "error": str(e)},
+                status="failed",
             )
             return AICommandStatus.FAILED, f"Từ chối thực hiện: {str(e)}", None
 
@@ -117,44 +275,27 @@ class AICommandUseCase:
 
         # 2. Xử lý theo effect
         if body.effect == "read":
-            # Lệnh Read → Gửi n8n execute lập tức (vì là webhook trigger proxy)
+            # Lệnh Read → core actions chạy local, còn lại qua n8n webhook.
             try:
-                webhook_url = self.n8n_adapter.build_webhook_url(body.action)
-                response = await self.n8n_adapter.trigger_webhook(
-                    webhook_url=webhook_url,
-                    payload=json.loads(json.dumps(asdict(body), default=str)),
-                )
+                handled, local_result = await self._execute_local_read(body, ctx)
+                if handled:
+                    response = local_result
+                else:
+                    webhook_url = self._resolve_action_url(body.action)
+                    response = await self.n8n_adapter.trigger_webhook(
+                        webhook_url=webhook_url,
+                        payload=json.loads(json.dumps(asdict(body), default=str)),
+                    )
 
-                # Lưu DB ngay
+                # Lưu DB ngay (schema mới: parameters/dry_run JSONB)
                 await self.ai_command_repo.create_command(
-                    {
-                        "id": body.command_id,
-                        "tenant_id": ctx.tenant_id,
-                        "issued_by_user_id": ctx.user_id,
-                        "session_id": body.session_id,
-                        "dsl_payload": json.dumps(
-                            {
-                                "command_id": str(body.command_id),
-                                "session_id": str(body.session_id),
-                                "dsl_version": body.dsl_version,
-                                "action": body.action,
-                                "effect": body.effect,
-                                "parameters": body.parameters,
-                                "approval_message": body.approval_message,
-                            },
-                            default=str,
-                        ),
-                        "action": body.action,
-                        "effect": body.effect,
-                        "status": AICommandStatus.COMPLETED.value,
-                        "execution_result": (
-                            json.dumps(response, default=str)
-                            if response is not None
-                            else None
-                        ),
-                        "executed_at": now,
-                        "created_at": now,
-                    }
+                    self._build_command_row(
+                        body,
+                        ctx,
+                        AICommandStatus.COMPLETED.value,
+                        now=now,
+                        execution_result=self._wrap_execution_result(response),
+                    )
                 )
                 await self.ai_command_repo.commit()
                 logger.info(
@@ -162,7 +303,15 @@ class AICommandUseCase:
                     ai_command="true",
                     action=body.action,
                     effect=body.effect,
-                    tenant_id=ctx.tenant_id,
+                    tenant_id=str(ctx.tenant_id),
+                )
+                await self._audit(
+                    ctx.tenant_id,
+                    "HUMAN",
+                    "ai.command.executed",
+                    body.command_id,
+                    payload={"action": body.action, "effect": body.effect},
+                    status="success",
                 )
                 # Hỗ trợ hiển thị Markdown đẹp trên giao diện nếu Plugin trả về
                 result_data = (
@@ -182,36 +331,27 @@ class AICommandUseCase:
                     ai_command="true",
                     action=body.action,
                     effect=body.effect,
-                    tenant_id=ctx.tenant_id,
+                    tenant_id=str(ctx.tenant_id),
                 )
                 # Ghi log thất bại
                 await self.ai_command_repo.create_command(
-                    {
-                        "id": body.command_id,
-                        "tenant_id": ctx.tenant_id,
-                        "issued_by_user_id": ctx.user_id,
-                        "session_id": body.session_id,
-                        "dsl_payload": json.dumps(
-                            {
-                                "command_id": str(body.command_id),
-                                "session_id": str(body.session_id),
-                                "dsl_version": body.dsl_version,
-                                "action": body.action,
-                                "effect": body.effect,
-                                "parameters": body.parameters,
-                                "approval_message": body.approval_message,
-                            },
-                            default=str,
-                        ),
-                        "action": body.action,
-                        "effect": body.effect,
-                        "status": AICommandStatus.FAILED.value,
-                        "execution_result": json.dumps({"error": str(e)}, default=str),
-                        "executed_at": now,
-                        "created_at": now,
-                    }
+                    self._build_command_row(
+                        body,
+                        ctx,
+                        AICommandStatus.FAILED.value,
+                        now=now,
+                        execution_result={"error": str(e)},
+                    )
                 )
                 await self.ai_command_repo.commit()
+                await self._audit(
+                    ctx.tenant_id,
+                    "HUMAN",
+                    "ai.command.failed",
+                    body.command_id,
+                    payload={"action": body.action, "error": str(e)},
+                    status="failed",
+                )
                 return AICommandStatus.FAILED, f"Lỗi khi thực thi: {e}", None
 
         # Write or Critical → Cần phê duyệt (Human-in-the-loop)
@@ -230,36 +370,16 @@ class AICommandUseCase:
         dry_run_res["action"] = body.action
         dry_run_res["effect"] = body.effect
 
-        # Lưu DB
+        # Lưu DB (schema mới)
         await self.ai_command_repo.create_command(
-            {
-                "id": body.command_id,
-                "tenant_id": ctx.tenant_id,
-                "issued_by_user_id": ctx.user_id,
-                "session_id": body.session_id,
-                "dsl_payload": json.dumps(
-                    {
-                        "command_id": str(body.command_id),
-                        "session_id": str(body.session_id),
-                        "dsl_version": body.dsl_version,
-                        "action": body.action,
-                        "effect": body.effect,
-                        "parameters": body.parameters,
-                        "approval_message": body.approval_message,
-                    },
-                    default=str,
-                ),
-                "action": body.action,
-                "effect": body.effect,
-                "status": AICommandStatus.PENDING_APPROVAL.value,
-                "approval_deadline": approval_deadline,
-                "dry_run_result": (
-                    json.dumps(dry_run_res, default=str)
-                    if dry_run_res is not None
-                    else None
-                ),
-                "created_at": now,
-            }
+            self._build_command_row(
+                body,
+                ctx,
+                AICommandStatus.PENDING_APPROVAL.value,
+                now=now,
+                dry_run_result=dry_run_res,
+                approval_deadline=approval_deadline,
+            )
         )
         await self.ai_command_repo.commit()
         logger.info(
@@ -267,7 +387,15 @@ class AICommandUseCase:
             ai_command="true",
             action=body.action,
             effect=body.effect,
-            tenant_id=ctx.tenant_id,
+            tenant_id=str(ctx.tenant_id),
+        )
+        await self._audit(
+            ctx.tenant_id,
+            "HUMAN",
+            "ai.command.pending",
+            body.command_id,
+            payload={"action": body.action, "effect": body.effect},
+            status="pending",
         )
 
         # Gửi thông báo phê duyệt qua Mattermost
@@ -280,11 +408,25 @@ class AICommandUseCase:
             f"- **Deadline:** {deadline_minutes} phút\n"
         )
         try:
-            await self.mattermost_adapter.send_interactive_message(
+            message_id = await self.mattermost_adapter.send_interactive_message(
                 channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
                 text=msg_text,
                 action_id=str(body.command_id),
             )
+            # Lưu mattermost_message_id best-effort (cột mới, không chặn luồng).
+            if message_id:
+                try:
+                    await self.ai_command_repo.update_command_approval(
+                        cmd_id=body.command_id,
+                        mattermost_message_id=str(message_id),
+                    )
+                    await self.ai_command_repo.commit()
+                except Exception as update_err:
+                    logger.warning(
+                        "Lưu mattermost_message_id thất bại (best-effort)",
+                        error=str(update_err),
+                        command_id=str(body.command_id),
+                    )
         except Exception as e:
             logger.warning(
                 "Could not send Mattermost approval request",
@@ -292,7 +434,7 @@ class AICommandUseCase:
                 ai_command="true",
                 action=body.action,
                 effect=body.effect,
-                tenant_id=ctx.tenant_id,
+                tenant_id=str(ctx.tenant_id),
             )
 
         msg = (
@@ -301,16 +443,176 @@ class AICommandUseCase:
         )
         return AICommandStatus.PENDING_APPROVAL, msg, dry_run_res
 
+    async def _resolve_approver(self, mm_user_id: str, tenant_id):
+        """Map Mattermost user id → UserEntity nội bộ (cùng tenant, còn active).
+
+        Ưu tiên email từ Mattermost API; fallback chấp nhận UUID nội bộ trực
+        tiếp (tương thích caller cũ/tests). Trả về None nếu không xác định được.
+        """
+        if self.user_repo is None:
+            return None
+        try:
+            mm_user = await self.mattermost_adapter.get_user_by_id(mm_user_id)
+        except Exception as e:
+            logger.warning(
+                "Không lấy được Mattermost user",
+                mm_user_id=str(mm_user_id),
+                error=str(e),
+            )
+            mm_user = None
+        if mm_user and mm_user.get("email"):
+            try:
+                user = await self.user_repo.get_by_email(tenant_id, mm_user["email"])
+                if user is not None and user.is_active:
+                    return user
+            except Exception as e:
+                logger.warning("Lookup user theo email thất bại", error=str(e))
+        try:
+            candidate = await self.user_repo.get(uuid.UUID(str(mm_user_id)))
+        except Exception:
+            return None
+        if (
+            candidate is not None
+            and str(candidate.tenant_id) == str(tenant_id)
+            and candidate.is_active
+        ):
+            return candidate
+        return None
+
+    async def _approver_allowed(self, cmd: dict, approver) -> tuple[bool, str]:
+        """Policy duyệt lệnh: đúng người trong tenant + có quyền +
+        không tự duyệt + critical cần 2 người khác nhau."""
+        from app.core.domain.permissions import (
+            has_admin_role,
+            has_wildcard_permission,
+        )
+
+        if approver is None:
+            return False, "không xác định được người duyệt trong tổ chức"
+        if not has_admin_role(getattr(approver, "roles", [])):
+            action = cmd.get("action", "")
+            parts = action.split(".")
+            perms = await self.role_repo.get_user_permissions(approver.id)
+            perms = [str(p) for p in perms or []]
+            if has_wildcard_permission(perms):
+                pass
+            elif len(parts) == 2 and all(parts):
+                if not any(p.startswith(f"{parts[0]}:") for p in perms):
+                    return False, f"thiếu quyền '{parts[0]}:*'"
+            elif len(parts) >= 3:
+                req = f"{parts[0]}:{parts[1]}:{parts[2]}"
+                if req not in perms:
+                    return False, f"thiếu quyền '{req}'"
+            else:
+                return False, "action không hợp lệ"
+        requester = cmd.get("issued_by_user_id") or cmd.get("requested_by")
+        if requester is not None and str(requester) == str(approver.id):
+            return False, "không được tự duyệt lệnh của chính mình"
+        if cmd.get("effect") == "critical":
+            first = cmd.get("approved_by_user_id") or cmd.get("approved_by")
+            if first is not None and str(first) == str(approver.id):
+                return False, "lệnh critical cần 2 người duyệt khác nhau"
+        return True, ""
+
+    @staticmethod
+    def _extract_parameters(cmd: dict) -> dict:
+        """Backward-compat đọc parameters: ưu tiên cột parameters JSONB mới,
+        fallback parse từ dsl_payload cũ (DB chưa migrate)."""
+        params = cmd.get("parameters")
+        if isinstance(params, dict):
+            return params
+        if params is not None:
+            return params if isinstance(params, dict) else {}
+        raw = cmd.get("dsl_payload")
+        if raw is None:
+            return {}
+        try:
+            payload = json.loads(raw) if isinstance(raw, str) else raw
+            parsed = (payload or {}).get("parameters", {})
+            return parsed if isinstance(parsed, dict) else {}
+        except (ValueError, TypeError, AttributeError):
+            return {}
+
+    async def cancel_own_command(self, cmd_id: str, user_id: str) -> str:
+        """Người ra lệnh tự hủy lệnh PENDING của mình (nút Huỷ trên chat).
+
+        Trả về: "cancelled" | "denied" | "invalid". Dùng REJECTED (enum hiện
+        tại không có CANCELLED), kèm audit ghi rõ người hủy.
+        """
+        cmd = await self.ai_command_repo.get_command_by_id(cmd_id, for_update=True)
+        if not cmd or cmd["status"] != "PENDING_APPROVAL":
+            return "invalid"
+        tenant_id = cmd.get("tenant_id")
+        requester = cmd.get("issued_by_user_id") or cmd.get("requested_by")
+        me = None
+        if self.user_repo is not None:
+            try:
+                entity = await self.user_repo.get(uuid.UUID(str(user_id)))
+                if entity is not None and str(entity.tenant_id) == str(tenant_id):
+                    me = entity
+            except Exception:
+                me = None
+            if me is None:
+                try:
+                    entity = await self.user_repo.get_by_keycloak_id(
+                        uuid.UUID(str(user_id))
+                    )
+                    if entity is not None and str(entity.tenant_id) == str(tenant_id):
+                        me = entity
+                except Exception:
+                    me = None
+        if me is None:
+            return "denied"
+        internal_id = str(me.id)
+        if requester is not None and str(requester) != internal_id:
+            # Không phải người ra lệnh: vẫn cho hủy nếu có quyền duyệt.
+            allowed, _ = await self._approver_allowed(cmd, me)
+            if not allowed:
+                return "denied"
+        rowcount = await self.ai_command_repo.update_command_approval(
+            cmd_id=cmd_id, status="REJECTED", approved_by_user_id=internal_id
+        )
+        if rowcount == 0:
+            # Race: lệnh vừa được duyệt/hết hạn bởi luồng khác.
+            await self.ai_command_repo.rollback()
+            return "invalid"
+        await self.ai_command_repo.commit()
+        await self._audit(
+            tenant_id,
+            "HUMAN",
+            "ai.command.rejected",
+            cmd_id,
+            payload={
+                "action": cmd.get("action"),
+                "cancelled_by": internal_id,
+                "via": "chat_cancel",
+            },
+            status="success",
+        )
+        return "cancelled"
+
     async def process_approval(
         self, cmd_id: str, approver_id: str, action_taken: str
-    ) -> bool:
-        """
-        Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ].
+    ) -> str:
+        """Xử lý khi người dùng bấm [Phê duyệt] hoặc [Hủy bỏ].
+
+        Trả về: "approved" | "partially_approved" | "rejected" | "denied" | "invalid".
+        - critical lượt 1 → "partially_approved" (chờ lượt 2, KHÔNG báo approved sớm).
+        - n8n trigger fail → chuyển FAILED + raise (không return "approved" giả).
+
+        Chống race: get_command_by_id(for_update=True) + UPDATE conditional
+        WHERE status='PENDING_APPROVAL' AND deadline còn hạn, check rowcount.
+        Caller phải dùng session transactional để SELECT FOR UPDATE và UPDATE
+        nằm cùng transaction (xem get_ai_command_repo).
+
+        NOTE outbox/retry: chưa có bảng outbox — n8n trigger hiện là fire-and-
+        forget sau APPROVED; nếu cần exactly-once, bổ sung bảng ai_command_outbox
+        + worker retry (TODO).
         """
         cmd = await self.ai_command_repo.get_command_by_id(cmd_id, for_update=True)
 
         if not cmd or cmd["status"] != "PENDING_APPROVAL":
-            return False
+            return "invalid"
 
         if (
             cmd.get("approval_deadline")
@@ -320,47 +622,132 @@ class AICommandUseCase:
                 cmd_id=cmd_id, status="TIMEOUT"
             )
             await self.ai_command_repo.commit()
-            return False
+            return "invalid"
 
-        is_approved = False
+        tenant_id = cmd.get("tenant_id")
+        approver = await self._resolve_approver(approver_id, tenant_id)
+        allowed, reason = await self._approver_allowed(cmd, approver)
+        if not allowed:
+            logger.warning(
+                "Từ chối duyệt lệnh",
+                command_id=str(cmd_id),
+                approver=str(approver_id),
+                reason=reason,
+            )
+            await self._audit(
+                tenant_id,
+                "HUMAN",
+                "ai.command.denied",
+                cmd_id,
+                payload={
+                    "action": cmd.get("action"),
+                    "mattermost_user_id": approver_id,
+                    "reason": reason,
+                },
+                status="failed",
+            )
+            return "denied"
+
         if action_taken == "reject":
-            await self.ai_command_repo.update_command_approval(
-                cmd_id=cmd_id, status="REJECTED"
+            rowcount = await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id,
+                status="REJECTED",
+                approved_by_user_id=str(approver.id),
             )
+            if rowcount == 0:
+                await self.ai_command_repo.rollback()
+                return "invalid"
             await self.ai_command_repo.commit()
-            return True
-
-        if cmd["effect"] == "critical":
-            if not cmd.get("approved_by"):
-                # Ghi nhận lần duyệt 1 (Mattermost user ID không insert vào UUID column được)
-                await self.ai_command_repo.update_command_approval(cmd_id=cmd_id)
-                await self.ai_command_repo.commit()
-                return True
-            else:
-                # Ghi nhận lần duyệt 2
-                await self.ai_command_repo.update_command_approval(
-                    cmd_id=cmd_id, status="APPROVED"
-                )
-                await self.ai_command_repo.commit()
-                is_approved = True
-        else:
-            await self.ai_command_repo.update_command_approval(
-                cmd_id=cmd_id, status="APPROVED"
+            await self._audit(
+                tenant_id,
+                "HUMAN",
+                "ai.command.rejected",
+                cmd_id,
+                payload={"action": cmd.get("action"), "approver": str(approver.id)},
+                status="success",
             )
-            await self.ai_command_repo.commit()
-            is_approved = True
+            return "rejected"
 
-        if is_approved:
+        first_approver = cmd.get("approved_by_user_id") or cmd.get("approved_by")
+        if cmd["effect"] == "critical" and not first_approver:
+            # Lượt 1 của critical: ghi nhận, giữ PENDING, báo chờ lượt 2.
+            rowcount = await self.ai_command_repo.update_command_approval(
+                cmd_id=cmd_id, approved_by_user_id=str(approver.id)
+            )
+            if rowcount == 0:
+                await self.ai_command_repo.rollback()
+                return "invalid"
+            await self.ai_command_repo.commit()
+            await self._audit(
+                tenant_id,
+                "HUMAN",
+                "ai.command.partially_approved",
+                cmd_id,
+                payload={
+                    "action": cmd.get("action"),
+                    "approver": str(approver.id),
+                    "round": 1,
+                },
+                status="pending",
+            )
+            return "partially_approved"
+
+        # Lượt cuối (write, hoặc critical lượt 2): chuyển APPROVED có guard.
+        second_id = str(approver.id) if cmd["effect"] == "critical" else None
+        rowcount = await self.ai_command_repo.update_command_approval(
+            cmd_id=cmd_id,
+            status="APPROVED",
+            approved_by_user_id=(
+                str(first_approver)
+                if cmd["effect"] == "critical" and first_approver
+                else str(approver.id)
+            ),
+            second_approver_id=second_id,
+        )
+        if rowcount == 0:
+            # Race lost: luồng khác đã duyệt/hủy/hết hạn trước.
+            await self.ai_command_repo.rollback()
+            return "invalid"
+        await self.ai_command_repo.commit()
+        await self._audit(
+            tenant_id,
+            "HUMAN",
+            "ai.command.approved",
+            cmd_id,
+            payload={"action": cmd.get("action"), "approver": str(approver.id)},
+            status="success",
+        )
+        try:
+            params = self._extract_parameters(cmd)
+            webhook_url = self._resolve_action_url(cmd["action"])
+            await self.n8n_adapter.trigger_webhook(
+                webhook_url=webhook_url, payload=params or {}
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to trigger n8n after approval",
+                command_id=str(cmd_id),
+                error=str(e),
+            )
+            # Không báo approved giả: đánh FAILED để worker/retry xử lý.
             try:
-                webhook_url = self.n8n_adapter.build_webhook_url(cmd["action"])
-                await self.n8n_adapter.trigger_webhook(
-                    webhook_url=webhook_url, payload=cmd["parameters"]
-                )
-            except Exception as e:
+                await self.ai_command_repo.update_status(cmd_id, AICommandStatus.FAILED)
+                await self.ai_command_repo.commit()
+            except Exception as persist_err:
                 logger.error(
-                    "Failed to trigger n8n after approval for command %s: %s",
-                    cmd_id,
-                    e,
+                    "Persist FAILED sau lỗi n8n thất bại",
+                    command_id=str(cmd_id),
+                    error=str(persist_err),
                 )
+                await self.ai_command_repo.rollback()
+            await self._audit(
+                tenant_id,
+                "SYSTEM",
+                "ai.command.failed",
+                cmd_id,
+                payload={"action": cmd.get("action"), "error": str(e)},
+                status="failed",
+            )
+            raise
 
-        return True
+        return "approved"

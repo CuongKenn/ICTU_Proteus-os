@@ -52,8 +52,11 @@ def receive_after_begin(
     Event này chạy đồng bộ (sync) nhưng hoàn toàn an toàn trong môi trường async
     vì nó được bọc bởi greenlet của SQLAlchemy.
     """
+    # C6: middleware luôn default '' (không trust X-Tenant-ID); tenant thật
+    # chỉ được set sau JWT verify ở dependencies.get_current_tenant_context.
     tenant_id = current_tenant_id.get()
     if tenant_id:
+        # Chuỗi rỗng '' là falsy → rơi xuống nhánh else (fail-closed).
         logger.debug("RLS Enabled: Setting app.current_tenant_id = '%s'", tenant_id)
         # Validate UUID format trước — chặn injection
         try:

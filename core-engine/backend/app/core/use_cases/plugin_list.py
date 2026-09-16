@@ -5,11 +5,42 @@ from __future__ import annotations
 
 import logging
 import uuid
+from urllib.parse import urlparse, urlunparse
 
 from app.adapters.repositories.base import AbstractPluginRepository
 from app.core.domain.entities import PluginEntity
+from app.infrastructure.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def public_plugin_url(raw_url: str | None, code_name: str) -> str | None:
+    """Dựng external_url public cho plugin theo môi trường deploy.
+
+    Manifest dùng template ${PLUGINS_MFE_URL}/<code> (không hardcode domain).
+    Hàm này expand template bằng settings.PLUGINS_MFE_URL hiện tại; đồng thời
+    giữ tương thích manifest cũ hardcode http://plugins.proteus.local/... bằng
+    cách thay scheme+host bằng PLUGINS_MFE_URL.
+    """
+    base = settings.PLUGINS_MFE_URL.rstrip("/")
+    if not raw_url:
+        return f"{base}/{code_name}"
+    # Expand ${PLUGINS_MFE_URL} / $PLUGINS_MFE_URL template (manifest mới)
+    expanded = raw_url.replace("${PLUGINS_MFE_URL}", base).replace(
+        "$PLUGINS_MFE_URL", base
+    )
+    if expanded != raw_url:
+        return expanded
+    try:
+        parts = urlparse(raw_url)
+        if not parts.netloc:
+            return f"{base}/{raw_url.lstrip('/')}"
+        b = urlparse(base)
+        return urlunparse(
+            (b.scheme, b.netloc, parts.path or f"/{code_name}", "", "", "")
+        )
+    except Exception:
+        return raw_url
 
 
 class PluginListUseCase:
@@ -55,7 +86,9 @@ class PluginListUseCase:
                 plugin.workflows_count = len(manifest.workflows)
                 plugin.roles = [r.name for r in manifest.roles]
                 if manifest.ui:
-                    plugin.external_url = manifest.ui.external_url
+                    plugin.external_url = public_plugin_url(
+                        manifest.ui.external_url, plugin.code_name
+                    )
             except Exception as e:
                 logger.warning(
                     "Failed to load manifest for %s: %s", plugin.code_name, e

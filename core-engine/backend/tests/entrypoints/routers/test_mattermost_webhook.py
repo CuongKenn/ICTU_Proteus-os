@@ -123,7 +123,7 @@ async def test_mattermost_webhook_invalid_signature(
             headers={"Mattermost-Signature": signature},
         )
 
-    assert response.status_code == 400
+    assert response.status_code == 403
     assert "Chữ ký HMAC hoặc Token không hợp lệ" in response.json()["detail"]
 
 
@@ -140,7 +140,7 @@ async def test_mattermost_webhook_missing_signature(
             "/api/v1/webhooks/mattermost/callback", content=body
         )
 
-    assert response.status_code == 400
+    assert response.status_code == 403
     assert "Chữ ký HMAC hoặc Token không hợp lệ" in response.json()["detail"]
 
 

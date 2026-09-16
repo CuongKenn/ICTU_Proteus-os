@@ -55,3 +55,7 @@ class AICommandResponse(BaseModel):
     status: AICommandStatus  # Dùng Enum từ domain — Swagger tự gen đúng
     message: str
     result: dict[str, Any] | str | None = None
+    dsl_preview: dict[str, Any] | None = Field(
+        default=None,
+        description="Chi tiết chờ duyệt (command_id/action/effect/deadline/dry_run), chỉ có khi PENDING_APPROVAL",
+    )

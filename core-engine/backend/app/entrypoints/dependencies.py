@@ -33,6 +33,7 @@ from app.adapters.repositories.base import (
     AbstractTenantRepository,
     AbstractUserRepository,
 )
+from app.adapters.repositories.conversation_repo import ConversationRepository
 from app.adapters.repositories.dsl_dry_run_repo import SQLAlchemyDSLDryRunRepository
 from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
 from app.adapters.repositories.role_repo import RoleRepository
@@ -44,6 +45,7 @@ from app.core.domain.exceptions import InsufficientPermissionsError
 from app.core.domain.permissions import has_admin_role, has_wildcard_permission
 from app.core.domain.ports import AbstractLLMPort
 from app.core.use_cases.ai_command import AICommandUseCase
+from app.core.use_cases.conversation import ConversationUseCase
 from app.core.use_cases.keycloak_webhook import KeycloakWebhookUseCase
 from app.core.use_cases.plugin_action import PluginActionUseCase
 from app.core.use_cases.plugin_credentials import ConfigurePluginCredentialsUseCase
@@ -216,16 +218,30 @@ async def get_plugin_toggle_use_case(
 
 
 async def get_plugin_upgrade_use_case(
+    request: Request,
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    metabase_adapter: MetabaseAdapter = Depends(get_metabase_adapter),
+    appsmith_adapter: AppsmithAdapter = Depends(get_appsmith_adapter),
+    keycloak_adapter: KeycloakAdapter = Depends(get_keycloak_adapter),
+    mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     db: AsyncSession = Depends(get_db_transactional),
+    tenant_repo: AbstractTenantRepository = Depends(get_tenant_repo),
 ) -> PluginUpgradeUseCase:
-    """Inject Plugin Upgrade Use Case."""
+    """Inject Plugin Upgrade Use Case (full adapters như install)."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
 
     return PluginUpgradeUseCase(
         plugin_repo=repo,
         manifest_parser=LocalManifestParser(),
+        n8n_adapter=n8n_adapter,
+        metabase_adapter=metabase_adapter,
+        appsmith_adapter=appsmith_adapter,
+        keycloak_adapter=keycloak_adapter,
+        mattermost_adapter=mattermost_adapter,
         session=db,
+        event_bus=request.app.state.redis_event_bus,
+        tenant_repo=tenant_repo,
     )
 
 
@@ -359,6 +375,20 @@ async def get_user_provisioning_use_case(
     return UserProvisioningUseCase(user_repo=SQLAlchemyUserRepository(session=db))
 
 
+async def get_conversation_repo(
+    db: AsyncSession = Depends(get_db_transactional),
+) -> ConversationRepository:
+    """Inject Conversation Repository (transactional — ghi memory)."""
+    return ConversationRepository(session=db)
+
+
+async def get_conversation_use_case(
+    repo: ConversationRepository = Depends(get_conversation_repo),
+) -> ConversationUseCase:
+    """Inject Conversation Use Case."""
+    return ConversationUseCase(conversation_repo=repo)
+
+
 async def get_keycloak_webhook_use_case(
     user_repo: AbstractUserRepository = Depends(get_user_repo),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
@@ -410,9 +440,14 @@ async def get_plugin_records_use_case(
 
 
 async def get_ai_command_repo(
-    db: AsyncSession = Depends(get_db_readonly),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> AbstractAICommandRepository:
-    """Inject AI Command Repository."""
+    """Inject AI Command Repository (transactional).
+
+    Write path (create/approve) cần SELECT FOR UPDATE + UPDATE conditional
+    trong cùng transaction để chống approval race — vì vậy KHÔNG dùng
+    get_db_readonly ở đây.
+    """
     return SQLAlchemyAICommandRepository(session=db)
 
 
@@ -437,8 +472,14 @@ async def get_ai_command_use_case(
     role_repo: RoleRepository = Depends(get_role_repo),
     mattermost_adapter: MattermostAdapter = Depends(get_mattermost_adapter),
     n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
+    audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),
+    user_repo: AbstractUserRepository = Depends(get_user_repo),
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
 ) -> AICommandUseCase:
-    """Inject AICommandUseCase."""
+    """Inject AICommandUseCase (dynamic DSL + local core actions + audit)."""
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+
     return AICommandUseCase(
         plugin_repo=plugin_repo,
         ai_command_repo=ai_command_repo,
@@ -446,6 +487,11 @@ async def get_ai_command_use_case(
         role_repo=role_repo,
         mattermost_adapter=mattermost_adapter,
         n8n_adapter=n8n_adapter,
+        manifest_parser=LocalManifestParser(),
+        qdrant_adapter=qdrant_adapter,
+        audit_log_repo=audit_log_repo,
+        user_repo=user_repo,
+        conversation_repo=conversation_repo,
     )
 
 
@@ -496,9 +542,16 @@ from app.core.use_cases.ai_chat import AIChatUseCase
 async def get_ai_chat_use_case(
     llm_port: AbstractLLMPort = Depends(get_llm_port),
     ai_command_use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+    plugin_repo: AbstractPluginRepository = Depends(get_plugin_repo),
 ) -> AIChatUseCase:
-    """Inject AIChatUseCase."""
+    """Inject AIChatUseCase (memory + catalog động từ plugin đã cài)."""
+    from app.adapters.external.local_manifest_parser import LocalManifestParser
+
     return AIChatUseCase(
         llm_port=llm_port,
         ai_command_use_case=ai_command_use_case,
+        conversation_repo=conversation_repo,
+        plugin_repo=plugin_repo,
+        manifest_parser=LocalManifestParser(),
     )

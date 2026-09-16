@@ -72,17 +72,28 @@ class MattermostAdapter(AbstractChatOpsPort):
         context = extra_context or {}
         context["action_id"] = action_id
 
-        # Webhook callback URL mà Mattermost sẽ gọi về
-        # Giả sử webhook URL nội bộ là domain của Proteus (sẽ cấu hình
-        # qua biến môi trường ở thực tế,
-        # nhưng ở local/docker thì mattermost có thể gọi tới proteus-backend)
-        # Tuy nhiên Mattermost Interactive action sử dụng trường `integration.url`
-        # Phải dùng internal URL để Mattermost server gọi sang Backend server
-        backend_url = "http://proteus-backend:8000"
+        # Webhook callback URL mà Mattermost sẽ gọi về.
+        # C10: dùng settings.BACKEND_URL (không hardcode proteus-backend) để
+        # Mattermost gọi đúng domain theo môi trường (dev/staging/prod).
+        # Bảo mật: KHÔNG gắn raw secret vào query (?token=...) vì URL lọt vào
+        # log/proxy; thay bằng HMAC(action_id+ts) trong integration context
+        # (trả về trong body callback, verify bằng secrets.compare_digest).
+        import hashlib as _hashlib
+        import hmac as _hmac
+        import time as _time
+
+        backend_url = settings.BACKEND_URL.rstrip("/")
         secret = getattr(settings, "MATTERMOST_WEBHOOK_SECRET", "")
         webhook_url = f"{backend_url}/api/v1/webhooks/mattermost/callback"
         if secret:
-            webhook_url += f"?token={secret}"
+            _ts = str(int(_time.time()))
+            _sig = _hmac.new(
+                secret.encode("utf-8"),
+                f"{action_id}.{_ts}".encode("utf-8"),
+                _hashlib.sha256,
+            ).hexdigest()
+            context["_sig"] = _sig
+            context["_ts"] = _ts
 
         payload = {
             "channel_id": channel_id,
@@ -94,6 +105,7 @@ class MattermostAdapter(AbstractChatOpsPort):
                         "actions": [
                             {
                                 "id": "approveButton",
+                                "type": "button",
                                 "name": "Phê duyệt",
                                 "integration": {
                                     "url": webhook_url,
@@ -102,6 +114,7 @@ class MattermostAdapter(AbstractChatOpsPort):
                             },
                             {
                                 "id": "rejectButton",
+                                "type": "button",
                                 "name": "Từ chối",
                                 "style": "danger",
                                 "integration": {
@@ -216,6 +229,16 @@ class MattermostAdapter(AbstractChatOpsPort):
             )
             return existing.json()
 
+    async def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
+        """Lấy MM user theo id (dùng resolve người duyệt từ webhook)."""
+        try:
+            response = await self._call("GET", f"/api/v4/users/{user_id}")
+            return response.json()
+        except MattermostAdapterError as e:
+            if "404" in str(e):
+                return None
+            raise
+
     async def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         """Tìm MM user theo email. Không thấy → None."""
         response = await self._call(
@@ -227,18 +250,63 @@ class MattermostAdapter(AbstractChatOpsPort):
         return None
 
     async def create_user(
-        self, email: str, username: str, password: str
+        self,
+        email: str,
+        username: str,
+        password: str,
+        auth_service: str = "gitlab",
+        auth_data: str | None = None,
     ) -> dict[str, Any]:
         """
-        Tạo MM user (login chính vẫn qua SSO Keycloak; password random này
-        chỉ để thỏa mãn API — user không bao giờ dùng trực tiếp).
+        Tạo MM user với auth GitLab SSO (tránh xung đột
+        "already an account with email using other sign-in method" khi user
+        bấm Login with GitLab: user tạo kiểu email/password không SSO được).
+        Mattermost cấm gửi đồng thời password + auth_data nên user SSO
+        không kèm password.
         """
+        body: dict[str, Any] = {
+            "email": email,
+            "username": username,
+        }
+        if auth_service and auth_service != "email":
+            body["auth_service"] = auth_service
+            if auth_data:
+                body["auth_data"] = auth_data
+        else:
+            body["password"] = password
         response = await self._call(
             "POST",
             "/api/v4/users",
-            json={"email": email, "username": username, "password": password},
+            json=body,
         )
         return response.json()
+
+    async def revoke_all_sessions(self, user_id: str) -> bool:
+        """Thu hồi toàn bộ Mattermost sessions của user (dùng khi logout hệ thống).
+
+        Best-effort: user không có session (404) coi như đã logout → True.
+        """
+        try:
+            await self._call(
+                "POST", f"/api/v4/users/{user_id}/sessions/revoke/all", json={}
+            )
+            return True
+        except MattermostAdapterError as e:
+            if "404" in str(e):
+                return True
+            logger.warning("Không revoke được MM sessions của %s: %s", user_id, e)
+            return False
+
+    async def get_bot_user_id(self) -> str | None:
+        """Lấy user_id của chính bot (qua token). None nếu chưa cấu hình."""
+        if not self.token:
+            return None
+        try:
+            response = await self._call("GET", "/api/v4/users/me")
+            return response.json().get("id")
+        except Exception as e:
+            logger.warning("Không lấy được bot user_id: %s", e)
+            return None
 
     async def add_user_to_team(self, team_id: str, user_id: str) -> None:
         """Thêm member vào team. Đã là member (400) → bỏ qua."""
@@ -256,11 +324,19 @@ class MattermostAdapter(AbstractChatOpsPort):
             )
 
     async def ensure_user_in_team_by_email(
-        self, team_id: str, email: str, username: str, password: str
+        self,
+        team_id: str,
+        email: str,
+        username: str,
+        password: str,
+        auth_service: str = "gitlab",
+        auth_data: str | None = None,
     ) -> dict[str, Any]:
         """Đảm bảo MM user tồn tại và nằm trong team (dùng cho invite)."""
         user = await self.get_user_by_email(email)
         if not user:
-            user = await self.create_user(email, username, password)
+            user = await self.create_user(
+                email, username, password, auth_service, auth_data
+            )
         await self.add_user_to_team(team_id, user["id"])
         return user
