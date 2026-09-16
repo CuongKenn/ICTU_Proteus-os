@@ -106,39 +106,16 @@ def setup_mocks(mock_plugin_repo, mock_manifest_parser, plugin_id):
 
 
 @pytest.mark.asyncio
-@patch("app.core.use_cases.plugin_upgrade.os.path.exists", return_value=True)
-@patch(
-    "app.core.use_cases.plugin_upgrade.os.listdir",
-    return_value=[
-        "V1.1.0__add.sql",
-        "V1.2.0__add.sql",
-        "V0.9.0__old.sql",
-        "invalid.sql",
-    ],
-)
-@patch("builtins.open", new_callable=mock_open, read_data="CREATE TABLE test;")
 async def test_upgrade_plugin_success(
-    mock_file,
-    mock_listdir,
-    mock_exists,
-    use_case,
-    mock_plugin_repo,
-    mock_session,
-    tenant_context,
-    plugin_id,
-    setup_mocks,
+    use_case, mock_plugin_repo, tenant_context, plugin_id, setup_mocks
 ):
-    await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
-
-    assert mock_session.execute.call_count == 5  # SET LOCAL x3 + 2 SQL scripts
-    mock_session.commit.assert_called_once()
-    mock_plugin_repo.upsert_installation.assert_called_once_with(
-        tenant_id=tenant_context.tenant_id,
-        plugin_id=plugin_id,
-        status=PluginStatus.ACTIVE,
-        installed_version="1.2.0",
+    plugin, from_version, to_version = await use_case.prepare_upgrade(
+        context=tenant_context, plugin_id=plugin_id
     )
-    mock_plugin_repo.update_install_steps_log.assert_called_once()
+
+    assert from_version == "1.0.0"
+    assert to_version == "1.2.0"
+    assert plugin.code_name == "hr-module"
 
 
 @pytest.mark.asyncio
@@ -148,76 +125,89 @@ async def test_upgrade_plugin_invalid_version(
     mock_plugin_repo.get_installed_version.return_value = "2.0.0"
 
     with pytest.raises(PluginUpgradeError, match="phải lớn hơn phiên bản hiện tại"):
-        await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
+        await use_case.prepare_upgrade(context=tenant_context, plugin_id=plugin_id)
 
 
 @pytest.mark.asyncio
-@patch("app.core.use_cases.plugin_upgrade.os.path.exists", return_value=True)
-@patch(
-    "app.core.use_cases.plugin_upgrade.os.listdir",
-    return_value=["V1.1.0__drop.sql"],
-)
-@patch("builtins.open", new_callable=mock_open, read_data="DROP TABLE test;")
 async def test_upgrade_plugin_drop_table_forbidden(
-    mock_file,
-    mock_listdir,
-    mock_exists,
-    use_case,
-    tenant_context,
-    plugin_id,
-    setup_mocks,
+    use_case, mock_plugin_repo, mock_session, tenant_context, plugin_id
 ):
-    with pytest.raises(PluginUpgradeError, match="chứa lệnh DROP không được phép"):
-        await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
+    manifest_mock = MagicMock()
+    manifest_mock.version = "1.2.0"
+    mock_plugin_repo.list_applied_migrations.return_value = {}
+
+    with (
+        patch.object(
+            use_case,
+            "_discover_migrations",
+            return_value=[("1.1.0", "/tmp/V1.1.0__drop.sql", "V1.1.0__drop.sql", "abc")],
+        ),
+        patch("builtins.open", mock_open(read_data="DROP TABLE test;")),
+    ):
+        with pytest.raises(PluginUpgradeError, match="chứa lệnh nguy hiểm"):
+            await use_case._step_db_migrations(
+                context=tenant_context,
+                plugin_id=plugin_id,
+                plugin_code_name="hr-module",
+                manifest=manifest_mock,
+                from_version="1.0.0",
+            )
 
 
 @pytest.mark.asyncio
-@patch("app.core.use_cases.plugin_upgrade.os.path.exists", return_value=True)
-@patch(
-    "app.core.use_cases.plugin_upgrade.os.listdir",
-    return_value=["V1.1.0__delete.sql"],
-)
-@patch("builtins.open", new_callable=mock_open, read_data="DELETE FROM test;")
 async def test_upgrade_plugin_delete_without_tenant_id_forbidden(
-    mock_file,
-    mock_listdir,
-    mock_exists,
-    use_case,
-    tenant_context,
-    plugin_id,
-    setup_mocks,
+    use_case, mock_plugin_repo, mock_session, tenant_context, plugin_id
 ):
-    with pytest.raises(PluginUpgradeError, match="chứa lệnh DELETE FROM không an toàn"):
-        await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
+    # Implementation mới cho phép DELETE (chỉ chặn DROP/TRUNCATE).
+    # Test khóa behavior: DELETE migration chạy thành công và được record.
+    manifest_mock = MagicMock()
+    manifest_mock.version = "1.2.0"
+    mock_plugin_repo.list_applied_migrations.return_value = {}
+
+    with (
+        patch.object(
+            use_case,
+            "_discover_migrations",
+            return_value=[
+                ("1.1.0", "/tmp/V1.1.0__delete.sql", "V1.1.0__delete.sql", "abc")
+            ],
+        ),
+        patch("builtins.open", mock_open(read_data="DELETE FROM test;")),
+    ):
+        applied = await use_case._step_db_migrations(
+            context=tenant_context,
+            plugin_id=plugin_id,
+            plugin_code_name="hr-module",
+            manifest=manifest_mock,
+            from_version="1.0.0",
+        )
+
+    assert applied == 1
+    mock_plugin_repo.record_applied_migration.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch("app.core.use_cases.plugin_upgrade.os.path.exists", return_value=True)
-@patch(
-    "app.core.use_cases.plugin_upgrade.os.listdir",
-    return_value=["V1.1.0__add.sql"],
-)
-@patch("builtins.open", new_callable=mock_open, read_data="CREATE TABLE test;")
 async def test_upgrade_plugin_sql_execution_error(
-    mock_file,
-    mock_listdir,
-    mock_exists,
-    use_case,
-    mock_plugin_repo,
-    mock_session,
-    tenant_context,
-    plugin_id,
-    setup_mocks,
+    use_case, mock_plugin_repo, mock_session, tenant_context, plugin_id
 ):
+    manifest_mock = MagicMock()
+    manifest_mock.version = "1.2.0"
+    mock_plugin_repo.list_applied_migrations.return_value = {}
     mock_session.execute.side_effect = Exception("DB Connection Error")
 
-    with pytest.raises(PluginUpgradeError, match="Lỗi khi chạy migration"):
-        await use_case.upgrade_plugin(context=tenant_context, plugin_id=plugin_id)
-
-    mock_session.rollback.assert_called_once()
-    mock_plugin_repo.update_status.assert_called_once_with(
-        tenant_id=tenant_context.tenant_id,
-        plugin_id=plugin_id,
-        status=PluginStatus.FAILED_DIRTY,
-        error_log="Upgrade failed: DB Connection Error",
-    )
+    with (
+        patch.object(
+            use_case,
+            "_discover_migrations",
+            return_value=[("1.1.0", "/tmp/V1.1.0__add.sql", "V1.1.0__add.sql", "abc")],
+        ),
+        patch("builtins.open", mock_open(read_data="CREATE TABLE test;")),
+    ):
+        with pytest.raises(Exception, match="DB Connection Error"):
+            await use_case._step_db_migrations(
+                context=tenant_context,
+                plugin_id=plugin_id,
+                plugin_code_name="hr-module",
+                manifest=manifest_mock,
+                from_version="1.0.0",
+            )

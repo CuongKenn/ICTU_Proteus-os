@@ -29,8 +29,21 @@ def upgrade() -> None:
     # ALTER TYPE ... ADD VALUE không chạy được trong transaction block.
     # Dùng autocommit_block (commit txn hiện tại, chạy DDL này ngoài txn),
     # các DDL còn lại vẫn chạy trong transaction bình thường.
-    with op.get_context().autocommit_block():
-        op.execute("ALTER TYPE plugin_status ADD VALUE IF NOT EXISTS 'UPGRADING'")
+    # Lưu ý: schema hiện tại dùng VARCHAR cho status (models.py),
+    # không phải native PG enum → type plugin_status có thể không tồn tại
+    # (fresh DB). Chỉ ALTER khi type đã tồn tại để migration idempotent.
+    bind = op.get_bind()
+    enum_exists = (
+        bind.execute(
+            sa.text("SELECT 1 FROM pg_type WHERE typname = 'plugin_status'")
+        ).scalar()
+        is not None
+    )
+    if enum_exists:
+        with op.get_context().autocommit_block():
+            op.execute(
+                "ALTER TYPE plugin_status ADD VALUE IF NOT EXISTS 'UPGRADING'"
+            )
     op.add_column(
         "tenant_plugins",
         sa.Column("upgrade_task_id", sa.UUID(), nullable=True),
