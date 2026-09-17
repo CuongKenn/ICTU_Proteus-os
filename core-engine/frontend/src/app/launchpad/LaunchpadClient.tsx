@@ -326,9 +326,14 @@ export function LaunchpadClient() {
     });
   }, [roleVisiblePlugins, favOnly, favorites, category, query, rankOf]);
 
+  const totalSystemApps = useMemo(
+    () => SYSTEM_APPS.filter((app) => !app.adminOnly || isAdmin).length,
+    [isAdmin]
+  );
+
   const activeCount = useMemo(
-    () => roleVisiblePlugins.filter((p) => p.status === "ACTIVE").length,
-    [roleVisiblePlugins]
+    () => totalSystemApps + roleVisiblePlugins.filter((p) => p.status === "ACTIVE").length,
+    [roleVisiblePlugins, totalSystemApps]
   );
 
   const hasFilter = query.trim() !== "" || favOnly || category !== "all";
@@ -376,10 +381,6 @@ export function LaunchpadClient() {
     month: "long",
     day: "numeric",
   });
-  const totalSystemApps = useMemo(
-    () => SYSTEM_APPS.filter((app) => !app.adminOnly || isAdmin).length,
-    [isAdmin]
-  );
   const totalApps = roleVisiblePlugins.length + totalSystemApps;
   const recentItems = recent
     .map((id) => {

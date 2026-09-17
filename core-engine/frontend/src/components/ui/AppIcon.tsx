@@ -76,30 +76,30 @@ export const AppIcon: React.FC<AppIconProps> = ({
         </div>
       )}
 
-      <div className="mb-3 flex items-center gap-3.5">
+      <div className="mb-2.5 flex items-start justify-between gap-2">
         <div
           className={`flex shrink-0 items-center justify-center rounded-2xl ring-1 transition-transform duration-200 group-hover:scale-105 ${TONE_TILE[tone]}`}
           style={{ height: 52, width: 52 }}
         >
           {icon}
         </div>
-        <div className="min-w-0 flex-1 pr-8">
-          <div className="truncate font-display text-[15px] font-bold text-text-primary">
-            {appName}
-          </div>
-          <div
-            className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-              isActive ? STATUS_ACTIVE_PILL : STATUS_PAUSED_PILL
+      </div>
+      <div className="min-w-0">
+        <div className="break-words font-display text-[15px] font-bold leading-snug text-text-primary line-clamp-2">
+          {appName}
+        </div>
+        <div
+          className={`mt-1.5 inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+            isActive ? STATUS_ACTIVE_PILL : STATUS_PAUSED_PILL
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+              isActive ? "bg-emerald-500 animate-pulse dark:bg-success" : "bg-slate-400 dark:bg-text-disabled/60"
             }`}
-          >
-            <span
-              aria-hidden="true"
-              className={`h-1.5 w-1.5 rounded-full ${
-                isActive ? "bg-emerald-500 animate-pulse dark:bg-success" : "bg-slate-400 dark:bg-text-disabled/60"
-              }`}
-            />
-            {isActive ? "Đang hoạt động" : "Tạm dừng"}
-          </div>
+          />
+          {isActive ? "Đang hoạt động" : "Tạm dừng"}
         </div>
       </div>
 
