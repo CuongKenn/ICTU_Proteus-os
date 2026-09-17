@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — Tổng quan: KPI + văn bản chờ xử lý + phê duyệt tồn.
 import React, { useEffect, useState } from 'react';
 import { INCOMING_LABEL, type ApprovalItem, type IncomingDoc, type OutgoingDoc } from '../types';

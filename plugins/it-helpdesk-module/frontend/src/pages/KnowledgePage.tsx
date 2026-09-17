@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // IT Helpdesk Module — Tri thức: search + xem + CRUD bài viết.
 import React, { useCallback, useEffect, useState } from 'react';
 import type { ItCategory, KnowledgeArticle } from '../types';

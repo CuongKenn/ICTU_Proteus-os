@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // CRM seed — giữ 2 dòng gốc từ db/seed_data.sql, mở rộng thêm để demo kanban.
 import type {
   Contact,

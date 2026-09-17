@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — Hóa đơn: theo dõi + tạo (qua workflow) + duyệt thanh toán.
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatVND, INVOICE_STATUS_LABEL, type FinanceInvoice, type InvoiceStatus } from '../types';

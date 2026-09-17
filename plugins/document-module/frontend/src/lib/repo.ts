@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — DATA LAYER.
 // Hai chế độ sau cùng 1 interface async DocumentStore:
 // - DEMO: mock sync (seed + localStorage, offline, không cần login).

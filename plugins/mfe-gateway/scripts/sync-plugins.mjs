@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Sync source of truth plugins/*/frontend/src → mfe-gateway/src/_plugins/*
 // Chạy ở prebuild/predev (host) và trong Dockerfile (container).
 // Lý do phải copy thay vì import trực tiếp ../../../:

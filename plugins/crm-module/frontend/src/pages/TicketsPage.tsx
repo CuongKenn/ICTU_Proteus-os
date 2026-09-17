@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // CRM Tickets: SLA countdown + chuyển trạng thái + comments + tạo mới.
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Customer, Ticket, TicketStatus } from '../types';

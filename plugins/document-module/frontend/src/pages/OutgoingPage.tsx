@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — Văn bản đi: search/filter + soạn thảo + chuyển ký/ban hành.
 // CRUD qua records; ký duyệt thực hiện ở trang Phê duyệt (wf_document_approval).
 import React, { useCallback, useEffect, useState } from 'react';

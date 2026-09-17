@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import React, { useCallback, useEffect, useState } from 'react';
 import { registry } from './plugins/registry';
 

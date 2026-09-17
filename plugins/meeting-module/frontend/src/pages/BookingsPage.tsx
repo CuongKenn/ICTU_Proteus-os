@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Meeting Module — Đặt phòng: search/filter + đặt mới + hủy.
 // Tạo mới: check trùng giờ phía client rồi gọi dispatcher wf_meeting_booking.
 import React, { useCallback, useEffect, useState } from 'react';

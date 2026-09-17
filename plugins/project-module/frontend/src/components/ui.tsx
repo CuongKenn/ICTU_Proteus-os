@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Primitives dùng chung cho project-module (dark theme, không phụ thuộc lib ngoài).
 import React from 'react';
 import { PROJECT_STATUS_LABEL, type ProjectStatus } from '../types';

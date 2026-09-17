@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — Nghỉ phép: tạo đơn (qua workflow) + duyệt/từ chối.
 import React, { useCallback, useEffect, useState } from 'react';
 import { LEAVE_STATUS_COLOR, LEAVE_STATUS_LABEL, isPendingLeave, leaveDays, type Employee, type LeaveRequest } from '../types';

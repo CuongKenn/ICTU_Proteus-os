@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — types map 1-1 với db/seed_data.sql
 // (+ migrations/V1.1.0__add_emergency_contact.sql: hr_employees.emergency_contact).
 // tenant_id do server tự inject từ session — client KHÔNG BAO GIỜ gửi.

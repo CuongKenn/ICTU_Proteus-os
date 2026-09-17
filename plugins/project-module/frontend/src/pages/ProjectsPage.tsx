@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Project Module — Dự án: search/filter + CRUD + đổi trạng thái.
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatVND, type Project, type ProjectStatus } from '../types';

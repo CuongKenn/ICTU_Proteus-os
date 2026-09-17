@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — seed mở rộng từ db/seed_data.sql (giữ nguyên ID + dòng gốc:
 // 3 phòng ban HR/IT/ACC, NV001 Nguyễn Văn A, NV002 Trần Thị B, NV003 Nguyễn Văn Trung).
 import type {

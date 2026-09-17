@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR — Tuyển dụng (ATS P1): kanban hồ sơ + lịch phỏng vấn + offer/nhận việc.
 // P2: tạo hồ sơ/phỏng vấn qua dispatcher (wf_application_received,
 // wf_interview_schedule). P3: nút "AI chấm" gọi DSL hr.applications.screen.

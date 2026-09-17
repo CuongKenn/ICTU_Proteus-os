@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Meeting Module — Việc cần làm: CRUD action items qua records.
 import React, { useCallback, useEffect, useState } from 'react';
 import { ACTION_LABEL, type ActionItem, type ActionStatus, type Booking } from '../types';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — seed mở rộng từ db/seed_data.sql (giữ nguyên 5 dòng
 // document_categories gốc) + dữ liệu VN thực tế cho văn bản đến/đi,
 // phê duyệt, phân phối.

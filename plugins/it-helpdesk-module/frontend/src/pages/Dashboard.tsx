@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // IT Helpdesk Module — Tổng quan: KPI + SLA vi phạm + tickets mới + top tri thức.
 import React, { useEffect, useState } from 'react';
 import type { ItTicket, KnowledgeArticle } from '../types';

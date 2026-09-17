@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Hook dùng chung: resolve store (live/demo) + format lỗi API.
 import { useEffect, useState } from 'react';
 import { ApiError } from './api';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — DATA LAYER.
 // Hai chế độ sau cùng 1 interface async ProcurementStore:
 // - DEMO: createMockRepo (seed + localStorage, offline, không cần login).

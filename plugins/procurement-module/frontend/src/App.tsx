@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — root component. Gateway render <ProcurementModuleApp subPath navigate />.
 // subPath: phần sau /procurement-module ('' | 'requests' | 'vendors' | 'contracts').
 import React from 'react';

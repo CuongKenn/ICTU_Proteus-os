@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — root component. Gateway render <DocumentModuleApp subPath navigate />.
 // subPath: phần sau /document-module ('' | 'incoming' | 'outgoing' | 'approvals').
 import React from 'react';

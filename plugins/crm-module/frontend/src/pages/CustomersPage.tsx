@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // CRM Customers: list + drawer chi tiết (contacts, opps, tickets).
 import React, { useEffect, useState } from 'react';
 import type { Customer, Opportunity, Ticket } from '../types';

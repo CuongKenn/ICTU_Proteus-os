@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — Nhà cung cấp: search + CRUD + đánh giá sao.
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Vendor } from '../types';

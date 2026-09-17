@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — Văn bản đến: search/filter + tiếp nhận + điều chuyển.
 // Tạo mới LIVE đi qua dispatcher wf_incoming_document; điều chuyển qua
 // wf_reassign_document; còn lại CRUD records.

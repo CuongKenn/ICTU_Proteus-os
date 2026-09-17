@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — root component. Gateway render <FinanceModuleApp subPath navigate />.
 // subPath: phần sau /finance-module ('' | 'transactions' | 'invoices' | 'expenses').
 import React from 'react';

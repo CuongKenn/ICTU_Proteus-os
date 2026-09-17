@@ -16,7 +16,7 @@
 | **2** | **Cấp phép PMMN theo giấy phép OSI-approved** | **10** | **10 / 10** | ✅ Đáp ứng 100% | Giấy phép GNU AGPLv3, bản sao toàn văn, ghi header 100% file mã nguồn |
 | **3** | **Có ít nhất một bản phát hành (release) để làm sản phẩm dự thi** | **5** | **5 / 5** | ✅ Đáp ứng 100% | 3 bản phát hành v1.0.0, v1.0.1, v1.0.2 với định dạng mở `.tar.gz` |
 | **4** | **Cài đặt, dịch từ mã nguồn (Building From Source)** | **10** | **10 / 10** | ✅ Đáp ứng 100% | Có `BUILDING.md`, cấu hình qua `.env` không sửa header, 100% công cụ mở |
-| **5** | **Sử dụng thư viện và gói đính kèm (bundling)** | **10** | **10 / 10** | ✅ Đáp ứng 100% | Có `DEPENDENCIES.md`, chính sách Zero-Bundling, không sửa đổi mã nguồn thư viện |
+| **5** | **Sử dụng thư viện và gói đính kèm (bundling)** | **10** | **10 / 10** | ✅ Đáp ứng 100% | Có danh mục phụ thuộc trong `docs/LICENSE_NOTICE.md` §4, chính sách Zero-Bundling, không sửa đổi mã nguồn thư viện |
 | **6** | **Tài liệu và giao tiếp** | **10** | **10 / 10** | ✅ Đáp ứng 100% | Có Bug Tracker (Issues), `CHANGELOG.md` chuẩn hóa, `README.md` chi tiết |
 | **TỔNG** | **ĐIỂM TIÊU CHÍ PoF** | **50** | **50 / 50** | **HOÀN TOÀN KHÔNG BỊ TRỪ ĐIỂM NÀO** | |
 
@@ -84,7 +84,7 @@
   - *Không cố gắng sử dụng các thư viện sẵn có trong hệ thống (-5 điểm):* ❌ **Không bị trừ.** Dự án kế thừa tối đa các nền tảng nguồn mở sẵn có hàng đầu thế giới (Keycloak, n8n, Appsmith, Metabase, Mattermost, PostgreSQL, Redis, Qdrant, Traefik).
   - *Phát hành cùng với gói đính kèm của các dự án khác mà nó phụ thuộc vào (-5 điểm):* ❌ **Không bị trừ.** Áp dụng chính sách **Zero Bundling** — không commit mã nguồn của thư viện bên thứ 3 vào git, mà quản lý phụ thuộc thông qua `requirements.txt` và `package.json`.
   - *Mã nguồn của gói đính kèm đã bị chỉnh sửa (-5 điểm):* ❌ **Không bị trừ.** Toàn bộ thư viện được cài đặt nguyên bản từ PyPI và npmjs chính thức, không can thiệp hay vá mã nguồn nội bộ thư viện.
-- **Minh chứng:** [DEPENDENCIES.md](../DEPENDENCIES.md)
+- **Minh chứng:** [docs/LICENSE_NOTICE.md §4](./LICENSE_NOTICE.md#4-danh-mục-phụ-thuộc--chính-sách-zero-bundling-hợp-nhất-từ-dependenciesmd), workflow [license-scan.yml](../.github/workflows/license-scan.yml)
 
 ---
 

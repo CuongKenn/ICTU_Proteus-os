@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — Hợp đồng: theo dõi hiệu lực/hết hạn + CRUD.
 import React, { useCallback, useEffect, useState } from 'react';
 import { CONTRACT_STATUS_LABEL, formatVND, type Contract, type ContractStatus, type Vendor } from '../types';

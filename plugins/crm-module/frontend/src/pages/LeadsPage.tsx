@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // CRM Leads kanban: NEW → CONTACTED → QUALIFIED → CONVERTED / LOST.
 // Nút "Convert" ở live mode ghi OPP thật vào DB.
 import React, { useCallback, useEffect, useState } from 'react';

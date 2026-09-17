@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // IT Helpdesk Module — Chính sách SLA: xem + chỉnh số giờ xử lý theo mức ưu tiên.
 import React, { useCallback, useEffect, useState } from 'react';
 import { PRIORITY_LABEL, type SlaPolicy, type TicketPriority } from '../types';

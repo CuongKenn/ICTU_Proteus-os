@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // CRM — DATA LAYER (DEMO localStorage + LIVE API thật chung interface).
 import {
   seedComments,
