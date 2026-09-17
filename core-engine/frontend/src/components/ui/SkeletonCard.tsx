@@ -4,25 +4,29 @@
 "use client";
 
 import React from "react";
-import clsx from "clsx";
 
-export const SkeletonCard: React.FC<{ className?: string }> = ({ className }) => {
-  return (
-    <div className={clsx("glass-card p-4 flex flex-col gap-4 animate-pulse-slow", className)}>
-      <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl bg-bg-surface/50 border border-border/50 shrink-0" />
-        <div className="flex-1 space-y-2 py-1">
-          <div className="h-4 bg-bg-surface/60 rounded w-3/4" />
-          <div className="h-3 bg-bg-surface/40 rounded w-1/4" />
+export const SkeletonCard: React.FC = () => (
+  <div className="card p-5 animate-pulse">
+    {/* Header */}
+    <div className="flex items-start gap-3.5">
+      <div className="plugin-icon" style={{ background: "var(--line)" }} />
+      <div className="flex-1 space-y-2.5">
+        <div className="h-4 rounded-lg w-3/4" style={{ background: "var(--line)" }} />
+        <div className="h-3 rounded-lg w-1/3" style={{ background: "var(--line)" }} />
+        <div className="flex gap-1.5 mt-1">
+          <div className="h-[18px] rounded-md w-10" style={{ background: "var(--line)" }} />
+          <div className="h-[18px] rounded-md w-14" style={{ background: "var(--line)" }} />
         </div>
       </div>
-      <div className="space-y-2 mt-2">
-        <div className="h-3 bg-bg-surface/40 rounded w-full" />
-        <div className="h-3 bg-bg-surface/40 rounded w-5/6" />
-      </div>
-      <div className="mt-auto pt-4 flex gap-4">
-        <div className="h-10 bg-bg-surface/50 rounded-lg w-28" />
-      </div>
     </div>
-  );
-};
+    {/* Description */}
+    <div className="mt-3 space-y-2">
+      <div className="h-3 rounded-lg w-full" style={{ background: "var(--line)" }} />
+      <div className="h-3 rounded-lg w-2/3" style={{ background: "var(--line)" }} />
+    </div>
+    {/* Separator */}
+    <div className="separator mt-3" />
+    {/* Action */}
+    <div className="mt-3 h-9 rounded-lg" style={{ background: "var(--line)" }} />
+  </div>
+);

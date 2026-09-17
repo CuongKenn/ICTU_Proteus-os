@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useSession } from "@/hooks/useSession";
 import { useRBAC } from "@/hooks/useRBAC";
 import { PluginCard, type PluginData, type PluginStatus } from "@/components/marketplace/PluginCard";
@@ -11,7 +11,6 @@ import { CategoryFilter } from "@/components/marketplace/CategoryFilter";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { Modal } from "@/components/ui/Modal";
 import { InstallPreviewDialog } from "./InstallPreviewDialog";
-import { InstallProgressModal } from "@/components/marketplace/InstallProgressModal";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePlugins } from "@/hooks/usePlugins";
 import { PackageOpen, Sparkles } from "lucide-react";
@@ -19,36 +18,17 @@ import type { CredentialFieldSchema, CredentialInput } from "@/types";
 
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
 
-/** So sánh semver đơn giản: -1 nếu a<b, 0 nếu bằng, 1 nếu a>b. */
-const compareVersions = (a?: string | null, b?: string | null): number => {
-  const pa = (a ?? "").split(".").map((x) => parseInt(x, 10) || 0);
-  const pb = (b ?? "").split(".").map((x) => parseInt(x, 10) || 0);
-  const n = Math.max(pa.length, pb.length, 1);
-  for (let i = 0; i < n; i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d !== 0) return d > 0 ? 1 : -1;
-  }
-  return 0;
-};
-
 export const MarketplaceClient: React.FC = () => {
   useSession();
   const { hasPermission, isLoading: isRBACLoading } = useRBAC();
   const canInstall = hasPermission("plugins:install");
 
-  const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installSteps, installPlugin, uninstallPlugin } = useMarketplace();
-  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled, upgrade: upgradePlugin, upgradingId, upgradeProgress, upgradeStatus, upgradeSteps } = usePlugins();
-  const canUpgrade = hasPermission("plugins:upgrade");
+  const { plugins: availablePlugins, isLoading: isLoadingAvailable, installingId, installProgress, installStatus, installPlugin, uninstallPlugin } = useMarketplace();
+  const { plugins: installedPlugins, isLoading: isLoadingInstalled, refetch: refetchInstalled } = usePlugins();
 
   const [previewPlugin, setPreviewPlugin] = useState<PluginData | null>(null);
   const [previewCredSchema, setPreviewCredSchema] = useState<CredentialFieldSchema[]>([]);
   const [isInstallPreviewOpen, setIsInstallPreviewOpen] = useState(false);
-
-  useEffect(() => {
-    if (installStatus === null && !installingId) {
-      refetchInstalled();
-    }
-  }, [installStatus, installingId, refetchInstalled]);
 
   const [uninstallPluginData, setUninstallPluginData] = useState<{ id: string; name: string } | null>(null);
   const [isUninstallConfirmOpen, setIsUninstallConfirmOpen] = useState(false);
@@ -66,16 +46,7 @@ export const MarketplaceClient: React.FC = () => {
       if (p.status === "FAILED_DIRTY") uiStatus = "failed";
       else if (p.status === "DISABLED") uiStatus = "disabled";
       else if (p.status === "INSTALLING") uiStatus = "installing";
-      else if (p.status === "UNINSTALLING" as any) uiStatus = "uninstalling" as any;
       else if (p.status === "PENDING_CREDENTIALS") uiStatus = "failed"; // show as warning
-      else if (p.status === "UPGRADING" as any) uiStatus = "upgrading";
-      else {
-        // So sánh installed_version (DB) với version mới nhất trên Marketplace
-        const twin = availablePlugins.find(ap => ap.code_name === p.code_name);
-        if (canUpgrade && twin && p.installed_version && compareVersions(p.installed_version, twin.version) < 0) {
-          uiStatus = "update_available";
-        }
-      }
 
       list.push({
         data: {
@@ -124,7 +95,7 @@ export const MarketplaceClient: React.FC = () => {
     });
 
     return list;
-  }, [availablePlugins, installedPlugins, canUpgrade]);
+  }, [availablePlugins, installedPlugins]);
 
   // Filter plugins based on search and category
   const filteredPlugins = useMemo(() => {
@@ -159,15 +130,6 @@ export const MarketplaceClient: React.FC = () => {
     }
   };
 
-  const handleUpdateClick = async (id: string) => {
-    if (!canUpgrade) return;
-    try {
-      await upgradePlugin(id);
-    } catch {
-      // toast đã xử lý trong hook
-    }
-  };
-
   const handleUninstallClick = (id: string) => {
     if (!canInstall) return;
     const plugin = allPlugins.find(p => p.data.id === id)?.data;
@@ -190,26 +152,23 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-20 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 mt-8">
+    <div className="flex flex-col gap-8 pb-20 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 mt-8">
       {/* Hero Section */}
-      <div className="flex flex-col gap-6 relative p-8 md:p-12 rounded-3xl overflow-hidden glass-card border border-border/40 bg-gradient-to-br from-brand-primary/10 via-transparent to-transparent">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-brand-primary/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-brand-secondary/20 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col gap-3 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-sm font-semibold w-fit">
-            <Sparkles className="w-4 h-4" /> App Store
+      <div className="card p-8 md:p-12">
+        <div className="flex flex-col gap-3 max-w-2xl">
+          <div className="mono-tag w-fit">
+            <Sparkles className="w-3 h-3" />
+            <span>MARKETPLACE</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-text-primary tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-grot font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
             Khám phá Ứng dụng
           </h1>
-          <p className="text-lg text-text-secondary">
+          <p className="text-[0.9375rem]" style={{ color: 'var(--muted)' }}>
             Mở rộng khả năng của hệ thống với hàng chục ứng dụng được thiết kế tối ưu cho doanh nghiệp của bạn.
           </p>
         </div>
 
-        <div className="relative z-10 mt-4 w-full">
+        <div className="mt-6 w-full">
           <CategoryFilter 
             categories={CATEGORIES}
             selectedCategory={selectedCategory}
@@ -223,7 +182,7 @@ export const MarketplaceClient: React.FC = () => {
       {/* Main Grid Content */}
       <div className="flex flex-col gap-6">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-bento">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -232,22 +191,22 @@ export const MarketplaceClient: React.FC = () => {
             <SkeletonCard />
           </div>
         ) : allPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
-            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
-              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
+          <div className="flex flex-col items-center justify-center py-32 rounded-2xl text-center" style={{ border: '1px dashed var(--line-hi)' }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: 'var(--paper)', border: '1px solid var(--line-hi)' }}>
+              <PackageOpen className="w-10 h-10" style={{ color: 'var(--ghost)' }} />
             </div>
-            <h3 className="text-xl font-bold text-text-primary mb-2">Chưa có Plugin nào trên Marketplace</h3>
-            <p className="text-text-secondary max-w-md">
+            <h3 className="text-xl font-grot font-bold mb-2" style={{ color: 'var(--ink)' }}>Chưa có Plugin nào trên Marketplace</h3>
+            <p style={{ color: 'var(--muted)' }} className="max-w-md">
               Hệ thống hiện chưa có ứng dụng nào được phát hành. Vui lòng quay lại sau.
             </p>
           </div>
         ) : filteredPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
-            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
-              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
+          <div className="flex flex-col items-center justify-center py-32 rounded-2xl text-center" style={{ border: '1px dashed var(--line-hi)' }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: 'var(--paper)', border: '1px solid var(--line-hi)' }}>
+              <PackageOpen className="w-10 h-10" style={{ color: 'var(--ghost)' }} />
             </div>
-            <h3 className="text-xl font-bold text-text-primary mb-2">Không tìm thấy ứng dụng nào</h3>
-            <p className="text-text-secondary max-w-md">
+            <h3 className="text-xl font-grot font-bold mb-2" style={{ color: 'var(--ink)' }}>Không tìm thấy ứng dụng nào</h3>
+            <p style={{ color: 'var(--muted)' }} className="max-w-md">
               {searchQuery 
                 ? `Không có kết quả nào khớp với "${searchQuery}". Hãy thử tìm kiếm với từ khóa khác.`
                 : "Marketplace hiện chưa có ứng dụng nào trong danh mục này."}
@@ -255,29 +214,27 @@ export const MarketplaceClient: React.FC = () => {
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery("")}
-                className="mt-6 text-brand-primary font-medium hover:underline"
+                className="mt-6 font-medium transition-colors" style={{ color: 'var(--accent)' }}
               >
                 Xóa tìm kiếm
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-fr">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-bento auto-rows-fr">
             {filteredPlugins.map(({ data, status }) => {
-              // Override status if this plugin is currently installing/upgrading
-              let currentStatus = installingId === data.id ? (installStatus || status) : status;
-              if (upgradingId === data.id) currentStatus = (upgradeStatus || "upgrading") as PluginStatus;
-
+              // Override status if this plugin is currently installing
+              const currentStatus = installingId === data.id ? (installStatus || status) : status;
+              
               return (
                 <PluginCard
                   key={data.id}
                   plugin={data}
                   status={currentStatus as PluginStatus}
-                  installProgress={installingId === data.id ? installProgress : upgradingId === data.id ? upgradeProgress : 0}
+                  installProgress={installingId === data.id ? installProgress : 0}
                   canInstall={canInstall}
                   onInstall={handleInstallClick}
                   onUninstall={handleUninstallClick}
-                  onUpdate={handleUpdateClick}
                 />
               );
             })}
@@ -292,31 +249,6 @@ export const MarketplaceClient: React.FC = () => {
         credentialsSchema={previewCredSchema}
         onClose={() => setIsInstallPreviewOpen(false)}
         onConfirm={handleConfirmInstall}
-      />
-
-
-      <InstallProgressModal
-        isOpen={!!installingId}
-        pluginName={allPlugins.find(p => p.data.id === installingId)?.data.name}
-        steps={installSteps}
-        overallProgress={installProgress}
-        status={installStatus}
-        onClose={() => {
-          // Hook tự reset installingId/installStatus sau 2s khi xong.
-          // Chặn đóng thủ công khi đang installing/uninstalling (guard thêm
-          // trong InstallProgressModal); khi failed/active modal tự ẩn.
-        }}
-      />
-
-      <InstallProgressModal
-        isOpen={!!upgradingId}
-        pluginName={allPlugins.find(p => p.data.id === upgradingId)?.data.name}
-        steps={upgradeSteps}
-        overallProgress={upgradeProgress}
-        status={upgradeStatus}
-        onClose={() => {
-          // Tương tự install: chặn đóng khi upgrading, tự ẩn khi xong.
-        }}
       />
 
       {/* Uninstall Confirm Modal */}
@@ -337,10 +269,10 @@ export const MarketplaceClient: React.FC = () => {
           <p>
             Bạn có chắc chắn muốn gỡ cài đặt ứng dụng <strong>{uninstallPluginData?.name}</strong>?
           </p>
-          <div className="text-sm text-danger bg-danger/10 p-4 rounded-xl border border-danger/20 font-medium">
-            ⚠️ <strong>Cảnh báo nguy hiểm:</strong> Hành động này không thể hoàn tác. 
-            Toàn bộ dữ liệu nghiệp vụ, bảng (tables), và workflows liên quan đến ứng dụng này sẽ bị xóa vĩnh viễn khỏi hệ thống.
-          </div>
+            <div className="text-sm p-4 rounded-xl font-medium" style={{ background: 'var(--rose-fill)', border: '1px solid var(--rose)', color: 'var(--rose)' }}>
+              ⚠️ <strong>Cảnh báo nguy hiểm:</strong> Hành động này không thể hoàn tác. 
+              Toàn bộ dữ liệu nghiệp vụ, bảng (tables), và workflows liên quan đến ứng dụng này sẽ bị xóa vĩnh viễn khỏi hệ thống.
+            </div>
         </div>
       </Modal>
     </div>

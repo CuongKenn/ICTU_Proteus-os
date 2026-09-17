@@ -7,26 +7,6 @@ import api from '@/lib/api';
 import { logger } from '@/lib/logger';
 
 /**
- * Chuẩn hóa permissions của role về string[] phẳng.
- * DB tồn tại 2 format: object {"mod": ["act"]} và list legacy ["*"].
- * (Xem backend app/core/domain/permissions.py — cùng quy ước.)
- */
-export const normalizeRolePermissions = (permissions: unknown): string[] => {
-  if (!permissions) return [];
-  if (Array.isArray(permissions)) return permissions.map(String);
-  if (typeof permissions === "object") {
-    const out: string[] = [];
-    Object.entries(permissions as Record<string, unknown>).forEach(([mod, actions]) => {
-      if (Array.isArray(actions)) {
-        (actions as unknown[]).forEach((act) => out.push(`${mod}:${String(act)}`));
-      }
-    });
-    return out;
-  }
-  return [];
-};
-
-/**
  * Hook custom để kiểm tra Role và Permission (RBAC) trên Frontend.
  */
 export const useRBAC = () => {
@@ -53,10 +33,12 @@ export const useRBAC = () => {
       const res = await api.get('/v1/roles');
       const allRoles = res.data;
       const userRoles = allRoles.filter((r: any) => user.roles.includes(r.name) || user.roles.includes(r.display_name));
-
+      
       const perms = new Set<string>();
       userRoles.forEach((r: any) => {
-        normalizeRolePermissions(r.permissions).forEach((p) => perms.add(p));
+        Object.entries(r.permissions || {}).forEach(([mod, actions]) => {
+          (actions as string[]).forEach((act) => perms.add(`${mod}:${act}`));
+        });
       });
       setPermissions(Array.from(perms));
     } catch (err) {
@@ -73,7 +55,7 @@ export const useRBAC = () => {
 
   const hasPermission = useCallback(
     (requiredPermission: string) => {
-      if (permissions.includes('*') || permissions.includes('*:*')) return true;
+      if (permissions.includes('*')) return true;
       return permissions.includes(requiredPermission);
     },
     [permissions]

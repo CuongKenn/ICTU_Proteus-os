@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { AIChatPanel, AIChatWidget } from './AIChatWidget';
+import { AIChatWidget } from './AIChatWidget';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAICommand } from '@/hooks/useAICommand';
 
@@ -14,9 +14,7 @@ vi.mock('@/hooks/useAICommand', () => ({
 
 describe('AIChatWidget', () => {
   const mockOpenWidget = vi.fn();
-  const mockMinimizeWidget = vi.fn();
-  const mockResetAndClose = vi.fn();
-  const mockClearHistory = vi.fn();
+  const mockCloseWidget = vi.fn();
   const mockSendCommand = vi.fn();
   const mockSetInputValue = vi.fn();
   const mockOpenMattermostApproval = vi.fn();
@@ -30,9 +28,7 @@ describe('AIChatWidget', () => {
     sessionId: 'test-session',
     setInputValue: mockSetInputValue,
     openWidget: mockOpenWidget,
-    minimizeWidget: mockMinimizeWidget,
-    resetAndClose: mockResetAndClose,
-    clearHistory: mockClearHistory,
+    closeWidget: mockCloseWidget,
     sendCommand: mockSendCommand,
     openMattermostApproval: mockOpenMattermostApproval,
     cancelApproval: mockCancelApproval,
@@ -81,13 +77,5 @@ describe('AIChatWidget', () => {
     const input = screen.getByPlaceholderText(/Nhập lệnh bằng tiếng Việt/i);
     expect(input).toBeDisabled();
     expect(screen.getByText('Đang phân tích')).toBeInTheDocument();
-  });
-
-  it('renders as a full page panel without the floating open button', () => {
-    render(<AIChatPanel />);
-
-    expect(screen.getByRole('region', { name: /Proteus AI/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Mở Proteus AI/i })).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Nhập lệnh bằng tiếng Việt/i)).toBeInTheDocument();
   });
 });

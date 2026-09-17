@@ -10,22 +10,8 @@ import api from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import { usePlugins } from "@/hooks/usePlugins";
-import type { PluginInfo, InstallTaskStatus, CredentialInput, InstallTaskStep } from "@/types";
-import type { PluginStatus } from "@/components/ui/PluginCard";
-
-// Tổng số bước cài đặt/gỡ (database/credentials/n8n/metabase/appsmith/keycloak/events/complete).
-// Giữ NHẤT QUÁN install/uninstall để progress không nhảy (trước đây install=7, uninstall=6).
-const TOTAL_STEPS = 7;
-
-// Mock chỉ dùng khi dev + flag bật — dynamic import để tree-shake khỏi bundle prod.
-// Next.js inline NEXT_PUBLIC_* lúc build; khi flag falsy, chunk mock không được load.
-function isMockEnabled(): boolean {
-  return (
-    typeof process !== "undefined" &&
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true"
-  );
-}
+import type { PluginInfo, InstallTaskStatus, CredentialInput } from "@/types";
+import type { PluginStatus } from "@/components/marketplace/PluginCard";
 
 interface UseMarketplaceReturn {
   plugins: PluginInfo[];
@@ -36,7 +22,6 @@ interface UseMarketplaceReturn {
   installingId: string | null;
   installProgress: number;
   installStatus: PluginStatus | null;
-  installSteps: InstallTaskStep[];
   installPlugin: (pluginId: string, credentials?: CredentialInput[]) => Promise<void>;
   uninstallPlugin: (pluginId: string, confirmName?: string) => Promise<void>;
 }
@@ -51,7 +36,6 @@ export function useMarketplace(): UseMarketplaceReturn {
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [installProgress, setInstallProgress] = useState(0);
   const [installStatus, setInstallStatus] = useState<PluginStatus | null>(null);
-  const [installSteps, setInstallSteps] = useState<InstallTaskStep[]>([]);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const { install, uninstall } = usePlugins();
@@ -81,7 +65,7 @@ export function useMarketplace(): UseMarketplaceReturn {
       } catch (err: unknown) {
         logger.error("[useMarketplace] fetch error:", err);
         if (!cancelled) {
-          if (isMockEnabled()) {
+          if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
             import("../__tests__/marketplace.mock").then(({ MOCK_PLUGINS }) => {
               setPlugins(MOCK_PLUGINS);
             });
@@ -108,13 +92,12 @@ export function useMarketplace(): UseMarketplaceReturn {
       const statusData = response.data;
 
       if (statusData) {
-        if (statusData.steps) setInstallSteps(statusData.steps);
         // Tính progress từ steps thực tế
         if (statusData.steps && statusData.steps.length > 0) {
           const completedSteps = statusData.steps.filter(
             (s) => s.status === "DONE"
           ).length;
-          const realProgress = Math.min(95, Math.round((completedSteps / TOTAL_STEPS) * 100));
+          const realProgress = Math.round((completedSteps / statusData.steps.length) * 100);
           setInstallProgress((prev) => Math.max(prev, realProgress));
         } else {
           // Fallback khi steps rỗng — cap at 95 để luôn còn chỗ cho completion
@@ -181,7 +164,6 @@ export function useMarketplace(): UseMarketplaceReturn {
 
     setInstallingId(pluginId);
     setInstallProgress(0);
-    setInstallSteps([]);
     setInstallStatus("installing");
 
     try {
@@ -194,7 +176,7 @@ export function useMarketplace(): UseMarketplaceReturn {
         throw new Error("No task_id returned");
       }
     } catch (error) {
-      if (isMockEnabled()) {
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         // Simulate install progress locally
         let mockProgress = 0;
         pollingRef.current = setInterval(() => {
@@ -227,79 +209,7 @@ export function useMarketplace(): UseMarketplaceReturn {
     installingId,
     installProgress,
     installStatus,
-    installSteps,
     installPlugin,
-    uninstallPlugin: useCallback(async (pluginId: string, confirmName: string = '') => {
-      setInstallingId(pluginId);
-      setInstallProgress(0);
-      setInstallSteps([]);
-      setInstallStatus("uninstalling" as PluginStatus);
-
-      try {
-        const res = await api.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
-        const data = res.data;
-        const taskId = data.task_id;
-        
-        if (taskId) {
-          if (pollingRef.current) clearInterval(pollingRef.current);
-          
-          pollingRef.current = setInterval(async () => {
-            try {
-              const statusRes = await api.get(`/v1/plugins/install/${taskId}/status`);
-              const statusData = statusRes.data;
-
-              if (statusData.steps && statusData.steps.length > 0) {
-                setInstallSteps(statusData.steps);
-                const completedSteps = statusData.steps.filter((s: any) => s.status === "DONE").length;
-                const realProgress = Math.min(95, Math.round((completedSteps / TOTAL_STEPS) * 100));
-                setInstallProgress((prev) => Math.max(prev, realProgress));
-              } else {
-                setInstallProgress((prev) => Math.min(prev + 5, 95));
-              }
-
-              const overallStatus = statusData.overall_status;
-              if (overallStatus === "DELETED" || overallStatus === "COMPLETED") {
-                setInstallProgress(100);
-                setInstallStatus("active");
-                useNotificationStore.getState().addToast("success", "Gỡ cài đặt Plugin thành công!");
-                if (pollingRef.current) clearInterval(pollingRef.current);
-                setTimeout(() => {
-                  setInstallingId(null);
-                  setInstallStatus(null);
-                  setInstallProgress(0);
-                  setTrigger(t => t + 1);
-                }, 2000);
-              } else if (overallStatus === "FAILED" || overallStatus === "FAILED_DIRTY") {
-                setInstallStatus("failed");
-                useNotificationStore.getState().addToast("error", "Gỡ cài đặt Plugin thất bại.");
-                if (pollingRef.current) clearInterval(pollingRef.current);
-                setTimeout(() => {
-                  setInstallingId(null);
-                  setInstallStatus(null);
-                  setInstallProgress(0);
-                }, 2000);
-              }
-            } catch (err) {
-              // console.error("Polling error", err);
-            }
-          }, 3000);
-        } else {
-          // Fallback if backend doesn't return task_id (e.g., still old code)
-          useNotificationStore.getState().addToast("success", "Gỡ cài đặt Plugin thành công!");
-          setInstallingId(null);
-          setInstallStatus(null);
-          setTrigger(t => t + 1);
-        }
-      } catch (err: any) {
-        setInstallStatus("failed");
-        useNotificationStore.getState().addToast("error", "Không thể gỡ cài đặt Plugin.");
-        setTimeout(() => {
-          setInstallingId(null);
-          setInstallStatus(null);
-          setInstallProgress(0);
-        }, 2000);
-        throw err;
-      }
-    }, []),
+    uninstallPlugin: uninstall,
   };
 }

@@ -8,9 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Shield, Key, Smartphone, Clock, ExternalLink } from "lucide-react";
 
 export const SecurityTab = () => {
-  // Runtime env; fallback "" an toàn — nút vẫn render nhưng không mở URL rác.
-  const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "";
-  const accountUrl = keycloakUrl ? `${keycloakUrl.replace(/\/+$/, "")}/realms/proteus/account/` : "";
+  const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "http://auth.proteus.local";
+  const accountUrl = `${keycloakUrl}/realms/proteus/account/`;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -36,9 +35,7 @@ export const SecurityTab = () => {
           </div>
           <Button 
             variant="secondary" 
-            onClick={() => accountUrl && window.open(accountUrl, "_blank", "noopener,noreferrer")}
-            disabled={!accountUrl}
-            title={accountUrl ? "Mở Keycloak Account" : "Chưa cấu hình NEXT_PUBLIC_KEYCLOAK_URL"}
+            onClick={() => window.open(accountUrl, "_blank")}
           >
             Đổi Mật khẩu <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
@@ -58,9 +55,7 @@ export const SecurityTab = () => {
           </div>
           <Button 
             variant="secondary" 
-            onClick={() => accountUrl && window.open(accountUrl, "_blank", "noopener,noreferrer")}
-            disabled={!accountUrl}
-            title={accountUrl ? "Mở Keycloak Account" : "Chưa cấu hình NEXT_PUBLIC_KEYCLOAK_URL"}
+            onClick={() => window.open(accountUrl, "_blank")}
           >
             Thiết lập 2FA <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
@@ -76,18 +71,14 @@ export const SecurityTab = () => {
               Phiên đăng nhập được quản lý thông qua Keycloak SSO.
             </p>
           </div>
-          {accountUrl ? (
-            <a 
-              href={accountUrl + "sessions"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:text-primary-hover flex items-center"
-            >
-              Xem các phiên đăng nhập <ExternalLink className="w-4 h-4 ml-1" />
-            </a>
-          ) : (
-            <p className="text-sm text-text-secondary">Chưa cấu hình Keycloak URL. Vui lòng liên hệ Admin.</p>
-          )}
+          <a 
+            href={accountUrl + "sessions"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:text-primary-hover flex items-center"
+          >
+            Xem các phiên đăng nhập <ExternalLink className="w-4 h-4 ml-1" />
+          </a>
         </div>
       </div>
     </div>

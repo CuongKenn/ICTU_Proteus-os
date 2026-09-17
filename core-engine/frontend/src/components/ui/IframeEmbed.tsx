@@ -14,50 +14,15 @@ interface IframeEmbedProps {
 
 export const IframeEmbed: React.FC<IframeEmbedProps> = ({ src, title, className = "" }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-
-  const isSafe = (() => {
-    try {
-      const u = new URL(src);
-      return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-      return false;
-    }
-  })();
-
-  if (!isSafe) {
-    return (
-      <div className={`relative w-full h-full flex items-center justify-center p-8 text-center ${className}`}>
-        <p className="text-text-secondary font-medium">
-          URL nhúng không hợp lệ hoặc chưa được cấu hình.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {isLoading && !hasError && (
+      {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-surface z-10 animate-pulse">
           <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
           <p className="text-text-secondary font-medium animate-pulse">
             Connecting to {title}...
           </p>
-        </div>
-      )}
-      {hasError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-surface z-10 p-8 text-center">
-          <p className="text-text-secondary font-medium">Không thể tải {title}. Vui lòng thử lại.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setHasError(false);
-              setIsLoading(true);
-            }}
-            className="mt-4 px-4 py-2 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
-          >
-            Thử lại
-          </button>
         </div>
       )}
       <iframe
@@ -67,13 +32,7 @@ export const IframeEmbed: React.FC<IframeEmbedProps> = ({ src, title, className 
           isLoading ? "opacity-0" : "opacity-100"
         }`}
         onLoad={() => setIsLoading(false)}
-        onError={() => {
-          setIsLoading(false);
-          setHasError(true);
-        }}
         allow="microphone; camera; display-capture; autoplay; clipboard-read; clipboard-write; fullscreen"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-        referrerPolicy="strict-origin-when-cross-origin"
       />
     </div>
   );

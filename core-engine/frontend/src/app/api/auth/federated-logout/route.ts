@@ -3,14 +3,13 @@
 
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { publicBaseUrl } from "@/lib/sessionCookie";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req });
     if (!token) {
       return NextResponse.json({ url: "/login" });
     }
@@ -26,8 +25,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ url: "/login" });
     }
 
-    // Dựng từ X-Forwarded-Host (req.url chứa hostname container khi sau Traefik).
-    const postLogoutRedirectUri = new URL("/login", publicBaseUrl(req)).toString();
+    const postLogoutRedirectUri = new URL("/login", req.url).toString();
     const logoutUrl = `${issuerUrl}/protocol/openid-connect/logout?id_token_hint=${idToken}&post_logout_redirect_uri=${encodeURIComponent(
       postLogoutRedirectUri
     )}`;
