@@ -42,9 +42,12 @@ _SEED_ALLOWED_STMT = re.compile(
     re.IGNORECASE,
 )
 # Denylist bổ sung: chặn sandbox-escape / side-effect ngoài schema tenant.
+# LƯU Ý: `\bDO\b` trần bị cấm dùng — nó chặn cả `ON CONFLICT DO NOTHING`
+# (upsert chuẩn mà mọi seed plugin đều dùng). Chỉ chặn anonymous code block
+# (`DO $$...$$` / `DO $tag$...` / `DO LANGUAGE ...`).
 _SEED_FORBIDDEN = re.compile(
     r"(public\.|pg_\w+|pg_catalog|information_schema"
-    r"|\bCOPY\b|\bDO\b|\bLISTEN\b|\bNOTIFY\b"
+    r"|\bCOPY\b|\bDO\s*(\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$|LANGUAGE\b)|\bLISTEN\b|\bNOTIFY\b"
     r"|\bCREATE\s+(OR\s+REPLACE\s+)?(TRIGGER|VIEW|RULE|FUNCTION|PROCEDURE"
     r"|EXTENSION|SCHEMA|DATABASE|ROLE|USER|PUBLICATION|SUBSCRIPTION)\b"
     r"|\bALTER\b|\bDROP\b|\bDELETE\b|\bUPDATE\b|\bTRUNCATE\b"
@@ -53,6 +56,21 @@ _SEED_FORBIDDEN = re.compile(
     r"|dblink|pg_exec|lo_|pg_read_file|pg_ls_dir)",
     re.IGNORECASE,
 )
+# Tail sau ON CONFLICT (`DO NOTHING` / `DO UPDATE SET ... WHERE ...`) là ngữ
+# nghĩa upsert idempotent của seed — kiểm tra bằng denylist rút gọn (miễn
+# UPDATE/SET; DO-block đã thu hẹp ở regex chính nên giữ nguyên).
+_SEED_FORBIDDEN_UPSERT_TAIL = re.compile(
+    r"(public\.|pg_\w+|pg_catalog|information_schema"
+    r"|\bCOPY\b|\bDO\s*(\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$|LANGUAGE\b)|\bLISTEN\b|\bNOTIFY\b"
+    r"|\bCREATE\s+(OR\s+REPLACE\s+)?(TRIGGER|VIEW|RULE|FUNCTION|PROCEDURE"
+    r"|EXTENSION|SCHEMA|DATABASE|ROLE|USER|PUBLICATION|SUBSCRIPTION)\b"
+    r"|\bALTER\b|\bDROP\b|\bDELETE\b|\bTRUNCATE\b"
+    r"|\bGRANT\b|\bREVOKE\b|\bRESET\b|\bSHOW\b"
+    r"|\bSECURITY\s+DEFINER\b|\bVACUUM\b|\bANALYSE\b|\bANALYZE\b"
+    r"|dblink|pg_exec|lo_|pg_read_file|pg_ls_dir)",
+    re.IGNORECASE,
+)
+_ON_CONFLICT_RE = re.compile(r"\bON\s+CONFLICT\b", re.IGNORECASE)
 _PLUGIN_CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _SEED_FILE_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+\.sql$")
 _SEED_STATEMENT_TIMEOUT = "10s"
@@ -180,20 +198,239 @@ def _split_seed_statements_safe(sql: str) -> list[str]:
     return statements
 
 
+def _strip_sql_comments(sql: str) -> str:
+    """Bỏ `--...` và `/*...*/`, tôn trọng quotes và dollar-quoting.
+
+    Comment không bao giờ được thực thi nên strip trước khi validate —
+    tránh false-positive (VD: chữ "set" trong comment tiếng Việt trigger
+    `\\bSET\\b`, comment đầu file làm allowlist `^CREATE` fail).
+    """
+    out: list[str] = []
+    i = 0
+    n = len(sql)
+    in_single = False
+    in_double = False
+    in_line = False
+    in_block = False
+    dollar_tag: str | None = None
+    while i < n:
+        ch = sql[i]
+        nxt2 = sql[i : i + 2]
+        if in_line:
+            if ch == "\n":
+                in_line = False
+                out.append(ch)
+            i += 1
+            continue
+        if in_block:
+            if nxt2 == "*/":
+                in_block = False
+                i += 2
+            else:
+                i += 1
+            continue
+        if dollar_tag is not None:
+            if ch == "$":
+                m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+                if m and m.group(0) == dollar_tag:
+                    out.append(m.group(0))
+                    i += len(m.group(0))
+                    dollar_tag = None
+                    continue
+            out.append(ch)
+            i += 1
+            continue
+        if in_single:
+            out.append(ch)
+            if ch == "'" and nxt2 != "''":
+                in_single = False
+            elif ch == "'" and nxt2 == "''":
+                out.append(sql[i + 1])
+                i += 1
+            i += 1
+            continue
+        if in_double:
+            out.append(ch)
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        if nxt2 == "--":
+            in_line = True
+            i += 2
+            continue
+        if nxt2 == "/*":
+            in_block = True
+            i += 2
+            continue
+        if ch == "'":
+            in_single = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "$":
+            m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+            if m:
+                dollar_tag = m.group(0)
+                out.append(dollar_tag)
+                i += len(dollar_tag)
+                continue
+            out.append(ch)
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _mask_sql_literals(sql: str) -> str:
+    """Thay nội dung string literal (`'...'`), identifier (`"..."`) và
+    dollar-body (`$$...$$`) bằng rỗng, giữ nguyên cấu trúc câu lệnh.
+
+    Từ khóa nằm trong data (VD: `'reset mật khẩu'`) không bao giờ thực thi
+    được — kiểm tra denylist trên đó chỉ gây false-positive với seed tiếng
+    Việt. Mask chính xác theo quote để không mở lỗ hổng: executable SQL nằm
+    ngoài literal vẫn bị quét đầy đủ.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(sql)
+    in_single = False
+    in_double = False
+    dollar_tag: str | None = None
+    while i < n:
+        ch = sql[i]
+        nxt2 = sql[i : i + 2]
+        if dollar_tag is not None:
+            if ch == "$":
+                m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+                if m and m.group(0) == dollar_tag:
+                    out.append(m.group(0))
+                    i += len(m.group(0))
+                    dollar_tag = None
+                    continue
+            i += 1
+            continue
+        if in_single:
+            if ch == "'" and nxt2 != "''":
+                in_single = False
+                out.append(ch)
+            elif ch == "'" and nxt2 == "''":
+                i += 1
+            i += 1
+            continue
+        if in_double:
+            if ch == '"':
+                in_double = False
+                out.append(ch)
+            i += 1
+            continue
+        if ch == "'":
+            in_single = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "$":
+            m = re.match(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$", sql[i:])
+            if m:
+                dollar_tag = m.group(0)
+                out.append(dollar_tag)
+                i += len(dollar_tag)
+                continue
+            out.append(ch)
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _split_on_conflict(code: str) -> tuple[str, str]:
+    """Tách `ON CONFLICT` top-level (ngoài quotes/parens) khỏi statement.
+
+    Trả về (head, tail). Không tìm thấy → tail rỗng. Seed là file nội bộ
+    được review nên đây là best-effort, không phải security boundary.
+    """
+    in_single = False
+    in_double = False
+    depth = 0
+    i = 0
+    n = len(code)
+    while i < n:
+        ch = code[i]
+        nxt2 = code[i : i + 2]
+        if in_single:
+            if ch == "'" and nxt2 != "''":
+                in_single = False
+            elif ch == "'" and nxt2 == "''":
+                i += 1
+            i += 1
+            continue
+        if in_double:
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+        if ch == "'":
+            in_single = True
+            i += 1
+            continue
+        if ch == '"':
+            in_double = True
+            i += 1
+            continue
+        if ch == "(":
+            depth += 1
+            i += 1
+            continue
+        if ch == ")" and depth > 0:
+            depth -= 1
+            i += 1
+            continue
+        if depth == 0:
+            m = _ON_CONFLICT_RE.match(code, i)
+            if m:
+                return code[:i], code[m.end() :]
+        i += 1
+    return code, ""
+
+
 def _validate_seed_statement(stmt: str) -> None:
     """Raise PluginInstallError nếu statement vi phạm seed policy."""
-    stripped = stmt.strip().rstrip(";").strip()
-    if not stripped:
+    # Strip comment trước khi kiểm tra: comment không thực thi — tránh
+    # false-positive (VD: chữ "set" trong comment tiếng Việt trigger `\\bSET\\b`,
+    # comment đầu file làm allowlist `^CREATE` fail).
+    code = _strip_sql_comments(stmt).strip().rstrip(";").strip()
+    if not code:
         raise PluginInstallError("Seed file chứa statement rỗng.")
-    if _SEED_FORBIDDEN.search(stripped):
+    # Mask literal: từ khóa trong data (VD: `'reset mật khẩu'`) không thực
+    # thi được — chỉ quét denylist trên cấu trúc câu lệnh.
+    masked = _mask_sql_literals(code)
+    head, tail = _split_on_conflict(masked)
+    if _SEED_FORBIDDEN.search(head):
         raise PluginInstallError(
             "Seed file chứa từ khóa/kênh không được phép "
             "(public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE...)."
         )
-    if not _SEED_ALLOWED_STMT.match(stripped):
+    if tail and _SEED_FORBIDDEN_UPSERT_TAIL.search(tail):
+        raise PluginInstallError(
+            "Seed file chứa từ khóa/kênh không được phép "
+            "(public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE...)."
+        )
+    if not _SEED_ALLOWED_STMT.match(masked):
         raise PluginInstallError(
             "Seed file chỉ cho phép CREATE TABLE / CREATE INDEX / INSERT. "
-            f"Statement bị chặn: {stripped[:80]}"
+            f"Statement bị chặn: {code[:80]}"
         )
 
 
@@ -274,8 +511,8 @@ class PluginInstallUseCase:
             )
 
         # 2. Chống double-install (M10) bằng advisory lock + guard trạng thái.
-        # Lock theo (tenant, plugin) để 2 request cài đồng thời phải serialize:
-        # request thứ 2 đợi lock, sau đó thấy ACTIVE/INSTALLING và bị chặn.
+        # Lock theo (tenant, plugin) để 2 worker cài đồng thời phải serialize;
+        # endpoint chặn request thứ 2 bằng 409 trước khi upsert.
         # Best-effort: mock session trong unit-test không hỗ trợ cũng không fail install.
         try:
             await self.session.execute(
@@ -291,23 +528,20 @@ class PluginInstallUseCase:
                 plugin_code_name=plugin_code_name,
                 tenant_id=str(context.tenant_id),
             )
-        # 2b. Check if already installed, installing, or being removed.
-        # INSTALLING được chặn để request thứ 2 không cài đè khi request đầu
-        # đang chạy. LƯU Ý: endpoint POST /{id}/install hiện upsert INSTALLING
-        # trước khi queue background task — endpoint cần check status trước khi
-        # upsert (trả 409 nếu ACTIVE/INSTALLING/UNINSTALLING), nếu không task
-        # nền hợp lệ sẽ tự thấy INSTALLING của chính nó. Guard ở đây là tuyến
-        # phòng thủ cuối trong worker.
+        # 2b. Check if already installed or being removed.
+        # INSTALLING KHÔNG bị chặn ở đây: endpoint POST /{id}/install đã
+        # upsert INSTALLING (kèm task_id mới) trước khi queue background task,
+        # nên worker hợp lệ luôn thấy INSTALLING của chính nó. Chặn INSTALLING
+        # ở worker sẽ tự-deadlock mọi lượt cài (task chết im, row kẹt
+        # INSTALLING, UI kẹt 95%). Chống double-install do endpoint đảm nhiệm
+        # (trả 409 nếu ACTIVE/INSTALLING/UNINSTALLING trước khi upsert);
+        # advisory lock ở trên serialize 2 worker chạy đồng thời.
         status = await self.plugin_repo.get_installation_status(
             context.tenant_id, plugin.id
         )
         if status == PluginStatus.ACTIVE:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
-            )
-        if status == PluginStatus.INSTALLING:
-            raise PluginInstallError(
-                f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
             )
         if status == PluginStatus.UNINSTALLING:
             raise PluginInstallError(
@@ -728,6 +962,13 @@ class PluginInstallUseCase:
                             rls_err,
                         )
                         await self.session.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+
+                # BẮT BUỘC reset về public: mọi repo call sau đó (persist steps,
+                # n8n credential lookup, update status...) đều dùng bảng
+                # unqualified ở schema public. Quên reset → UndefinedTableError
+                # `tenant_plugins does not exist` làm poison transaction và giết
+                # cả install ở bước n8n (đã gây fail hàng loạt thực tế).
+                await self.session.execute(text("SET search_path TO public"))
 
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
@@ -1208,6 +1449,9 @@ class PluginInstallUseCase:
     ) -> None:
         """Lưu _steps_log hiện tại vào DB và commit ngay để status polling thấy được."""
         try:
+            # Phòng thủ: bảng tenant_plugins ở schema public — ép search_path
+            # trước khi ghi để step nào đó quên reset cũng không poison transaction.
+            await self.session.execute(text("SET search_path TO public"))
             await self.plugin_repo.update_install_steps_log(
                 tenant_id=context.tenant_id,
                 plugin_id=plugin_id,

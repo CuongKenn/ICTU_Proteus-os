@@ -269,7 +269,7 @@ async def get_current_tenant_context(
             credentials.credentials
         )
     except JWTError as exc:
-        logger.warning("Invalid JWT token received", extra={"error": str(exc)})
+        logger.warning("Invalid JWT token received: %s", exc, extra={"error": str(exc)})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token không hợp lệ hoặc đã hết hạn.",

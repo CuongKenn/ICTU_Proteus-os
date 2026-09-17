@@ -187,12 +187,15 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    assert mock_session.execute.call_count == 18
+    assert mock_session.execute.call_count == 26
     # advisory lock (1) + CREATE SCHEMA, SET LOCAL search_path,
     # SET LOCAL statement_timeout, SAVEPOINT, seed stmt, RELEASE SAVEPOINT,
     # SET search_path TO public (7) + RLS block (CREATE SCHEMA, SET search_path,
-    # SAVEPOINT, CREATE ROLE, RELEASE, SELECT columns = 6) + 3 lookups credential
-    # n8n (ProteusDB_Real/ProteusMM/ProteusOllama) + 1 list DB roles (asset tracking)
+    # SAVEPOINT, CREATE ROLE, RELEASE, SELECT columns, RESET search_path = 7)
+    # + 3 lookups credential n8n (ProteusDB_Real/ProteusMM/ProteusOllama)
+    # + 1 list DB roles (asset tracking)
+    # + 7 RESET search_path trong _persist_steps (database/n8n/metabase/
+    # appsmith/keycloak/events/complete) để chống kẹt schema tenant
     mock_mattermost_adapter.send_message.assert_called_once()
     mock_event_bus.publish_plugin_lifecycle.assert_called_once_with(
         action="installed",
@@ -376,6 +379,12 @@ def test_validate_seed_statement_policy():
         "CREATE TABLE t (id UUID PRIMARY KEY);",
         "  create unique index ix_t ON t (a)  ",
         "INSERT INTO t (id) VALUES ('x');",
+        # Upsert chuẩn cho seed idempotent (mọi seed plugin đều dùng)
+        "INSERT INTO t (id) VALUES ('x') ON CONFLICT (id) DO NOTHING;",
+        # Từ khóa trong comment / data tiếng Việt không được tính
+        "-- reset drop delete set\nCREATE TABLE t (id INT);",
+        "INSERT INTO t (name) VALUES ('reset mật khẩu');",
+        "/* search_path đã set sẵn */ INSERT INTO t (id) VALUES (1);",
     ]:
         _validate_seed_statement(ok)
 
@@ -434,20 +443,37 @@ def test_split_seed_statements_sqlparse_path():
     assert len(stmts) == 2
 
 
-# ─── 3. Guard INSTALLING / UNINSTALLING ───────────────────────────
+# ─── 3. Guard ACTIVE / UNINSTALLING ───────────────────────────────
+# LƯU Ý: worker KHÔNG chặn INSTALLING — đó là marker do endpoint upsert
+# trước khi queue task (chặn sẽ tự-deadlock mọi lượt cài, UI kẹt 95%).
+# Chống double-install do endpoint đảm nhiệm (409 trước upsert).
 
 @pytest.mark.asyncio
-async def test_execute_guards_installing_and_uninstalling(
+async def test_execute_guards_uninstalling(
     plugin_install_use_case, mock_plugin_repo, tenant_context, sample_plugin
 ):
     mock_plugin_repo.get_by_code_name.return_value = sample_plugin
-    for status, msg in [
-        (PluginStatus.INSTALLING, "trong quá trình cài đặt"),
-        (PluginStatus.UNINSTALLING, "trong quá trình gỡ"),
-    ]:
-        mock_plugin_repo.get_installation_status.return_value = status
-        with pytest.raises(PluginInstallError, match=msg):
-            await plugin_install_use_case.execute(tenant_context, "hr-module")
+    mock_plugin_repo.get_installation_status.return_value = (
+        PluginStatus.UNINSTALLING
+    )
+    with pytest.raises(PluginInstallError, match="trong quá trình gỡ"):
+        await plugin_install_use_case.execute(tenant_context, "hr-module")
+
+
+@pytest.mark.asyncio
+async def test_execute_installing_status_proceeds(
+    plugin_install_use_case,
+    mock_plugin_repo,
+    mock_manifest_parser,
+    tenant_context,
+    sample_plugin,
+):
+    """INSTALLING (do endpoint upsert) phải đi tiếp, không tự chặn."""
+    mock_plugin_repo.get_by_code_name.return_value = sample_plugin
+    mock_plugin_repo.get_installation_status.return_value = PluginStatus.INSTALLING
+    mock_manifest_parser.parse.side_effect = PluginInstallError("SENTINEL_PAST_GUARD")
+    with pytest.raises(PluginInstallError, match="SENTINEL_PAST_GUARD"):
+        await plugin_install_use_case.execute(tenant_context, "hr-module")
 
 
 # ─── 4. Advisory lock best-effort fail vẫn cài thành công ─────────
