@@ -4,43 +4,45 @@
 "use client";
 
 import React from "react";
-import { clsx } from "clsx";
 
-interface AppIconProps {
+export interface AppIconProps {
   appName: string;
   icon: React.ReactNode;
-  onClick?: () => void;
   isActive?: boolean;
+  onClick?: () => void;
 }
 
-export const AppIcon: React.FC<AppIconProps> = ({ appName, icon, onClick, isActive = true }) => {
+export const AppIcon: React.FC<AppIconProps> = ({ appName, icon, isActive = false, onClick }) => {
   return (
-    <button
+    <div 
+      role="button"
+      tabIndex={0}
+      className="flex flex-col items-center cursor-pointer group w-24 outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
       onClick={onClick}
-      disabled={!isActive}
-      className="flex flex-col items-center gap-2 w-24 group"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
     >
-      <div
-        className={clsx(
-          "w-[72px] h-[72px] rounded-2xl flex items-center justify-center transition-all duration-300",
-          isActive
-            ? "cursor-pointer group-hover:shadow-card-hover group-hover:-translate-y-1"
-            : "opacity-50 cursor-not-allowed grayscale"
-        )}
-        style={{
-          background: "var(--paper-white)",
-          border: "1px solid var(--line-hi)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
+      <div className="relative w-20 h-20 rounded-[20px] glass-card flex items-center justify-center text-3xl transition-all duration-[200ms] ease-[cubic-bezier(0.175,0.885,0.32,1.275)] group-hover:scale-105 group-hover:shadow-[0_0_20px_hsla(245,85%,65%,0.3)] mb-3">
         {icon}
       </div>
-      <span
-        className="text-xs font-medium text-center truncate w-full"
-        style={{ color: "var(--ink-soft)" }}
-      >
-        {appName}
-      </span>
-    </button>
+      <div className="h-10 flex items-start justify-center w-full px-1">
+        <div className="text-sm text-center text-text-primary line-clamp-2 font-medium leading-tight">
+          {appName}
+        </div>
+      </div>
+      {/* Container h-6 fixed for the pill to avoid layout shifts */}
+      <div className="h-6 mt-1 flex items-start justify-center w-full">
+        {isActive && (
+          <div className="flex items-center text-[10px] text-success bg-success/10 px-1.5 py-0.5 rounded-full border border-success/20 uppercase font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-success mr-1 animate-pulse" />
+            Active
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

@@ -5,6 +5,7 @@
 
 import React from "react";
 import { User, Building2, Palette, Blocks, Shield, Info, Users } from "lucide-react";
+import { clsx } from "clsx";
 import type { SettingsTabId } from "@/app/settings/SettingsClient";
 
 interface SettingsTabsProps {
@@ -25,29 +26,17 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({ activeTab, onChangeT
   ];
 
   return (
-    <div className="card p-2">
+    <div className="flex flex-col gap-1 bg-bg-glass backdrop-blur-glass p-2 rounded-xl border border-border">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChangeTab(tab.id)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all text-left w-full"
-          style={{
-            background: activeTab === tab.id ? "var(--accent-soft)" : "transparent",
-            color: activeTab === tab.id ? "var(--accent)" : "var(--muted)",
-            fontWeight: activeTab === tab.id ? 600 : 400,
-          }}
-          onMouseEnter={(e) => {
-            if (activeTab !== tab.id) {
-              e.currentTarget.style.background = "var(--accent-soft)";
-              e.currentTarget.style.color = "var(--accent)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeTab !== tab.id) {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--muted)";
-            }
-          }}
+          className={clsx(
+            "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+            activeTab === tab.id
+              ? "bg-primary/10 text-primary"
+              : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+          )}
         >
           <tab.icon className="w-4 h-4 shrink-0" />
           {tab.label}

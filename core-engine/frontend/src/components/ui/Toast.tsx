@@ -4,71 +4,59 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
+import clsx from "clsx";
+import { CheckCircle, AlertTriangle, XCircle, Info, X } from "lucide-react";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
-interface ToastProps {
-  id?: string;
+export interface ToastProps {
   type: ToastType;
   message: string;
   title?: string;
-  duration?: number;
-  onDismiss?: (id: string) => void;
   onClose?: () => void;
 }
 
-const TOAST_CONFIG: Record<ToastType, { icon: React.ElementType; color: string; fill: string }> = {
-  success: { icon: CheckCircle2, color: "var(--emerald)", fill: "var(--emerald-fill)" },
-  error: { icon: AlertCircle, color: "var(--rose)", fill: "var(--rose-fill)" },
-  warning: { icon: AlertTriangle, color: "var(--amber)", fill: "var(--amber-fill)" },
-  info: { icon: Info, color: "var(--accent)", fill: "var(--accent-soft)" },
-};
+export const Toast: React.FC<ToastProps> = ({ type, message, title, onClose }) => {
+  const [isShowing, setIsShowing] = useState(false);
 
-export const Toast: React.FC<ToastProps> = ({ id, type, message, title, duration = 5000, onDismiss, onClose }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const config = TOAST_CONFIG[type];
-  const Icon = config.icon;
+  useEffect(() => {
+    // Trigger slide in
+    const timer = requestAnimationFrame(() => setIsShowing(true));
+    return () => cancelAnimationFrame(timer);
+  }, []);
 
-  const handleClose = () => {
-    if (onDismiss && id) onDismiss(id);
-    if (onClose) onClose();
+  const icons = {
+    success: <CheckCircle className="text-success w-5 h-5" />,
+    error: <XCircle className="text-danger w-5 h-5" />,
+    warning: <AlertTriangle className="text-warning w-5 h-5" />,
+    info: <Info className="text-primary w-5 h-5" />,
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    requestAnimationFrame(() => setIsVisible(true));
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(() => {
-        if (onDismiss && id) onDismiss(id);
-        if (onClose) onClose();
-      }, 300);
-    }, duration);
-    return () => clearTimeout(timer);
-  }, []);
+  const borders = {
+    success: "border-success/30 bg-success/5",
+    error: "border-danger/30 bg-danger/5",
+    warning: "border-warning/30 bg-warning/5",
+    info: "border-primary/30 bg-primary/5",
+  };
 
   return (
     <div
-      className="flex items-start gap-3 px-4 py-3 rounded-xl transition-all duration-300"
-      style={{
-        background: "var(--paper-white)",
-        border: `1px solid var(--line-hi)`,
-        boxShadow: "var(--shadow-elevated)",
-        borderLeft: `3px solid ${config.color}`,
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateX(0)" : "translateX(20px)",
-      }}
+      className={clsx(
+        "glass-card border flex items-start gap-3 p-4 min-w-[300px] max-w-sm shadow-xl transition-all duration-300 ease-out",
+        borders[type],
+        isShowing ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+      )}
     >
-      <Icon className="w-5 h-5 shrink-0 mt-0.5" style={{ color: config.color }} />
-      <p className="text-sm flex-1" style={{ color: "var(--ink-soft)" }}>{message}</p>
-      <button
-        onClick={handleClose}
-        className="shrink-0 p-0.5 rounded transition-colors"
-        style={{ color: "var(--dim)" }}
-      >
-        <X className="w-4 h-4" />
-      </button>
+      <div className="shrink-0 mt-0.5">{icons[type]}</div>
+      <div className="flex-1 min-w-0">
+        {title && <h4 className="text-sm font-semibold text-text-primary mb-1">{title}</h4>}
+        <p className="text-sm text-text-secondary leading-tight">{message}</p>
+      </div>
+      {onClose && (
+        <button onClick={onClose} className="shrink-0 text-text-muted hover:text-text-primary p-1 rounded-md hover:bg-bg-glass transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 };

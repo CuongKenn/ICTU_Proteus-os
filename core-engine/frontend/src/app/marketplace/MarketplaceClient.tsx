@@ -152,23 +152,26 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-20 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 mt-8">
+    <div className="flex flex-col gap-8 pb-20 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 mt-8">
       {/* Hero Section */}
-      <div className="card p-8 md:p-12">
-        <div className="flex flex-col gap-3 max-w-2xl">
-          <div className="mono-tag w-fit">
-            <Sparkles className="w-3 h-3" />
-            <span>MARKETPLACE</span>
+      <div className="flex flex-col gap-6 relative p-8 md:p-12 rounded-3xl overflow-hidden glass-card border border-border/40 bg-gradient-to-br from-brand-primary/10 via-transparent to-transparent">
+        {/* Decorative background elements */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-brand-primary/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-brand-secondary/20 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col gap-3 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-sm font-semibold w-fit">
+            <Sparkles className="w-4 h-4" /> App Store
           </div>
-          <h1 className="text-3xl md:text-4xl font-grot font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-text-primary tracking-tight">
             Khám phá Ứng dụng
           </h1>
-          <p className="text-[0.9375rem]" style={{ color: 'var(--muted)' }}>
+          <p className="text-lg text-text-secondary">
             Mở rộng khả năng của hệ thống với hàng chục ứng dụng được thiết kế tối ưu cho doanh nghiệp của bạn.
           </p>
         </div>
 
-        <div className="mt-6 w-full">
+        <div className="relative z-10 mt-4 w-full">
           <CategoryFilter 
             categories={CATEGORIES}
             selectedCategory={selectedCategory}
@@ -182,7 +185,7 @@ export const MarketplaceClient: React.FC = () => {
       {/* Main Grid Content */}
       <div className="flex flex-col gap-6">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-bento">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -191,22 +194,22 @@ export const MarketplaceClient: React.FC = () => {
             <SkeletonCard />
           </div>
         ) : allPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 rounded-2xl text-center" style={{ border: '1px dashed var(--line-hi)' }}>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: 'var(--paper)', border: '1px solid var(--line-hi)' }}>
-              <PackageOpen className="w-10 h-10" style={{ color: 'var(--ghost)' }} />
+          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
+            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
+              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
             </div>
-            <h3 className="text-xl font-grot font-bold mb-2" style={{ color: 'var(--ink)' }}>Chưa có Plugin nào trên Marketplace</h3>
-            <p style={{ color: 'var(--muted)' }} className="max-w-md">
+            <h3 className="text-xl font-bold text-text-primary mb-2">Chưa có Plugin nào trên Marketplace</h3>
+            <p className="text-text-secondary max-w-md">
               Hệ thống hiện chưa có ứng dụng nào được phát hành. Vui lòng quay lại sau.
             </p>
           </div>
         ) : filteredPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 rounded-2xl text-center" style={{ border: '1px dashed var(--line-hi)' }}>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: 'var(--paper)', border: '1px solid var(--line-hi)' }}>
-              <PackageOpen className="w-10 h-10" style={{ color: 'var(--ghost)' }} />
+          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
+            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
+              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
             </div>
-            <h3 className="text-xl font-grot font-bold mb-2" style={{ color: 'var(--ink)' }}>Không tìm thấy ứng dụng nào</h3>
-            <p style={{ color: 'var(--muted)' }} className="max-w-md">
+            <h3 className="text-xl font-bold text-text-primary mb-2">Không tìm thấy ứng dụng nào</h3>
+            <p className="text-text-secondary max-w-md">
               {searchQuery 
                 ? `Không có kết quả nào khớp với "${searchQuery}". Hãy thử tìm kiếm với từ khóa khác.`
                 : "Marketplace hiện chưa có ứng dụng nào trong danh mục này."}
@@ -214,14 +217,14 @@ export const MarketplaceClient: React.FC = () => {
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery("")}
-                className="mt-6 font-medium transition-colors" style={{ color: 'var(--accent)' }}
+                className="mt-6 text-brand-primary font-medium hover:underline"
               >
                 Xóa tìm kiếm
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-bento auto-rows-fr">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-fr">
             {filteredPlugins.map(({ data, status }) => {
               // Override status if this plugin is currently installing
               const currentStatus = installingId === data.id ? (installStatus || status) : status;
@@ -269,10 +272,10 @@ export const MarketplaceClient: React.FC = () => {
           <p>
             Bạn có chắc chắn muốn gỡ cài đặt ứng dụng <strong>{uninstallPluginData?.name}</strong>?
           </p>
-            <div className="text-sm p-4 rounded-xl font-medium" style={{ background: 'var(--rose-fill)', border: '1px solid var(--rose)', color: 'var(--rose)' }}>
-              ⚠️ <strong>Cảnh báo nguy hiểm:</strong> Hành động này không thể hoàn tác. 
-              Toàn bộ dữ liệu nghiệp vụ, bảng (tables), và workflows liên quan đến ứng dụng này sẽ bị xóa vĩnh viễn khỏi hệ thống.
-            </div>
+          <div className="text-sm text-danger bg-danger/10 p-4 rounded-xl border border-danger/20 font-medium">
+            ⚠️ <strong>Cảnh báo nguy hiểm:</strong> Hành động này không thể hoàn tác. 
+            Toàn bộ dữ liệu nghiệp vụ, bảng (tables), và workflows liên quan đến ứng dụng này sẽ bị xóa vĩnh viễn khỏi hệ thống.
+          </div>
         </div>
       </Modal>
     </div>
