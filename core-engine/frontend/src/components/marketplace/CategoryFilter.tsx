@@ -28,12 +28,13 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide shrink-0">
         <button
           onClick={() => onSelectCategory("All")}
-          className={clsx(
-            "px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300",
-            selectedCategory === "All"
-              ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20 scale-105"
-              : "bg-bg-surface-elevated text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary"
-          )}
+          className="btn-sm font-mono text-meta whitespace-nowrap transition-all"
+          style={{
+            background: selectedCategory === "All" ? "var(--ink)" : "transparent",
+            color: selectedCategory === "All" ? "var(--paper)" : "var(--muted)",
+            border: `1px solid ${selectedCategory === "All" ? "var(--ink)" : "var(--line-hi)"}`,
+            borderRadius: "6px",
+          }}
         >
           Tất cả
         </button>
@@ -41,29 +42,30 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
           <button
             key={category}
             onClick={() => onSelectCategory(category)}
-            className={clsx(
-              "px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300",
-              selectedCategory === category
-                ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20 scale-105"
-                : "bg-bg-surface-elevated text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary"
-            )}
+            className="btn-sm font-mono text-meta whitespace-nowrap transition-all"
+            style={{
+              background: selectedCategory === category ? "var(--ink)" : "transparent",
+              color: selectedCategory === category ? "var(--paper)" : "var(--muted)",
+              border: `1px solid ${selectedCategory === category ? "var(--ink)" : "var(--line-hi)"}`,
+              borderRadius: "6px",
+            }}
           >
             {category}
           </button>
         ))}
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="relative w-full md:w-72 shrink-0">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-4 w-4 text-text-muted" />
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+          <Search className="h-4 w-4" style={{ color: "var(--dim)" }} />
         </div>
         <input
           type="text"
           placeholder="Tìm kiếm ứng dụng..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="block w-full pl-10 pr-4 py-2.5 bg-bg-surface-elevated border border-border/50 rounded-xl text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all shadow-sm"
+          className="input-field input-field-icon"
         />
       </div>
     </div>

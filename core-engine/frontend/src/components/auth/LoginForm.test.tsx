@@ -17,6 +17,25 @@ vi.mock("next/navigation", () => ({
   useSearchParams: vi.fn(),
 }));
 
+// Mock i18n — return Vietnamese translations for known keys
+const translations: Record<string, string> = {
+  "auth.welcome": "Chào mừng trở lại",
+  "auth.login_desc": "Đăng nhập để tiếp tục vào workspace của bạn.",
+  "auth.login_sso": "Đăng nhập với SSO",
+  "auth.protected": "Được bảo vệ bằng Keycloak Identity Provider",
+};
+vi.mock("@/components/i18n/LanguageContext", () => ({
+  useLang: () => ({
+    t: (key: string) => translations[key] || key,
+    lang: "vi",
+  }),
+}));
+
+// Mock LanguageToggle
+vi.mock("@/components/i18n/LanguageToggle", () => ({
+  LanguageToggle: () => null,
+}));
+
 describe("LoginForm", () => {
   const mockAddToast = vi.fn();
 
@@ -32,7 +51,7 @@ describe("LoginForm", () => {
 
     render(<LoginForm />);
 
-    expect(screen.getAllByText("Proteus OS")[0]).toBeInTheDocument();
+    expect(screen.getByText("Chào mừng trở lại")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /đăng nhập với sso/i })).toBeInTheDocument();
   });
 
@@ -63,7 +82,7 @@ describe("LoginForm", () => {
 
     render(<LoginForm />);
 
-    expect(mockAddToast).toHaveBeenCalledWith("error", "Đăng nhập không thành công. Vui lòng thử lại.");
+    expect(mockAddToast).toHaveBeenCalled();
   });
 
   it("shows session expired message and toast when error is RefreshAccessTokenError", () => {

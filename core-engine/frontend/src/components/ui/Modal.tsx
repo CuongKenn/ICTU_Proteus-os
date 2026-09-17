@@ -4,154 +4,117 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import clsx from "clsx";
-import { Button } from "./Button";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 
-export interface ModalProps {
+interface ModalProps {
   isOpen: boolean;
+  onClose: () => void;
   title: string;
   children: React.ReactNode;
-  onClose: () => void;
-  confirmKeyword?: string;
+  maxWidth?: string;
+  /** Optional confirm action */
   onConfirm?: () => void;
   confirmLabel?: string;
-  confirmVariant?: "primary" | "danger";
+  confirmVariant?: string;
   isConfirmLoading?: boolean;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
+  /** If set, user must type this keyword to enable confirm */
+  confirmKeyword?: string;
 }
-
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
+  onClose,
   title,
   children,
-  onClose,
-  confirmKeyword,
+  maxWidth = "480px",
   onConfirm,
-  confirmLabel = "Confirm",
-  confirmVariant = "primary",
+  confirmLabel = "Xác nhận",
+  confirmVariant = "accent",
   isConfirmLoading = false,
-  maxWidth = "md",
+  confirmKeyword,
 }) => {
-
-  const [isRendered, setIsRendered] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
   const [keywordInput, setKeywordInput] = useState("");
 
   useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-      // Allow DOM to mount before animating in
-      const timer = requestAnimationFrame(() => setIsVisible(true));
-      return () => cancelAnimationFrame(timer);
-    } else {
-      setIsVisible(false);
-      const timer = setTimeout(() => setIsRendered(false), 250); // match duration
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // Reset input when closed
-  useEffect(() => {
-    if (!isOpen) {
-      setKeywordInput("");
-    }
-  }, [isOpen]);
-
-  // Bổ sung lắng nghe phím Escape để đóng Modal
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen) {
-        onClose();
-      }
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    if (isOpen) document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen, onClose]);
 
-  if (!isRendered) return null;
+  useEffect(() => {
+    if (!isOpen) setKeywordInput("");
+  }, [isOpen]);
 
-  const canConfirm = !confirmKeyword || keywordInput === confirmKeyword;
+  if (!isOpen) return null;
+
+  const isConfirmEnabled = confirmKeyword ? keywordInput === confirmKeyword : true;
+
+  const btnClass = confirmVariant === "danger" ? "btn-danger" : "btn-accent";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className={clsx(
-          "absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-[250ms]",
-          isVisible ? "opacity-100" : "opacity-0"
-        )}
-        onClick={onClose}
-      />
-      
-      <div 
-        className={clsx(
-          "relative w-full glass-card bg-bg-surface/90 p-6 flex flex-col gap-4 shadow-2xl transition-all duration-[250ms] ease-out",
-          {
-            "max-w-sm": maxWidth === "sm",
-            "max-w-md": maxWidth === "md",
-            "max-w-lg": maxWidth === "lg",
-            "max-w-xl": maxWidth === "xl",
-            "max-w-2xl": maxWidth === "2xl",
-            "max-w-3xl": maxWidth === "3xl",
-            "max-w-4xl": maxWidth === "4xl",
-            "max-w-5xl": maxWidth === "5xl",
-          },
-          isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
-        )}
-      >
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-fade-in" onClick={onClose} />
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-text-primary">{title}</h2>
-          <button 
+      {/* Modal Card */}
+      <div
+        className="relative w-full rounded-2xl animate-scale-in"
+        style={{
+          maxWidth,
+          background: "var(--paper-white)",
+          border: "1px solid var(--line-hi)",
+          boxShadow: "var(--shadow-modal)",
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--line)" }}>
+          <h2 className="text-lg font-grot font-semibold" style={{ color: "var(--ink)" }}>{title}</h2>
+          <button
             onClick={onClose}
-            className="text-text-muted hover:text-text-primary p-1 rounded-md hover:bg-bg-glass transition-colors"
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: "var(--dim)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ink)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--dim)")}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="text-sm text-text-secondary leading-relaxed">
+        {/* Content */}
+        <div className="px-6 py-5" style={{ color: "var(--ink-soft)" }}>
           {children}
         </div>
 
-        {confirmKeyword && (
-          <div className="mt-2">
-            <label className="block text-xs font-semibold text-text-secondary mb-2">
-              Vui lòng gõ <strong>{confirmKeyword}</strong> để xác nhận.
-            </label>
-            <input
-              type="text"
-              className="w-full bg-bg-base border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              placeholder={confirmKeyword}
-            />
+        {/* Footer — only if onConfirm is provided */}
+        {onConfirm && (
+          <div className="px-6 py-4 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--line)" }}>
+            {confirmKeyword && (
+              <div className="flex-1">
+                <p className="text-xs mb-1.5" style={{ color: "var(--dim)" }}>
+                  Nhập <strong style={{ color: "var(--ink)" }}>{confirmKeyword}</strong> để xác nhận:
+                </p>
+                <input
+                  type="text"
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  className="input-field text-sm"
+                  placeholder={confirmKeyword}
+                />
+              </div>
+            )}
+            <button onClick={onClose} className="btn-ghost">Hủy</button>
+            <button
+              onClick={onConfirm}
+              disabled={!isConfirmEnabled || isConfirmLoading}
+              className={btnClass}
+              style={!isConfirmEnabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+            >
+              {isConfirmLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmLabel}
+            </button>
           </div>
         )}
-
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="ghost" onClick={onClose}>
-            Hủy
-          </Button>
-          {onConfirm && (
-            <Button 
-              variant={confirmVariant} 
-              onClick={onConfirm} 
-              disabled={!canConfirm}
-              isLoading={isConfirmLoading}
-            >
-              {confirmLabel}
-            </Button>
-          )}
-        </div>
       </div>
     </div>
   );
