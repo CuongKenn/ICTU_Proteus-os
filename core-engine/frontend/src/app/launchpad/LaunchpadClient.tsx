@@ -3,30 +3,22 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { usePlugins } from "@/hooks/usePlugins";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { useSession } from "next-auth/react";
 
+const MATTERMOST_URL = process.env.NEXT_PUBLIC_MATTERMOST_URL || "http://chat.proteus.local";
+const OUTLINE_URL = process.env.NEXT_PUBLIC_OUTLINE_URL || "http://wiki.proteus.local";
+const N8N_URL = process.env.NEXT_PUBLIC_N8N_URL || "http://workflow.proteus.local";
 import { useNotificationStore } from "@/store/notificationStore";
-import { AppWindow, Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
+import { Blocks, Box, FileText, MessageSquare, Network, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-
-/** Chỉ cho phép http/https để chống open-redirect / javascript: trong iframe. */
-function isSafeHttpUrl(url: string | null | undefined): url is string {
-  if (!url || typeof url !== "string") return false;
-  try {
-    const u = new URL(url, typeof window !== "undefined" ? window.location.origin : undefined);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
+import { useLang } from "@/components/i18n/LanguageContext";
 
 export function LaunchpadClient() {
   const { data: session } = useSession();
-  const user = useAuthStore((state) => state.user); // Bắt buộc subscribe vào user để component re-render khi roles được cập nhật
   const hasRole = useAuthStore((state) => state.hasRole);
   const isAdmin = hasRole("tenant_admin") || hasRole("superadmin");
   const { plugins, isLoading } = usePlugins();
@@ -35,14 +27,7 @@ export function LaunchpadClient() {
   const [isIframeLoading, setIsIframeLoading] = useState(false);
   const addToast = useNotificationStore((state) => state.addToast);
   const router = useRouter();
-
-  // Env đọc tại runtime (trong component) để nhận đúng giá trị deploy-time,
-  // không bake cứng proteus.local ở module-scope. Fallback "" an toàn:
-  // nút iframe sẽ bị disable/toast thay vì trỏ nhầm domain.
-  const MATTERMOST_URL = useMemo(() => process.env.NEXT_PUBLIC_MATTERMOST_URL || "", []);
-  const OUTLINE_URL = useMemo(() => process.env.NEXT_PUBLIC_OUTLINE_URL || "", []);
-  const N8N_URL = useMemo(() => process.env.NEXT_PUBLIC_N8N_URL || "", []);
-  const APPSMITH_URL = useMemo(() => process.env.NEXT_PUBLIC_APPSMITH_URL || "", []);
+  const { t } = useLang();
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -52,19 +37,7 @@ export function LaunchpadClient() {
     return () => document.removeEventListener("keydown", handleEsc);
   }, [activeApp]);
 
-  const openInNewTab = (url: string) => {
-    if (!isSafeHttpUrl(url)) {
-      addToast("error", "URL không hợp lệ, đã chặn để bảo mật.");
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const openIframe = (appId: string, url: string) => {
-    if (!isSafeHttpUrl(url)) {
-      addToast("error", "URL ứng dụng chưa được cấu hình hoặc không hợp lệ.");
-      return;
-    }
     setActiveApp(appId);
     setIframeUrl(url);
     setIsIframeLoading(true);
@@ -77,207 +50,120 @@ export function LaunchpadClient() {
       const res = await fetch("/api/embed/metabase?dashboard_id=1");
       if (!res.ok) throw new Error("Failed to fetch signed URL");
       const data = await res.json();
-      if (!data?.url || !isSafeHttpUrl(data.url)) {
-        throw new Error("Invalid signed URL");
-      }
       setIframeUrl(data.url);
     } catch (err) {
       addToast("error", "Không thể tải báo cáo Metabase");
       setActiveApp(null);
-      setIframeUrl(null);
-      setIsIframeLoading(false);
     }
   };
 
-  const closeIframe = () => {
-    setActiveApp(null);
-    setIframeUrl(null);
-    setIsIframeLoading(false);
-  };
+  const closeIframe = () => { setActiveApp(null); setIframeUrl(null); };
 
   const handleOpenPlugin = (code_name: string) => {
-    const plugin = plugins.find(p => p.code_name === code_name);
-    if (plugin?.external_url && isSafeHttpUrl(plugin.external_url)) {
-      openIframe(code_name, plugin.external_url);
-    } else if (APPSMITH_URL) {
-      const appsmithUrl = `${APPSMITH_URL.replace(/\/+$/, "")}/app/${encodeURIComponent(code_name)}`;
-      openIframe(code_name, appsmithUrl);
-    } else {
-      addToast("error", "URL ứng dụng chưa được cấu hình.");
-    }
+    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
+    openIframe(code_name, appsmithUrl);
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t("launchpad.morning");
+    if (hour < 18) return t("launchpad.afternoon");
+    return t("launchpad.evening");
   };
 
   return (
-    <div className="relative min-h-screen">
-      {/* Dynamic Background Mesh */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-primary/10 via-bg-base to-bg-base -z-10 pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-brand-primary/5 to-transparent -z-10 pointer-events-none" />
-
-      <div className="p-10 max-w-7xl mx-auto relative z-0">
-        <div className="mb-10 animate-fade-in">
-          <h1 className="text-3xl font-bold text-text-primary tracking-tight mb-2">
-            Chào buổi {new Date().getHours() < 12 ? 'sáng' : new Date().getHours() < 18 ? 'chiều' : 'tối'}, {session?.user?.name || 'bạn'}!
+    <div className="relative">
+      <div className="p-6 md:p-10 max-w-[1200px] mx-auto">
+        {/* Header */}
+        <div className="mb-10 animate-slide-up">
+          <div className="mono-tag mb-4">
+            <span className="pulse-dot" />
+            WORKSPACE ACTIVE
+          </div>
+          <h1 className="text-3xl font-grot font-bold tracking-tight mb-2" style={{ color: "var(--ink)" }}>
+            Chào buổi {getGreeting()}, <span style={{ color: "var(--accent)" }}>{session?.user?.name || 'bạn'}</span>!
           </h1>
-          <p className="text-text-secondary">
-            Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <p className="font-mono text-meta" style={{ color: "var(--dim)" }}>
+            {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-      
-      {/* System Apps Section */}
-      <section className="mb-12 animate-fade-in" style={{ animationDelay: '100ms' }}>
-        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
-          Hệ thống
-          <div className="flex-1 h-px bg-border/50" />
-        </h2>
-        <div className="flex flex-wrap gap-6 sm:gap-8">
-          <AppIcon
-            appName="Mattermost"
-            icon={<MessageSquare className="w-8 h-8 text-blue-500" />}
-            onClick={() => router.push("/chat")}
-            isActive
-          />
-          <AppIcon
-            appName="Outline Wiki"
-            icon={<FileText className="w-8 h-8 text-text-secondary" />}
-            onClick={() => router.push("/wiki")}
-            isActive
-          />
-          {isAdmin && (
-            <AppIcon
-              appName="n8n Workflow"
-              icon={<Network className="w-8 h-8 text-orange-500" />}
-              onClick={() => openIframe("n8n", N8N_URL)}
-              isActive
-            />
-          )}
-          {isAdmin && (
-            <AppIcon
-              appName="Metabase"
-              icon={<Box className="w-8 h-8 text-brand-primary" />}
-              onClick={handleOpenMetabase}
-              isActive
-            />
-          )}
-          {isAdmin && (
-            <AppIcon
-              appName="Appsmith"
-              icon={<AppWindow className="w-8 h-8 text-purple-400" />}
-              onClick={() => openIframe("appsmith", APPSMITH_URL)}
-              isActive
-            />
-          )}
-        </div>
-      </section>
 
-      {/* Plugin Apps Section */}
-      <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
-          Ứng dụng cài đặt
-          <div className="flex-1 h-px bg-border/50" />
-        </h2>
-        
-        <div className="flex flex-wrap gap-6 sm:gap-8">
-          {/* Plugin Skeletons */}
-          {isLoading &&
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex flex-col items-center gap-2 w-24 animate-pulse-slow">
-                <div className="w-20 h-20 rounded-[20px] bg-bg-surface/50 border border-border/50 shrink-0" />
-                <div className="h-3 bg-bg-surface/40 rounded w-16 mt-1" />
+        {/* System Apps */}
+        <section className="mb-12 animate-fade-in">
+          <h2 className="font-mono text-meta font-medium mb-6 flex items-center gap-3" style={{ color: "var(--dim)" }}>
+            <span>{t("launchpad.system")}</span>
+            <div className="flex-1 h-px" style={{ background: "var(--line)" }} />
+          </h2>
+          <div className="flex flex-wrap gap-6 sm:gap-8">
+            <AppIcon appName="Mattermost" icon={<MessageSquare className="w-7 h-7" style={{ color: "var(--accent)" }} />} onClick={() => router.push("/chat")} isActive />
+            <AppIcon appName="Outline Wiki" icon={<FileText className="w-7 h-7" style={{ color: "var(--muted)" }} />} onClick={() => router.push("/wiki")} isActive />
+            {isAdmin && <AppIcon appName="n8n Workflow" icon={<Network className="w-7 h-7" style={{ color: "var(--amber)" }} />} onClick={() => openIframe("n8n", N8N_URL)} isActive />}
+            {isAdmin && <AppIcon appName="Metabase" icon={<Box className="w-7 h-7" style={{ color: "var(--accent)" }} />} onClick={handleOpenMetabase} isActive />}
+          </div>
+        </section>
+
+        {/* Plugin Apps */}
+        <section className="animate-fade-in">
+          <h2 className="font-mono text-meta font-medium mb-6 flex items-center gap-3" style={{ color: "var(--dim)" }}>
+            <span>{t("launchpad.plugins")}</span>
+            <div className="flex-1 h-px" style={{ background: "var(--line)" }} />
+          </h2>
+          <div className="flex flex-wrap gap-6 sm:gap-8">
+            {isLoading && Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 w-24 animate-pulse">
+                <div className="w-[72px] h-[72px] rounded-2xl" style={{ background: "var(--line)" }} />
+                <div className="h-3 rounded-lg w-16 mt-1" style={{ background: "var(--line)" }} />
               </div>
             ))}
-
-          {/* Plugins */}
-          {!isLoading && plugins.filter((plugin) => {
-            if (isAdmin) return true;
-            if (!plugin.roles || plugin.roles.length === 0) return true;
-            return plugin.roles.some((r) => hasRole(r));
-          }).map((plugin) => {
-            // Generate a color based on the plugin's code_name
-            const colors = ['text-blue-400', 'text-green-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400', 'text-indigo-400'];
-            const colorClass = colors[plugin.code_name.length % colors.length];
-            
-            return (
+            {!isLoading && plugins.filter((p) => {
+              if (isAdmin) return true;
+              if (!p.roles || p.roles.length === 0) return true;
+              return p.roles.some((r) => hasRole(r));
+            }).map((plugin) => (
               <AppIcon
                 key={plugin.id}
                 appName={plugin.display_name}
-                icon={<Blocks className={`w-8 h-8 ${colorClass}`} />}
+                icon={<Blocks className="w-7 h-7" style={{ color: "var(--accent)" }} />}
                 onClick={() => handleOpenPlugin(plugin.code_name)}
                 isActive={plugin.status === "ACTIVE"}
               />
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Empty State for Plugins */}
-      {!isLoading && plugins.length === 0 && (
-        <div className="mt-20 text-center animate-fade-in">
-          <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-bg-surface/50 border border-border/50 text-text-secondary/40 mb-6 group hover:border-brand-primary/50 transition-colors">
-            <div className="absolute inset-0 rounded-full bg-brand-primary/5 blur-xl group-hover:bg-brand-primary/10 transition-colors" />
-            <Blocks className="w-12 h-12 relative z-10 text-brand-primary/60 group-hover:text-brand-primary transition-colors" />
+            ))}
           </div>
-          <h3 className="text-2xl font-bold text-text-primary mb-3">Chưa có Plugin nào</h3>
-          <p className="text-text-secondary max-w-sm mx-auto leading-relaxed mb-6">
-            Không gian làm việc của bạn chưa được cài đặt bất kỳ công cụ nào. Hãy truy cập Marketplace để khám phá thêm.
-          </p>
-          <button 
-            onClick={() => router.push('/marketplace')}
-            className="px-6 py-2.5 rounded-lg bg-brand-primary/10 text-brand-primary font-semibold hover:bg-brand-primary/20 transition-all border border-brand-primary/20 hover:scale-105 active:scale-95"
-          >
-            Khám phá Marketplace
-          </button>
-        </div>
-      )}
+        </section>
+
+        {/* Empty State */}
+        {!isLoading && plugins.length === 0 && (
+          <div className="mt-16 text-center animate-fade-in">
+            <div className="card inline-flex items-center justify-center w-20 h-20 mb-6">
+              <Blocks className="w-10 h-10" style={{ color: "var(--ghost)" }} />
+            </div>
+            <h3 className="text-xl font-grot font-bold mb-3" style={{ color: "var(--ink)" }}>{t("launchpad.no_plugins")}</h3>
+            <p className="max-w-sm mx-auto leading-relaxed mb-6" style={{ color: "var(--muted)" }}>
+              Không gian làm việc của bạn chưa được cài đặt bất kỳ công cụ nào.
+            </p>
+            <button onClick={() => router.push('/marketplace')} className="btn-accent">{t("launchpad.explore")}</button>
+          </div>
+        )}
       </div>
 
       {/* Iframe Overlay */}
       {activeApp && iframeUrl && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-bg-base/95 backdrop-blur-2xl animate-fade-in">
-          {/* Header Bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-bg-surface/40 shadow-sm">
-            <h2 className="text-lg font-bold text-text-primary uppercase tracking-widest flex items-center gap-2">
-              {activeApp === "metabase" ? (
-                <><Box className="w-5 h-5 text-brand-primary" /> Metabase Analytics</>
-              ) : activeApp === "n8n" ? (
-                <><Network className="w-5 h-5 text-orange-500" /> n8n Workflow</>
-              ) : activeApp === "appsmith" ? (
-                <><AppWindow className="w-5 h-5 text-purple-400" /> Appsmith Low-code</>
-              ) : (
-                <><Blocks className="w-5 h-5 text-brand-primary" /> {plugins.find(p => p.code_name === activeApp)?.display_name || activeApp}</>
-              )}
+        <div className="fixed inset-0 z-[100] flex flex-col animate-fade-in" style={{ background: "var(--paper)" }}>
+          <div className="flex items-center justify-between px-6 py-3 shrink-0" style={{ borderBottom: "1px solid var(--line)", background: "var(--paper-raised)" }}>
+            <h2 className="font-mono text-meta font-medium" style={{ color: "var(--ink)" }}>
+              {activeApp === "metabase" ? "Metabase Analytics" : activeApp === "n8n" ? "n8n Workflow" : plugins.find(p => p.code_name === activeApp)?.display_name || activeApp}
             </h2>
-            <button
-              onClick={closeIframe}
-              className="p-2 rounded-full hover:bg-bg-surface/80 text-text-secondary hover:text-text-primary transition-all duration-200"
-              title="Đóng (Esc)"
-            >
-              <X className="w-6 h-6" />
+            <button onClick={closeIframe} className="p-2 rounded-lg transition-colors" style={{ color: "var(--dim)" }} title="Đóng (Esc)">
+              <X className="w-5 h-5" />
             </button>
           </div>
-          
-          {/* Iframe Content */}
-          <div className="flex-1 relative bg-bg-base">
+          <div className="flex-1 relative">
             {isIframeLoading && (
-               <div className="absolute inset-0 flex items-center justify-center bg-bg-base z-10 animate-pulse-slow">
-                 <div className="flex flex-col items-center gap-4">
-                   <div className="w-10 h-10 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
-                   <div className="text-text-secondary font-medium tracking-wide">Đang tải ứng dụng...</div>
-                 </div>
-               </div>
+              <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: "var(--paper)" }}>
+                <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--line)", borderTopColor: "var(--accent)" }} />
+              </div>
             )}
-            <iframe
-              src={iframeUrl}
-              className="w-full h-full border-none"
-              onLoad={() => setIsIframeLoading(false)}
-              onError={() => {
-                setIsIframeLoading(false);
-                addToast("error", "Không thể tải ứng dụng trong iframe.");
-              }}
-              allow="clipboard-read; clipboard-write; fullscreen"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-              referrerPolicy="strict-origin-when-cross-origin"
-              title={activeApp}
-            />
+            <iframe src={iframeUrl} className="w-full h-full border-none" onLoad={() => setIsIframeLoading(false)} allow="clipboard-read; clipboard-write; fullscreen" />
           </div>
         </div>
       )}

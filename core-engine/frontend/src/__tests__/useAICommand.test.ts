@@ -49,19 +49,12 @@ describe("useAICommand", () => {
   });
 
   it("should process a read command successfully", async () => {
-    mockFetch.mockImplementation(async (url: unknown) => {
-      if (typeof url === "string" && url.includes("/api/ai/chat/stream")) {
-        return { ok: false, headers: { get: () => null }, body: null };
-      }
-      return {
-        ok: true,
-        headers: { get: () => "application/json" },
-        json: async () => ({
-          status: "completed",
-          message: "Read result",
-          result: "Read result",
-        }),
-      };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: "completed",
+        result: "Read result",
+      }),
     });
 
     const { result } = renderHook(() => useAICommand());
@@ -75,9 +68,7 @@ describe("useAICommand", () => {
     });
 
     expect(result.current.widgetState).toBe("expanded");
-    expect(
-      result.current.messages[result.current.messages.length - 1].content
-    ).toContain("Read result");
+    expect(result.current.messages[result.current.messages.length - 1].content).toBe("Read result");
     expect(result.current.messages[result.current.messages.length - 1].role).toBe("assistant");
     expect(result.current.inputValue).toBe("");
   });
@@ -90,19 +81,12 @@ describe("useAICommand", () => {
       approval_message: "Need approval",
     };
 
-    mockFetch.mockImplementation(async (url: unknown) => {
-      if (typeof url === "string" && url.includes("/api/ai/chat/stream")) {
-        return { ok: false, headers: { get: () => null }, body: null };
-      }
-      return {
-        ok: true,
-        headers: { get: () => "application/json" },
-        json: async () => ({
-          status: "pending_approval",
-          message: "Need approval",
-          dsl_preview,
-        }),
-      };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: "pending_approval",
+        dsl_preview,
+      }),
     });
 
     const { result } = renderHook(() => useAICommand());
@@ -116,6 +100,6 @@ describe("useAICommand", () => {
     });
 
     expect(result.current.widgetState).toBe("awaiting_approval");
-    expect(result.current.dslPreview).toMatchObject(dsl_preview);
+    expect(result.current.dslPreview).toEqual(dsl_preview);
   });
 });

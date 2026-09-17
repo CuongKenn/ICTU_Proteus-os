@@ -65,13 +65,10 @@ export interface Plugin {
   download_count: number;
   published_at?: string | null;
   status?: PluginStatus | null;
-  /** Version thực tế đang chạy (từ tenant_plugins) — so với `version` để báo update. */
-  installed_version?: string | null;
   tables_count?: number;
   workflows_count?: number;
   roles?: string[];
   credentials_schema: CredentialFieldSchema[];
-  external_url?: string | null;
 }
 
 /** Plugin detail (thêm screenshots, long_description, license). */
