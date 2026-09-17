@@ -84,7 +84,7 @@ Next.js, React, Zustand, TailwindCSS, Axios, Vitest, Testing Library → **MIT**
 | :--- | :--- | :---: | :--- |
 | Traefik, Ollama, curlimages | `traefik:v3.7`, `ollama/ollama:0.3.4`, `curlimages/curl` | MIT | ✅ |
 | PostgreSQL | `postgres:16.4` | PostgreSQL License | ✅ |
-| Redis | `redis:latest` → **phải ghim version** (VD `redis:8-alpine`, tuyên bố chọn điều khoản AGPLv3; hoặc Valkey BSD-3) | ≤7.2 BSD-3 / 7.4–7.8 RSALv2+SSPL / ≥8 tri-license RSALv2+SSPL+**AGPLv3** | ⚠️ tùy version |
+| Redis | `redis:7.2.16-alpine` (ghim cứng, cấm tag `:latest`) | BSD-3-Clause | ✅ |
 | Keycloak, Qdrant, vLLM, Appsmith CE | `quay.io/keycloak/keycloak:26`, `qdrant/qdrant:v1.8`, `vllm/vllm-openai`, `appsmith/appsmith-ce` | Apache-2.0 | ✅ |
 | Metabase, Grafana, Loki, Promtail | `metabase/metabase`, `grafana/*` | AGPLv3 | ✅ |
 | n8n | `n8nio/n8n` | Sustainable Use License 1.0 (fair-code) | ❌ không phải OSI |
