@@ -60,6 +60,7 @@ class AICommandUseCase:
         qdrant_adapter=None,
         audit_log_repo=None,
         user_repo=None,
+        conversation_repo=None,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
@@ -71,6 +72,9 @@ class AICommandUseCase:
         self.qdrant_adapter = qdrant_adapter
         self.audit_log_repo = audit_log_repo
         self.user_repo = user_repo
+        # Bộ nhớ hội thoại (AI conversation memory) — dependencies.py inject vào.
+        # None = chạy không có memory (tương thích code/test cũ).
+        self.conversation_repo = conversation_repo
         self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
 
     async def _audit(
