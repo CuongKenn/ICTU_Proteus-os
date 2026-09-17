@@ -555,6 +555,10 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
+      # URL public của Keycloak — backend verify JWT iss cả nội bộ + public.
+      # Ưu tiên KEYCLOAK_PUBLIC_URL trong .env (setup.sh tự điền); fallback
+      # dựng từ DOMAIN để các deploy cũ chưa có biến này vẫn chạy đúng.
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-${PUBLIC_SCHEME:-http}://auth.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}}
       KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       N8N_URL: http://n8n:5678

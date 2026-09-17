@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     KEYCLOAK_URL: str = "http://localhost:8080"
     KEYCLOAK_REALM: str = "proteus"
     KEYCLOAK_CLIENT_ID: str = "proteus-bff"
+    # URL public của Keycloak (qua Traefik, trình duyệt dùng để login).
+    # Token mang iss theo URL public, khác URL nội bộ ở trên → backend phải
+    # chấp nhận cả hai issuer, nếu không production 401 hàng loạt dù user
+    # đã login thành công. Để trống = chỉ verify issuer nội bộ (dev).
+    KEYCLOAK_PUBLIC_URL: str = ""
     KEYCLOAK_ADMIN_CLIENT_ID: str = "admin-cli"
     KEYCLOAK_ADMIN_CLIENT_SECRET: str = ""
     KEYCLOAK_ADMIN_USER: str = "admin"
@@ -93,6 +98,21 @@ class Settings(BaseSettings):
     @property
     def keycloak_token_url(self) -> str:
         return f"{self.KEYCLOAK_URL}/realms/{self.KEYCLOAK_REALM}/protocol/openid-connect/token"
+
+    @property
+    def keycloak_allowed_issuers(self) -> list[str]:
+        """Các iss hợp lệ của JWT (nội bộ + public nếu có cấu hình)."""
+        issuers = [
+            f"{self.KEYCLOAK_URL.rstrip('/')}/realms/{self.KEYCLOAK_REALM}"
+        ]
+        public_base = (self.KEYCLOAK_PUBLIC_URL or "").strip()
+        if public_base:
+            public_issuer = (
+                f"{public_base.rstrip('/')}/realms/{self.KEYCLOAK_REALM}"
+            )
+            if public_issuer not in issuers:
+                issuers.append(public_issuer)
+        return issuers
 
 
 # Singleton instance — import này từ mọi nơi cần dùng config

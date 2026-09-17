@@ -13,7 +13,7 @@ import uuid as uuid_lib
 from typing import Any, cast
 
 import httpx
-from jose import jwt
+from jose import JWTError, jwt
 
 from app.core.domain.ports import AbstractIdentityProviderPort
 from app.infrastructure.config import settings
@@ -130,14 +130,39 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         expected_issuer = (
             f"{settings.KEYCLOAK_URL.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
         )
-        payload = jwt.decode(
-            token,
-            jwks,
-            algorithms=["RS256"],
-            audience=settings.KEYCLOAK_CLIENT_ID,
-            issuer=expected_issuer,
-            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
-        )
+        # Production: token do trình duyệt mang về có iss theo URL public
+        # (VD: https://auth.example.com/realms/proteus), khác URL nội bộ
+        # (http://keycloak:8080). Thử từng issuer được phép — chỉ 401 khi
+        # tất cả đều không khớp.
+        candidate_issuers = [expected_issuer]
+        public_base = (
+            getattr(settings, "KEYCLOAK_PUBLIC_URL", "") or ""
+        ).strip()
+        if public_base:
+            public_issuer = (
+                f"{public_base.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
+            )
+            if public_issuer not in candidate_issuers:
+                candidate_issuers.append(public_issuer)
+        payload: dict[str, Any] | None = None
+        last_error: JWTError | None = None
+        for issuer in candidate_issuers:
+            try:
+                payload = jwt.decode(
+                    token,
+                    jwks,
+                    algorithms=["RS256"],
+                    audience=settings.KEYCLOAK_CLIENT_ID,
+                    issuer=issuer,
+                    options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+                )
+                break
+            except JWTError as exc:
+                last_error = exc
+        if payload is None:
+            if last_error is not None:
+                raise last_error
+            raise JWTError("Token verification failed for all allowed issuers")
         # M22: verify azp (authorized party) — chặn token cấp cho client khác.
         azp = payload.get("azp")
         if azp is not None and azp != settings.KEYCLOAK_CLIENT_ID:

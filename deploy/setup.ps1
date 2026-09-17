@@ -42,6 +42,8 @@ function Set-PublicUrls([string]$Scheme, [string]$Domain, [string]$Suffix) {
     Set-EnvValue "NEXT_PUBLIC_METABASE_URL"   "$Scheme`://analytics.$Domain$Suffix"
     Set-EnvValue "NEXT_PUBLIC_APPSMITH_URL"   "$Scheme`://apps.$Domain$Suffix"
     Set-EnvValue "PLUGINS_MFE_URL"            "$Scheme`://plugins.$Domain$Suffix"
+    # Backend verify JWT iss cả nội bộ + public — thiếu dòng này production 401 hàng loạt.
+    Set-EnvValue "KEYCLOAK_PUBLIC_URL"         "$Scheme`://auth.$Domain$Suffix"
 }
 
 # 0. Chon che do trien khai: local dev hay production VPS

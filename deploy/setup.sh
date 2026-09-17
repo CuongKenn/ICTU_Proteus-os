@@ -40,6 +40,8 @@ apply_public_urls() {
   set_env NEXT_PUBLIC_METABASE_URL "$PUBLIC_SCHEME://analytics.$DOMAIN$URL_SUFFIX"
   set_env NEXT_PUBLIC_APPSMITH_URL "$PUBLIC_SCHEME://apps.$DOMAIN$URL_SUFFIX"
   set_env PLUGINS_MFE_URL "$PUBLIC_SCHEME://plugins.$DOMAIN$URL_SUFFIX"
+  # Backend verify JWT iss cả nội bộ + public — thiếu dòng này production 401 hàng loạt.
+  set_env KEYCLOAK_PUBLIC_URL "$PUBLIC_SCHEME://auth.$DOMAIN$URL_SUFFIX"
 }
 
 # ─────────────────────────────────────────────
