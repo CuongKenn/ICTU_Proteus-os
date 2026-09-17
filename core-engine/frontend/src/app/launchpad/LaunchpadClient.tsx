@@ -355,13 +355,13 @@ export function LaunchpadClient() {
         }}
         className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
           active
-            ? "border-amber-400/50 bg-amber-400/15"
-            : "border-transparent bg-bg-base/60 opacity-0 backdrop-blur-sm group-hover:opacity-100 group-focus-visible:opacity-100 max-sm:opacity-100"
+            ? "border-amber-500/40 bg-amber-50 dark:border-amber-400/50 dark:bg-amber-400/15"
+            : "border-transparent bg-white/80 opacity-0 shadow-sm backdrop-blur-sm group-hover:opacity-100 group-focus-visible:opacity-100 max-sm:opacity-100 dark:bg-bg-base/60 dark:shadow-none"
         }`}
       >
         <Star
           className={`h-4 w-4 transition-colors duration-200 ${
-            active ? "fill-amber-400 text-amber-400" : "text-text-secondary hover:text-amber-300"
+            active ? "fill-amber-500 text-amber-500 dark:fill-amber-400 dark:text-amber-400" : "text-slate-400 hover:text-amber-500 dark:text-text-secondary dark:hover:text-amber-300"
           }`}
         />
       </button>
@@ -399,36 +399,37 @@ export function LaunchpadClient() {
   };
 
   return (
-    <div className="relative min-h-screen font-display">
-      {/* Dynamic Background Mesh */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-primary/10 via-bg-base to-bg-base -z-10 pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-brand-primary/5 to-transparent -z-10 pointer-events-none" />
-      <div aria-hidden="true" className="pointer-events-none absolute -top-24 right-[-120px] -z-10 h-[320px] w-[320px] rounded-full bg-brand-secondary/10 blur-[100px]" />
+    <div className="relative min-h-screen bg-slate-50 font-display dark:bg-bg-base">
+      {/* Lớp wash sáng thoáng — 1 vệt indigo duy nhất, tối thì mesh tím cũ */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-gradient-to-b from-indigo-100/70 via-indigo-50/40 to-transparent dark:from-brand-primary/10 dark:via-brand-primary/5 dark:to-transparent" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-24 right-[-120px] -z-10 h-[320px] w-[320px] rounded-full bg-indigo-200/40 blur-[100px] dark:bg-brand-secondary/10" />
 
-      <div className="p-6 sm:p-10 max-w-7xl mx-auto relative z-0">
-        {/* ─── Hero chào mừng (Bento) ─── */}
-        <div className="mb-8 animate-fade-in">
-          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-bg-surface via-bg-surface/80 to-bg-base p-6 sm:p-8">
-            <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-[80px]" />
-            <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-brand-secondary/10 blur-[80px]" />
-            <div className="relative flex flex-wrap items-start justify-between gap-6">
+      <div className="relative z-0 mx-auto max-w-6xl p-6 sm:p-10">
+        {/* ─── Hero chào mừng: sáng, chữ khổ lớn, số liệu dominant ─── */}
+        <div className="mb-10 animate-fade-in">
+          <div className="relative overflow-hidden rounded-[28px] border border-slate-200/90 bg-white p-7 shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:p-10 dark:border-border/60 dark:bg-gradient-to-br dark:from-bg-surface dark:via-bg-surface/80 dark:to-bg-base dark:shadow-none">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-200/50 blur-[90px] dark:bg-brand-primary/15" />
+            <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 left-1/4 h-60 w-60 rounded-full bg-cyan-100/60 blur-[90px] dark:bg-brand-secondary/10" />
+            {/* Họa tiết chấm mờ tạo chiều sâu mà vẫn thoáng */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.5] [background-image:radial-gradient(rgba(99,102,241,0.14)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_70%_80%_at_20%_20%,black,transparent)] dark:opacity-100 dark:[background-image:none]" />
+            <div className="relative flex flex-wrap items-end justify-between gap-8">
               <div className="min-w-0 max-w-xl">
-                <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-brand-primary/25 bg-brand-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-primary">
+                <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-indigo-600/20 bg-indigo-600/[0.07] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:border-brand-primary/25 dark:bg-brand-primary/10 dark:text-brand-primary">
                   <Sparkles className="h-3.5 w-3.5" />
                   Không gian làm việc
                 </p>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-text-primary tracking-tight mb-2 text-balance">
+                <h1 className="mb-3 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-900 text-balance sm:text-5xl dark:text-text-primary">
                   Chào buổi {greeting},{" "}
-                  <span className="gradient-text">{session?.user?.name || "bạn"}</span>
+                  <span className="text-indigo-600 dark:gradient-text">{session?.user?.name || "bạn"}</span>
                 </h1>
-                <p className="text-sm text-text-secondary">
+                <p className="max-w-md text-[15px] leading-relaxed text-slate-500 dark:text-text-secondary">
                   Hôm nay là {todayLabel} — mọi công cụ của bạn ở ngay bên dưới, sẵn sàng để mở.
                 </p>
-                <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                <div className="mt-6 flex flex-wrap items-center gap-2.5">
                   <button
                     type="button"
                     onClick={() => router.push("/marketplace")}
-                    className="btn-shine inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+                    className="btn-shine inline-flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-500 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base dark:bg-brand-primary dark:hover:bg-primary-hover dark:shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)]"
                   >
                     <Compass className="h-4 w-4" />
                     Khám phá Marketplace
@@ -436,44 +437,44 @@ export function LaunchpadClient() {
                   <button
                     type="button"
                     onClick={() => document.getElementById("launchpad-search")?.focus()}
-                    className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-bg-glass px-4 py-2.5 text-sm font-semibold text-text-secondary backdrop-blur-glass transition-all duration-200 hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/70 dark:bg-bg-glass dark:text-text-secondary dark:shadow-none dark:backdrop-blur-glass dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
                   >
                     <Search className="h-4 w-4" />
                     Tìm nhanh
-                    <kbd className="rounded-md border border-border/60 bg-bg-base px-1.5 py-0.5 font-mono text-[11px] text-text-disabled">/</kbd>
+                    <kbd className="kbd">/</kbd>
                   </button>
                 </div>
               </div>
-              <div className="grid shrink-0 grid-cols-3 gap-2.5 sm:gap-3" aria-label="Thống kê launchpad">
-                <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
-                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
-                    <LayoutGrid className="h-4 w-4" />
-                  </div>
-                  <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{totalApps}</div>
-                  <div className="text-[11px] font-semibold text-text-secondary">ứng dụng</div>
+              <dl className="grid shrink-0 grid-cols-3 gap-6 sm:gap-8" aria-label="Thống kê launchpad">
+                <div className="flex flex-col text-left">
+                  <dt className="order-2 mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-text-secondary">
+                    <LayoutGrid className="h-3.5 w-3.5 text-indigo-500 dark:text-brand-primary" />
+                    ứng dụng
+                  </dt>
+                  <dd className="order-1 font-display text-4xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:text-[40px] dark:text-text-primary">{totalApps}</dd>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-success animate-pulse" aria-hidden="true" />
-                  </div>
-                  <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{activeCount}</div>
-                  <div className="text-[11px] font-semibold text-text-secondary">đang hoạt động</div>
+                <div className="flex flex-col text-left">
+                  <dt className="order-2 mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-text-secondary">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse dark:bg-success" aria-hidden="true" />
+                    đang hoạt động
+                  </dt>
+                  <dd className="order-1 font-display text-4xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:text-[40px] dark:text-text-primary">{activeCount}</dd>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
-                  <div className="flex items-center justify-center gap-1.5 text-amber-400">
-                    <Star className="h-4 w-4" />
-                  </div>
-                  <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{favorites.length}</div>
-                  <div className="text-[11px] font-semibold text-text-secondary">yêu thích</div>
+                <div className="flex flex-col text-left">
+                  <dt className="order-2 mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-text-secondary">
+                    <Star className="h-3.5 w-3.5 text-amber-500" />
+                    yêu thích
+                  </dt>
+                  <dd className="order-1 font-display text-4xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:text-[40px] dark:text-text-primary">{favorites.length}</dd>
                 </div>
-              </div>
+              </dl>
             </div>
           </div>
 
           {/* ─── Truy cập gần đây ─── */}
           {recentItems.length > 0 && !hasFilter && (
-            <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Mở gần đây">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-disabled">
+            <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Mở gần đây">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-text-disabled">
                 <Clock className="h-3.5 w-3.5" />
                 Gần đây
               </span>
@@ -482,7 +483,7 @@ export function LaunchpadClient() {
                   key={item.id}
                   type="button"
                   onClick={() => reopenRecent(item)}
-                  className="inline-flex max-w-[180px] cursor-pointer items-center gap-1.5 truncate rounded-full border border-border/60 bg-bg-glass px-3 py-1.5 text-xs font-semibold text-text-secondary backdrop-blur-glass transition-all duration-200 hover:-translate-y-px hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                  className="inline-flex max-w-[180px] cursor-pointer items-center gap-1.5 truncate rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/60 dark:bg-bg-glass dark:text-text-secondary dark:shadow-none dark:backdrop-blur-glass dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
                 >
                   <span className="truncate">{item.label}</span>
                 </button>
@@ -491,10 +492,10 @@ export function LaunchpadClient() {
           )}
 
           {/* ─── Toolbar: tìm kiếm + lọc ─── */}
-          <div className="mt-5 flex flex-col gap-3">
+          <div className="mt-6 flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-text-secondary" />
                 <input
                   id="launchpad-search"
                   type="search"
@@ -502,7 +503,7 @@ export function LaunchpadClient() {
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Tìm ứng dụng, ví dụ “wiki”, “chat”, “báo cáo”…"
                   aria-label="Tìm ứng dụng"
-                  className="w-full rounded-2xl glass-card py-3 pl-11 pr-10 text-sm text-text-primary placeholder:text-text-disabled outline-none transition-all duration-200 focus:border-brand-primary/70 focus:shadow-[0_0_0_3px_hsla(245,85%,65%,0.15)]"
+                  className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-12 pr-10 text-[15px] text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.05)] outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-400 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.12)] dark:glass-card dark:text-text-primary dark:placeholder:text-text-disabled dark:focus:border-brand-primary/70 dark:focus:shadow-[0_0_0_3px_hsla(245,85%,65%,0.15)]"
                 />
                 {query && (
                   <button
@@ -521,11 +522,11 @@ export function LaunchpadClient() {
                 aria-pressed={favOnly}
                 className={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-2xl border px-4 py-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary active:scale-95 ${
                   favOnly
-                    ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
-                    : "glass-card text-text-secondary hover:text-text-primary"
+                    ? "border-amber-500/50 bg-amber-50 text-amber-700 shadow-sm dark:border-amber-400/60 dark:bg-amber-400/15 dark:text-amber-300 dark:shadow-none"
+                    : "border-slate-200 bg-white text-slate-500 shadow-sm hover:border-amber-300 hover:text-slate-900 dark:glass-card dark:text-text-secondary dark:shadow-none dark:hover:text-text-primary"
                 }`}
               >
-                <Star className={`h-4 w-4 ${favOnly ? "fill-amber-400 text-amber-400" : ""}`} />
+                <Star className={`h-4 w-4 ${favOnly ? "fill-amber-500 text-amber-500 dark:fill-amber-400 dark:text-amber-400" : ""}`} />
                 Yêu thích
               </button>
             </div>
@@ -543,16 +544,16 @@ export function LaunchpadClient() {
 
         {/* ─── System Apps Section ─── */}
         {visibleSystemApps.length > 0 && (
-          <section className="mb-10 animate-fade-in" style={{ animationDelay: "100ms" }} aria-label="Ứng dụng hệ thống">
-            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-5 flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/20">
-                <Server className="h-4 w-4 text-brand-primary" />
+          <section className="mb-12 animate-fade-in" style={{ animationDelay: "100ms" }} aria-label="Ứng dụng hệ thống">
+            <h2 className="mb-5 flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wider text-slate-500 dark:text-text-secondary">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:bg-brand-primary/10 dark:ring-brand-primary/20">
+                <Server className="h-4 w-4 text-indigo-600 dark:text-brand-primary" />
               </span>
               Hệ thống
-              <span className="rounded-full border border-border/60 bg-bg-glass px-2 py-0.5 text-[11px] font-bold text-text-secondary">
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:border-border/60 dark:bg-bg-glass dark:text-text-secondary">
                 {visibleSystemApps.length}
               </span>
-              <div className="h-px flex-1 bg-gradient-to-r from-border/70 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent dark:from-border/70" />
             </h2>
             <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {visibleSystemApps.map((app, i) => (
@@ -574,33 +575,33 @@ export function LaunchpadClient() {
 
         {/* ─── Plugin Apps Section ─── */}
         <section className="animate-fade-in" style={{ animationDelay: "200ms" }} aria-label="Ứng dụng cài đặt">
-          <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-5 flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/20">
-              <Blocks className="h-4 w-4 text-brand-primary" />
+          <h2 className="mb-5 flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wider text-slate-500 dark:text-text-secondary">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:bg-brand-primary/10 dark:ring-brand-primary/20">
+              <Blocks className="h-4 w-4 text-indigo-600 dark:text-brand-primary" />
             </span>
             Ứng dụng cài đặt
             {!isLoading && visiblePlugins.length > 0 && (
-              <span className="rounded-full border border-border/60 bg-bg-glass px-2 py-0.5 text-[11px] font-bold text-text-secondary">
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:border-border/60 dark:bg-bg-glass dark:text-text-secondary">
                 {visiblePlugins.length}
               </span>
             )}
-            <div className="h-px flex-1 bg-gradient-to-r from-border/70 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent dark:from-border/70" />
           </h2>
 
           <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {/* Plugin Skeletons */}
             {isLoading &&
               Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="rounded-2xl glass-card p-5 animate-pulse-slow" aria-hidden="true">
+                <div key={i} className="rounded-[20px] border border-slate-200 bg-white p-5 animate-pulse-slow dark:glass-card dark:border-border/60" aria-hidden="true">
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="rounded-2xl bg-bg-surface/60 border border-border/50 shrink-0" style={{ height: 52, width: 52 }} />
+                    <div className="rounded-2xl bg-slate-100 border border-slate-200/70 shrink-0 dark:bg-bg-surface/60 dark:border-border/50" style={{ height: 52, width: 52 }} />
                     <div className="flex-1 space-y-2">
-                      <div className="h-3.5 rounded bg-bg-surface/60 w-3/4" />
-                      <div className="h-2.5 rounded bg-bg-surface/40 w-1/2" />
+                      <div className="h-3.5 rounded bg-slate-200/80 w-3/4 dark:bg-bg-surface/60" />
+                      <div className="h-2.5 rounded bg-slate-100 w-1/2 dark:bg-bg-surface/40" />
                     </div>
                   </div>
-                  <div className="h-2.5 rounded bg-bg-surface/40 w-full" />
-                  <div className="mt-2 h-2.5 rounded bg-bg-surface/40 w-2/3" />
+                  <div className="h-2.5 rounded bg-slate-100 w-full dark:bg-bg-surface/40" />
+                  <div className="mt-2 h-2.5 rounded bg-slate-100 w-2/3 dark:bg-bg-surface/40" />
                 </div>
               ))}
 
@@ -628,29 +629,28 @@ export function LaunchpadClient() {
 
         {/* ─── Không kết quả: gợi ý thay vì ngõ cụt (UX guideline) ─── */}
         {showNoResult && (
-          <div className="mt-10 rounded-3xl border border-border/60 bg-bg-surface/40 p-10 text-center animate-fade-in sm:mt-14" role="status">
-            <div className="relative mx-auto mb-6 inline-flex h-20 w-20 items-center justify-center rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 to-brand-secondary/10">
-              <div className="absolute inset-0 rounded-3xl bg-brand-primary/5 blur-xl" />
-              <Search className="relative z-10 h-9 w-9 text-brand-primary" />
+          <div className="mt-10 rounded-[28px] border border-slate-200 bg-white p-10 text-center animate-fade-in shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:mt-14 dark:border-border/60 dark:bg-bg-surface/40 dark:shadow-none" role="status">
+            <div className="relative mx-auto mb-6 inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:border dark:border-brand-primary/25 dark:bg-gradient-to-br dark:from-brand-primary/15 dark:to-brand-secondary/10 dark:ring-0">
+              <Search className="relative z-10 h-9 w-9 text-indigo-600 dark:text-brand-primary" />
             </div>
-            <h3 className="mb-2 font-display text-xl font-extrabold text-text-primary">
+            <h3 className="mb-2 font-display text-xl font-extrabold tracking-tight text-slate-900 dark:text-text-primary">
               Không tìm thấy ứng dụng phù hợp
             </h3>
-            <p className="mx-auto mb-6 max-w-md text-sm leading-relaxed text-text-secondary">
+            <p className="mx-auto mb-6 max-w-md text-sm leading-relaxed text-slate-500 dark:text-text-secondary">
               Thử từ khóa khác, ví dụ “wiki”, “chat”, “báo cáo” — hoặc xóa bộ lọc để xem toàn bộ {totalApps} ứng dụng.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2.5">
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-500 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base dark:bg-brand-primary dark:hover:bg-primary-hover dark:shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)]"
               >
                 Xóa tìm kiếm & bộ lọc
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/marketplace")}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-bg-glass px-5 py-2.5 text-sm font-semibold text-text-secondary transition-all duration-200 hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/70 dark:bg-bg-glass dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
               >
                 Khám phá Marketplace
                 <ArrowRight className="h-4 w-4" />
@@ -661,29 +661,28 @@ export function LaunchpadClient() {
 
         {/* Empty State for Plugins */}
         {showEmptyPlugins && !hasFilter && (
-          <div className="mt-10 rounded-3xl border border-dashed border-border/70 bg-bg-surface/30 p-10 text-center animate-fade-in sm:p-14">
-            <div className="group relative mx-auto mb-6 inline-flex h-24 w-24 items-center justify-center rounded-[28px] border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 via-bg-surface to-brand-secondary/10 transition-colors hover:border-brand-primary/50">
-              <div className="absolute inset-0 rounded-[28px] bg-brand-primary/5 blur-xl transition-colors group-hover:bg-brand-primary/10" />
-              <Blocks className="relative z-10 h-11 w-11 text-brand-primary transition-colors" />
+          <div className="mt-10 rounded-[28px] border border-dashed border-slate-300 bg-white/60 p-10 text-center animate-fade-in sm:p-14 dark:border-border/70 dark:bg-bg-surface/30">
+            <div className="group relative mx-auto mb-6 inline-flex h-24 w-24 items-center justify-center rounded-[28px] bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 transition-colors hover:ring-indigo-600/30 dark:border dark:border-brand-primary/25 dark:bg-gradient-to-br dark:from-brand-primary/15 dark:via-bg-surface dark:to-brand-secondary/10 dark:ring-0 dark:hover:border-brand-primary/50">
+              <Blocks className="relative z-10 h-11 w-11 text-indigo-600 transition-colors dark:text-brand-primary" />
             </div>
-            <h3 className="mb-3 font-display text-2xl font-extrabold text-text-primary">Chưa có Plugin nào</h3>
-            <p className="mx-auto mb-2 max-w-md text-sm leading-relaxed text-text-secondary">
+            <h3 className="mb-3 font-display text-2xl font-extrabold tracking-tight text-slate-900 dark:text-text-primary">Chưa có Plugin nào</h3>
+            <p className="mx-auto mb-2 max-w-md text-sm leading-relaxed text-slate-500 dark:text-text-secondary">
               Không gian làm việc của bạn chưa được cài đặt bất kỳ công cụ nào. 5 ứng dụng hệ thống ở trên vẫn dùng bình thường.
             </p>
-            <p className="mx-auto mb-7 max-w-md text-sm leading-relaxed text-text-disabled">
+            <p className="mx-auto mb-7 max-w-md text-sm leading-relaxed text-slate-400 dark:text-text-disabled">
               Hãy truy cập Marketplace để khám phá thêm — cài trong 1 chạm, gỡ bất cứ lúc nào.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2.5">
               <button
                 onClick={() => router.push("/marketplace")}
-                className="btn-shine inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-primary px-6 py-3 text-sm font-bold text-white shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+                className="btn-shine inline-flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-500 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base dark:bg-brand-primary dark:hover:bg-primary-hover dark:shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)]"
               >
                 <Compass className="h-4 w-4" />
                 Khám phá Marketplace
               </button>
               <button
                 onClick={() => router.push("/ai")}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-bg-glass px-5 py-3 text-sm font-semibold text-text-secondary transition-all duration-200 hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/70 dark:bg-bg-glass dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
               >
                 <Sparkles className="h-4 w-4" />
                 Hỏi Proteus AI
@@ -764,8 +763,8 @@ function FilterPill({
       aria-pressed={active}
       className={`shrink-0 cursor-pointer rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
         active
-          ? "border-brand-primary/70 bg-brand-primary/15 text-brand-primary"
-          : "border-border/60 bg-transparent text-text-secondary hover:border-brand-primary/40 hover:text-text-primary"
+          ? "border-indigo-600/60 bg-indigo-600 text-white shadow-sm dark:border-brand-primary/70 dark:bg-brand-primary/15 dark:text-brand-primary dark:shadow-none"
+          : "border-slate-200 bg-white text-slate-500 shadow-sm hover:border-indigo-300 hover:text-slate-900 dark:border-border/60 dark:bg-transparent dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/40 dark:hover:text-text-primary"
       }`}
     >
       {label}
