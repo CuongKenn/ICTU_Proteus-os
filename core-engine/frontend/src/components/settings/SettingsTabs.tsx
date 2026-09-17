@@ -26,7 +26,7 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({ activeTab, onChangeT
   ];
 
   return (
-    <nav aria-label="Cài đặt" className="flex flex-col gap-1 rounded-2xl border border-border/60 bg-bg-glass p-2 backdrop-blur-glass">
+    <nav aria-label="Cài đặt" className="flex flex-col gap-1 rounded-[20px] border border-slate-200/90 bg-white p-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-border/60 dark:bg-bg-glass dark:shadow-none dark:backdrop-blur-glass">
       {tabs.map((tab) => {
         const active = activeTab === tab.id;
         return (
@@ -37,8 +37,8 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({ activeTab, onChangeT
             className={clsx(
               "flex cursor-pointer items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
               active
-                ? "bg-brand-primary/10 font-bold text-brand-primary shadow-[inset_0_0_0_1px_hsla(245,85%,65%,0.25)]"
-                : "font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                ? "bg-indigo-600 font-bold text-white shadow-sm dark:bg-brand-primary/10 dark:text-brand-primary dark:shadow-[inset_0_0_0_1px_hsla(245,85%,65%,0.25)]"
+                : "font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-text-secondary dark:hover:bg-bg-hover dark:hover:text-text-primary"
             )}
           >
             <tab.icon className="h-4 w-4 shrink-0" />

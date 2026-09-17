@@ -90,7 +90,7 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleMobileMenu, isTenantAdmin 
 
             </span>
           </div>
-          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 text-accent font-bold cursor-pointer">
+          <div className="w-8 h-8 rounded-full bg-fuchsia-600/10 flex items-center justify-center border border-fuchsia-600/20 text-fuchsia-700 font-bold cursor-pointer dark:bg-accent/20 dark:border-accent/30 dark:text-accent">
             {isMounted ? (session?.user?.name || "U").charAt(0).toUpperCase() : ""}
 
           </div>

@@ -393,14 +393,13 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
       <div className={clsx(isPage && "mx-auto w-full max-w-4xl")}>
         {messages.length === 0 && widgetState !== "thinking" && (
           <div className="flex flex-col items-center px-4 py-10 text-center animate-fade-in sm:py-14">
-            <div className="relative mb-5 inline-flex h-16 w-16 items-center justify-center rounded-[20px] border border-brand-primary/25 bg-gradient-to-br from-brand-primary/20 via-bg-surface to-brand-secondary/15">
-              <div className="absolute inset-0 rounded-[20px] bg-brand-primary/10 blur-xl" aria-hidden="true" />
-              <Sparkles className="relative z-10 h-8 w-8 text-brand-primary" />
+            <div className="relative mb-5 inline-flex h-16 w-16 items-center justify-center rounded-[20px] bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:border dark:border-brand-primary/25 dark:bg-gradient-to-br dark:from-brand-primary/20 dark:via-bg-surface dark:to-brand-secondary/15 dark:ring-0">
+              <Sparkles className="relative z-10 h-8 w-8 text-indigo-600 dark:text-brand-primary" />
             </div>
-            <h2 className="font-display text-xl font-extrabold tracking-tight text-text-primary sm:text-2xl">
+            <h2 className="font-display text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-text-primary">
               Tôi có thể giúp gì cho bạn?
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-secondary">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500 dark:text-text-secondary">
               Ra lệnh bằng tiếng Việt — tạo đơn nghỉ phép, đặt phòng họp, nhắc việc qua chat, hoặc xem báo cáo.
             </p>
             <div className="mt-5 flex max-w-lg flex-wrap items-center justify-center gap-2" aria-label="Gợi ý lệnh mẫu">
@@ -412,9 +411,9 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
                     setInputValue(s);
                     setTimeout(() => inputRef.current?.focus(), 50);
                   }}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/60 bg-bg-glass px-3.5 py-2 text-xs font-semibold text-text-secondary backdrop-blur-glass transition-all duration-200 hover:-translate-y-px hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-500 shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/60 dark:bg-bg-glass dark:text-text-secondary dark:shadow-none dark:backdrop-blur-glass dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
                 >
-                  <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+                  <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
                   {s}
                 </button>
               ))}

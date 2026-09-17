@@ -204,41 +204,44 @@ export const MarketplaceClient: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 pb-20 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-8">
-      {/* Hero Section — gọn để grid lên trên fold */}
-      <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-bg-surface via-bg-surface/80 to-bg-base p-6 sm:p-8">
+      {/* Hero Section — trắng thoáng, chữ lớn */}
+      <div className="relative overflow-hidden rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:p-8 dark:border-border/60 dark:bg-gradient-to-br dark:from-bg-surface dark:via-bg-surface/80 dark:to-bg-base dark:shadow-none">
         {/* Decorative background elements */}
-        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-[80px]" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-brand-secondary/10 blur-[80px]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-indigo-200/50 blur-[80px] dark:bg-brand-primary/15" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-100/60 blur-[80px] dark:bg-brand-secondary/10" />
         
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
           <div className="flex min-w-0 max-w-2xl flex-col gap-3">
-            <p className="inline-flex w-fit items-center gap-1.5 rounded-full border border-brand-primary/25 bg-brand-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-primary">
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-full border border-indigo-600/20 bg-indigo-600/[0.07] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:border-brand-primary/25 dark:bg-brand-primary/10 dark:text-brand-primary">
               <Sparkles className="h-3.5 w-3.5" /> App Store
             </p>
-            <h1 className="font-display text-3xl font-extrabold tracking-tight text-text-primary text-balance sm:text-4xl">
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 text-balance sm:text-4xl dark:text-text-primary">
               Khám phá Ứng dụng
             </h1>
-            <p className="text-sm leading-relaxed text-text-secondary sm:text-base">
+            <p className="max-w-xl text-sm leading-relaxed text-slate-500 sm:text-[15px] dark:text-text-secondary">
               Mở rộng khả năng của hệ thống với các ứng dụng được thiết kế tối ưu cho doanh nghiệp của bạn.
             </p>
           </div>
-          <div className="grid shrink-0 grid-cols-3 gap-2.5 sm:gap-3" aria-label="Thống kê marketplace">
-            <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
-              <div className="flex items-center justify-center text-brand-primary"><LayoutGrid className="h-4 w-4" /></div>
-              <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{allPlugins.length}</div>
-              <div className="text-[11px] font-semibold text-text-secondary">tất cả</div>
+          <dl className="grid shrink-0 grid-cols-3 gap-6 sm:gap-8" aria-label="Thống kê marketplace">
+            <div className="flex flex-col text-left">
+              <dd className="order-1 font-display text-3xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:text-4xl dark:text-text-primary">{allPlugins.length}</dd>
+              <dt className="order-2 mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-text-secondary">
+                <LayoutGrid className="h-3.5 w-3.5 text-indigo-500 dark:text-brand-primary" /> tất cả
+              </dt>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
-              <div className="flex items-center justify-center text-success"><CheckCircle2 className="h-4 w-4" /></div>
-              <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{installedCount}</div>
-              <div className="text-[11px] font-semibold text-text-secondary">đã cài</div>
+            <div className="flex flex-col text-left">
+              <dd className="order-1 font-display text-3xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:text-4xl dark:text-text-primary">{installedCount}</dd>
+              <dt className="order-2 mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-text-secondary">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-success" /> đã cài
+              </dt>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
-              <div className="flex items-center justify-center text-warning"><ArrowUpCircle className="h-4 w-4" /></div>
-              <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{updateCount}</div>
-              <div className="text-[11px] font-semibold text-text-secondary">có update</div>
+            <div className="flex flex-col text-left">
+              <dd className="order-1 font-display text-3xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:text-4xl dark:text-text-primary">{updateCount}</dd>
+              <dt className="order-2 mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-text-secondary">
+                <ArrowUpCircle className="h-3.5 w-3.5 text-amber-500" /> có update
+              </dt>
             </div>
-          </div>
+          </dl>
         </div>
 
         <div className="relative z-10 mt-5 flex flex-col gap-3">
@@ -249,7 +252,7 @@ export const MarketplaceClient: React.FC = () => {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />
-          <div className="flex items-center gap-2 text-xs text-text-secondary">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-text-secondary">
             <ArrowDownWideNarrow className="h-3.5 w-3.5" />
             <span id="marketplace-sort-label" className="font-semibold">Sắp xếp:</span>
             <div role="group" aria-labelledby="marketplace-sort-label" className="flex gap-1.5">
@@ -265,8 +268,8 @@ export const MarketplaceClient: React.FC = () => {
                   aria-pressed={sortBy === o.id}
                   className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
                     sortBy === o.id
-                      ? "border-brand-primary/70 bg-brand-primary/15 text-brand-primary"
-                      : "border-border/60 text-text-secondary hover:border-brand-primary/40 hover:text-text-primary"
+                      ? "border-indigo-600 bg-indigo-600 text-white shadow-sm dark:border-brand-primary/70 dark:bg-brand-primary/15 dark:text-brand-primary dark:shadow-none"
+                      : "border-slate-200 bg-white text-slate-500 shadow-sm hover:border-indigo-300 hover:text-slate-900 dark:border-border/60 dark:bg-transparent dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/40 dark:hover:text-text-primary"
                   }`}
                 >
                   {o.label}
@@ -289,23 +292,22 @@ export const MarketplaceClient: React.FC = () => {
             <SkeletonCard />
           </div>
         ) : allPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-bg-surface/30 px-6 py-24 text-center sm:py-28">
-            <div className="relative mb-6 inline-flex h-24 w-24 items-center justify-center rounded-[28px] border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 via-bg-surface to-brand-secondary/10">
-              <div className="absolute inset-0 rounded-[28px] bg-brand-primary/5 blur-xl" aria-hidden="true" />
-              <PackageOpen className="relative z-10 h-11 w-11 text-brand-primary" />
+          <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-6 py-24 text-center sm:py-28 dark:border-border/60 dark:bg-bg-surface/30">
+            <div className="relative mb-6 inline-flex h-24 w-24 items-center justify-center rounded-[28px] bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:border dark:border-brand-primary/25 dark:bg-gradient-to-br dark:from-brand-primary/15 dark:via-bg-surface dark:to-brand-secondary/10 dark:ring-0">
+              <PackageOpen className="relative z-10 h-11 w-11 text-indigo-600 dark:text-brand-primary" />
             </div>
-            <h3 className="mb-2 font-display text-xl font-extrabold text-text-primary">Chưa có Plugin nào trên Marketplace</h3>
-            <p className="max-w-md text-sm leading-relaxed text-text-secondary">
+            <h3 className="mb-2 font-display text-xl font-extrabold tracking-tight text-slate-900 dark:text-text-primary">Chưa có Plugin nào trên Marketplace</h3>
+            <p className="max-w-md text-sm leading-relaxed text-slate-500 dark:text-text-secondary">
               Hệ thống hiện chưa có ứng dụng nào được phát hành. Vui lòng quay lại sau.
             </p>
           </div>
         ) : filteredPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border border-border/60 bg-bg-surface/40 px-6 py-24 text-center sm:py-28" role="status">
-            <div className="relative mb-6 inline-flex h-20 w-20 items-center justify-center rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 to-brand-secondary/10">
-              <SearchX className="relative z-10 h-9 w-9 text-brand-primary" />
+          <div className="flex flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white px-6 py-24 text-center shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:py-28 dark:border-border/60 dark:bg-bg-surface/40 dark:shadow-none" role="status">
+            <div className="relative mb-6 inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:border dark:border-brand-primary/25 dark:bg-gradient-to-br dark:from-brand-primary/15 dark:to-brand-secondary/10 dark:ring-0">
+              <SearchX className="relative z-10 h-9 w-9 text-indigo-600 dark:text-brand-primary" />
             </div>
-            <h3 className="mb-2 font-display text-xl font-extrabold text-text-primary">Không tìm thấy ứng dụng nào</h3>
-            <p className="max-w-md text-sm leading-relaxed text-text-secondary">
+            <h3 className="mb-2 font-display text-xl font-extrabold tracking-tight text-slate-900 dark:text-text-primary">Không tìm thấy ứng dụng nào</h3>
+            <p className="max-w-md text-sm leading-relaxed text-slate-500 dark:text-text-secondary">
               {searchQuery 
                 ? `Không có kết quả nào khớp với "${searchQuery}". Hãy thử tìm kiếm với từ khóa khác.`
                 : "Marketplace hiện chưa có ứng dụng nào trong danh mục này."}
@@ -313,7 +315,7 @@ export const MarketplaceClient: React.FC = () => {
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery("")}
-                className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+                className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-500 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base dark:bg-brand-primary dark:hover:bg-primary-hover dark:shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)]"
               >
                 Xóa tìm kiếm
               </button>

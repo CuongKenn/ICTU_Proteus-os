@@ -53,17 +53,17 @@ export const SettingsClient = () => {
   return (
     <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 md:p-8">
       {/* Header */}
-      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-bg-surface via-bg-surface/80 to-bg-base p-6 sm:p-7">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-brand-primary/15 blur-[70px]" />
+      <div className="relative mb-6 overflow-hidden rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:p-7 dark:border-border/60 dark:bg-gradient-to-br dark:from-bg-surface dark:via-bg-surface/80 dark:to-bg-base dark:shadow-none">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-200/50 blur-[70px] dark:bg-brand-primary/15" />
         <div className="relative flex flex-wrap items-center gap-4">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary shadow-[0_8px_20px_-6px_hsla(245,85%,65%,0.6)]">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 shadow-[0_10px_24px_-10px_rgba(79,70,229,0.7)] dark:bg-gradient-to-br dark:from-brand-primary dark:to-brand-secondary dark:shadow-[0_8px_20px_-6px_hsla(245,85%,65%,0.6)]">
             <SlidersHorizontal className="h-6 w-6 text-white" />
           </span>
           <div className="min-w-0">
-            <h1 className="font-display text-2xl font-extrabold tracking-tight text-text-primary text-balance sm:text-3xl">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 text-balance sm:text-3xl dark:text-text-primary">
               Cài đặt hệ thống
             </h1>
-            <p className="mt-1 text-sm text-text-secondary">
+            <p className="mt-1 text-sm text-slate-500 dark:text-text-secondary">
               Quản lý hồ sơ, tổ chức, nhân sự, giao diện và các kết nối của bạn.
             </p>
           </div>
@@ -78,7 +78,7 @@ export const SettingsClient = () => {
         
         {/* Content Area */}
         <div className="min-w-0 flex-1">
-          <div className="min-h-[500px] rounded-2xl border border-border/60 bg-bg-glass p-6 shadow-sm backdrop-blur-glass">
+          <div className="min-h-[500px] rounded-[20px] border border-slate-200/90 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-border/60 dark:bg-bg-glass dark:shadow-sm dark:backdrop-blur-glass">
             {renderActiveTab()}
           </div>
         </div>

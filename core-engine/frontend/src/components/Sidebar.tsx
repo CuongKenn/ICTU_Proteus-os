@@ -112,9 +112,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
         <div className="h-[56px] flex items-center justify-between px-4 border-b border-border shrink-0">
           <Link 
             href="/launchpad" 
-            className={clsx("flex items-center gap-2 font-bold text-lg text-white hover:opacity-80 transition-opacity overflow-hidden", isCollapsed ? "w-8" : "w-auto")}
+            className={clsx("flex items-center gap-2 font-display font-bold text-lg text-slate-900 hover:opacity-80 transition-opacity overflow-hidden dark:text-white", isCollapsed ? "w-8" : "w-auto")}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
               <Cpu className="w-5 h-5 text-white" />
             </div>
             {!isCollapsed && <span className="whitespace-nowrap">Proteus OS</span>}
@@ -133,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
           {/* Productivity */}
           <div>
-            {!isCollapsed && <div className="px-3 text-xs font-semibold text-text-disabled uppercase tracking-wider mb-2">Công việc</div>}
+            {!isCollapsed && <div className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 dark:text-text-disabled">Công việc</div>}
             <div className="space-y-1">
               {filterLinks(PRODUCTIVITY_LINKS).map((link) => {
                 const isActive = pathname.startsWith(link.href);
@@ -162,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
           {/* Admin */}
           {filterLinks(ADMIN_LINKS).length > 0 && (
             <div>
-              {!isCollapsed && <div className="px-3 text-xs font-semibold text-text-disabled uppercase tracking-wider mb-2">Quản trị</div>}
+              {!isCollapsed && <div className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 dark:text-text-disabled">Quản trị</div>}
               <div className="space-y-1">
                 {filterLinks(ADMIN_LINKS).map((link) => {
                   const isActive = pathname.startsWith(link.href);
@@ -172,10 +172,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
                       href={link.href}
                       title={link.name}
                       className={clsx(
-                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors group relative",
+                        "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
                         isActive 
-                          ? "bg-primary/10 text-primary font-medium" 
-                          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+                          ? "bg-indigo-600/[0.08] text-indigo-700 font-bold shadow-[inset_0_0_0_1px_rgba(79,70,229,0.15)] dark:bg-primary/10 dark:text-primary dark:shadow-none" 
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-text-secondary dark:hover:bg-bg-hover dark:hover:text-text-primary",
                         isCollapsed && "justify-center"
                       )}
                       onClick={() => setIsMobileMenuOpen(false)}
@@ -194,8 +194,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileMenuOpen, setIsMobileM
         <div className="border-t border-border p-3">
           <div className={clsx("flex items-center justify-between gap-2 rounded-lg hover:bg-bg-hover p-2 transition-colors cursor-pointer", isCollapsed && "justify-center")}>
             <div className="flex items-center gap-3 min-w-0" title={isCollapsed ? (session?.user?.name || "Người dùng") : undefined}>
-              <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-accent" />
+              <div className="w-8 h-8 rounded-full bg-fuchsia-600/10 border border-fuchsia-600/20 flex items-center justify-center shrink-0 dark:bg-accent/20 dark:border-accent/30">
+                <User className="w-4 h-4 text-fuchsia-700 dark:text-accent" />
               </div>
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">

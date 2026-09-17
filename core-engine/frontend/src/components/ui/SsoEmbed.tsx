@@ -112,8 +112,8 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
     <div className={`flex flex-col w-full h-full ${className}`}>
       {dismissed ? (
         /* Toolbar gọn sau khi SSO xong — pill trạng thái + hành động phụ */
-        <div className="flex flex-wrap items-center gap-2 border-b border-border/50 bg-bg-surface/40 px-4 py-2 text-sm">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-success">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white/80 px-4 py-2 text-sm dark:border-border/50 dark:bg-bg-surface/40">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/25 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:border-success/30 dark:bg-success/10 dark:text-success">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Đã kết nối {title}
           </span>
@@ -121,7 +121,7 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
             <button
               type="button"
               onClick={() => openInNewTab(safeBase)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-[13px] font-semibold text-text-secondary transition-all duration-200 hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-500 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/60 dark:bg-transparent dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
               title="Mở dịch vụ ở tab mới"
             >
               <ExternalLink className="h-4 w-4" />
@@ -139,7 +139,7 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
                   }
                 }
               }}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-transparent px-3 py-1.5 text-[13px] font-semibold text-text-disabled transition-all duration-200 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-transparent px-3 py-1.5 text-[13px] font-semibold text-slate-400 transition-all duration-200 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:text-text-disabled dark:hover:text-text-primary"
               title="Hiện lại toolbar SSO"
             >
               <ChevronDown className="h-4 w-4" />
@@ -149,10 +149,10 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
         </div>
       ) : (
       /* Toolbar SSO đầy đủ — phân cấp primary/ghost rõ ràng */
-      <div className="flex flex-wrap items-center gap-3 border-b border-border/50 bg-bg-surface/40 px-4 py-2.5 text-sm">
-        <span className="inline-flex min-w-0 items-center gap-2 text-[13px] text-text-secondary">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/20">
-            <ShieldCheck className="h-4 w-4 text-brand-primary" />
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white/80 px-4 py-2.5 text-sm dark:border-border/50 dark:bg-bg-surface/40">
+        <span className="inline-flex min-w-0 items-center gap-2 text-[13px] text-slate-500 dark:text-text-secondary">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600/[0.08] ring-1 ring-indigo-600/15 dark:bg-brand-primary/10 dark:ring-brand-primary/20">
+            <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-brand-primary" />
           </span>
           <span className="truncate">
             {ssoOpened
@@ -167,7 +167,7 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
               openInNewTab(ssoTarget);
               setSsoOpened(true);
             }}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-brand-primary px-4 py-2 text-[13px] font-bold text-white shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)] transition-all duration-200 hover:-translate-y-px hover:bg-primary-hover active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-px hover:bg-indigo-500 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base dark:bg-brand-primary dark:hover:bg-primary-hover dark:shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)]"
             title="Mở luồng SSO ở tab mới (first-party, tránh lỗi cookie iframe)"
           >
             <KeyRound className="h-4 w-4" />
@@ -176,7 +176,7 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
           <button
             type="button"
             onClick={() => openInNewTab(safeBase)}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-[13px] font-semibold text-text-secondary transition-all duration-200 hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-500 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/60 dark:bg-transparent dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
             title="Mở dịch vụ ở tab mới"
           >
             <ExternalLink className="h-4 w-4" />
@@ -189,7 +189,7 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
               setIframeKey((k) => k + 1);
               persistDone();
             }}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-[13px] font-semibold text-text-secondary transition-all duration-200 hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-500 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:border-border/60 dark:bg-transparent dark:text-text-secondary dark:shadow-none dark:hover:border-brand-primary/50 dark:hover:text-text-primary"
             title="Tải lại iframe sau khi đã SSO ở tab mới (toolbar sẽ tự gọn)"
           >
             <RotateCw className="h-4 w-4" />
@@ -200,7 +200,7 @@ export const SsoEmbed: React.FC<SsoEmbedProps> = ({
             onClick={persistDone}
             aria-label="Ẩn thanh SSO"
             title="Ẩn thanh này (đã đăng nhập xong)"
-            className="cursor-pointer rounded-xl p-2 text-text-disabled transition-all duration-200 hover:bg-bg-hover hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            className="cursor-pointer rounded-xl p-2 text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary dark:text-text-disabled dark:hover:bg-bg-hover dark:hover:text-text-primary"
           >
             <X className="h-4 w-4" />
           </button>

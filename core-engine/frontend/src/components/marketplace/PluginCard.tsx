@@ -82,23 +82,24 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   return (
     <div 
       className={clsx(
-        "group relative flex flex-col gap-4 p-5 rounded-2xl border border-border/50",
-        "bg-bg-glass backdrop-blur-glass overflow-hidden transition-all duration-300",
-        "hover:-translate-y-1 hover:shadow-2xl hover:border-brand-primary/30",
+        "group relative flex flex-col gap-4 p-5 rounded-[20px] border border-slate-200/90",
+        "bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] overflow-hidden transition-all duration-200",
+        "hover:-translate-y-1 hover:border-indigo-300 hover:shadow-[0_20px_44px_-18px_rgba(99,102,241,0.35)]",
+        "dark:bg-bg-glass dark:backdrop-blur-glass dark:border-border/50 dark:shadow-none dark:hover:border-brand-primary/30 dark:hover:shadow-2xl",
         isDisabled && "opacity-60 grayscale-[50%]"
       )}
     >
-      {/* Background Gradient Glow on Hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Background wash on Hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none dark:from-brand-primary/5" />
 
       {/* Header Section */}
       <div className="relative flex items-start gap-4">
         {/* App Icon — dùng icon_url nếu có */}
-        <div className="w-16 h-16 rounded-2xl shrink-0 bg-gradient-to-br from-bg-surface-elevated to-bg-surface border border-border/50 flex items-center justify-center shadow-inner relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+        <div className="w-16 h-16 rounded-2xl shrink-0 bg-indigo-600/[0.07] border border-indigo-600/15 flex items-center justify-center shadow-sm relative overflow-hidden group-hover:scale-105 transition-transform duration-200 dark:bg-gradient-to-br dark:from-bg-surface-elevated dark:to-bg-surface dark:border-border/50 dark:shadow-inner">
           {plugin.iconUrl ? (
             <Image src={plugin.iconUrl} alt={plugin.name} width={40} height={40} className="object-contain" />
           ) : (
-            <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-text-primary to-text-secondary drop-shadow-sm">
+            <span className="text-2xl font-black text-indigo-600 dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-br dark:from-text-primary dark:to-text-secondary drop-shadow-sm">
               {plugin.name.charAt(0)}
             </span>
           )}
@@ -108,28 +109,28 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         {/* Title and Meta */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-bold text-text-primary truncate" title={plugin.name}>
+          <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 truncate dark:text-text-primary" title={plugin.name}>
             {plugin.name}
           </h3>
-          <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5 dark:text-text-secondary">
             <span className="truncate max-w-[100px]">{developer}</span>
             {plugin.isOfficial && (
               <span title="Official Plugin">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-brand-primary" />
               </span>
             )}
           </div>
           
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-bg-surface-elevated text-text-secondary border border-border-subtle">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200 dark:bg-bg-surface-elevated dark:text-text-secondary dark:border-border-subtle">
               v{plugin.version}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-600/[0.08] text-indigo-700 border border-indigo-600/15 dark:bg-brand-primary/10 dark:text-brand-primary dark:border-brand-primary/20">
               {category}
             </span>
             {rating !== null && (
-              <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-warning">
-                <Star className="h-3 w-3 fill-warning" aria-hidden="true" />
+              <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-warning">
+                <Star className="h-3 w-3 fill-amber-500 dark:fill-warning" aria-hidden="true" />
                 {rating.toFixed(1)}
               </span>
             )}
@@ -138,12 +139,12 @@ export const PluginCard: React.FC<PluginCardProps> = ({
       </div>
 
       {/* Description */}
-      <p className="relative text-sm text-text-secondary line-clamp-2 min-h-[2.5rem] leading-relaxed">
+      <p className="relative text-sm text-slate-500 line-clamp-2 min-h-[2.5rem] leading-relaxed dark:text-text-secondary">
         {plugin.description}
       </p>
 
       {/* Divider */}
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent dark:via-border/50" />
 
       {/* Action Area */}
       <div className="relative mt-auto pt-2 flex items-center justify-between min-h-[2.5rem]">
