@@ -297,6 +297,26 @@ async def install_plugin(
 
     task_id = uuid.uuid4()
 
+    # Chống double-install: kiểm tra status TRƯỚC khi upsert. Worker nền
+    # không chặn INSTALLING (đó là marker của chính nó), nên endpoint phải
+    # trả 409 tại đây nếu plugin đã ACTIVE/đang cài/đang gỡ.
+    existing_status = await repo.get_installation_status(ctx.tenant_id, plugin_id)
+    if existing_status == PluginStatus.INSTALLING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Plugin '{plugin.code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau.",
+        )
+    if existing_status == PluginStatus.UNINSTALLING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Plugin '{plugin.code_name}' đang trong quá trình gỡ cài đặt, vui lòng thử lại sau.",
+        )
+    if existing_status == PluginStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Plugin '{plugin.code_name}' đã được cài đặt và đang ACTIVE.",
+        )
+
     # Persist task_id với trạng thái INSTALLING — commit ngay trong handler
     # để background task thấy ngay (tránh race condition)
     await repo.upsert_installation(
