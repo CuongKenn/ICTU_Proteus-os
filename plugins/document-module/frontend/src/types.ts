@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — types map 1-1 với migrations/V1.0.0__initial.sql
 // (document_categories, document_incoming, document_outgoing,
 //  document_approvals, document_distributions).

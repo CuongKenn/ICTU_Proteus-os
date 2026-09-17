@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // CRM Dashboard: pipeline weighted + lead source + SLA.
 import React, { useEffect, useState } from 'react';
 import type { Lead, Opportunity, Ticket } from '../types';

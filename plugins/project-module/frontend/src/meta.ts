@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Project Module — meta cho gateway (catalog + nav). Không chứa logic.
 export interface PluginRoute {
   path: string; // '' = index, còn lại 'projects' | 'tasks' | 'milestones'

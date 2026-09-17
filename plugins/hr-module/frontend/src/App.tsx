@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — root component. Gateway render <HrModuleApp subPath navigate />.
 // subPath: phần sau /hr-module ('' | 'employees' | 'leaves' | 'departments' | 'recruitment').
 import React from 'react';

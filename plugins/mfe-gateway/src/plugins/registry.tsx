@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // mfe-gateway — HOST/SHELL. Không chứa business UI.
 // Source of truth của từng plugin nằm ở plugins/<code>/frontend/src,
 // được sync vào src/_plugins/<code> bởi scripts/sync-plugins.mjs

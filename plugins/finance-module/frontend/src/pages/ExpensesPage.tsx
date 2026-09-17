@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — Đề xuất chi: tạo (qua workflow) + duyệt/từ chối.
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatVND, type ExpenseRequest } from '../types';

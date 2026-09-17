@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Document Module — Phê duyệt: duyệt/từ chối theo luồng ký tuần tự.
 // LIVE đi qua dispatcher wf_document_approval; DEMO cập nhật localStorage.
 import React, { useCallback, useEffect, useState } from 'react';

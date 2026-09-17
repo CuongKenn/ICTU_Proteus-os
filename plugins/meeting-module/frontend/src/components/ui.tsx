@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Primitives dùng chung cho meeting-module (dark theme, không phụ thuộc lib ngoài).
 // Copy từ asset-module; khác duy nhất: Badge tổng quát (text/color) thay vì
 // Badge theo AssetStatus vì plugin này có nhiều loại trạng thái riêng.

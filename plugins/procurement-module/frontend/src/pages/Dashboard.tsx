@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — Tổng quan: KPI + đề xuất chờ duyệt + hợp đồng sắp hết hạn.
 import React, { useEffect, useState } from 'react';
 import { REQUEST_STATUS_LABEL, formatVND, type Contract, type PurchaseOrder, type PurchaseRequest, type Vendor } from '../types';

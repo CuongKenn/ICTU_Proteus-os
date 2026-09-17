@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // IT Helpdesk Module — root component. Gateway render <ItHelpdeskModuleApp subPath navigate />.
 // subPath: phần sau /it-helpdesk-module ('' | 'tickets' | 'knowledge' | 'sla').
 import React from 'react';

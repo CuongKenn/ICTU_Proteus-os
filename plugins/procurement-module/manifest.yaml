@@ -1,3 +1,5 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
 name: "procurement-module"
 display_name: "Procurement & Contract Management"
 version: "1.0.0"

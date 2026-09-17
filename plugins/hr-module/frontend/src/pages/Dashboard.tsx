@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — Tổng quan: KPI headcount + phân bổ phòng ban + đơn nghỉ gần đây.
 import React, { useEffect, useState } from 'react';
 import { LEAVE_STATUS_COLOR, LEAVE_STATUS_LABEL, formatVND, isPendingLeave, type Employee, type LeaveRequest, type PayrollRecord } from '../types';

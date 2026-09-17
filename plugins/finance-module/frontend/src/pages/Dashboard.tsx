@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — Tổng quan: KPI thu/chi + chờ duyệt + hóa đơn sắp hạn.
 import React, { useEffect, useState } from 'react';
 import { formatVND, type ExpenseRequest, type FinanceInvoice, type FinanceTransaction } from '../types';

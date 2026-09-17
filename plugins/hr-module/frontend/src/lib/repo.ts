@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — DATA LAYER.
 // Hai chế độ sau cùng 1 interface async HrStore:
 // - DEMO: createMockRepo (seed + localStorage, offline, không cần login).

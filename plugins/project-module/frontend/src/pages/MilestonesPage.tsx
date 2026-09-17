@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Project Module — Cột mốc: theo dõi tiến độ theo dự án + cập nhật % hoàn thành.
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Milestone, Project } from '../types';

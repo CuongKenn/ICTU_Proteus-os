@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Project Module — types map 1-1 với migrations/V1.0.0__initial.sql
 // (project_projects, project_milestones, project_tasks,
 //  project_task_comments, project_time_logs, project_members).

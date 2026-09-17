@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Primitives dùng chung cho hr-module (dark theme, không phụ thuộc lib ngoài).
 // Copy từ asset-module/components/ui.tsx — chỉ khác Badge:
 // template gắn AssetStatus, ở đây gắn EmployeeStatus của HR.

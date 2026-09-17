@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — types map 1-1 với migrations/V1.0.0__initial.sql
 // (finance_accounts, finance_transactions, finance_invoices,
 //  finance_budgets, finance_expense_requests).

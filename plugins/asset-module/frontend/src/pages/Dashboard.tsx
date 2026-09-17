@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Asset Module — Dashboard: KPI + phân bổ trạng thái + bảo trì sắp tới.
 import React, { useEffect, useState } from 'react';
 import { STATUS_LABEL, formatVND, type AssetItem } from '../types';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — seed mở rộng từ db/seed_data.sql (giữ nguyên 3 vendor gốc).
 import type {
   Contract,

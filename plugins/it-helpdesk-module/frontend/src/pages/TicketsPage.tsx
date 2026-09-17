@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // IT Helpdesk Tickets: SLA countdown + chuyển trạng thái + trao đổi + tạo mới.
 // Pattern theo mẫu CRM TicketsPage; trạng thái theo migration it_tickets
 // (OPEN, IN_PROGRESS, WAITING_ON_USER, RESOLVED, CLOSED).

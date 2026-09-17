@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Meeting Module — root component. Gateway render <MeetingModuleApp subPath navigate />.
 // subPath: phần sau /meeting-module ('' | 'rooms' | 'bookings' | 'actions').
 import React from 'react';

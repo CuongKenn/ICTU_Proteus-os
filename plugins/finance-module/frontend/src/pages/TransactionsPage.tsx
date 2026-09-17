@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — Giao dịch: search/filter + CRUD thu chi.
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatVND, type FinanceAccount, type FinanceTransaction, type TxnType } from '../types';

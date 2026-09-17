@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // BFF API client cho Micro-UI.
 // Gọi Next.js BFF proxy (cùng site: proteus.local/api/proxy) kèm session
 // cookie (credentials:"include"). Browser JS KHÔNG bao giờ thấy JWT.

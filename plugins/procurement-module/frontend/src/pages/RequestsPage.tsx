@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Procurement Module — Đề xuất mua hàng + PO: tạo mới + duyệt/từ chối.
 import React, { useCallback, useEffect, useState } from 'react';
 import { PO_STATUS_LABEL, REQUEST_STATUS_LABEL, formatVND, type Contract, type PurchaseOrder, type PurchaseRequest } from '../types';

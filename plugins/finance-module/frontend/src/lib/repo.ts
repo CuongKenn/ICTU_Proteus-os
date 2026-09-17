@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Finance Module — DATA LAYER.
 // Hai chế độ sau cùng 1 interface async FinanceStore:
 // - DEMO: createMockRepo (seed + localStorage, offline, không cần login).

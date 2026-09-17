@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Primitives dùng chung cho it-helpdesk-module (dark theme, không phụ thuộc lib ngoài).
 // Copy từ asset-module; chỉ khác: Badge dùng chung cho trạng thái ticket
 // (kèm màu SLA) thay vì riêng AssetStatus.

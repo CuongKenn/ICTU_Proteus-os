@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Meeting Module — Phòng họp: search/filter + CRUD phòng (records).
 import React, { useCallback, useEffect, useState } from 'react';
 import type { MeetingRoom } from '../types';

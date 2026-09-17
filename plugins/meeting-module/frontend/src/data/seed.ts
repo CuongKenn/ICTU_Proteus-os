@@ -1,3 +1,5 @@
+// Copyright (c) 2026 CuongKenn & ICTU Team
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Meeting Module — seed mở rộng từ db/seed_data.sql (giữ nguyên 2 phòng
 // gốc) + phòng, lịch đặt, việc cần làm VN thực tế.
 import type { ActionItem, Booking, MeetingRoom } from '../types';
