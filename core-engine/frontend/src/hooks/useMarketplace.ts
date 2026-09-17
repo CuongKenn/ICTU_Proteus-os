@@ -11,7 +11,7 @@ import { logger } from "@/lib/logger";
 import { useNotificationStore } from "@/store/notificationStore";
 import { usePlugins } from "@/hooks/usePlugins";
 import type { PluginInfo, InstallTaskStatus, CredentialInput } from "@/types";
-import type { PluginStatus } from "@/components/ui/PluginCard";
+import type { PluginStatus } from "@/components/marketplace/PluginCard";
 
 interface UseMarketplaceReturn {
   plugins: PluginInfo[];

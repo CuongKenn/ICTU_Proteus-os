@@ -24,42 +24,31 @@ export const SettingsClient = () => {
 
   const renderActiveTab = () => {
     switch (activeTab) {
-      case "profile":
-        return <ProfileTab session={session} />;
-      case "tenant":
-        return <TenantTab />;
-      case "users":
-        return <UsersTab />;
-      case "roles":
-        return <RolesTab />;
-      case "integrations":
-        return <IntegrationsTab />;
-      case "appearance":
-        return <AppearanceTab />;
-      case "security":
-        return <SecurityTab />;
-      case "about":
-        return <AboutTab />;
+      case "profile": return <ProfileTab session={session} />;
+      case "tenant": return <TenantTab />;
+      case "users": return <UsersTab />;
+      case "roles": return <RolesTab />;
+      case "integrations": return <IntegrationsTab />;
+      case "appearance": return <AppearanceTab />;
+      case "security": return <SecurityTab />;
+      case "about": return <AboutTab />;
       default:
         return (
-          <div className="flex flex-col items-center justify-center h-64 bg-bg-surface rounded-xl border border-border border-dashed">
-            <Settings className="w-12 h-12 text-text-muted mb-4" />
-            <p className="text-text-secondary">Tính năng này đang trong quá trình phát triển. Vui lòng quay lại sau.</p>
+          <div className="flex flex-col items-center justify-center h-64 rounded-xl" style={{ border: "1px dashed var(--line-hi)" }}>
+            <Settings className="w-12 h-12 mb-4" style={{ color: "var(--ghost)" }} />
+            <p style={{ color: "var(--muted)" }}>Tính năng này đang trong quá trình phát triển.</p>
           </div>
         );
     }
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 w-full max-w-6xl mx-auto">
-      {/* Sidebar Tabs */}
+    <div className="flex flex-col md:flex-row gap-6 w-full max-w-[1200px] mx-auto p-6 md:p-8">
       <div className="w-full md:w-64 shrink-0">
         <SettingsTabs activeTab={activeTab} onChangeTab={setActiveTab} />
       </div>
-      
-      {/* Content Area */}
       <div className="flex-1 min-w-0">
-        <div className="bg-bg-glass backdrop-blur-glass border border-border p-6 rounded-xl shadow-sm min-h-[500px]">
+        <div className="card p-6 min-h-[500px]">
           {renderActiveTab()}
         </div>
       </div>

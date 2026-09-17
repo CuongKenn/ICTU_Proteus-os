@@ -27,16 +27,15 @@ describe('Modal', () => {
     expect(screen.getByText('Content')).toBeInTheDocument();
   });
 
-  it('calls onClose when close button is clicked', async () => {
+  it('calls onClose when cancel button is clicked', async () => {
     const handleClose = vi.fn();
+    const handleConfirm = vi.fn();
     render(
-      <Modal isOpen={true} title="Test Modal" onClose={handleClose}>
+      <Modal isOpen={true} title="Test Modal" onClose={handleClose} onConfirm={handleConfirm}>
         Content
       </Modal>
     );
-    const buttons = screen.getAllByRole('button');
-    await userEvent.click(buttons[0]); // First button is usually the backdrop or X icon, let's just find the close by role or text.
-    // X icon doesn't have text, but the secondary button has "Hủy"
+    // Footer renders "Hủy" button only when onConfirm is provided
     const cancelBtn = screen.getByText('Hủy');
     await userEvent.click(cancelBtn);
     expect(handleClose).toHaveBeenCalled();

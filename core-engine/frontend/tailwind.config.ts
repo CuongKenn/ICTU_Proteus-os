@@ -1,71 +1,106 @@
 // Copyright (c) 2026 CuongKenn & ICTU Team
 // SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
-    "./src/**/*.{js,ts,jsx,tsx,mdx}",  // Match toàn bộ src/ bao gồm hooks/, store/, lib/
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  darkMode: "class", // Dark mode mặc định (theo AGENTS.md §2)
   theme: {
     extend: {
       colors: {
-        // Design Tokens từ docs/ui_ux_design.md §5
-        "bg-base": "var(--color-bg-base)",
-        "bg-surface": "var(--color-bg-surface)",
-        "bg-glass": "var(--color-bg-glass)",
-        "bg-hover": "var(--color-bg-hover)",
-        border: "var(--color-border)",
-        primary: "var(--color-primary)",
-        "primary-hover": "var(--color-primary-hover)",
-        accent: "var(--color-accent)",
-        success: "var(--color-success)",
-        warning: "var(--color-warning)",
-        danger: "var(--color-danger)",
-        "text-primary": "var(--color-text-primary)",
-        "text-secondary": "var(--color-text-secondary)",
-        "text-disabled": "var(--color-text-disabled)",
-        "text-muted": "var(--color-text-disabled)",
-        "brand-primary": "var(--color-primary)",
-        "brand-secondary": "var(--color-accent)",
-        "bg-surface-elevated": "var(--color-bg-hover)",
-        "border-subtle": "hsla(220, 60%, 60%, 0.08)",
+        paper: {
+          DEFAULT: "var(--paper)",
+          raised: "var(--paper-raised)",
+          white: "var(--paper-white)",
+        },
+        ink: {
+          DEFAULT: "var(--ink)",
+          soft: "var(--ink-soft)",
+        },
+        muted: "var(--muted)",
+        dim: "var(--dim)",
+        ghost: "var(--ghost)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
+          soft: "var(--accent-soft)",
+          glow: "var(--accent-glow)",
+        },
+        line: {
+          DEFAULT: "var(--line)",
+          hi: "var(--line-hi)",
+          focus: "var(--line-focus)",
+        },
+        plate: {
+          DEFAULT: "var(--plate)",
+          soft: "var(--plate-soft)",
+          border: "var(--plate-border)",
+        },
+        // Semantic
+        semantic: {
+          cyan: "var(--cyan)",
+          emerald: "var(--emerald)",
+          amber: "var(--amber)",
+          rose: "var(--rose)",
+          violet: "var(--violet)",
+        },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        heading: ["var(--font-space-grotesk)", "Space Grotesk", "Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        display: ["Dancing Script", "cursive"],
       },
       fontSize: {
-        xs: ['var(--text-xs)', '1rem'],
-        sm: ['var(--text-sm)', '1.25rem'],
-        base: ['var(--text-base)', '1.5rem'],
-        lg: ['var(--text-lg)', '1.75rem'],
-        xl: ['var(--text-xl)', '1.75rem'],
-        '2xl': ['var(--text-2xl)', '2rem'],
-        '3xl': ['var(--text-3xl)', '2.25rem'],
+        hero: ["clamp(2.5rem, 5vw, 3.75rem)", { lineHeight: "1.08", letterSpacing: "-0.025em" }],
+        meta: ["0.5625rem", { letterSpacing: "0.16em" }],
       },
-
-      backdropBlur: {
-        glass: "12px",
+      maxWidth: {
+        container: "var(--container-max)",
+      },
+      gap: {
+        bento: "var(--bento-gap)",
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
+        elevated: "var(--shadow-elevated)",
+        modal: "var(--shadow-modal)",
+      },
+      borderRadius: {
+        card: "14px",
       },
       animation: {
-        "fade-in": "fadeIn 0.3s ease-out",
-        "slide-up": "slideUp 0.3s ease-out",
-        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "fade-in": "fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "slide-up": "slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "slide-down": "slide-down 0.3s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "scale-in": "scale-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
       keyframes: {
-        fadeIn: {
-          "0%": { opacity: "0" },
-          "100%": { opacity: "1" },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
         },
-        slideUp: {
-          "0%": { transform: "translateY(10px)", opacity: "0" },
-          "100%": { transform: "translateY(0)", opacity: "1" },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(16px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-down": {
+          from: { opacity: "0", transform: "translateY(-8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.95)" },
+          to: { opacity: "1", transform: "scale(1)" },
         },
       },
     },
   },
   plugins: [],
 };
-
 export default config;
