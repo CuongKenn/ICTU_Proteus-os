@@ -116,22 +116,21 @@ describe("MarketplaceClient", () => {
     expect(screen.getByText("Gỡ cài đặt Plugin")).toBeInTheDocument();
     expect(screen.getByText(/Bạn có chắc chắn muốn gỡ cài đặt/)).toBeInTheDocument();
 
-    const confirmBtn = screen.getAllByText("Gỡ cài đặt").find(el => el.closest("button.btn-danger")) as HTMLElement;
-    expect(confirmBtn?.closest("button")).toBeDisabled();
+    const confirmBtn = screen.getByText("Gỡ cài đặt", { selector: "button.bg-danger" });
+    expect(confirmBtn).toBeDisabled();
 
-    // confirmKeyword uses codeName (hr-module) not display_name
     const input = screen.getByPlaceholderText("hr-module");
     fireEvent.change(input, { target: { value: "hr-module" } });
 
-    expect(confirmBtn?.closest("button")).not.toBeDisabled();
+    expect(confirmBtn).not.toBeDisabled();
 
-    fireEvent.click(confirmBtn?.closest("button") as HTMLElement);
+    fireEvent.click(confirmBtn);
     await waitFor(() => {
       expect(mockUninstallPlugin).toHaveBeenCalledWith("1", "hr-module");
     });
   });
 
-  it("disables install/uninstall actions if not tenant_admin", () => {
+  it("disables install/uninstall actions if user lacks permission", () => {
     (useSession as any).mockReturnValue({
       user: { name: "User", roles: ["hr_manager"] },
       status: "authenticated",
@@ -140,14 +139,12 @@ describe("MarketplaceClient", () => {
     });
     (useRBAC as any).mockReturnValue({
       hasPermission: () => false,
-      isLoading: false,
     });
     render(<MarketplaceClient />);
 
-    // Install button renders but is disabled when user lacks permissions
-    const installBtn = screen.queryByText("Nhận");
-    if (installBtn) {
-      expect(installBtn.closest("button")).toBeDisabled();
-    }
+    const installBtn = screen.getByText("Nhận").closest("button");
+    expect(installBtn).toBeDisabled();
+    expect(screen.queryByTitle("Gỡ cài đặt")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Bạn không có quyền thao tác (plugins:install)")).toBeInTheDocument();
   });
 });

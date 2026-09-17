@@ -29,17 +29,13 @@ function AuthSync() {
       };
       setUser(initialUser);
 
-      // Fetch actual roles from Database — MERGE với Keycloak realm roles
-      // (tenant_admin/superadmin) thay vì ghi đè: /me chỉ trả roles fine-grained
-      // trong DB, ghi đè sẽ làm mất quyền admin ở UI (ẩn icon n8n/Metabase...).
+      // Fetch actual roles from Database
       api.get("/v1/auth/me")
         .then((res) => {
           if (res.data && res.data.roles) {
             setUser({
               ...initialUser,
-              roles: Array.from(
-                new Set([...(initialUser.roles ?? []), ...(res.data.roles ?? [])])
-              ),
+              roles: res.data.roles,
             });
           }
         })

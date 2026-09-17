@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Root Layout — Next.js App Router
-// Light mode mặc định, dark mode qua toggle (html.dark class).
+// Áp dụng Dark Mode mặc định, Google Fonts Inter.
 
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { AuthProvider } from "@/components/auth/AuthProvider";
-import { LanguageProvider } from "@/components/i18n/LanguageContext";
 import "../styles/globals.css";
 
-const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-inter" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin", "vietnamese"], variable: "--font-space-grotesk" });
+const inter = Inter({ subsets: ["latin", "vietnamese"] });
 
 export const metadata: Metadata = {
   title: "Proteus OS — Hệ điều hành Đa năng cho Tổ chức",
@@ -29,34 +27,31 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
-        {/* Prevent flash: read theme from localStorage before paint */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var stored = localStorage.getItem('proteus-theme');
-                if (stored === 'dark') {
+                var stored = localStorage.getItem('theme-storage');
+                var state = stored ? JSON.parse(stored).state : {};
+                var theme = state.theme || 'system';
+                var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
                   document.documentElement.classList.add('dark');
-                } else if (stored === 'light') {
-                  document.documentElement.classList.remove('dark');
+                  document.documentElement.setAttribute('data-theme', 'dark');
                 } else {
-                  // System preference
-                  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.classList.add('dark');
-                  }
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.setAttribute('data-theme', 'light');
                 }
               } catch (e) {}
             `,
           }}
         />
       </head>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
+      <body className={`${inter.className} bg-bg-base text-text-primary antialiased`}>
         <AuthProvider>
           <ThemeProvider>
-            <LanguageProvider>
-              {children}
-              <ToastContainer />
-            </LanguageProvider>
+            {children}
+            <ToastContainer />
           </ThemeProvider>
         </AuthProvider>
       </body>
