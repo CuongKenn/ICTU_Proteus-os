@@ -6,7 +6,7 @@
 import React from "react";
 import Image from "next/image";
 import clsx from "clsx";
-import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck, Lock } from "lucide-react";
+import { Download, CheckCircle2, ArrowUpCircle, XCircle, Trash2, ShieldCheck, Lock, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 
@@ -127,9 +127,12 @@ export const PluginCard: React.FC<PluginCardProps> = ({
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
               {category}
             </span>
-            <span className="inline-flex items-center text-[10px] text-warning font-medium ml-auto">
-              ★ {rating}
-            </span>
+            {rating !== null && (
+              <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-warning">
+                <Star className="h-3 w-3 fill-warning" aria-hidden="true" />
+                {rating.toFixed(1)}
+              </span>
+            )}
           </div>
         </div>
       </div>

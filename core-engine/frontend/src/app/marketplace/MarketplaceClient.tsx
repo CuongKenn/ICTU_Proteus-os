@@ -14,7 +14,7 @@ import { InstallPreviewDialog } from "./InstallPreviewDialog";
 import { InstallProgressModal } from "@/components/marketplace/InstallProgressModal";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePlugins } from "@/hooks/usePlugins";
-import { PackageOpen, Sparkles } from "lucide-react";
+import { PackageOpen, Sparkles, LayoutGrid, CheckCircle2, ArrowUpCircle, ArrowDownWideNarrow, AlertTriangle, SearchX } from "lucide-react";
 import type { CredentialFieldSchema, CredentialInput } from "@/types";
 
 const CATEGORIES = ["HR", "CRM", "Finance", "Utilities", "Analytics", "Communication"];
@@ -56,6 +56,7 @@ export const MarketplaceClient: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortBy, setSortBy] = useState<"name" | "installed" | "updates">("name");
 
   const allPlugins = useMemo(() => {
     const list: Array<{ data: PluginData; credSchema: CredentialFieldSchema[]; status: PluginStatus; isInstalled: boolean }> = [];
@@ -126,9 +127,9 @@ export const MarketplaceClient: React.FC = () => {
     return list;
   }, [availablePlugins, installedPlugins, canUpgrade]);
 
-  // Filter plugins based on search and category
+  // Filter plugins based on search and category (+ sắp xếp)
   const filteredPlugins = useMemo(() => {
-    return allPlugins.filter(p => {
+    const list = allPlugins.filter(p => {
       const matchCategory = selectedCategory === "All" || p.data.category === selectedCategory;
       const searchLower = searchQuery.toLowerCase();
       const matchSearch = p.data.name.toLowerCase().includes(searchLower) || 
@@ -136,7 +137,19 @@ export const MarketplaceClient: React.FC = () => {
                           p.data.tags?.some(tag => tag.toLowerCase().includes(searchLower));
       return matchCategory && matchSearch;
     });
-  }, [allPlugins, searchQuery, selectedCategory]);
+    return [...list].sort((a, b) => {
+      if (sortBy === "installed") return Number(b.isInstalled) - Number(a.isInstalled);
+      if (sortBy === "updates") {
+        const au = a.status === "update_available" ? 0 : 1;
+        const bu = b.status === "update_available" ? 0 : 1;
+        return au - bu;
+      }
+      return a.data.name.localeCompare(b.data.name, "vi");
+    });
+  }, [allPlugins, searchQuery, selectedCategory, sortBy]);
+
+  const installedCount = useMemo(() => allPlugins.filter((p) => p.isInstalled).length, [allPlugins]);
+  const updateCount = useMemo(() => allPlugins.filter((p) => p.status === "update_available").length, [allPlugins]);
 
   const isLoading = isLoadingAvailable || isLoadingInstalled;
 
@@ -190,26 +203,45 @@ export const MarketplaceClient: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-20 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 mt-8">
-      {/* Hero Section */}
-      <div className="flex flex-col gap-6 relative p-8 md:p-12 rounded-3xl overflow-hidden glass-card border border-border/40 bg-gradient-to-br from-brand-primary/10 via-transparent to-transparent">
+    <div className="flex flex-col gap-6 pb-20 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-8">
+      {/* Hero Section — gọn để grid lên trên fold */}
+      <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-bg-surface via-bg-surface/80 to-bg-base p-6 sm:p-8">
         {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-brand-primary/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-brand-secondary/20 rounded-full blur-3xl pointer-events-none" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-[80px]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-brand-secondary/10 blur-[80px]" />
         
-        <div className="relative z-10 flex flex-col gap-3 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-sm font-semibold w-fit">
-            <Sparkles className="w-4 h-4" /> App Store
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
+          <div className="flex min-w-0 max-w-2xl flex-col gap-3">
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-full border border-brand-primary/25 bg-brand-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-primary">
+              <Sparkles className="h-3.5 w-3.5" /> App Store
+            </p>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-text-primary text-balance sm:text-4xl">
+              Khám phá Ứng dụng
+            </h1>
+            <p className="text-sm leading-relaxed text-text-secondary sm:text-base">
+              Mở rộng khả năng của hệ thống với các ứng dụng được thiết kế tối ưu cho doanh nghiệp của bạn.
+            </p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-text-primary tracking-tight">
-            Khám phá Ứng dụng
-          </h1>
-          <p className="text-lg text-text-secondary">
-            Mở rộng khả năng của hệ thống với hàng chục ứng dụng được thiết kế tối ưu cho doanh nghiệp của bạn.
-          </p>
+          <div className="grid shrink-0 grid-cols-3 gap-2.5 sm:gap-3" aria-label="Thống kê marketplace">
+            <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
+              <div className="flex items-center justify-center text-brand-primary"><LayoutGrid className="h-4 w-4" /></div>
+              <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{allPlugins.length}</div>
+              <div className="text-[11px] font-semibold text-text-secondary">tất cả</div>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
+              <div className="flex items-center justify-center text-success"><CheckCircle2 className="h-4 w-4" /></div>
+              <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{installedCount}</div>
+              <div className="text-[11px] font-semibold text-text-secondary">đã cài</div>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-bg-glass px-4 py-3 text-center backdrop-blur-glass">
+              <div className="flex items-center justify-center text-warning"><ArrowUpCircle className="h-4 w-4" /></div>
+              <div className="mt-1 font-display text-xl font-extrabold text-text-primary">{updateCount}</div>
+              <div className="text-[11px] font-semibold text-text-secondary">có update</div>
+            </div>
+          </div>
         </div>
 
-        <div className="relative z-10 mt-4 w-full">
+        <div className="relative z-10 mt-5 flex flex-col gap-3">
           <CategoryFilter 
             categories={CATEGORIES}
             selectedCategory={selectedCategory}
@@ -217,6 +249,31 @@ export const MarketplaceClient: React.FC = () => {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />
+          <div className="flex items-center gap-2 text-xs text-text-secondary">
+            <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+            <span id="marketplace-sort-label" className="font-semibold">Sắp xếp:</span>
+            <div role="group" aria-labelledby="marketplace-sort-label" className="flex gap-1.5">
+              {([
+                { id: "name", label: "Tên A–Z" },
+                { id: "installed", label: "Đã cài trước" },
+                { id: "updates", label: "Có update trước" },
+              ] as const).map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => setSortBy(o.id)}
+                  aria-pressed={sortBy === o.id}
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
+                    sortBy === o.id
+                      ? "border-brand-primary/70 bg-brand-primary/15 text-brand-primary"
+                      : "border-border/60 text-text-secondary hover:border-brand-primary/40 hover:text-text-primary"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -232,22 +289,23 @@ export const MarketplaceClient: React.FC = () => {
             <SkeletonCard />
           </div>
         ) : allPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
-            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
-              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-bg-surface/30 px-6 py-24 text-center sm:py-28">
+            <div className="relative mb-6 inline-flex h-24 w-24 items-center justify-center rounded-[28px] border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 via-bg-surface to-brand-secondary/10">
+              <div className="absolute inset-0 rounded-[28px] bg-brand-primary/5 blur-xl" aria-hidden="true" />
+              <PackageOpen className="relative z-10 h-11 w-11 text-brand-primary" />
             </div>
-            <h3 className="text-xl font-bold text-text-primary mb-2">Chưa có Plugin nào trên Marketplace</h3>
-            <p className="text-text-secondary max-w-md">
+            <h3 className="mb-2 font-display text-xl font-extrabold text-text-primary">Chưa có Plugin nào trên Marketplace</h3>
+            <p className="max-w-md text-sm leading-relaxed text-text-secondary">
               Hệ thống hiện chưa có ứng dụng nào được phát hành. Vui lòng quay lại sau.
             </p>
           </div>
         ) : filteredPlugins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 glass-card border border-border/50 border-dashed rounded-3xl text-center">
-            <div className="w-24 h-24 bg-bg-surface-elevated rounded-full flex items-center justify-center mb-6 shadow-inner border border-border/50">
-              <PackageOpen className="w-12 h-12 text-text-muted opacity-50" />
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-border/60 bg-bg-surface/40 px-6 py-24 text-center sm:py-28" role="status">
+            <div className="relative mb-6 inline-flex h-20 w-20 items-center justify-center rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 to-brand-secondary/10">
+              <SearchX className="relative z-10 h-9 w-9 text-brand-primary" />
             </div>
-            <h3 className="text-xl font-bold text-text-primary mb-2">Không tìm thấy ứng dụng nào</h3>
-            <p className="text-text-secondary max-w-md">
+            <h3 className="mb-2 font-display text-xl font-extrabold text-text-primary">Không tìm thấy ứng dụng nào</h3>
+            <p className="max-w-md text-sm leading-relaxed text-text-secondary">
               {searchQuery 
                 ? `Không có kết quả nào khớp với "${searchQuery}". Hãy thử tìm kiếm với từ khóa khác.`
                 : "Marketplace hiện chưa có ứng dụng nào trong danh mục này."}
@@ -255,7 +313,7 @@ export const MarketplaceClient: React.FC = () => {
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery("")}
-                className="mt-6 text-brand-primary font-medium hover:underline"
+                className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_-8px_hsla(245,85%,65%,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
               >
                 Xóa tìm kiếm
               </button>
@@ -337,9 +395,10 @@ export const MarketplaceClient: React.FC = () => {
           <p>
             Bạn có chắc chắn muốn gỡ cài đặt ứng dụng <strong>{uninstallPluginData?.name}</strong>?
           </p>
-          <div className="text-sm text-danger bg-danger/10 p-4 rounded-xl border border-danger/20 font-medium">
-            ⚠️ <strong>Cảnh báo nguy hiểm:</strong> Hành động này không thể hoàn tác. 
-            Toàn bộ dữ liệu nghiệp vụ, bảng (tables), và workflows liên quan đến ứng dụng này sẽ bị xóa vĩnh viễn khỏi hệ thống.
+          <div className="flex items-start gap-2 text-sm text-danger bg-danger/10 p-4 rounded-xl border border-danger/20 font-medium">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p><strong>Cảnh báo nguy hiểm:</strong> Hành động này không thể hoàn tác. 
+            Toàn bộ dữ liệu nghiệp vụ, bảng (tables), và workflows liên quan đến ứng dụng này sẽ bị xóa vĩnh viễn khỏi hệ thống.</p>
           </div>
         </div>
       </Modal>

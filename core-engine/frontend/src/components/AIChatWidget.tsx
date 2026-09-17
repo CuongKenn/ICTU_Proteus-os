@@ -21,12 +21,22 @@ import {
   XCircle,
   ChevronDown,
   Clock,
-  Zap,
+  Lightbulb,
+  Sparkles,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAICommand, ChatMessage, DslPreview } from "@/hooks/useAICommand";
 import { logger } from "@/lib/logger";
+
+/** Gợi ý lệnh mẫu cho empty-state (bấm để điền vào ô nhập). */
+const AI_SUGGESTIONS = [
+  "Tạo đơn nghỉ phép ngày mai",
+  "Đặt phòng họp lúc 9h sáng mai",
+  "Nhắc cả nhóm nộp báo cáo tuần",
+  "Tóm tắt số liệu bán hàng tuần này",
+];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -313,26 +323,26 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
   const chatHeader = (
     <div
       className={clsx(
-        "flex items-center justify-between border-b border-border bg-bg-surface/50 shrink-0",
+        "flex items-center justify-between border-b border-border/60 bg-bg-surface/50 shrink-0",
         isPage ? "min-h-[68px] px-4 py-3 sm:px-6" : "h-[52px] px-4"
       )}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         <div
           className={clsx(
-            "rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center shrink-0",
-            isPage ? "w-9 h-9" : "w-8 h-8"
+            "flex items-center justify-center shrink-0 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary shadow-[0_8px_20px_-6px_hsla(245,85%,65%,0.6)]",
+            isPage ? "h-10 w-10" : "w-8 h-8 rounded-xl"
           )}
         >
-          <Bot className={clsx("text-accent", isPage ? "w-5 h-5" : "w-4 h-4")} />
+          <Bot className={clsx("text-white", isPage ? "h-5 w-5" : "w-4 h-4")} />
         </div>
         <div className="min-w-0">
-          <div className={clsx("font-semibold text-text-primary leading-tight", isPage ? "text-base" : "text-sm")}>
+          <div className={clsx("font-display font-bold text-text-primary leading-tight", isPage ? "text-base" : "text-sm")}>
             Proteus AI
           </div>
-          <div className="flex items-center gap-1">
-            <span className={clsx("w-1.5 h-1.5 rounded-full", statusDotClass)} />
-            <span className="text-[10px] text-text-secondary">{statusText}</span>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span className={clsx("h-1.5 w-1.5 rounded-full", statusDotClass)} aria-hidden="true" />
+            <span className="text-[11px] font-semibold text-text-secondary">{statusText}</span>
           </div>
         </div>
       </div>
@@ -381,6 +391,36 @@ const AIChatSurface: React.FC<AIChatSurfaceProps> = ({ mode }) => {
       className={clsx("flex-1 overflow-y-auto", isPage ? "px-4 py-5 sm:px-6" : "px-3 pt-3")}
     >
       <div className={clsx(isPage && "mx-auto w-full max-w-4xl")}>
+        {messages.length === 0 && widgetState !== "thinking" && (
+          <div className="flex flex-col items-center px-4 py-10 text-center animate-fade-in sm:py-14">
+            <div className="relative mb-5 inline-flex h-16 w-16 items-center justify-center rounded-[20px] border border-brand-primary/25 bg-gradient-to-br from-brand-primary/20 via-bg-surface to-brand-secondary/15">
+              <div className="absolute inset-0 rounded-[20px] bg-brand-primary/10 blur-xl" aria-hidden="true" />
+              <Sparkles className="relative z-10 h-8 w-8 text-brand-primary" />
+            </div>
+            <h2 className="font-display text-xl font-extrabold tracking-tight text-text-primary sm:text-2xl">
+              Tôi có thể giúp gì cho bạn?
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-secondary">
+              Ra lệnh bằng tiếng Việt — tạo đơn nghỉ phép, đặt phòng họp, nhắc việc qua chat, hoặc xem báo cáo.
+            </p>
+            <div className="mt-5 flex max-w-lg flex-wrap items-center justify-center gap-2" aria-label="Gợi ý lệnh mẫu">
+              {AI_SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    setInputValue(s);
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                  }}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/60 bg-bg-glass px-3.5 py-2 text-xs font-semibold text-text-secondary backdrop-blur-glass transition-all duration-200 hover:-translate-y-px hover:border-brand-primary/50 hover:text-text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                >
+                  <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {messages.map((msg, idx) => (
           <MessageBubble key={msg?.id || `msg-${idx}`} message={msg} />
         ))}

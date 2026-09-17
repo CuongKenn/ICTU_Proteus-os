@@ -6,6 +6,7 @@
 // Không còn JSON textarea thô — mỗi field được render riêng biệt.
 
 import React, { useState, useCallback } from "react";
+import { AlertTriangle, Database, KeyRound, ShieldCheck, Workflow } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import type { PluginData } from "@/components/marketplace/PluginCard";
 import type { CredentialFieldSchema, CredentialInput } from "@/types";
@@ -175,9 +176,11 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
         </p>
 
         {/* Resources list */}
-        <div className="bg-bg-base rounded-lg p-4 border border-border space-y-3">
+        <div className="bg-bg-base rounded-xl p-4 border border-border space-y-3">
           <div className="flex items-center gap-3">
-            <span className="text-xl">📦</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400 ring-1 ring-blue-400/30">
+              <Database className="h-4 w-4" />
+            </span>
             <div>
               <div className="font-semibold text-sm text-text-primary">Database Schema</div>
               <div className="text-xs text-text-secondary">
@@ -186,7 +189,9 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xl">🔄</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400 ring-1 ring-orange-400/30">
+              <Workflow className="h-4 w-4" />
+            </span>
             <div>
               <div className="font-semibold text-sm text-text-primary">Automation Workflows</div>
               <div className="text-xs text-text-secondary">
@@ -195,7 +200,9 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xl">👤</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-400/30">
+              <ShieldCheck className="h-4 w-4" />
+            </span>
             <div>
               <div className="font-semibold text-sm text-text-primary">RBAC Roles</div>
               <div className="text-xs text-text-secondary">
@@ -212,7 +219,9 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
         {hasAnyCreds && (
           <div className="border border-border rounded-lg overflow-hidden">
             <div className="flex items-center gap-2 p-3 bg-bg-surface border-b border-border">
-              <span className="text-base">🔑</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/20">
+                <KeyRound className="h-4 w-4 text-brand-primary" />
+              </span>
               <span className="font-medium text-sm text-text-primary">
                 Cấu hình Tích hợp (Credentials)
               </span>
@@ -240,8 +249,9 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
               ))}
 
               {validationError && (
-                <div className="text-xs text-danger bg-danger/10 border border-danger/20 rounded p-2">
-                  ⚠️ {validationError}
+                <div className="flex items-center gap-2 text-xs font-medium text-danger bg-danger/10 border border-danger/20 rounded-lg p-2.5">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {validationError}
                 </div>
               )}
             </div>
@@ -249,8 +259,9 @@ export const InstallPreviewDialog: React.FC<InstallPreviewDialogProps> = ({
         )}
 
         {/* Warning */}
-        <p className="text-xs text-warning bg-warning/10 p-2 rounded border border-warning/20">
-          ⚠️ Quá trình cài đặt có thể mất từ 15–30 giây. Vui lòng không đóng trình duyệt.
+        <p className="flex items-start gap-2 text-xs leading-relaxed text-warning bg-warning/10 p-3 rounded-xl border border-warning/20">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          Quá trình cài đặt có thể mất từ 15–30 giây. Vui lòng không đóng trình duyệt.
         </p>
       </div>
     </Modal>

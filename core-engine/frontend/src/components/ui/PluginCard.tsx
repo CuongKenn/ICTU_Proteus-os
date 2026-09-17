@@ -7,7 +7,7 @@ import React from "react";
 import clsx from "clsx";
 import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
-import { CheckCircle2, ArrowUpCircle, XCircle, Trash2, Lock } from "lucide-react";
+import { CheckCircle2, ArrowUpCircle, XCircle, Trash2, Lock, Database, Workflow, Users, ShieldCheck } from "lucide-react";
 import { useRBAC } from "@/hooks/useRBAC";
 
 export type PluginStatus = "available" | "installing" | "active" | "update_available" | "failed" | "disabled";
@@ -94,8 +94,8 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           <div className="flex items-center gap-2 text-xs text-text-secondary mt-1">
             <span>v{plugin.version}</span>
             {plugin.isOfficial && (
-              <span className="flex items-center text-warning">
-                <span className="mr-1">⭐</span> Official
+              <span className="flex items-center gap-1 text-brand-primary">
+                <ShieldCheck className="h-3.5 w-3.5" /> Official
               </span>
             )}
           </div>
@@ -110,11 +110,12 @@ export const PluginCard: React.FC<PluginCardProps> = ({
       {/* Stats */}
       <div className="flex flex-col gap-2 text-xs text-text-muted mt-2 border-t border-border-subtle pt-3">
         <div className="flex gap-4">
-          <span>📦 {plugin.tablesCount} tables</span>
-          <span>🔄 {plugin.workflowsCount} workflows</span>
+          <span className="inline-flex items-center gap-1.5"><Database className="h-3.5 w-3.5" /> {plugin.tablesCount} tables</span>
+          <span className="inline-flex items-center gap-1.5"><Workflow className="h-3.5 w-3.5" /> {plugin.workflowsCount} workflows</span>
         </div>
-        <div className="truncate" title={plugin.requiredRoles.join(", ")}>
-          👤 {plugin.requiredRoles.join(", ")}
+        <div className="flex items-center gap-1.5 truncate" title={plugin.requiredRoles.join(", ")}>
+          <Users className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{plugin.requiredRoles.join(", ")}</span>
         </div>
       </div>
 

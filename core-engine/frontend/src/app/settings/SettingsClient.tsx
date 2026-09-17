@@ -6,7 +6,7 @@
 import React, { useState } from "react";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { ProfileTab } from "@/components/settings/ProfileTab";
-import { Settings } from "lucide-react";
+import { Settings, SlidersHorizontal } from "lucide-react";
 import { AppearanceTab } from "@/components/settings/AppearanceTab";
 import { TenantTab } from "@/components/settings/TenantTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
@@ -51,16 +51,36 @@ export const SettingsClient = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 w-full max-w-6xl mx-auto">
-      {/* Sidebar Tabs */}
-      <div className="w-full md:w-64 shrink-0">
-        <SettingsTabs activeTab={activeTab} onChangeTab={setActiveTab} />
+    <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 md:p-8">
+      {/* Header */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-bg-surface via-bg-surface/80 to-bg-base p-6 sm:p-7">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-brand-primary/15 blur-[70px]" />
+        <div className="relative flex flex-wrap items-center gap-4">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary shadow-[0_8px_20px_-6px_hsla(245,85%,65%,0.6)]">
+            <SlidersHorizontal className="h-6 w-6 text-white" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-text-primary text-balance sm:text-3xl">
+              Cài đặt hệ thống
+            </h1>
+            <p className="mt-1 text-sm text-text-secondary">
+              Quản lý hồ sơ, tổ chức, nhân sự, giao diện và các kết nối của bạn.
+            </p>
+          </div>
+        </div>
       </div>
-      
-      {/* Content Area */}
-      <div className="flex-1 min-w-0">
-        <div className="bg-bg-glass backdrop-blur-glass border border-border p-6 rounded-xl shadow-sm min-h-[500px]">
-          {renderActiveTab()}
+
+      <div className="flex w-full flex-col gap-6 md:flex-row">
+        {/* Sidebar Tabs */}
+        <div className="w-full shrink-0 md:sticky md:top-4 md:w-64 md:self-start">
+          <SettingsTabs activeTab={activeTab} onChangeTab={setActiveTab} />
+        </div>
+        
+        {/* Content Area */}
+        <div className="min-w-0 flex-1">
+          <div className="min-h-[500px] rounded-2xl border border-border/60 bg-bg-glass p-6 shadow-sm backdrop-blur-glass">
+            {renderActiveTab()}
+          </div>
         </div>
       </div>
     </div>

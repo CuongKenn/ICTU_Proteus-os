@@ -155,11 +155,21 @@ export function LaunchpadClient() {
   const APPSMITH_URL = useMemo(() => process.env.NEXT_PUBLIC_APPSMITH_URL || "", []);
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
+    const handleKeys = (e: KeyboardEvent) => {
       if (e.key === "Escape" && activeApp) closeIframe();
+      // Phím "/" focus ô tìm kiếm (bỏ qua khi đang gõ hoặc mở iframe).
+      if (
+        e.key === "/" &&
+        !activeApp &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        document.getElementById("launchpad-search")?.focus();
+      }
     };
-    document.addEventListener("keydown", handleEsc);
-    return () => document.removeEventListener("keydown", handleEsc);
+    document.addEventListener("keydown", handleKeys);
+    return () => document.removeEventListener("keydown", handleKeys);
   }, [activeApp]);
 
   const recordOpen = useCallback((id: string) => {
@@ -181,12 +191,12 @@ export function LaunchpadClient() {
     []
   );
 
-  const openIframe = (appId: string, url: string) => {
+  const openIframe = (appId: string, url: string, recordId?: string) => {
     if (!isSafeHttpUrl(url)) {
       addToast("error", "URL ứng dụng chưa được cấu hình hoặc không hợp lệ.");
       return;
     }
-    recordOpen(appId);
+    recordOpen(recordId ?? appId);
     setActiveApp(appId);
     setIframeUrl(url);
     setIsIframeLoading(true);
@@ -202,7 +212,7 @@ export function LaunchpadClient() {
       if (!data?.url || !isSafeHttpUrl(data.url)) {
         throw new Error("Invalid signed URL");
       }
-      recordOpen("metabase");
+      recordOpen("sys:metabase");
       setIframeUrl(data.url);
     } catch (err) {
       addToast("error", "Không thể tải báo cáo Metabase");
@@ -231,23 +241,24 @@ export function LaunchpadClient() {
   };
 
   const openSystemApp = (app: SystemApp) => {
+    const recentId = `sys:${app.id}`;
     switch (app.id) {
       case "mattermost":
-        recordOpen(app.id);
+        recordOpen(recentId);
         router.push("/chat");
         break;
       case "outline":
-        recordOpen(app.id);
+        recordOpen(recentId);
         router.push("/wiki");
         break;
       case "n8n":
-        openIframe("n8n", N8N_URL);
+        openIframe("n8n", N8N_URL, recentId);
         break;
       case "metabase":
         void handleOpenMetabase();
         break;
       case "appsmith":
-        openIframe("appsmith", APPSMITH_URL);
+        openIframe("appsmith", APPSMITH_URL, recentId);
         break;
     }
   };
@@ -365,7 +376,11 @@ export function LaunchpadClient() {
     month: "long",
     day: "numeric",
   });
-  const totalApps = roleVisiblePlugins.length + visibleSystemApps.length;
+  const totalSystemApps = useMemo(
+    () => SYSTEM_APPS.filter((app) => !app.adminOnly || isAdmin).length,
+    [isAdmin]
+  );
+  const totalApps = roleVisiblePlugins.length + totalSystemApps;
   const recentItems = recent
     .map((id) => {
       if (id.startsWith("sys:")) {
@@ -485,12 +500,6 @@ export function LaunchpadClient() {
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
-                      e.preventDefault();
-                      (e.target as HTMLInputElement).focus();
-                    }
-                  }}
                   placeholder="Tìm ứng dụng, ví dụ “wiki”, “chat”, “báo cáo”…"
                   aria-label="Tìm ứng dụng"
                   className="w-full rounded-2xl glass-card py-3 pl-11 pr-10 text-sm text-text-primary placeholder:text-text-disabled outline-none transition-all duration-200 focus:border-brand-primary/70 focus:shadow-[0_0_0_3px_hsla(245,85%,65%,0.15)]"

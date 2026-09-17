@@ -18,9 +18,12 @@ export default function WikiPage() {
           storageKey="proteus:sso:wiki:done"
         />
       ) : (
-        <div className="flex flex-col items-center justify-center h-full gap-4 text-text-secondary">
-          <BookOpen className="w-16 h-16 opacity-30" />
-          <p className="mt-4 text-text-secondary">
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+          <span className="flex h-20 w-20 items-center justify-center rounded-[24px] border border-brand-primary/25 bg-gradient-to-br from-brand-primary/15 via-bg-surface to-brand-secondary/10">
+            <BookOpen className="h-10 w-10 text-brand-primary" />
+          </span>
+          <h1 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-text-primary">Tài liệu nội bộ</h1>
+          <p className="max-w-sm text-sm leading-relaxed text-text-secondary">
             Tích hợp Wiki chưa được cấu hình. Vui lòng liên hệ Admin để thiết lập.
           </p>
         </div>
