@@ -59,7 +59,7 @@ Toàn bộ tài liệu đặc tả, thiết kế kiến trúc và giao diện đ
 
 - 🏆 **[Báo cáo Đáp ứng Tiêu chí Nguồn mở (PoF Compliance)](./docs/POF_COMPLIANCE.md):** Báo cáo tự đánh giá chi tiết 50/50 điểm Tiêu chí PoF Cuộc thi PMNM tích hợp AI 2026 (ICTU).
 - 🛠️ **[Hướng dẫn Biên dịch & Cài đặt từ Mã nguồn (Building from Source)](./BUILDING.md):** Quy trình build độc lập không sửa header, sử dụng 100% công cụ nguồn mở.
-- 📦 **[Quản lý Thư viện & Gói Đính kèm (Dependencies)](./DEPENDENCIES.md):** Danh mục thư viện, cam kết Zero-Bundling và không can thiệp mã nguồn bên thứ 3.
+- 📦 **[Quản lý Thư viện & Giấy phép Phụ thuộc](./docs/LICENSE_NOTICE.md#4-danh-mục-phụ-thuộc--chính-sách-zero-bundling-hợp-nhất-từ-dependenciesmd):** Danh mục thư viện, cam kết Zero-Bundling và không can thiệp mã nguồn bên thứ 3.
 - 📜 **[Thông báo Bản quyền & Giấy phép (License Notice)](./docs/LICENSE_NOTICE.md):** Mục đích lựa chọn AGPLv3 và Ma trận tương thích giấy phép mã nguồn mở.
 - 📄 **[Tài liệu Đặc tả Yêu cầu (BRD)](./docs/BRD.md):** Tầm nhìn, chức năng và rào chắn kỹ thuật (NFR).
 - 🏗️ **[Thiết kế Kiến trúc Tổng thể (SAD)](./docs/architecture.md):** Phân tích kiến trúc Hexagonal (Backend), Custom Hooks (Frontend), SSO flow bảo mật và ADR chốt Redis Event Bus.

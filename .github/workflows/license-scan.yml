@@ -1,0 +1,222 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# License Scan — Quét giấy phép phụ thuộc (Python + npm) và cấm Docker tag nổi.
+# Căn cứ: docs/LICENSE_NOTICE.md §4. Fail khi phát hiện license không tương
+# thích AGPLv3 trong code liên kết trực tiếp, hoặc image dùng tag :latest.
+
+name: License Scan
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'core-engine/backend/requirements.txt'
+      - 'core-engine/frontend/package*.json'
+      - 'plugins/mfe-gateway/package*.json'
+      - 'deploy/**'
+      - '.github/workflows/license-scan.yml'
+  pull_request:
+    branches: [main, develop]
+    # Không có paths filter trên PR — để summary job luôn chạy
+    # (Required check không được dùng paths filter — sẽ stuck "waiting" nếu workflow không trigger)
+
+jobs:
+  detect-changes:
+    name: Detect Dependency Changes
+    runs-on: ubuntu-latest
+    outputs:
+      deps: ${{ steps.filter.outputs.deps }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            deps:
+              - 'core-engine/backend/requirements.txt'
+              - 'core-engine/frontend/package*.json'
+              - 'plugins/mfe-gateway/package*.json'
+              - 'deploy/**'
+              - '.github/workflows/license-scan.yml'
+
+  python-licenses:
+    name: Python Licenses (pip-licenses)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deps == 'true'
+    defaults:
+      run:
+        working-directory: core-engine/backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: core-engine/backend/requirements.txt
+
+      - name: Install dependencies + pip-licenses
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-licenses
+
+      - name: Dump license report
+        run: |
+          pip-licenses --format=json --output-file=licenses-python.json
+          pip-licenses --format=plain-vertical | head -n 60
+
+      - name: Gate — fail on AGPL-incompatible licenses
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          report = json.load(open("licenses-python.json"))
+          # Ngoại lệ có căn cứ xác minh (không phải bỏ qua mù):
+          # fastembed metadata PyPI thiếu classifier OSI nhưng file LICENSE
+          # upstream là Apache-2.0 thuần (đã xác minh).
+          EXCEPTIONS = {"fastembed": "Apache-2.0 (verified upstream LICENSE)"}
+          ALLOW = ("mit", "bsd", "apache", "isc", "mpl", "mozilla public",
+                   "psf", "python software foundation", "postgresql",
+                   "cc0", "unlicense", "0bsd", "python-2.0",
+                   "historical permission notice")
+          DENY = ("gpl-2.0-only", "gplv2", "sspl", "sustainable",
+                  "business source", "bsl", "rsal", "elastic license",
+                  "commons clause", "proprietary", "unlicensed", "unknown")
+          bad = []
+          for row in report:
+              name = row["Name"]
+              lic = EXCEPTIONS.get(name, row["License"]).lower()
+              if any(d in lic for d in DENY) or not any(a in lic for a in ALLOW):
+                  bad.append((name, row["Version"], row["License"]))
+          if bad:
+              print("::error::AGPL-incompatible Python licenses found:")
+              for n, v, lic in bad:
+                  print(f"  - {n}=={v}: {lic}")
+              sys.exit(1)
+          print(f"OK: {len(report)} Python packages, all AGPL-compatible")
+          EOF
+
+      - name: Upload Python license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: licenses-python
+          path: core-engine/backend/licenses-python.json
+          retention-days: 14
+
+  npm-licenses:
+    name: NPM Licenses (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deps == 'true'
+    strategy:
+      matrix:
+        include:
+          - dir: core-engine/frontend
+            artifact: frontend
+          - dir: plugins/mfe-gateway
+            artifact: mfe-gateway
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.dir }}
+        run: npm ci
+
+      - name: Dump license report
+        working-directory: ${{ matrix.dir }}
+        run: npx --yes license-checker --json --out licenses-npm.json
+
+      - name: Gate — fail on AGPL-incompatible licenses
+        working-directory: ${{ matrix.dir }}
+        env:
+          SCAN_DIR: ${{ matrix.dir }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, re, sys
+          data = json.load(open("licenses-npm.json"))
+          ALLOW = {"MIT", "ISC", "Apache-2.0", "Apache 2.0", "BSD",
+                   "BSD-2-Clause", "BSD-3-Clause", "MPL-2.0", "CC0-1.0",
+                   "CC-BY-3.0", "CC-BY-4.0", "0BSD", "Unlicense",
+                   "Python-2.0", "Artistic-2.0", "AFL-2.1", "EPL-1.0",
+                   "EPL-2.0", "EUPL-1.1", "BlueOak-1.0.0"}
+          DENY = ("GPL-2.0", "SSPL", "BUSL", "BSL", "RSAL", "Elastic",
+                  "Commons-Clause", "PROPRIETARY", "UNLICENSED", "UNKNOWN")
+          bad = []
+          for pkg, meta in data.items():
+              raw = str(meta.get("licenses", "UNKNOWN"))
+              if any(d in raw for d in DENY):
+                  bad.append((pkg, raw))
+                  continue
+              tokens = [t for t in re.split(r"[()|&/,;\s]+", raw) if t not in ("OR", "AND", "WITH", "")]
+              if not tokens or any(t not in ALLOW and not t.startswith(("MIT", "BSD", "Apache", "ISC")) for t in tokens):
+                  bad.append((pkg, raw))
+          if bad:
+              print("::error::AGPL-incompatible NPM licenses found:")
+              for p, lic in bad:
+                  print(f"  - {p}: {lic}")
+              sys.exit(1)
+          print(f"OK: {len(data)} NPM packages in {os.environ['SCAN_DIR']}, all AGPL-compatible")
+          EOF
+
+      - name: Upload NPM license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: licenses-npm-${{ matrix.artifact }}
+          path: ${{ matrix.dir }}/licenses-npm.json
+          retention-days: 14
+
+  docker-tags:
+    name: Forbid Floating Docker Tags
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deps == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fail on :latest or unpinned images
+        run: |
+          echo "=== Checking deploy Docker images ==="
+          if grep -rEn 'image:\s*\S+:latest' deploy/ core-engine/Dockerfile plugins/mfe-gateway/Dockerfile 2>/dev/null; then
+            echo "::error::Phát hiện Docker image dùng tag nổi ':latest' (VD redis:latest đổi license theo version). Hãy ghim version cụ thể."
+            exit 1
+          fi
+          echo "OK: no floating :latest tags"
+
+  license-scan:
+    name: license-scan
+    runs-on: ubuntu-latest
+    # Luôn chạy — kể cả khi không đổi dependency (tránh PR stuck "waiting")
+    if: always()
+    needs: [detect-changes, python-licenses, npm-licenses, docker-tags]
+    steps:
+      - name: Evaluate license scan result
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.deps }}" == "false" ]]; then
+            echo "No dependency changes — skipping license-scan checks (pass)"
+            exit 0
+          fi
+          if [[ "${{ needs.python-licenses.result }}" == "failure" ||
+                "${{ needs.npm-licenses.result }}" == "failure" ||
+                "${{ needs.docker-tags.result }}" == "failure" ]]; then
+            echo "One or more license checks failed"
+            exit 1
+          fi
+          echo "All license checks passed"
