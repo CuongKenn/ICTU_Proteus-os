@@ -149,6 +149,10 @@ jobs:
           python3 - <<'EOF'
           import json, os, re, sys
           data = json.load(open("licenses-npm.json"))
+          # Key của chính package gốc (mã nguồn AGPL của dự án, không phải
+          # phụ thuộc bên thứ 3) — license-checker luôn liệt kê nó.
+          root = json.load(open("package.json"))
+          ROOT_KEY = f"{root.get('name', '')}@{root.get('version', '')}"
           ALLOW = {"MIT", "ISC", "Apache-2.0", "Apache 2.0", "BSD",
                    "BSD-2-Clause", "BSD-3-Clause", "MPL-2.0", "CC0-1.0",
                    "CC-BY-3.0", "CC-BY-4.0", "0BSD", "Unlicense",
@@ -158,6 +162,11 @@ jobs:
                   "Commons-Clause", "PROPRIETARY", "UNLICENSED", "UNKNOWN")
           bad = []
           for pkg, meta in data.items():
+              # Bỏ qua chính package gốc của repo (mã nguồn AGPL của dự án,
+              # không phải phụ thuộc bên thứ 3).
+              path = str(meta.get("path", ""))
+              if pkg == ROOT_KEY or (path and "/node_modules/" not in path):
+                  continue
               raw = str(meta.get("licenses", "UNKNOWN"))
               if any(d in raw for d in DENY):
                   bad.append((pkg, raw))
