@@ -4,32 +4,29 @@
 "use client";
 
 import React from "react";
-import clsx from "clsx";
 
-export interface ProgressBarProps {
+interface ProgressBarProps {
   progress: number;
   label?: string;
-  status?: "installing" | "failed";
+  status?: "installing" | "default";
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, label, status = "installing" }) => {
-  const safeProgress = Math.min(Math.max(progress, 0), 100);
-  
+export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, label, status = "default" }) => {
   return (
-    <div className="w-full">
+    <div className="w-full space-y-1.5">
       {label && (
-        <div className="flex justify-between text-xs text-text-secondary mb-1">
+        <div className="flex justify-between text-[11px] font-medium" style={{ color: "var(--accent)" }}>
           <span>{label}</span>
-          <span>{safeProgress}%</span>
+          <span>{progress}%</span>
         </div>
       )}
-      <div className="h-2 w-full bg-bg-surface border border-border rounded-full overflow-hidden">
+      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
         <div
-          className={clsx(
-            "h-full rounded-full transition-all duration-300 ease-linear",
-            status === "installing" ? "bg-warning" : "bg-danger"
-          )}
-          style={{ width: `${safeProgress}%` }}
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${Math.min(progress, 100)}%`,
+            background: "var(--accent)",
+          }}
         />
       </div>
     </div>

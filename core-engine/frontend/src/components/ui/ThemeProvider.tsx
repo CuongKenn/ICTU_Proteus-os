@@ -3,48 +3,11 @@
 
 "use client";
 
-import React, { useEffect } from "react";
-import { useThemeStore } from "@/store/themeStore";
+import React from "react";
+import { ThemeToggleProvider } from "@/components/ui/ThemeToggleProvider";
 
+// ThemeProvider wraps the ThemeToggleProvider for the entire app.
+// The actual theme state and toggle logic lives in ThemeToggleProvider.
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const theme = useThemeStore((state) => state.theme);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    
-    if (theme === "system") {
-      const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (systemPrefersDark) {
-        root.classList.add("dark");
-        root.setAttribute("data-theme", "dark");
-      } else {
-        root.classList.remove("dark");
-        root.setAttribute("data-theme", "light");
-      }
-
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleChange = (e: MediaQueryListEvent) => {
-        if (e.matches) {
-          root.classList.add("dark");
-          root.setAttribute("data-theme", "dark");
-        } else {
-          root.classList.remove("dark");
-          root.setAttribute("data-theme", "light");
-        }
-      };
-
-      mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
-    } else {
-      if (theme === "dark") {
-        root.classList.add("dark");
-        root.setAttribute("data-theme", "dark");
-      } else {
-        root.classList.remove("dark");
-        root.setAttribute("data-theme", "light");
-      }
-    }
-  }, [theme]);
-
-  return <>{children}</>;
+  return <ThemeToggleProvider>{children}</ThemeToggleProvider>;
 };

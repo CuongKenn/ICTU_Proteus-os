@@ -56,161 +56,169 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   onUninstall,
 }) => {
   const isDisabled = status === "disabled";
-  // Dùng rating thực tế nếu có; không dùng Math.random() để tránh flicker
   const rating = plugin.rating ?? null;
   const category = plugin.category || "Utilities";
   const developer = plugin.author || plugin.developer || "Proteus Core";
-  
+  const tags = plugin.tags ?? [];
+
   const renderUninstallButton = () => {
     if (!onUninstall) return null;
     return (
-      <Button 
-        variant="ghost" 
-        onClick={() => onUninstall(plugin.id)} 
+      <Button
+        variant="ghost"
+        onClick={() => onUninstall(plugin.id)}
         disabled={!canInstall}
-        className={clsx(
-          "px-3",
-          canInstall ? "text-text-muted hover:text-danger hover:bg-danger/10" : "text-text-muted/50 cursor-not-allowed"
-        )} 
-        title={!canInstall ? "Bạn không có quyền thao tác (plugins:install)" : "Gỡ cài đặt"}
+        className={canInstall ? "" : "opacity-50 cursor-not-allowed"}
+        title={!canInstall ? "Bạn không có quyền thao tác" : "Gỡ cài đặt"}
       >
         {!canInstall ? <Lock className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
       </Button>
     );
   };
 
-  return (
-    <div 
-      className={clsx(
-        "group relative flex flex-col gap-4 p-5 rounded-2xl border border-border/50",
-        "bg-bg-glass backdrop-blur-glass overflow-hidden transition-all duration-300",
-        "hover:-translate-y-1 hover:shadow-2xl hover:border-brand-primary/30",
-        isDisabled && "opacity-60 grayscale-[50%]"
-      )}
-    >
-      {/* Background Gradient Glow on Hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+  const statusBadge = () => {
+    switch (status) {
+      case "active":
+        return (
+          <span className="status-badge status-badge--active">
+            <CheckCircle2 className="w-3 h-3" /> Active
+          </span>
+        );
+      case "failed":
+        return (
+          <span className="status-badge status-badge--failed">
+            <XCircle className="w-3 h-3" /> Failed
+          </span>
+        );
+      case "disabled":
+        return (
+          <span className="status-badge status-badge--disabled">
+            Disabled
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
-      {/* Header Section */}
-      <div className="relative flex items-start gap-4">
-        {/* App Icon — dùng icon_url nếu có */}
-        <div className="w-16 h-16 rounded-2xl shrink-0 bg-gradient-to-br from-bg-surface-elevated to-bg-surface border border-border/50 flex items-center justify-center shadow-inner relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+  return (
+    <div className={clsx("card p-5 flex flex-col gap-3", isDisabled && "opacity-60 grayscale-[50%]")}>
+      {/* ── Header ── */}
+      <div className="flex items-start gap-3.5">
+        {/* Icon */}
+        <div className="plugin-icon">
           {plugin.iconUrl ? (
-            <Image src={plugin.iconUrl} alt={plugin.name} width={40} height={40} className="object-contain" />
+            <Image src={plugin.iconUrl} alt={plugin.name} width={32} height={32} className="object-contain" />
           ) : (
-            <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-br from-text-primary to-text-secondary drop-shadow-sm">
+            <span className="text-lg font-bold font-grot" style={{ color: "var(--accent)" }}>
               {plugin.name.charAt(0)}
             </span>
           )}
-          {/* Subtle shine effect */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-1000" />
         </div>
 
-        {/* Title and Meta */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-bold text-text-primary truncate" title={plugin.name}>
-            {plugin.name}
-          </h3>
-          <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-0.5">
-            <span className="truncate max-w-[100px]">{developer}</span>
+          <div className="flex items-center gap-2">
+            <h3 className="text-[0.9375rem] font-semibold font-grot truncate" style={{ color: "var(--ink)" }}>
+              {plugin.name}
+            </h3>
             {plugin.isOfficial && (
-              <span title="Official Plugin">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
-              </span>
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--accent)" }} />
             )}
           </div>
-          
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-bg-surface-elevated text-text-secondary border border-border-subtle">
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="font-mono text-meta truncate max-w-[120px]" style={{ color: "var(--dim)" }}>
+              {developer}
+            </span>
+          </div>
+          {/* Metadata row */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <span className="mono-tag !py-0.5 !px-1.5 !text-[9px] !gap-0 !border-0" style={{ background: "var(--paper)", color: "var(--dim)" }}>
               v{plugin.version}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+            <span className="mono-tag !py-0.5 !px-1.5 !text-[9px] !gap-0 !border-0" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
               {category}
             </span>
-            <span className="inline-flex items-center text-[10px] text-warning font-medium ml-auto">
-              ★ {rating}
-            </span>
+            {rating && (
+              <span className="font-mono text-meta ml-auto" style={{ color: "var(--amber)" }}>
+                ★ {rating}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Description */}
-      <p className="relative text-sm text-text-secondary line-clamp-2 min-h-[2.5rem] leading-relaxed">
+      {/* ── Description ── */}
+      <p className="text-sm line-clamp-2 min-h-[2.5rem] leading-relaxed" style={{ color: "var(--muted)" }}>
         {plugin.description}
       </p>
 
-      {/* Divider */}
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+      {/* ── Tags ── */}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.slice(0, 4).map((tag) => (
+            <span key={tag} className="tag-chip">{tag}</span>
+          ))}
+          {tags.length > 4 && (
+            <span className="tag-chip" style={{ color: "var(--muted)" }}>+{tags.length - 4}</span>
+          )}
+        </div>
+      )}
 
-      {/* Action Area */}
-      <div className="relative mt-auto pt-2 flex items-center justify-between min-h-[2.5rem]">
+      {/* ── Separator ── */}
+      <div className="separator" />
+
+      {/* ── Actions ── */}
+      <div className="mt-auto flex items-center justify-between min-h-[2.5rem]">
         {status === "available" && (
-          <Button 
-            onClick={() => canInstall && onInstall?.(plugin.id)} 
+          <Button
+            onClick={() => canInstall && onInstall?.(plugin.id)}
             disabled={!canInstall}
-            className={clsx(
-              "w-full font-semibold shadow-sm transition-shadow",
-              canInstall ? "hover:shadow-md" : "opacity-50 cursor-not-allowed"
-            )}
-            title={!canInstall ? "Bạn không có quyền cài đặt Plugin (plugins:install)" : ""}
+            className="w-full"
           >
-            {!canInstall ? <Lock className="w-4 h-4 mr-2" /> : <Download className="w-4 h-4 mr-2" />} Nhận
+            {!canInstall ? <Lock className="w-4 h-4 mr-2" /> : <Download className="w-4 h-4 mr-2" />}
+            Nhận
           </Button>
         )}
-        
+
         {status === "installing" && (
-          <div className="w-full space-y-1.5">
-            <div className="flex justify-between text-xs text-brand-primary font-medium">
-              <span>Đang cài đặt...</span>
-              <span>{installProgress}%</span>
-            </div>
-            <ProgressBar progress={installProgress} label="" status="installing" />
+          <div className="w-full">
+            <ProgressBar progress={installProgress} label="Đang cài đặt..." status="installing" />
           </div>
         )}
 
         {status === "active" && (
           <div className="flex items-center justify-between w-full">
             <div className="flex gap-2">
-              <Button 
-                variant="secondary" 
-                onClick={() => onOpen?.(plugin.id)} 
-                className="bg-bg-surface-elevated hover:bg-bg-surface-hover text-text-primary border-border/50"
-              >
-                Mở
-              </Button>
+              <Button variant="ghost" onClick={() => onOpen?.(plugin.id)}>Mở</Button>
               {renderUninstallButton()}
             </div>
-            <span className="flex items-center text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/20">
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã cài
-            </span>
+            {statusBadge()}
           </div>
         )}
 
         {status === "update_available" && (
-          <Button 
-            onClick={() => onUpdate?.(plugin.id)} 
-            className="w-full bg-warning text-bg-base hover:bg-warning/90 hover:text-bg-base border-0 font-semibold"
-          >
+          <Button onClick={() => onUpdate?.(plugin.id)} className="btn-accent w-full" style={{ background: "var(--amber)", borderColor: "var(--amber)" }}>
             <ArrowUpCircle className="w-4 h-4 mr-2" /> Cập nhật
           </Button>
         )}
 
         {status === "failed" && (
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              <Button variant="danger" onClick={() => onRetry?.(plugin.id)} className="font-semibold">Thử lại</Button>
+            <div className="flex gap-2">
+              <Button variant="danger" onClick={() => onRetry?.(plugin.id)}>Thử lại</Button>
               {renderUninstallButton()}
             </div>
-            <span className="flex items-center text-xs font-medium text-danger bg-danger/10 px-2.5 py-1 rounded-full border border-danger/20">
-              <XCircle className="w-3.5 h-3.5 mr-1" /> Lỗi
-            </span>
+            {statusBadge()}
           </div>
         )}
 
         {status === "disabled" && (
           <div className="flex items-center justify-between w-full">
-            <Button variant="secondary" onClick={() => onEnable?.(plugin.id)} className="font-semibold">Bật</Button>
-            {renderUninstallButton()}
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => onEnable?.(plugin.id)}>Bật</Button>
+              {renderUninstallButton()}
+            </div>
+            {statusBadge()}
           </div>
         )}
       </div>
