@@ -13,7 +13,7 @@ import uuid as uuid_lib
 from typing import Any, cast
 
 import httpx
-from jose import jwt
+from jose import JWTError, jwt
 
 from app.core.domain.ports import AbstractIdentityProviderPort
 from app.infrastructure.config import settings
@@ -110,11 +110,38 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             logger.info("JWKS cache force-refreshed (kid miss)")
             return self._jwks_cache
 
+    def _candidate_issuers(self) -> list[str]:
+        """Trả về danh sách `iss` hợp lệ, tương thích với mock trong test."""
+        try:
+            issuers = settings.keycloak_expected_issuers
+            if isinstance(issuers, list) and issuers and all(
+                isinstance(i, str) for i in issuers
+            ):
+                return issuers
+        except Exception:
+            pass
+        # Fallback khi settings bị mock (test cũ) hoặc thiếu property:
+        # dựng từ KEYCLOAK_URL/REALM + KEYCLOAK_ISSUER nếu có.
+        base = getattr(settings, "KEYCLOAK_URL", "http://localhost:8080")
+        realm = getattr(settings, "KEYCLOAK_REALM", "proteus")
+        internal = f"{str(base).rstrip('/')}/realms/{realm}"
+        issuers = [internal]
+        public = getattr(settings, "KEYCLOAK_ISSUER", None)
+        if isinstance(public, str) and public.strip():
+            normalized = public.strip().rstrip("/")
+            if normalized not in issuers:
+                issuers.append(normalized)
+        return issuers
+
     async def verify_and_decode_token(self, token: str) -> dict[str, Any]:
         """
         Xác thực Access Token JWT.
         Trả về payload đã decode nếu hợp lệ.
         Raise JWTError nếu token không hợp lệ hoặc hết hạn.
+
+        Chấp nhận nhiều `iss` (internal `KEYCLOAK_URL` + public
+        `KEYCLOAK_ISSUER`) vì Keycloak ký `iss` theo `KC_HOSTNAME` public,
+        còn backend fetch JWKS qua URL nội bộ.
         """
         # M22: kiểm tra kid trước — miss thì refresh 1 lần (Keycloak rotate keys).
         try:
@@ -127,24 +154,34 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             keys = (jwks or {}).get("keys", [])
             if not any(k.get("kid") == kid for k in keys):
                 jwks = await self._force_refresh_jwks()
-        expected_issuer = (
-            f"{settings.KEYCLOAK_URL.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
-        )
-        payload = jwt.decode(
-            token,
-            jwks,
-            algorithms=["RS256"],
-            audience=settings.KEYCLOAK_CLIENT_ID,
-            issuer=expected_issuer,
-            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
-        )
+        issuers = self._candidate_issuers()
+        last_exc: JWTError | None = None
+        payload: dict[str, Any] | None = None
+        for issuer in issuers:
+            try:
+                payload = jwt.decode(
+                    token,
+                    jwks,
+                    algorithms=["RS256"],
+                    audience=settings.KEYCLOAK_CLIENT_ID,
+                    issuer=issuer,
+                    options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+                )
+                break
+            except JWTError as exc:
+                # Chỉ thử issuer tiếp theo khi lỗi do sai issuer.
+                # Hết hạn / sai audience / sai chữ ký → raise ngay.
+                if "issuer" in str(exc).lower() and issuer != issuers[-1]:
+                    last_exc = exc
+                    continue
+                raise
+        if payload is None:
+            raise last_exc or JWTError(f"Token issuer không hợp lệ: {issuers}")
         # M22: verify azp (authorized party) — chặn token cấp cho client khác.
         azp = payload.get("azp")
         if azp is not None and azp != settings.KEYCLOAK_CLIENT_ID:
             # Cho phép BFF/account client trong cùng realm? Mặc định chặn cứng.
-            from jose import JWTError as _JWTError
-
-            raise _JWTError(f"Token azp không hợp lệ: {azp}")
+            raise JWTError(f"Token azp không hợp lệ: {azp}")
         logger.debug(
             "Token verified successfully",
             extra={"user_id": payload.get("sub"), "tenant": payload.get("tenant_id")},

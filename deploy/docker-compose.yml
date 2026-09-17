@@ -352,6 +352,21 @@ services:
       - MM_SERVICESETTINGS_ENABLELOCALMODE=true
       # Tắt telemetry Rudder (môi trường chặn internet → spam 502 trong log)
       - MM_LOGSETTINGS_ENABLEDIAGNOSTICS=false
+      # Bot + PAT cho Proteus backend (tạo team/channel, post cảnh báo).
+      # Khai báo bằng env để container recreate không mất (volume reset từng
+      # làm Enable=false khiến backend 401 "Invalid or expired session").
+      - MM_SERVICESETTINGS_ENABLEBOTACCOUNTCREATION=true
+      - MM_SERVICESETTINGS_ENABLEUSERACCESSTOKENS=true
+      - MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS=proteus-backend
+      # GitLab SSO qua Keycloak (client "mattermost"/secret "mattermost-secret").
+      # Khai báo bằng env để container recreate không mất config (trước đây chỉ
+      # set qua API trong setup.sh nên volume reset là gãy 501 "SSO not available").
+      - MM_GITLABSETTINGS_ENABLE=true
+      - MM_GITLABSETTINGS_ID=mattermost
+      - MM_GITLABSETTINGS_SECRET=mattermost-secret
+      - MM_GITLABSETTINGS_AUTHENDPOINT=${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/${KEYCLOAK_REALM:-proteus}/protocol/openid-connect/auth
+      - MM_GITLABSETTINGS_TOKENENDPOINT=${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/${KEYCLOAK_REALM:-proteus}/protocol/openid-connect/token
+      - MM_GITLABSETTINGS_USERAPIENDPOINT=${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/${KEYCLOAK_REALM:-proteus}/protocol/openid-connect/userinfo
     depends_on:
       postgres:
         condition: service_healthy
@@ -555,6 +570,9 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
+      # Issuer public Keycloak dùng để ký `iss` (theo KC_HOSTNAME).
+      # Backend verify cả internal + public để tránh 401 khi KC_HOSTNAME là domain public.
+      KEYCLOAK_ISSUER: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN}${PUBLIC_URL_SUFFIX}/realms/${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       N8N_URL: http://n8n:5678
