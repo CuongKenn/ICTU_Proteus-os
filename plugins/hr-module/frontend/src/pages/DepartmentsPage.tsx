@@ -112,7 +112,7 @@ export function DepartmentsPage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#ef4444',
+  color: 'var(--mfe-danger)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',

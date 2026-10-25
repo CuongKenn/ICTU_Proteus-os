@@ -80,13 +80,13 @@ export function Dashboard() {
           {byDept.map((b) => (
             <div key={b.dept.id} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', marginBottom: '.5rem' }}>
               <span style={{ width: 180, color: C.muted, fontSize: '.82rem' }}>{b.dept.name}</span>
-              <div style={{ flex: 1, height: 8, background: '#0b1220', borderRadius: 999 }}>
+              <div style={{ flex: 1, height: 8, background: 'var(--mfe-panel-2)', borderRadius: 999 }}>
                 <div
                   style={{
                     width: `${((b.count / maxCount) * 100).toFixed(0)}%`,
                     height: '100%',
                     borderRadius: 999,
-                    background: '#38bdf8',
+                    background: 'var(--mfe-accent)',
                   }}
                 />
               </div>

@@ -1,0 +1,16 @@
+# Copyright (c) 2026 CuongKenn & ICTU Team
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Docker build context là core-engine/ (xem deploy/docker-compose.yml).
+# Chặn file môi trường local lọt vào image — đặc biệt frontend/.env.local
+# (chứa NEXT_PUBLIC_ENABLE_MOCKS=true cho preview) vì Next.js bake
+# NEXT_PUBLIC_* vào client bundle lúc build → production trả mock data.
+
+**/.env*.local
+backend/.env
+frontend/node_modules
+frontend/.next
+backend/venv
+backend/.venv
+**/__pycache__
+**/*.pyc

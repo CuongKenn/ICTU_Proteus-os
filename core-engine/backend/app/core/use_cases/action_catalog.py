@@ -77,6 +77,11 @@ CORE_ACTIONS: list[CatalogAction] = [
         "core.knowledge.search", "read", "Tìm kiếm tri thức nội bộ (RAG, có trích dẫn)."
     ),
     CatalogAction("core.knowledge.ingest", "write", "Nạp tài liệu mới vào RAG."),
+    CatalogAction(
+        "core.knowledge.save",
+        "write",
+        "Lưu/tạo tài liệu mới vào tri thức nội bộ (Outline Wiki). Cần phê duyệt.",
+    ),
 ]
 
 # Core read actions mở cho MỌI role đã đăng nhập (docs/dsl-spec.md §3.1,

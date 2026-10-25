@@ -17,8 +17,8 @@ export function FinanceModuleApp(props: { subPath: string; navigate: (sub: strin
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto' }}>
       <header style={{ marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0, color: '#e2e8f0' }}>{financeMeta.displayName}</h2>
-        <p style={{ margin: '.25rem 0 0', color: '#94a3b8', fontSize: '.88rem' }}>{financeMeta.description}</p>
+        <h2 style={{ margin: 0, color: 'var(--mfe-text)' }}>{financeMeta.displayName}</h2>
+        <p style={{ margin: '.25rem 0 0', color: 'var(--mfe-muted)', fontSize: '.88rem' }}>{financeMeta.description}</p>
         <nav style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem', flexWrap: 'wrap' }}>
           {financeMeta.routes.map((r) => {
             const active = route === r.path;
@@ -29,9 +29,9 @@ export function FinanceModuleApp(props: { subPath: string; navigate: (sub: strin
                 style={{
                   padding: '.45rem .9rem',
                   borderRadius: 8,
-                  border: active ? 'none' : '1px solid #334155',
-                  background: active ? '#2563eb' : 'transparent',
-                  color: active ? '#fff' : '#e2e8f0',
+                  border: active ? 'none' : '1px solid var(--mfe-line)',
+                  background: active ? 'var(--mfe-primary)' : 'transparent',
+                  color: active ? 'var(--mfe-on-accent)' : 'var(--mfe-text)',
                   cursor: 'pointer',
                   fontWeight: 600,
                 }}
@@ -49,7 +49,7 @@ export function FinanceModuleApp(props: { subPath: string; navigate: (sub: strin
                 window.location.reload();
               }}
               title="Xóa localStorage demo, dò lại API"
-              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '.8rem' }}
+              style={{ background: 'none', border: 'none', color: 'var(--mfe-dim)', cursor: 'pointer', fontSize: '.8rem' }}
             >
               Reset demo
             </button>
@@ -61,7 +61,7 @@ export function FinanceModuleApp(props: { subPath: string; navigate: (sub: strin
       {route === 'invoices' && <InvoicesPage />}
       {route === 'expenses' && <ExpensesPage />}
       {!['', 'transactions', 'invoices', 'expenses'].includes(route) && (
-        <p style={{ color: '#94a3b8' }}>Trang không tồn tại: /{route}</p>
+        <p style={{ color: 'var(--mfe-muted)' }}>Trang không tồn tại: /{route}</p>
       )}
     </div>
   );

@@ -17,16 +17,16 @@ const NEXT: Record<TicketStatus, TicketStatus | null> = {
 };
 
 function slaInfo(deadline: string, status: TicketStatus): { text: string; color: string } {
-  if (['RESOLVED', 'CLOSED'].includes(status)) return { text: 'Done', color: '#22c55e' };
-  if (!deadline) return { text: 'Chưa đặt SLA', color: '#64748b' };
+  if (['RESOLVED', 'CLOSED'].includes(status)) return { text: 'Done', color: 'var(--mfe-success)' };
+  if (!deadline) return { text: 'Chưa đặt SLA', color: 'var(--mfe-dim)' };
   const ms = new Date(deadline).getTime() - Date.now();
-  if (Number.isNaN(ms)) return { text: '—', color: '#64748b' };
-  if (ms < 0) return { text: `Quá ${Math.ceil(-ms / 3600000)}h`, color: '#ef4444' };
-  if (ms < 86400000) return { text: `Còn ${Math.ceil(ms / 3600000)}h`, color: '#f59e0b' };
-  return { text: `Còn ${Math.ceil(ms / 86400000)}d`, color: '#38bdf8' };
+  if (Number.isNaN(ms)) return { text: '—', color: 'var(--mfe-dim)' };
+  if (ms < 0) return { text: `Quá ${Math.ceil(-ms / 3600000)}h`, color: 'var(--mfe-danger)' };
+  if (ms < 86400000) return { text: `Còn ${Math.ceil(ms / 3600000)}h`, color: 'var(--mfe-warning)' };
+  return { text: `Còn ${Math.ceil(ms / 86400000)}d`, color: 'var(--mfe-accent)' };
 }
 
-const pColor = (p: string) => (p === 'P1' ? '#ef4444' : p === 'P2' ? '#f59e0b' : '#38bdf8');
+const pColor = (p: string) => (p === 'P1' ? 'var(--mfe-danger)' : p === 'P2' ? 'var(--mfe-warning)' : 'var(--mfe-accent)');
 
 export function TicketsPage() {
   const { mode, store, reason, message } = useStore();
@@ -152,7 +152,7 @@ export function TicketsPage() {
                     {next && (
                       <button
                         onClick={() => mutate(() => store!.moveTicket(t.id, next))}
-                        style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--mfe-accent)', cursor: 'pointer' }}
                       >
                         → {TICKET_STATUS_LABEL[next]}
                       </button>
@@ -161,7 +161,7 @@ export function TicketsPage() {
                 </tr>
                 {openId === t.id && (
                   <tr>
-                    <td style={{ ...td, background: '#0b1220' }} colSpan={5}>
+                    <td style={{ ...td, background: 'var(--mfe-panel-2)' }} colSpan={5}>
                       <div style={{ color: C.muted, fontSize: '.85rem', marginBottom: '.5rem' }}>{t.description}</div>
                       {(updates[t.id] ?? []).map((u) => (
                         <div key={u.id} style={{ color: C.text, fontSize: '.85rem', padding: '.25rem 0' }}>

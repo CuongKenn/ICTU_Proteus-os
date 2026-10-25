@@ -119,6 +119,7 @@ def test_invite_request_validation():
 @pytest.mark.asyncio
 async def test_list_users_success(client_overrides):
     ent = _user_entity()
+    client_overrides.kc.get_user = AsyncMock(return_value={"emailVerified": False})
     with patch(
         "app.entrypoints.routers.users.SQLAlchemyUserRepository"
     ) as repo_cls:
@@ -129,7 +130,23 @@ async def test_list_users_success(client_overrides):
     assert resp.json()[0]["email"] == "nv@example.com"
 
 
-# ─── invite ─────────────────────────────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_list_users_reconciles_verified_invite(client_overrides):
+    """User đã đặt mật khẩu (emailVerified=true) → tự bật active, hết 'Chờ kích hoạt'."""
+    ent = _user_entity()  # is_active=False, last_login_at=None
+    client_overrides.kc.get_user = AsyncMock(return_value={"emailVerified": True})
+    with patch(
+        "app.entrypoints.routers.users.SQLAlchemyUserRepository"
+    ) as repo_cls:
+        repo = repo_cls.return_value
+        repo.list_by_tenant = AsyncMock(return_value=[ent])
+        repo.mark_active = AsyncMock()
+        repo.commit = AsyncMock()
+        async with _client() as c:
+            resp = await c.get("/api/v1/users", headers={"Authorization": "Bearer x"})
+    assert resp.status_code == 200
+    assert resp.json()[0]["is_active"] is True
+    repo.mark_active.assert_awaited_once_with(ent.id)
 
 
 @pytest.mark.asyncio

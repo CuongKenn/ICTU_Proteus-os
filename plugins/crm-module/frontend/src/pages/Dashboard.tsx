@@ -74,7 +74,7 @@ export function Dashboard() {
             const rows = open.filter((o) => o.stage === st);
             const sum = rows.reduce((s, o) => s + o.value, 0);
             return (
-              <div key={st} style={{ display: 'flex', justifyContent: 'space-between', padding: '.4rem 0', borderBottom: '1px solid #0b1220', color: C.text, fontSize: '.88rem' }}>
+              <div key={st} style={{ display: 'flex', justifyContent: 'space-between', padding: '.4rem 0', borderBottom: '1px solid var(--mfe-panel-2)', color: C.text, fontSize: '.88rem' }}>
                 <span>{st} ({rows.length})</span>
                 <b>{formatVND(sum)}</b>
               </div>
@@ -84,7 +84,7 @@ export function Dashboard() {
         <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: '1rem 1.25rem' }}>
           <h4 style={{ margin: '0 0 .75rem 0', color: C.text }}>Lead theo nguồn</h4>
           {Object.entries(bySource).map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '.4rem 0', borderBottom: '1px solid #0b1220', color: C.text, fontSize: '.88rem' }}>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '.4rem 0', borderBottom: '1px solid var(--mfe-panel-2)', color: C.text, fontSize: '.88rem' }}>
               <span>{k}</span><b>{v}</b>
             </div>
           ))}

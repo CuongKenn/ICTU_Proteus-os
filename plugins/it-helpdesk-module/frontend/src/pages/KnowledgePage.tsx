@@ -103,7 +103,7 @@ export function KnowledgePage() {
                 <td style={td}>
                   <SimpleBadge
                     text={k.is_published ? 'Đã xuất bản' : 'Nháp'}
-                    color={k.is_published ? '#22c55e' : '#f59e0b'}
+                    color={k.is_published ? 'var(--mfe-success)' : 'var(--mfe-warning)'}
                   />
                 </td>
                 <td style={{ ...td, whiteSpace: 'nowrap' }}>
@@ -128,7 +128,7 @@ export function KnowledgePage() {
               </tr>
               {openId === k.id && (
                 <tr>
-                  <td style={{ ...td, background: '#0b1220', whiteSpace: 'pre-wrap' }} colSpan={5}>
+                  <td style={{ ...td, background: 'var(--mfe-panel-2)', whiteSpace: 'pre-wrap' }} colSpan={5}>
                     {k.content_md}
                   </td>
                 </tr>
@@ -173,7 +173,7 @@ export function KnowledgePage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#38bdf8',
+  color: 'var(--mfe-accent)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',
@@ -213,7 +213,7 @@ function ArticleForm(props: {
           rows={5}
           style={{
             width: '100%',
-            background: '#0b1220',
+            background: 'var(--mfe-panel-2)',
             border: `1px solid ${C.line}`,
             color: C.text,
             borderRadius: 8,

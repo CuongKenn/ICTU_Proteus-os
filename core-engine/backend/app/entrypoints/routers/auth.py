@@ -78,6 +78,7 @@ async def get_me(
                 password=secrets.token_urlsafe(24),
                 auth_service="gitlab",
                 auth_data=str(mattermost_numeric_id(str(tenant_context.user_id))),
+                channel_id=team_cfg.get("alerts_channel_id"),
             )
     except Exception as e:
         logger.warning("Không đảm bảo được MM team cho %s: %s", tenant_context.email, e)

@@ -27,7 +27,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 
 # Hardening: chạy backend bằng user không phải root
-RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app \
+    && mkdir -p /var/cache/fastembed && chown appuser:appuser /var/cache/fastembed
 USER appuser
 
 EXPOSE 8000
@@ -63,13 +64,20 @@ ARG NEXT_PUBLIC_OUTLINE_URL=http://wiki.proteus.local
 ARG NEXT_PUBLIC_N8N_URL=http://workflow.proteus.local
 ARG NEXT_PUBLIC_METABASE_URL=http://analytics.proteus.local
 ARG NEXT_PUBLIC_APPSMITH_URL=http://apps.proteus.local
+ARG NEXT_PUBLIC_PLUGINS_MFE_URL=http://plugins.proteus.local
 ARG NEXT_PUBLIC_KEYCLOAK_URL=http://auth.proteus.local
+# Mock AI fallback CHỈ dùng cho dev/preview local (.env.local).
+# Mặc định false để production không bao giờ trả mock data kể cả khi
+# backend lỗi (fail-loud thay vì fake). Bật ở dev bằng .env.local.
+ARG NEXT_PUBLIC_ENABLE_MOCKS=false
 ENV NEXT_PUBLIC_MATTERMOST_URL=$NEXT_PUBLIC_MATTERMOST_URL
 ENV NEXT_PUBLIC_OUTLINE_URL=$NEXT_PUBLIC_OUTLINE_URL
 ENV NEXT_PUBLIC_N8N_URL=$NEXT_PUBLIC_N8N_URL
 ENV NEXT_PUBLIC_METABASE_URL=$NEXT_PUBLIC_METABASE_URL
 ENV NEXT_PUBLIC_APPSMITH_URL=$NEXT_PUBLIC_APPSMITH_URL
+ENV NEXT_PUBLIC_PLUGINS_MFE_URL=$NEXT_PUBLIC_PLUGINS_MFE_URL
 ENV NEXT_PUBLIC_KEYCLOAK_URL=$NEXT_PUBLIC_KEYCLOAK_URL
+ENV NEXT_PUBLIC_ENABLE_MOCKS=$NEXT_PUBLIC_ENABLE_MOCKS
 RUN npm run build
 # Verify Next.js standalone output (next.config.mjs: output "standalone")
 RUN test -f .next/standalone/server.js || (echo "ERROR: standalone output missing — check next.config.mjs output:'standalone'" && exit 1)

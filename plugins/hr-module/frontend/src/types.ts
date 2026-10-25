@@ -78,10 +78,10 @@ export const LEAVE_STATUS_LABEL: Record<LeaveStatus, string> = {
 };
 
 export const LEAVE_STATUS_COLOR: Record<LeaveStatus, string> = {
-  PENDING: '#f59e0b',
-  PENDING_APPROVAL: '#f59e0b',
-  APPROVED: '#22c55e',
-  REJECTED: '#ef4444',
+  PENDING: 'var(--mfe-warning)',
+  PENDING_APPROVAL: 'var(--mfe-warning)',
+  APPROVED: 'var(--mfe-success)',
+  REJECTED: 'var(--mfe-danger)',
 };
 
 export function isPendingLeave(s: LeaveStatus): boolean {

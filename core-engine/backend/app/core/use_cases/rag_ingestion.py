@@ -79,6 +79,8 @@ class RAGIngestionUseCase:
             total_chunks = 0
 
             # 2. Chunking & 3. Upsert Qdrant
+            all_chunks: list[str] = []
+            all_metadatas: list[dict[str, Any]] = []
             for doc in documents:
                 title = doc.get("title", "Untitled")
                 source_url = doc.get("source_url", "")
@@ -89,22 +91,33 @@ class RAGIngestionUseCase:
                 if not chunks:
                     continue
 
-                metadatas = [
+                all_chunks.extend(chunks)
+                all_metadatas.extend(
                     {
                         "doc_title": title,
                         "source_url": source_url,
                         "document_id": doc.get("id"),
                     }
                     for _ in chunks
-                ]
-
-                # Upsert to Qdrant
-                # QdrantAdapter sử dụng FastEmbed (Hybrid Search Dense+BM25) bên dưới,
-                # thay thế cho việc gọi thẳng OpenAI API, tối ưu cho RRF.
-                await self.vector_db_port.upsert_vectors(
-                    tenant_id=tenant_id, chunks=chunks, metadatas=metadatas
                 )
                 total_chunks += len(chunks)
+
+            # Replace toàn bộ vector của tenant (idempotent, tránh trùng lặp
+            # khi chạy lại hàng đêm). Ưu tiên API mới nếu adapter hỗ trợ.
+            replace = getattr(self.vector_db_port, "replace_tenant_vectors", None)
+            if callable(replace):
+                await replace(
+                    tenant_id=tenant_id,
+                    chunks=all_chunks,
+                    metadatas=all_metadatas,
+                )
+            else:
+                if all_chunks:
+                    await self.vector_db_port.upsert_vectors(
+                        tenant_id=tenant_id,
+                        chunks=all_chunks,
+                        metadatas=all_metadatas,
+                    )
 
             logger.info(
                 "RAG Ingestion completed: %s docs, %s chunks.", total_docs, total_chunks

@@ -10,6 +10,7 @@
 
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncIterator
@@ -50,6 +51,105 @@ _FALLBACK_REPLY = (
     "nghỉ phép, tri thức nội bộ hoặc thực hiện các tác vụ quản trị "
     "(cần phê duyệt). Bạn cần gì?"
 )
+
+_MAX_DATA_ITEMS = 10
+"""Số bản ghi tối đa đính kèm vào message (chống spam chat)."""
+
+_MAX_SYNTH_CITES = 5
+"""Số trích dẫn tối đa đưa vào prompt tổng hợp (giữ prompt gọn cho model nhỏ)."""
+
+_MAX_SYNTH_CHARS = 800
+"""Số ký tự tối đa mỗi trích dẫn trong prompt tổng hợp."""
+
+
+def _strip_think(text: str) -> str:
+    """Bỏ khối <think>...</think> của model reasoning (VD: qwen3).
+
+    Model reasoning nhả cả quá trình suy nghĩ vào output — chỉ giữ đáp án.
+    Không có thẻ think thì trả nguyên văn.
+    """
+    if "<think>" not in text:
+        return text
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    return cleaned.strip() or text.strip()
+
+
+def _append_sources(text: str, citations: list[dict[str, Any]]) -> str:
+    """Gắn mục Nguồn thật (tên + link) từ trích dẫn.
+
+    LLM hay viết "Nguồn: [1], [2]" trơ trụi — cắt dòng đó đi và thay bằng
+    danh sách tên tài liệu + URL lấy từ metadata (khử trùng theo URL).
+    Widget chat không render markdown link nên ghi URL trần.
+    """
+    # Cắt trailer nguồn do LLM tự viết (dòng "Nguồn: ..." ở cuối).
+    text = re.sub(
+        r"\n+\s*(Nguồn|Tham khảo)(\snguồn)?\s*:.*$",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    ).rstrip()
+    seen: set[str] = set()
+    lines: list[str] = []
+    for c in citations:
+        title = (c.get("doc_title") or "").strip()
+        url = (c.get("source_url") or "").strip()
+        key = url or title
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        if title and url:
+            lines.append(f"- {title} — {url}")
+        else:
+            lines.append(f"- {title or url}")
+    if not lines:
+        return text
+    return f"{text}\n\nNguồn:\n" + "\n".join(lines)
+
+
+def _format_step_data(step_result: Any) -> str | None:
+    """Render gọn dữ liệu của 1 step read để UI hiển thị.
+
+    Webhook n8n thường trả {"message": ..., "data": [{...}, ...]} —
+    message kỹ thuật ("Đã xong `action`") không có giá trị với user.
+    """
+    if isinstance(step_result, str):
+        text = step_result.strip()
+        return text[:2000] if text else None
+    if not isinstance(step_result, dict):
+        return None
+    data = step_result.get("data")
+    head = step_result.get("message")
+    head_text = f"{head}\n" if isinstance(head, str) and head.strip() else ""
+    if isinstance(data, list) and data:
+        lines = []
+        for item in data[:_MAX_DATA_ITEMS]:
+            if isinstance(item, dict):
+                vals = [str(v) for v in item.values() if v not in (None, "")]
+                lines.append("- " + (" | ".join(vals) if vals else str(item)))
+            else:
+                lines.append(f"- {item}")
+        extra = (
+            f"\n(+{len(data) - _MAX_DATA_ITEMS} kết quả khác…)"
+            if len(data) > _MAX_DATA_ITEMS
+            else ""
+        )
+        return (head_text + "\n".join(lines) + extra)[:4000] or None
+    # core.knowledge.search trả citations từ tài liệu nội bộ (Outline).
+    citations = step_result.get("citations")
+    if isinstance(citations, list) and citations:
+        lines = []
+        for c in citations[:_MAX_DATA_ITEMS]:
+            if not isinstance(c, dict):
+                continue
+            title = c.get("doc_title") or "Tài liệu"
+            url = c.get("source_url") or ""
+            snippet = (c.get("document") or "").strip().replace("\n", " ")
+            line = f"- **{title}**" + (f" — {url}" if url else "")
+            if snippet:
+                line += f"\n  _{snippet[:200]}_"
+            lines.append(line)
+        return (head_text + "\n".join(lines))[:4000] or None
+    return head_text.strip() or None
 
 
 class AIChatUseCase:
@@ -401,10 +501,22 @@ CHỈ trả về JSON, không text thừa:
         first_status = await _do_step(1, first)
         if first_status == AICommandStatus.PENDING_APPROVAL:
             # Dừng chờ duyệt: step sau có thể phụ thuộc mutation chưa duyệt.
-            return await self._finish(outcomes, total_hint, thoughts, "done")
+            return await self._finish(
+                outcomes,
+                total_hint,
+                thoughts,
+                "done",
+                question=dto.natural_language_input,
+            )
         if first_status == AICommandStatus.COMPLETED and not rest:
             # Việc đơn xong ngay: khỏi tốn thêm vòng ReAct.
-            return await self._finish(outcomes, total_hint, thoughts, "done")
+            return await self._finish(
+                outcomes,
+                total_hint,
+                thoughts,
+                "done",
+                question=dto.natural_language_input,
+            )
         # FAILED hoặc còn gợi ý: vào loop cho LLM cứu/tiếp tục (giới hạn vòng).
 
         suggestion = list(rest)
@@ -440,7 +552,13 @@ CHỈ trả về JSON, không text thừa:
             # vòng lặp tự kết thúc nhờ MAX_REACT_ITERS.
         else:
             end_reason = "iters"
-        return await self._finish(outcomes, total_hint, thoughts, end_reason)
+        return await self._finish(
+            outcomes,
+            total_hint,
+            thoughts,
+            end_reason,
+            question=dto.natural_language_input,
+        )
 
     async def _finish(
         self,
@@ -448,8 +566,13 @@ CHỈ trả về JSON, không text thừa:
         total_hint: int,
         thoughts: list[str] | None,
         end_reason: str,
+        question: str | None = None,
     ) -> tuple[AICommandStatus, str, dict]:
-        """Kết luận turn + đính kèm dsl_preview khi chờ duyệt."""
+        """Kết luận turn + đính kèm dsl_preview khi chờ duyệt.
+
+        Khi turn xong và có trích dẫn tri thức (core.knowledge.search),
+        nhờ LLM viết đáp án mạch lạc thay vì trả list chunks thô.
+        """
         overall, summary, result = self._summarize(
             outcomes, total_hint, thoughts, end_reason
         )
@@ -457,7 +580,71 @@ CHỈ trả về JSON, không text thừa:
             preview = await self._pending_preview(outcomes)
             if preview is not None:
                 result["dsl_preview"] = preview
+            return overall, summary, result
+        if overall == AICommandStatus.COMPLETED and question:
+            cites: list[dict[str, Any]] = [
+                c
+                for o in outcomes
+                if o.get("action") == "core.knowledge.search"
+                and o.get("status") == AICommandStatus.COMPLETED.value
+                and isinstance(o.get("result"), dict)
+                for c in ((o["result"] or {}).get("citations") or [])
+                if isinstance(c, dict)
+            ]
+            if cites:
+                synth = await self._synthesize_knowledge_answer(question, cites)
+                if synth:
+                    summary = synth
         return overall, summary, result
+
+    async def _synthesize_knowledge_answer(
+        self, question: str, citations: list[dict[str, Any]]
+    ) -> str | None:
+        """Nhờ LLM viết đáp án từ trích dẫn RAG (1 call văn xuôi).
+
+        Trả None khi không có trích dẫn dùng được hoặc LLM lỗi —
+        caller giữ nguyên đáp án cũ (list chunks).
+        """
+        usable = [c for c in citations if (c.get("document") or "").strip()]
+        if not usable:
+            return None
+        ctx_lines = []
+        for i, c in enumerate(usable[:_MAX_SYNTH_CITES], 1):
+            title = c.get("doc_title") or f"Tài liệu {i}"
+            body = (c.get("document") or "").strip().replace("\n", " ")
+            if len(body) > _MAX_SYNTH_CHARS:
+                body = body[:_MAX_SYNTH_CHARS] + "…"
+            ctx_lines.append(f"[{i}] {title}: {body}")
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Bạn là trợ lý tri thức nội bộ, trả lời TIẾNG VIỆT, xưng "
+                    '"tôi", NGẮN GỌN trong 5-7 câu. CHỈ dùng thông tin trong '
+                    "các trích dẫn dưới đây, không bịa thêm, không viết quá "
+                    "trình suy luận, chỉ viết đáp án. Cuối câu trả lời liệt "
+                    "kê nguồn đã dùng (tên tài liệu trong ngoặc vuông, VD "
+                    '"theo [1]"). Nếu trích dẫn không chứa đáp án, nói rõ '
+                    "không tìm thấy."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Câu hỏi: {question}\n\nTrích dẫn:\n" + "\n".join(ctx_lines)
+                ),
+            },
+        ]
+        try:
+            # Văn xuôi nên gọi ainvoke thường — KHÔNG dùng chế độ JSON.
+            text = (await self.llm_port.ainvoke(messages)).content
+        except Exception as e:
+            logger.warning("Tổng hợp đáp án RAG thất bại (giữ list chunks): %s", e)
+            return None
+        text = _strip_think((text or "").strip())
+        if not text:
+            return None
+        return _append_sources(text, usable[:_MAX_SYNTH_CITES])
 
     def _summarize(
         self,
@@ -467,18 +654,13 @@ CHỈ trả về JSON, không text thừa:
         end_reason: str = "done",
     ) -> tuple[AICommandStatus, str, dict]:
         """Kết luận 1 turn: COMPLETED nếu bước cuối xong (kèm note khi dừng
-        do giới hạn vòng/thời gian), PENDING nếu chờ duyệt, FAILED nếu lỗi."""
+        do giới hạn vòng/thời gian), PENDING nếu chờ duyệt, FAILED nếu lỗi.
+
+        Quy ước hiển thị: `message` CHỈ chứa output chính cho user đọc.
+        Chi tiết steps/thoughts nằm trong `result` (UI ẩn sau click).
+        """
         done = [o for o in outcomes if o["status"] == AICommandStatus.COMPLETED.value]
         last = outcomes[-1]
-        lines = [
-            f"{o['index']}. `{o['action']}` — {o['status']}: {o['message']}"
-            for o in outcomes
-        ]
-        thought_block = ""
-        if thoughts:
-            thought_block = "\n\n💭 Suy luận:\n" + "\n".join(
-                f"- {t[:200]}" for t in thoughts[:3]
-            )
         if last["status"] == AICommandStatus.COMPLETED.value:
             # Reply trò chuyện thuần túy: trả thẳng nội dung, bỏ wrapper kỹ thuật
             # để UI nào cũng hiển thị sạch.
@@ -492,9 +674,10 @@ CHỈ trả về JSON, không text thừa:
                     outcomes[0]["result"],
                     {"plan_total": total_hint, "steps": outcomes},
                 )
-            # Việc đơn xong gọn: 1 dòng thay vì liệt kê lại steps.
+            # Việc đơn xong gọn: chỉ trả output chính (dữ liệu), KHÔNG kèm
+            # tên action / câu xác nhận kỹ thuật — chi tiết nằm trong steps.
             if len(outcomes) == 1 and not thoughts:
-                summary = f"✅ Đã xong `{last['action']}`."
+                summary = _format_step_data(last.get("result")) or "✅ Đã xong."
                 overall = AICommandStatus.COMPLETED
                 result: dict[str, Any] = {"plan_total": total_hint, "steps": outcomes}
                 return overall, summary, result
@@ -503,27 +686,33 @@ CHỈ trả về JSON, không text thừa:
                 if end_reason in ("iters", "timeout")
                 else ""
             )
-            summary = f"✅ Hoàn thành ({len(outcomes)} bước){note}:\n" + "\n".join(
-                lines
-            )
+            # Output chính: gộp dữ liệu read được. Không liệt kê action.
+            # Chi tiết từng bước nằm trong result.steps (UI ẩn sau click).
+            data_parts = [
+                t
+                for o in outcomes
+                if o["status"] == AICommandStatus.COMPLETED.value
+                for t in [_format_step_data(o.get("result"))]
+                if t
+            ]
+            summary = "\n\n".join(data_parts) if data_parts else f"✅ Đã xong.{note}"
             overall = AICommandStatus.COMPLETED
         elif last["status"] == AICommandStatus.PENDING_APPROVAL.value:
             summary = (
                 f"⏳ Xong {len(done)} bước, dừng ở bước {last['index']} "
-                f"(`{last['action']}`): chờ phê duyệt trên Mattermost.\n"
-                + "\n".join(lines)
+                f"(`{last['action']}`): chờ phê duyệt trên Mattermost."
             )
             overall = AICommandStatus.PENDING_APPROVAL
         else:
             summary = (
                 f"❌ Dừng ở bước {last['index']} "
-                f"(`{last['action']}`): {last['message']}\n" + "\n".join(lines)
+                f"(`{last['action']}`): {last['message']}"
             )
             overall = AICommandStatus.FAILED
         result: dict[str, Any] = {"plan_total": total_hint, "steps": outcomes}
         if thoughts:
             result["thoughts"] = thoughts
-        return overall, summary + thought_block, result
+        return overall, summary, result
 
     async def _run_plan(
         self,

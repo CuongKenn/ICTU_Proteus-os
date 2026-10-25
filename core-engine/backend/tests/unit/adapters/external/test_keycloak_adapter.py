@@ -21,6 +21,7 @@ def adapter(mock_client):
         mock_settings.KEYCLOAK_CLIENT_ID = "proteus-client"
         mock_settings.KEYCLOAK_URL = "http://keycloak"
         mock_settings.KEYCLOAK_REALM = "proteus"
+        mock_settings.keycloak_allowed_issuers = ["http://keycloak/realms/proteus"]
         mock_settings.KEYCLOAK_ADMIN_CLIENT_ID = "admin-cli"
         mock_settings.KEYCLOAK_ADMIN_CLIENT_SECRET = "secret"
         yield KeycloakAdapter(client=mock_client)
@@ -53,7 +54,11 @@ async def test_verify_and_decode_token(adapter, mock_client):
         "app.adapters.external.keycloak_adapter.jwt.get_unverified_header",
         return_value={},
     ):
-        mock_jwt_decode.return_value = {"sub": "user-1", "tenant_id": "tenant-1"}
+        mock_jwt_decode.return_value = {
+            "sub": "user-1",
+            "tenant_id": "tenant-1",
+            "iss": "http://keycloak/realms/proteus",
+        }
 
         payload = await adapter.verify_and_decode_token("fake-token")
 
@@ -63,9 +68,32 @@ async def test_verify_and_decode_token(adapter, mock_client):
             {"keys": []},
             algorithms=["RS256"],
             audience="proteus-client",
-            issuer="http://keycloak/realms/proteus",
-            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+            options={"verify_exp": True, "verify_iss": False, "verify_aud": True},
         )
+
+
+@pytest.mark.asyncio
+async def test_verify_rejects_unknown_issuer(adapter, mock_client):
+    from jose import JWTError
+
+    mock_request = httpx.Request("GET", "http://test")
+    mock_client.get.return_value = httpx.Response(
+        200, json={"keys": []}, request=mock_request
+    )
+
+    with patch(
+        "app.adapters.external.keycloak_adapter.jwt.decode"
+    ) as mock_jwt_decode, patch(
+        "app.adapters.external.keycloak_adapter.jwt.get_unverified_header",
+        return_value={},
+    ):
+        mock_jwt_decode.return_value = {
+            "sub": "user-1",
+            "iss": "https://evil.example.com/realms/proteus",
+        }
+
+        with pytest.raises(JWTError, match="iss không hợp lệ"):
+            await adapter.verify_and_decode_token("fake-token")
 
 
 @pytest.mark.asyncio

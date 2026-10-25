@@ -43,6 +43,8 @@ class QdrantAdapter(AbstractVectorDBPort):
         self._models_ensured = False
         self._hybrid = False
         self._embedder = None
+        self._vector_name: str | None = None
+        self._vector_name_resolved = False
 
     async def aclose(self) -> None:
         """Đóng kết nối Qdrant client."""
@@ -109,6 +111,34 @@ class QdrantAdapter(AbstractVectorDBPort):
         vec = await asyncio.to_thread(_embed_once)
         return vec.tolist() if hasattr(vec, "tolist") else list(vec)
 
+    async def _resolve_vector_name(self) -> str | None:
+        """Tên named-vector cho search dense-only (VD: fast-paraphrase-...).
+
+        Collection do fastembed tạo dùng named vectors; search không kèm
+        `using` → Qdrant 400 "Vector params for  are not specified".
+        Cache theo instance; collection unnamed (VectorParams) → None.
+        """
+        if self._vector_name_resolved:
+            return self._vector_name
+        try:
+            info = await self.client.get_collection(self.collection_name)
+            vectors = getattr(
+                getattr(getattr(info, "config", None), "params", None), "vectors", None
+            )
+            if isinstance(vectors, dict) and vectors:
+                slug = self.dense_model.lower().replace("/", "-").replace("_", "-")
+                for name in vectors:
+                    norm = str(name).lower().replace("_", "-")
+                    if slug in norm or norm in slug:
+                        self._vector_name = str(name)
+                        break
+                else:
+                    self._vector_name = str(next(iter(vectors)))
+        except Exception as e:
+            logger.warning("Không resolve được vector name, thử unnamed: %s", e)
+        self._vector_name_resolved = True
+        return self._vector_name
+
     async def _ensure_collection_exists(self):
         """Khởi tạo collection nếu chưa tồn tại"""
         self._ensure_models()
@@ -154,6 +184,30 @@ class QdrantAdapter(AbstractVectorDBPort):
         except Exception as e:
             logger.error("Error upserting vectors to Qdrant: %s", e)
             raise QdrantAdapterError(f"Upsert failed: {str(e)}") from e
+
+    async def replace_tenant_vectors(
+        self, tenant_id: str, chunks: list[str], metadatas: list[dict[str, Any]]
+    ) -> None:
+        """Xóa toàn bộ vector cũ của tenant rồi upsert lại (idempotent).
+
+        Dùng cho RAG ingestion định kỳ: tránh tích lũy bản trùng và làm sạch
+        citation cũ (VD: source_url nội bộ trước đây).
+        """
+        await self._ensure_collection_exists()
+        try:
+            tenant_filter = Filter(
+                must=[
+                    FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))
+                ]
+            )
+            await self.client.delete(
+                collection_name=self.collection_name,
+                points_selector=tenant_filter,
+            )
+        except Exception as e:
+            logger.warning("Không xóa được vector cũ của tenant %s: %s", tenant_id, e)
+        if chunks:
+            await self.upsert_vectors(tenant_id, chunks, metadatas)
 
     async def search(
         self,
@@ -202,9 +256,14 @@ class QdrantAdapter(AbstractVectorDBPort):
                     )
             else:
                 query_vector = await self._dense_vector(query)
+                using = await self._resolve_vector_name()
+                # qdrant-client 1.10: named vector truyền dạng tuple (name, vector)
+                # (không có kwarg `using`). Thiếu tên → Qdrant 400
+                # "Vector params for  are not specified".
+                qv = (using, query_vector) if using else query_vector
                 points = await self.client.search(
                     collection_name=self.collection_name,
-                    query_vector=query_vector,
+                    query_vector=qv,  # type: ignore[arg-type]
                     query_filter=tenant_filter,
                     limit=limit,
                     with_payload=True,

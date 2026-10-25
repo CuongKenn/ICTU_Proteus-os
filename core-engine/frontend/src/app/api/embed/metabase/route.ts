@@ -5,9 +5,7 @@
 // Lấy Signed URL từ Backend Python hoặc giả lập (mock) nếu Backend chưa sẵn sàng.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { getToken } from "next-auth/jwt";
-import { authOptions } from "@/lib/authOptions";
+import { readSessionToken } from "@/lib/sessionJwt";
 import { logger } from "@/lib/logger";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -31,8 +29,7 @@ function decodeJwtPayload(token: string) {
 
 export async function GET(request: NextRequest) {
   // 1. Xác thực session từ HttpOnly Cookie
-  const token = await getToken({ req: request });
-  const session = await getServerSession(authOptions);
+  const token = await readSessionToken(request);
   if (!token?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

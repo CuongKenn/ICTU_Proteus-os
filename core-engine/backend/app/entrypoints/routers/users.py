@@ -5,12 +5,14 @@
 # Quản lý nhân viên trong Tenant: liệt kê, mời qua email, deactivate.
 
 import logging
+import re
 import secrets
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, field_validator
+from sqlalchemy import text as _sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.external.keycloak_adapter import (
@@ -148,6 +150,110 @@ def _invite_redirect_uri(request: Request) -> str:
     return f"{proto}://{host}/login"
 
 
+async def _sync_user_to_hr_employee(
+    db: AsyncSession, tenant_id: uuid.UUID, email: str, full_name: str
+) -> None:
+    """Best-effort: mời user ở Settings → tự tạo hồ sơ hr_employees.
+
+    Đồng bộ 1 chiều Users → HR để 2 danh sách không lệch nhau. Bỏ qua
+    khi hr-module chưa cài (thiếu schema/bảng) hoặc email đã có hồ sơ.
+    Không bao giờ raise để không chặn luồng invite.
+    """
+    try:
+        schema = f"tenant_{str(tenant_id).replace('-', '_')}"
+        if not re.match(r"^[a-zA-Z0-9_]+$", schema):
+            return
+        exists = await db.execute(
+            _sql_text(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = :s AND table_name = 'hr_employees'"
+            ),
+            {"s": schema},
+        )
+        if exists.first() is None:
+            return
+        found = await db.execute(
+            _sql_text(
+                f'SELECT id FROM "{schema}"."hr_employees" '
+                "WHERE lower(email) = lower(:e) LIMIT 1"
+            ),
+            {"e": email},
+        )
+        if found.first() is not None:
+            return
+        cnt = await db.execute(
+            _sql_text(f'SELECT COUNT(*) FROM "{schema}"."hr_employees"')
+        )
+        n = (cnt.scalar() or 0) + 1
+        code = f"NV{n:03d}"
+        for _ in range(3):
+            dup = await db.execute(
+                _sql_text(
+                    f'SELECT 1 FROM "{schema}"."hr_employees" '
+                    "WHERE employee_code = :c LIMIT 1"
+                ),
+                {"c": code},
+            )
+            if dup.first() is None:
+                break
+            code = f"NV{n:03d}-{uuid.uuid4().hex[:4].upper()}"
+        # hr_employees.tenant_id NOT NULL (plugin đời đầu giữ cột này,
+        # server tự gắn như plugin_records.create_record).
+        await db.execute(
+            _sql_text(
+                f'INSERT INTO "{schema}"."hr_employees" '
+                "(id, employee_code, full_name, email, hire_date, "
+                "status, annual_leave_balance, tenant_id) "
+                "VALUES (gen_random_uuid(), :code, :name, :email, "
+                "CURRENT_DATE, 'active', 12, :tid)"
+            ),
+            {
+                "code": code,
+                "name": full_name,
+                "email": email,
+                "tid": tenant_id,
+            },
+        )
+        await db.commit()
+        logger.info(
+            "Auto-sync hr_employees cho user mới",
+            extra={"email": email, "employee_code": code},
+        )
+    except Exception as e:
+        logger.warning("Auto-sync hr_employees bỏ qua (best-effort): %s", e)
+
+
+async def _sync_hr_status_on_deactivate(
+    db: AsyncSession, tenant_id: uuid.UUID, email: str, active: bool
+) -> None:
+    """Best-effort: vô hiệu hóa user → cập nhật hr_employees.status."""
+    if active:
+        return
+    try:
+        schema = f"tenant_{str(tenant_id).replace('-', '_')}"
+        if not re.match(r"^[a-zA-Z0-9_]+$", schema):
+            return
+        exists = await db.execute(
+            _sql_text(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = :s AND table_name = 'hr_employees'"
+            ),
+            {"s": schema},
+        )
+        if exists.first() is None:
+            return
+        await db.execute(
+            _sql_text(
+                f'UPDATE "{schema}"."hr_employees" SET status = \'inactive\' '
+                "WHERE lower(email) = lower(:e)"
+            ),
+            {"e": email},
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning("Sync trạng thái HR bỏ qua (best-effort): %s", e)
+
+
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 
@@ -158,11 +264,35 @@ def _invite_redirect_uri(request: Request) -> str:
 )
 async def list_users(
     context: TenantContext = Depends(get_current_tenant_context),
+    keycloak: KeycloakAdapter = Depends(get_keycloak_adapter),
     db: AsyncSession = Depends(get_db_transactional),
 ):
     """Chỉ trả về users thuộc Tenant của caller (RLS tự bảo vệ)."""
     user_repo = SQLAlchemyUserRepository(session=db)
     users = await user_repo.list_by_tenant(tenant_id=context.tenant_id)
+
+    # Đối chiếu Keycloak: nhân viên đã bấm link mail + đặt mật khẩu
+    # (emailVerified=true) nhưng chưa đăng nhập app lần đầu → bật is_active
+    # để UI không còn hiển thị "Chờ kích hoạt". Best-effort, Keycloak lỗi thì bỏ qua.
+    pending = [
+        u
+        for u in users
+        if not u.is_active and u.last_login_at is None and u.keycloak_id
+    ][:50]
+    reconciled = False
+    for u in pending:
+        try:
+            kc_user = await keycloak.get_user("proteus", str(u.keycloak_id))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Không đọc được trạng thái Keycloak của %s: %s", u.email, e)
+            continue
+        if kc_user.get("emailVerified") is True:
+            await user_repo.mark_active(u.id)
+            u.is_active = True
+            reconciled = True
+    if reconciled:
+        await user_repo.commit()
+
     return [
         UserResponse(
             id=u.id,
@@ -308,6 +438,12 @@ async def invite_user(
     )
     await db.commit()
 
+    # 4.5 Đồng bộ Users → HR: tự tạo hồ sơ hr_employees (best-effort,
+    # không chặn invite khi hr-module chưa cài).
+    await _sync_user_to_hr_employee(
+        db, context.tenant_id, payload.email, payload.full_name
+    )
+
     # 5. Đưa user vào Mattermost team của tenant (best-effort: login chính
     # qua SSO Keycloak, password random này không dùng trực tiếp).
     try:
@@ -323,6 +459,7 @@ async def invite_user(
             password=secrets.token_urlsafe(24),
             auth_service="gitlab",
             auth_data=str(mattermost_numeric_id(keycloak_user_id)),
+            channel_id=team_cfg.get("alerts_channel_id"),
         )
     except Exception as e:
         logger.warning("Không thể đưa user vào Mattermost team: %s", e)
@@ -463,6 +600,11 @@ async def deactivate_user(
         await db.commit()
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+    # Đồng bộ Users → HR: nghỉ việc thì hồ sơ HR chuyển inactive (best-effort).
+    await _sync_hr_status_on_deactivate(
+        db, context.tenant_id, target.email, active=False
+    )
 
     logger.info(
         "User deactivated",

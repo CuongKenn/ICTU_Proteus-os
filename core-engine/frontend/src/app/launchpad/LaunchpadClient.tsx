@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { usePlugins } from "@/hooks/usePlugins";
+import { useRBAC } from "@/hooks/useRBAC";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { useSession } from "next-auth/react";
 
@@ -22,6 +23,7 @@ export function LaunchpadClient() {
   const hasRole = useAuthStore((state) => state.hasRole);
   const isAdmin = hasRole("tenant_admin") || hasRole("superadmin");
   const { plugins, isLoading } = usePlugins();
+  const { hasPermissionPrefix } = useRBAC();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [isIframeLoading, setIsIframeLoading] = useState(false);
@@ -59,9 +61,15 @@ export function LaunchpadClient() {
 
   const closeIframe = () => { setActiveApp(null); setIframeUrl(null); };
 
-  const handleOpenPlugin = (code_name: string) => {
-    const appsmithUrl = `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${code_name}`;
-    openIframe(code_name, appsmithUrl);
+  const handleOpenPlugin = (plugin: { code_name: string; external_url?: string | null }) => {
+    // Plugin UI là React MFE (plugins.<domain>/<code>) — ưu tiên external_url
+    // do backend dựng. Appsmith chỉ là fallback cho plugin cũ chưa có MFE.
+    const mfeBase = process.env.NEXT_PUBLIC_PLUGINS_MFE_URL;
+    const url =
+      plugin.external_url ||
+      (mfeBase ? `${mfeBase.replace(/\/+$/, "")}/${plugin.code_name}` : "") ||
+      `${process.env.NEXT_PUBLIC_APPSMITH_URL || "http://apps.proteus.local"}/app/${plugin.code_name}`;
+    openIframe(plugin.code_name, url);
   };
 
   const getGreeting = () => {
@@ -118,13 +126,17 @@ export function LaunchpadClient() {
             {!isLoading && plugins.filter((p) => {
               if (isAdmin) return true;
               if (!p.roles || p.roles.length === 0) return true;
-              return p.roles.some((r) => hasRole(r));
+              if (p.roles.some((r) => hasRole(r))) return true;
+              // Role tự tạo có đủ quyền nhưng khác tên manifest (VD accountant
+              // vs finance_accountant) — hiện plugin nếu có quyền thuộc module.
+              const prefix = `${p.code_name.split("-")[0]}:`;
+              return hasPermissionPrefix(prefix);
             }).map((plugin) => (
               <AppIcon
                 key={plugin.id}
                 appName={plugin.display_name}
                 icon={<Blocks className="w-7 h-7" style={{ color: "var(--accent)" }} />}
-                onClick={() => handleOpenPlugin(plugin.code_name)}
+                onClick={() => handleOpenPlugin(plugin)}
                 isActive={plugin.status === "ACTIVE"}
               />
             ))}

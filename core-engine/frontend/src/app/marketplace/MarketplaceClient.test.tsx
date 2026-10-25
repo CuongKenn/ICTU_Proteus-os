@@ -53,10 +53,13 @@ describe("MarketplaceClient", () => {
       error: null,
       refetch: vi.fn(),
       installingId: null,
+      installingName: null,
       installProgress: 0,
+      installSteps: [],
       installStatus: null,
       installPlugin: mockInstallPlugin,
       uninstallPlugin: mockUninstallPlugin,
+      closeProgress: vi.fn(),
     });
 
     (usePlugins as any).mockReturnValue({

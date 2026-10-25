@@ -166,7 +166,6 @@ export interface DocumentStore {
 }
 
 const R = '/v1/plugins/document-module/records';
-const A = '/v1/plugins/document-module/actions';
 
 function toIncoming(r: Record<string, unknown>): IncomingDoc {
   return {
@@ -250,31 +249,24 @@ export function createLiveStore(client: BffClient): DocumentStore {
     async listIncoming() {
       return (await rows<Record<string, unknown>>('document_incoming')).map(toIncoming);
     },
-    // Tạo văn bản đến đi qua workflow wf_incoming_document (tiếp nhận → phân phối).
+    // Tạo văn bản đến qua CRUD generic (workflow cũ tham chiếu bảng không tồn tại).
     async createIncoming(i) {
-      const row = await client.post<Record<string, unknown>>(
-        `${A}/wf_incoming_document`,
-        {
-          payload: {
-            so_van_ban: i.so_van_ban,
-            noi_gui: i.noi_gui,
-            ngay_nhan: i.ngay_nhan,
-            trich_yeu: i.trich_yeu,
-            file_url: i.file_url || undefined,
-            assignee_id: i.assignee_id || undefined,
-          },
-        },
-      );
-      return toIncoming(row);
+      const body: Record<string, unknown> = {
+        so_van_ban: i.so_van_ban,
+        noi_gui: i.noi_gui,
+        ngay_nhan: i.ngay_nhan,
+        trich_yeu: i.trich_yeu,
+        file_url: i.file_url,
+      };
+      if (i.assignee_id) body.assignee_id = i.assignee_id;
+      return toIncoming(await client.post(`${R}/document_incoming`, body));
     },
     async updateIncoming(id, p) {
       return toIncoming(await client.patch(`${R}/document_incoming/${id}`, p));
     },
-    // Điều chuyển văn bản đi qua workflow wf_reassign_document.
+    // Điều chuyển văn bản: cập nhật assignee trực tiếp.
     async reassignIncoming(id, assignee) {
-      await client.post(`${A}/wf_reassign_document`, {
-        payload: { document_id: id, assignee_id: assignee },
-      });
+      await client.patch(`${R}/document_incoming/${id}`, { assignee_id: assignee });
     },
     async listOutgoing() {
       return (await rows<Record<string, unknown>>('document_outgoing')).map(toOutgoing);
@@ -291,10 +283,12 @@ export function createLiveStore(client: BffClient): DocumentStore {
       const all = (await rows<Record<string, unknown>>('document_approvals')).map(toApproval);
       return document_id ? all.filter((a) => a.document_id === document_id) : all;
     },
-    // Duyệt văn bản đi qua workflow wf_document_approval (ký tuần tự).
+    // Duyệt văn bản: cập nhật trạng thái trực tiếp (ký tuần tự xử lý ở UI/DB).
     async reviewApproval(id, status, note) {
-      await client.post(`${A}/wf_document_approval`, {
-        payload: { approval_id: id, status, note: note || undefined },
+      await client.patch(`${R}/document_approvals/${id}`, {
+        status,
+        note: note || '',
+        signed_at: status === 'approved' ? new Date().toISOString() : null,
       });
     },
     async listDistributions() {

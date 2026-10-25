@@ -7,9 +7,8 @@
 // Dùng getToken() + manual refresh thay vì getServerSession() (gây 500 trong App Router).
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { refreshAccessToken } from "@/lib/tokenRefresh";
+import { resolveAccessToken, writeSessionToken } from "@/lib/sessionJwt";
 import { logger } from "@/lib/logger";
 
 
@@ -19,36 +18,12 @@ async function proxyHandler(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ): Promise<NextResponse> {
-  // getToken() đọc JWT từ session cookie — nhẹ hơn getServerSession() và không gây 500.
-  // Nếu access_token hết hạn, tự refresh bằng refreshAccessToken() trước khi forward.
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-
-  if (!token) {
-    logger.error("[BFF] Proxy 401: no session token found");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Kiểm tra token hết hạn — thử refresh inline thay vì trả 401 ngay
-  let accessToken = token.accessToken as string;
-  const expires = token.accessTokenExpires as number | undefined;
-  if (expires && Date.now() > expires - 10_000) {
-    logger.info("[BFF] access_token sắp/đã hết hạn — thử refresh inline");
-    try {
-      const refreshed = await refreshAccessToken(token as Parameters<typeof refreshAccessToken>[0]);
-      if (refreshed.error) {
-        logger.error("[BFF] Refresh token thất bại:", refreshed.error);
-        return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
-      }
-      accessToken = refreshed.accessToken as string;
-      logger.info("[BFF] Refresh token thành công — tiếp tục proxy với token mới");
-    } catch (err) {
-      logger.error("[BFF] Lỗi khi refresh token:", err);
-      return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
-    }
-  }
+  // Đọc session JWT từ cookie; nếu access_token sắp/hết hạn thì refresh inline
+  // và persist refresh_token xoay vào cookie (bắt buộc với Keycloak single-use RT).
+  const { accessToken, refreshedJwt } = await resolveAccessToken(request);
 
   if (!accessToken) {
-    logger.error("[BFF] Proxy 401: accessToken null");
+    logger.error("[BFF] Proxy 401: không có session/refresh thất bại");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -57,19 +32,30 @@ async function proxyHandler(
   // Dùng /api/ (không thêm v1) để tránh double prefix: /api/v1/v1/roles (404)
   const targetUrl = `${BACKEND_URL}/api/${targetPath}${request.nextUrl.search}`;
 
-  // Forward headers có chọn lọc — không forward cookie, host, x-forwarded-* từ client
+  // Forward headers có chọn lọc — không forward cookie từ client.
+  // GIỮ X-Forwarded-Host/Proto để backend dựng đúng link công khai (vd email mời
+  // nhân viên trỏ về https://<domain>/login thay vì localhost/container host).
   const headers = new Headers({
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": request.headers.get("Content-Type") ?? "application/json",
     Accept: request.headers.get("Accept") ?? "application/json",
     "X-Forwarded-For": request.headers.get("x-forwarded-for") ?? "",
+    "X-Forwarded-Host":
+      request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "",
+    "X-Forwarded-Proto":
+      request.headers.get("x-forwarded-proto") ??
+      request.nextUrl.protocol.replace(":", ""),
   });
 
-  // Đọc body một lần — request.text() không thể gọi 2 lần
-  let body: string | undefined = undefined;
+  // Đọc body một lần — request.text() không thể gọi 2 lần.
+  // Multipart (upload file) phải đọc dạng binary — đọc text sẽ làm hỏng file.
+  let body: string | ArrayBuffer | undefined = undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
     try {
-      body = await request.text();
+      const reqContentType = request.headers.get("Content-Type") ?? "";
+      body = reqContentType.includes("multipart/form-data")
+        ? await request.arrayBuffer()
+        : await request.text();
     } catch (error) {
       logger.error("[BFF] Lỗi đọc request body:", error);
       return NextResponse.json(
@@ -93,25 +79,47 @@ async function proxyHandler(
 
   logger.info(`[BFF] ${request.method} ${targetUrl} → ${response.status}`);
 
+  // Helper: gắn session cookie mới (nếu vừa refresh) vào MỌI response.
+  // Đây là điểm mấu chốt để giữ phiên — refresh_token xoay phải được lưu lại.
+  const withRefreshedCookie = async (out: NextResponse): Promise<NextResponse> => {
+    if (refreshedJwt) {
+      try {
+        await writeSessionToken(out, refreshedJwt, request);
+      } catch (err) {
+        logger.error("[BFF] Không ghi được session cookie sau refresh:", err);
+      }
+    }
+    return out;
+  };
+
   if (response.status === 401) {
     const txt = await response.text();
     logger.error(`[BFF] Backend returned 401 for ${targetUrl}: ${txt}`);
-    return NextResponse.json({ error: "Unauthorized from backend", detail: txt }, { status: 401 });
+    return withRefreshedCookie(
+      NextResponse.json(
+        { error: "Unauthorized from backend", detail: txt },
+        { status: 401 }
+      )
+    );
   }
 
   // Proxy status code và response body nguyên vẹn
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     const data = await response.json().catch(() => null);
-    return NextResponse.json(data, { status: response.status });
+    return withRefreshedCookie(
+      NextResponse.json(data, { status: response.status })
+    );
   }
 
   // Non-JSON response (ví dụ: file download)
   const blob = await response.blob();
-  return new NextResponse(blob, {
-    status: response.status,
-    headers: { "Content-Type": contentType },
-  });
+  return withRefreshedCookie(
+    new NextResponse(blob, {
+      status: response.status,
+      headers: { "Content-Type": contentType },
+    })
+  );
 }
 
 export const GET = proxyHandler;

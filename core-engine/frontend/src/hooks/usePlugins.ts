@@ -17,7 +17,7 @@ interface UsePluginsReturn {
   error: string | null;
   refetch: () => void;
   install: (pluginId: string, credentials?: CredentialInput[]) => Promise<{ task_id: string }>;
-  uninstall: (pluginId: string, confirmName?: string) => Promise<void>;
+  uninstall: (pluginId: string, confirmName?: string) => Promise<{ task_id: string } | void>;
   disable: (pluginId: string) => Promise<void>;
   upgrade: (pluginId: string) => Promise<void>;
   configureCredentials: (pluginId: string, payload: { credential_type: string, credential_name: string, data: Record<string, string> }) => Promise<unknown>;
@@ -74,16 +74,18 @@ export function usePlugins(): UsePluginsReturn {
 
   const uninstall = useCallback(async (pluginId: string, confirmName: string = '') => {
     try {
-      await api.delete(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
+      const response = await api.delete<{ task_id: string }>(`/v1/plugins/${pluginId}/uninstall`, { data: { confirm_name: confirmName } });
 
-      useNotificationStore.getState().addToast("success", "Đã gửi yêu cầu gỡ cài đặt Plugin.");
-      refetch();
+      // Không toast/refetch vội — để useMarketplace polling chi tiết từng bước
+      // rồi mới báo thành công. Giữ refetch cho caller dùng trực tiếp hook này.
+      return response.data;
     } catch (err) {
       if (process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true") {
         import("../__tests__/plugins.mock").then(({ MOCK_TOASTS }) => {
           useNotificationStore.getState().addToast("success", MOCK_TOASTS.uninstall);
           refetch();
         });
+        return { task_id: `mock-uninstall-${Date.now()}` };
       } else {
         useNotificationStore.getState().addToast("error", "Không thể gỡ cài đặt Plugin.");
         throw err;

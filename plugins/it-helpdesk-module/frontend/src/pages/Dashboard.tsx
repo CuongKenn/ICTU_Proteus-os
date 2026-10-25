@@ -120,5 +120,5 @@ export function Dashboard() {
 }
 
 function pColor(p: string): string {
-  return p === 'P1' ? '#ef4444' : p === 'P2' ? '#f59e0b' : '#38bdf8';
+  return p === 'P1' ? 'var(--mfe-danger)' : p === 'P2' ? 'var(--mfe-warning)' : 'var(--mfe-accent)';
 }

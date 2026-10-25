@@ -10,13 +10,14 @@ import { Settings } from "lucide-react";
 import { AppearanceTab } from "@/components/settings/AppearanceTab";
 import { TenantTab } from "@/components/settings/TenantTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
+import { KnowledgeTab } from "@/components/settings/KnowledgeTab";
 import { SecurityTab } from "@/components/settings/SecurityTab";
 import { AboutTab } from "@/components/settings/AboutTab";
 import { UsersTab } from "@/components/settings/UsersTab";
 import { RolesTab } from "@/components/settings/RolesTab";
 import { useSession } from "next-auth/react";
 
-export type SettingsTabId = "profile" | "tenant" | "users" | "roles" | "appearance" | "integrations" | "security" | "about";
+export type SettingsTabId = "profile" | "tenant" | "users" | "roles" | "appearance" | "integrations" | "knowledge" | "security" | "about";
 
 export const SettingsClient = () => {
   const [activeTab, setActiveTab] = useState<SettingsTabId>("profile");
@@ -29,6 +30,7 @@ export const SettingsClient = () => {
       case "users": return <UsersTab />;
       case "roles": return <RolesTab />;
       case "integrations": return <IntegrationsTab />;
+      case "knowledge": return <KnowledgeTab />;
       case "appearance": return <AppearanceTab />;
       case "security": return <SecurityTab />;
       case "about": return <AboutTab />;

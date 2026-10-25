@@ -4,7 +4,7 @@
 import uuid
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class RoleBase(BaseModel):
@@ -32,6 +32,31 @@ class RoleResponse(RoleBase):
     is_system_role: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coalesce_display_name(cls, data: Any) -> Any:
+        """Fallback display_name ← name khi DB legacy thiếu (tránh 500).
+
+        Không mutate ORM object (tránh dirty session flush trong GET).
+        """
+        if isinstance(data, dict):
+            if not data.get("display_name") and data.get("name"):
+                return {**data, "display_name": data["name"]}
+            return data
+        if not getattr(data, "display_name", None):
+            name = getattr(data, "name", "") or ""
+            return {
+                "id": getattr(data, "id", None),
+                "tenant_id": getattr(data, "tenant_id", None),
+                "name": name,
+                "display_name": name,
+                "description": getattr(data, "description", None),
+                "plugin_code_name": getattr(data, "plugin_code_name", None),
+                "permissions": getattr(data, "permissions", None),
+                "is_system_role": getattr(data, "is_system_role", False),
+            }
+        return data
 
 
 class RoleAssign(BaseModel):

@@ -432,6 +432,14 @@ if ($envContent -match "MATTERMOST_BOT_TOKEN=CHANGE_ME") {
             }
 
             if ($botId) {
+                # Grant System Admin so the bot can call POST /users to pre-provision
+                # invited employees into the tenant team/channel (otherwise 403).
+                try {
+                    Invoke-RestMethod -Uri "$mmUrl/users/$botId/roles" -Method Put -Body '{"roles":"system_user system_admin"}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null
+                    Write-Host "[OK] Granted System Admin to Mattermost bot." -ForegroundColor Green
+                } catch {
+                    Write-Host "[WARN] Could not grant System Admin to Mattermost bot." -ForegroundColor Yellow
+                }
                 try { $tokenRes = Invoke-RestMethod -Uri "$mmUrl/users/$botId/tokens" -Method Post -Body '{"description":"Proteus OS Bot Token"}' -Headers $authHeaders -ContentType "application/json" -UseBasicParsing -ErrorAction SilentlyContinue } catch {}
                 if ($tokenRes.token) {
                     $envContent = Get-Content .env -Raw -Encoding UTF8

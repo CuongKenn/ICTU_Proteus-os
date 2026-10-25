@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════════
+   MFE GATEWAY — Theme tokens (light/dark)
+   Đồng bộ với Design System v3.0 của core-engine (Paper/Ink).
+   Các plugin module dùng biến --mfe-* để đổi màu theo theme.
+   Copyright (c) 2026 CuongKenn & ICTU Team
+   SPDX-License-Identifier: AGPL-3.0-or-later
+   ═══════════════════════════════════════════════════════════ */
+
+:root,
+html[data-theme="light"] {
+  --mfe-bg: #eff2f1;
+  --mfe-bg-soft: #e6eae9;
+  --mfe-panel: #ffffff;
+  --mfe-panel-2: #f4f6f5;
+  --mfe-line: #d9dddc;
+  --mfe-line-soft: #e8ebea;
+  --mfe-text: #15181b;
+  --mfe-muted: #60686d;
+  --mfe-dim: #929a9e;
+  --mfe-accent: #0ea5e9;
+  --mfe-accent-hover: #0284c7;
+  --mfe-accent-soft: rgba(14, 165, 233, 0.1);
+  --mfe-primary: #0ea5e9;
+  --mfe-on-accent: #ffffff;
+  --mfe-success: #047857;
+  --mfe-success-soft: rgba(4, 120, 87, 0.1);
+  --mfe-warning: #b45309;
+  --mfe-warning-soft: rgba(180, 83, 9, 0.12);
+  --mfe-danger: #be123c;
+  --mfe-danger-soft: rgba(190, 18, 60, 0.09);
+  --mfe-violet: #6d28d9;
+  --mfe-violet-soft: rgba(109, 40, 217, 0.1);
+  --mfe-selected: #e0f2fe;
+  --mfe-overlay: rgba(15, 23, 42, 0.32);
+  --mfe-shadow: 0 1px 3px rgba(20, 23, 26, 0.07);
+  --mfe-shadow-lg: 0 18px 44px rgba(20, 23, 26, 0.16);
+}
+
+html[data-theme="dark"] {
+  --mfe-bg: #0b0f14;
+  --mfe-bg-soft: #0f1216;
+  --mfe-panel: #12161c;
+  --mfe-panel-2: #0f1216;
+  --mfe-line: #2a2f35;
+  --mfe-line-soft: #1e2228;
+  --mfe-text: #e8ecef;
+  --mfe-muted: #8a939a;
+  --mfe-dim: #5c646b;
+  --mfe-accent: #3b82f6;
+  --mfe-accent-hover: #2563eb;
+  --mfe-accent-soft: rgba(59, 130, 246, 0.14);
+  --mfe-primary: #2563eb;
+  --mfe-on-accent: #ffffff;
+  --mfe-success: #34d399;
+  --mfe-success-soft: rgba(52, 211, 153, 0.12);
+  --mfe-warning: #fbbf24;
+  --mfe-warning-soft: rgba(251, 191, 36, 0.12);
+  --mfe-danger: #fb7185;
+  --mfe-danger-soft: rgba(251, 113, 133, 0.12);
+  --mfe-violet: #a78bfa;
+  --mfe-violet-soft: rgba(167, 139, 250, 0.14);
+  --mfe-selected: #1e3a5f;
+  --mfe-overlay: rgba(2, 6, 23, 0.7);
+  --mfe-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --mfe-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.5);
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--mfe-bg);
+  color: var(--mfe-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.mfe-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--mfe-line);
+  background: var(--mfe-panel);
+  color: var(--mfe-text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.mfe-theme-toggle:hover {
+  border-color: var(--mfe-accent);
+  transform: translateY(-1px);
+}
+
+/* Thanh tiến trình khi có request đang chạy (global busy indicator). */
+@keyframes mfe-progress {
+  0% { width: 0%; opacity: 1; }
+  55% { width: 75%; }
+  100% { width: 100%; opacity: 0.85; }
+}
+
+.mfe-busy-track {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  pointer-events: none;
+  background: transparent;
+}
+.mfe-busy-bar {
+  height: 100%;
+  background: var(--mfe-accent);
+  box-shadow: 0 0 8px var(--mfe-accent);
+  animation: mfe-progress 1.2s ease-in-out infinite;
+}

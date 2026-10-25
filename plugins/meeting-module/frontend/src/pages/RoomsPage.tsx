@@ -135,7 +135,7 @@ export function RoomsPage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#38bdf8',
+  color: 'var(--mfe-accent)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',
@@ -153,7 +153,7 @@ function RoomForm(props: {
   const [projector, setPj] = useState(props.initial?.amenities.projector ?? false);
   const [whiteboard, setWb] = useState(props.initial?.amenities.whiteboard ?? false);
   const [video_conf, setVc] = useState(props.initial?.amenities.video_conf ?? false);
-  const cb: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '.5rem', color: '#e2e8f0', fontSize: '.88rem' };
+  const cb: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '.5rem', color: 'var(--mfe-text)', fontSize: '.88rem' };
   return (
     <Modal title={props.title} onClose={props.onClose}>
       <div style={{ display: 'grid', gap: '.6rem' }}>

@@ -72,13 +72,13 @@ export function Dashboard() {
           {(Object.keys(INCOMING_LABEL) as Array<keyof typeof INCOMING_LABEL>).map((st) => (
             <div key={st} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', marginBottom: '.5rem' }}>
               <span style={{ width: 110, color: C.muted, fontSize: '.82rem' }}>{INCOMING_LABEL[st]}</span>
-              <div style={{ flex: 1, height: 8, background: '#0b1220', borderRadius: 999 }}>
+              <div style={{ flex: 1, height: 8, background: 'var(--mfe-panel-2)', borderRadius: 999 }}>
                 <div
                   style={{
                     width: `${(((byStatus[st] ?? 0) / maxCount) * 100).toFixed(0)}%`,
                     height: '100%',
                     borderRadius: 999,
-                    background: '#38bdf8',
+                    background: 'var(--mfe-accent)',
                   }}
                 />
               </div>

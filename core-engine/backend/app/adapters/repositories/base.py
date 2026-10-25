@@ -63,6 +63,13 @@ class AbstractPluginRepository(ABC):
         ...
 
     @abstractmethod
+    async def get_install_task_id(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> uuid.UUID | None:
+        """Lấy install_task_id hiện tại của (tenant, plugin)."""
+        ...
+
+    @abstractmethod
     async def set_upgrade_task_id(
         self,
         tenant_id: uuid.UUID,

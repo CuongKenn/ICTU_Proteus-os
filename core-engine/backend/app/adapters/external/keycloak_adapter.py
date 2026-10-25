@@ -127,17 +127,20 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
             keys = (jwks or {}).get("keys", [])
             if not any(k.get("kid") == kid for k in keys):
                 jwks = await self._force_refresh_jwks()
-        expected_issuer = (
-            f"{settings.KEYCLOAK_URL.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
-        )
+        expected_issuers = settings.keycloak_allowed_issuers
+        # Verify chữ ký + exp + aud trước, rồi so `iss` với allowlist
+        # (Keycloak cấp iss theo KC_HOSTNAME public, backend gọi nội bộ).
         payload = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
             audience=settings.KEYCLOAK_CLIENT_ID,
-            issuer=expected_issuer,
-            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+            options={"verify_exp": True, "verify_iss": False, "verify_aud": True},
         )
+        if payload.get("iss") not in expected_issuers:
+            from jose import JWTError as _JWTError
+
+            raise _JWTError(f"Token iss không hợp lệ: {payload.get('iss')}")
         # M22: verify azp (authorized party) — chặn token cấp cho client khác.
         azp = payload.get("azp")
         if azp is not None and azp != settings.KEYCLOAK_CLIENT_ID:

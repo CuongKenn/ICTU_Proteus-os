@@ -11,6 +11,7 @@ from typing import Any
 import jsonschema
 
 from app.adapters.repositories.base import AbstractPluginRepository
+from app.core.domain.permissions import has_wildcard_permission
 from app.core.formal_verification import Z3FormalVerifier, Z3VerificationError
 
 
@@ -120,7 +121,9 @@ class DSLValidator:
             user_permissions = await self.role_repo.get_user_permissions(
                 uuid.UUID(self.user_id)
             )
-            if req_permission not in user_permissions:
+            if has_wildcard_permission(user_permissions):
+                pass
+            elif req_permission not in user_permissions:
                 raise DSLPermissionDeniedError(
                     f"User {self.user_id} lacks permission {req_permission}"
                 )
@@ -201,7 +204,9 @@ class DSLValidator:
         user_permissions = await self.role_repo.get_user_permissions(
             uuid.UUID(self.user_id)
         )
-        if not any(str(p).startswith(f"{prefix}:") for p in user_permissions or []):
+        if has_wildcard_permission(user_permissions):
+            pass
+        elif not any(str(p).startswith(f"{prefix}:") for p in user_permissions or []):
             raise DSLPermissionDeniedError(
                 f"User {self.user_id} lacks permission '{prefix}:*'."
             )

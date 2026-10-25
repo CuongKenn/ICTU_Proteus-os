@@ -60,6 +60,7 @@ class AICommandUseCase:
         qdrant_adapter=None,
         audit_log_repo=None,
         user_repo=None,
+        document_source_port=None,
     ):
         self.plugin_repo = plugin_repo
         self.ai_command_repo = ai_command_repo
@@ -71,6 +72,8 @@ class AICommandUseCase:
         self.qdrant_adapter = qdrant_adapter
         self.audit_log_repo = audit_log_repo
         self.user_repo = user_repo
+        # Nguồn tri thức (Outline...) cho core.knowledge.save — optional.
+        self.document_source_port = document_source_port
         self.dry_run_engine = DSLDryRunEngine(dry_run_repo=dsl_dry_run_repo)
 
     async def _audit(
@@ -227,6 +230,45 @@ class AICommandUseCase:
                 for h in hits
             ]
             return True, {"query": query, "citations": citations}
+        return False, None
+
+    async def _execute_local_write(
+        self, body: AICommandDTO, ctx: TenantContext
+    ) -> tuple[bool, Any]:
+        """Thực thi local core write actions sau khi đã được duyệt.
+
+        Trả về (handled, result). Hiện hỗ trợ core.knowledge.save — publish
+        tài liệu lên nguồn tri thức (Outline). Human-in-the-loop: chỉ chạy
+        sau bước phê duyệt, không bao giờ tự động.
+        """
+        if body.action == "core.knowledge.save":
+            if self.document_source_port is None:
+                raise ValueError(
+                    "Chưa cấu hình nguồn tri thức (Outline) để lưu tài liệu."
+                )
+            params = body.parameters or {}
+            title = str(params.get("title") or "").strip()
+            text = str(params.get("text") or params.get("content") or "").strip()
+            if not title or not text:
+                # LLM thường chỉ trả raw_input → parse best-effort để vẫn lưu
+                # được thay vì chặn cứng (đã qua phê duyệt của con người).
+                raw = str(params.get("raw_input") or "").strip()
+                p_title, p_text = self._parse_save_from_raw(raw)
+                title = title or p_title
+                text = text or p_text
+            if not title or not text:
+                raise ValueError("Thiếu 'title' hoặc 'text' để lưu tài liệu.")
+            doc = await self.document_source_port.publish_document(
+                title=title,
+                text=text,
+                collection_id=params.get("collection_id"),
+                parent_document_id=params.get("parent_document_id"),
+            )
+            doc["markdown"] = (
+                f"📄 Đã lưu tài liệu **{doc.get('title') or title}** lên tri thức.\n"
+                + (f"Xem tại: {doc.get('url')}" if doc.get("url") else "")
+            )
+            return True, doc
         return False, None
 
     async def execute(
@@ -398,7 +440,9 @@ class AICommandUseCase:
             status="pending",
         )
 
-        # Gửi thông báo phê duyệt qua Mattermost
+        # Gửi thông báo phê duyệt qua Mattermost:
+        # ưu tiên bot nhắn RIÊNG (DM) cho từng người có quyền duyệt,
+        # fallback về channel chung nếu không DM được ai.
         action_code = f"`{body.action}`"
         msg_text = (
             f"**[AI Command Approval Required]**\n"
@@ -408,11 +452,7 @@ class AICommandUseCase:
             f"- **Deadline:** {deadline_minutes} phút\n"
         )
         try:
-            message_id = await self.mattermost_adapter.send_interactive_message(
-                channel_id=settings.MATTERMOST_SYSTEM_CHANNEL_ID,
-                text=msg_text,
-                action_id=str(body.command_id),
-            )
+            message_id = await self._send_approval_requests(body, ctx, msg_text)
             # Lưu mattermost_message_id best-effort (cột mới, không chặn luồng).
             if message_id:
                 try:
@@ -513,6 +553,237 @@ class AICommandUseCase:
             if first is not None and str(first) == str(approver.id):
                 return False, "lệnh critical cần 2 người duyệt khác nhau"
         return True, ""
+
+    async def _can_user_approve(self, user, action: str) -> bool:
+        """Check 1 user có đủ quyền duyệt action không (bỏ qua self-check).
+
+        Dùng để tìm danh sách người nhận DM phê duyệt: admin bypass,
+        còn lại check permission theo action (2-part: `mod:*`, 3+-part:
+        `mod:res:act`), wildcard `*` pass hết.
+        """
+        from app.core.domain.permissions import (
+            has_admin_role,
+            has_wildcard_permission,
+        )
+
+        if user is None or not getattr(user, "is_active", True):
+            return False
+        if has_admin_role(list(getattr(user, "roles", []) or [])):
+            return True
+        try:
+            perms = await self.role_repo.get_user_permissions(user.id)
+        except Exception as e:
+            logger.warning(
+                "Không lấy được permissions khi tìm người duyệt",
+                user_id=str(getattr(user, "id", "?")),
+                error=str(e),
+            )
+            return False
+        perms = [str(p) for p in perms or []]
+        if has_wildcard_permission(perms):
+            return True
+        parts = (action or "").split(".")
+        if len(parts) == 2 and all(parts):
+            return any(p.startswith(f"{parts[0]}:") for p in perms)
+        if len(parts) >= 3:
+            req = f"{parts[0]}:{parts[1]}:{parts[2]}"
+            return req in perms
+        return False
+
+    async def _find_eligible_approvers(
+        self, tenant_id, action: str, requester_id, limit: int = 10
+    ) -> list:
+        """Liệt kê users trong tenant đủ quyền duyệt (loại người ra lệnh).
+
+        Trả [] khi thiếu user_repo/role_repo hoặc lỗi DB — caller sẽ
+        fallback về channel chung như hành vi cũ.
+        """
+        if self.user_repo is None or self.role_repo is None:
+            return []
+        try:
+            users = await self.user_repo.list_by_tenant(tenant_id, limit=100)
+        except Exception as e:
+            logger.warning(
+                "Không liệt kê được users để gửi DM phê duyệt",
+                tenant_id=str(tenant_id),
+                error=str(e),
+            )
+            return []
+        eligible = []
+        for u in users or []:
+            try:
+                if not getattr(u, "is_active", True):
+                    continue
+                if str(getattr(u, "id", "")) == str(requester_id):
+                    continue
+                if await self._can_user_approve(u, action):
+                    eligible.append(u)
+                    if len(eligible) >= limit:
+                        break
+            except Exception:
+                continue
+        return eligible
+
+    async def _send_approval_requests(
+        self, body: AICommandDTO, ctx: TenantContext, msg_text: str
+    ) -> str | None:
+        """Gửi yêu cầu phê duyệt: ưu tiên DM riêng, fallback channel chung.
+
+        - Với mỗi eligible approver: resolve MM user qua email →
+          `send_direct_interactive_message` (bot nhắn riêng, kèm nút
+          Phê duyệt/Từ chối).
+        - Luôn best-effort gửi thêm 1 tin vào MATTERMOST_SYSTEM_CHANNEL_ID
+          (nếu có cấu hình) để cả team cùng thấy.
+        - Trả về message_id đầu tiên thành công (để lưu DB) hoặc None.
+
+        Lý do phải DM: tin bắn vào 1 channel chung thường không tới được
+        người duyệt vì (1) CHANNEL_ID trống/sai, (2) bot chưa join channel
+        → 403, (3) người duyệt không phải member của channel đó / khác
+        team. DM qua /channels/direct luôn tới đúng người.
+        """
+        first_message_id: str | None = None
+        dm_ok = 0
+        dm_fail = 0
+
+        eligible: list = []
+        try:
+            eligible = await self._find_eligible_approvers(
+                ctx.tenant_id, body.action, ctx.user_id
+            )
+        except Exception as e:
+            logger.warning("Tìm người duyệt để DM thất bại", error=str(e))
+
+        for approver in eligible:
+            email = (getattr(approver, "email", "") or "").strip()
+            if not email:
+                continue
+            try:
+                get_by_email = getattr(
+                    self.mattermost_adapter, "get_user_by_email", None
+                )
+                send_dm = getattr(
+                    self.mattermost_adapter,
+                    "send_direct_interactive_message",
+                    None,
+                )
+                if get_by_email is None or send_dm is None:
+                    break
+                mm_user = await get_by_email(email)
+                if not mm_user or not mm_user.get("id"):
+                    dm_fail += 1
+                    logger.warning(
+                        "Không tìm thấy Mattermost user cho người duyệt, " "bỏ qua DM",
+                        email=email,
+                        tenant_id=str(ctx.tenant_id),
+                    )
+                    continue
+                mid = await send_dm(
+                    mm_user["id"],
+                    msg_text,
+                    str(body.command_id),
+                    extra_context={"tenant_id": str(ctx.tenant_id)},
+                )
+                if mid:
+                    dm_ok += 1
+                    if not first_message_id:
+                        first_message_id = mid
+                    logger.info(
+                        "Đã DM yêu cầu phê duyệt tới người duyệt",
+                        command_id=str(body.command_id),
+                        email=email,
+                    )
+                else:
+                    dm_fail += 1
+            except Exception as e:
+                dm_fail += 1
+                logger.warning(
+                    "DM phê duyệt thất bại (best-effort)",
+                    email=email,
+                    error=str(e),
+                    command_id=str(body.command_id),
+                )
+
+        # Broadcast/fallback vào channel chung (hành vi cũ, best-effort).
+        channel_id = settings.MATTERMOST_SYSTEM_CHANNEL_ID
+        if channel_id:
+            try:
+                mid = await self.mattermost_adapter.send_interactive_message(
+                    channel_id=channel_id,
+                    text=msg_text,
+                    action_id=str(body.command_id),
+                    extra_context={"tenant_id": str(ctx.tenant_id)},
+                )
+                if mid and not first_message_id:
+                    first_message_id = mid
+            except Exception as e:
+                logger.error(
+                    "Gửi approval vào channel chung thất bại: %s. "
+                    "Kiểm tra: MATTERMOST_BOT_TOKEN có đúng không, bot đã "
+                    "join channel %s chưa, CHANNEL_ID có đúng không. "
+                    "DM riêng thành công: %d, thất bại: %d.",
+                    e,
+                    channel_id,
+                    dm_ok,
+                    dm_fail,
+                )
+        else:
+            if dm_ok == 0:
+                logger.error(
+                    "Không gửi được approval Mattermost: "
+                    "MATTERMOST_SYSTEM_CHANNEL_ID trống và không DM được "
+                    "cho ai (DM ok=0, fail=%d, eligible=%d). Kiểm tra "
+                    "MATTERMOST_BOT_TOKEN và email Mattermost của người duyệt.",
+                    dm_fail,
+                    len(eligible),
+                )
+            else:
+                logger.info(
+                    "Bỏ qua channel chung (chưa cấu hình) vì đã DM riêng "
+                    "thành công tới %d người duyệt.",
+                    dm_ok,
+                )
+
+        if dm_ok == 0 and not first_message_id:
+            logger.warning(
+                "Yêu cầu phê duyệt chưa tới được Mattermost của ai "
+                "(DM ok=0, channel message=%s). Người duyệt vẫn có thể duyệt "
+                "trên web UI.",
+                first_message_id,
+            )
+        return first_message_id
+
+    @staticmethod
+    def _parse_save_from_raw(raw: str) -> tuple[str, str]:
+        """Parse title/text từ câu lệnh tự nhiên (fallback cho LLM).
+
+        Hỗ trợ dạng: ... tiêu đề 'X' ... nội dung 'Y'.
+        Trả ("", "") nếu không tách được.
+        """
+        import re
+
+        if not raw:
+            return "", ""
+        title = ""
+        text = ""
+        m_title = re.search(
+            r"(?:tiêu đề|title)\s*(?:là)?\s*[:\-]?\s*['\"“”]([^'\"“”]+)['\"“”]",
+            raw,
+            re.IGNORECASE,
+        )
+        m_text = re.search(
+            r"(?:nội dung|content)\s*(?:là)?\s*[:\-]?\s*['\"“”]([^'\"“”]+)['\"“”]",
+            raw,
+            re.IGNORECASE,
+        )
+        if m_title:
+            title = m_title.group(1).strip()
+        if m_text:
+            text = m_text.group(1).strip()
+        if not title:
+            m = re.search(r"tài liệu\s+['\"“”]([^'\"“”]+)['\"“”]", raw, re.IGNORECASE)
+            if m:
+                title = m.group(1).strip()
+        return title, text or title
 
     @staticmethod
     def _extract_parameters(cmd: dict) -> dict:
@@ -719,10 +990,48 @@ class AICommandUseCase:
         )
         try:
             params = self._extract_parameters(cmd)
-            webhook_url = self._resolve_action_url(cmd["action"])
-            await self.n8n_adapter.trigger_webhook(
-                webhook_url=webhook_url, payload=params or {}
-            )
+            # Core write actions chạy local (không có webhook n8n).
+            handled = False
+            if str(cmd.get("action", "")).startswith("core."):
+                local_body = AICommandDTO(
+                    command_id=cmd_id,
+                    session_id=cmd.get("session_id") or uuid.uuid4(),
+                    dsl_version=cmd.get("dsl_version") or "1.0",
+                    action=cmd["action"],
+                    effect=cmd.get("effect") or "write",
+                    parameters=params or {},
+                )
+                handled, local_result = await self._execute_local_write(
+                    local_body,
+                    TenantContext(
+                        tenant_id=tenant_id,
+                        user_id=approver.id,
+                        roles=list(getattr(approver, "roles", []) or []),
+                        email=getattr(approver, "email", "") or "",
+                        full_name=getattr(approver, "full_name", "") or "",
+                    ),
+                )
+                if handled:
+                    await self.ai_command_repo.update_status(
+                        cmd_id, AICommandStatus.COMPLETED
+                    )
+                    await self.ai_command_repo.commit()
+                    await self._audit(
+                        tenant_id,
+                        "SYSTEM",
+                        "ai.command.executed",
+                        cmd_id,
+                        payload={"action": cmd.get("action")},
+                        result=(
+                            local_result if isinstance(local_result, dict) else None
+                        ),
+                        status="success",
+                    )
+            if not handled:
+                webhook_url = self._resolve_action_url(cmd["action"])
+                await self.n8n_adapter.trigger_webhook(
+                    webhook_url=webhook_url, payload=params or {}
+                )
         except Exception as e:
             logger.error(
                 "Failed to trigger n8n after approval",

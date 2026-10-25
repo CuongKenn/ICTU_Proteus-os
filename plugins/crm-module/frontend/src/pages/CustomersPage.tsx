@@ -72,17 +72,17 @@ export function CustomersPage() {
         <div>
           <input
             value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm khách hàng..."
-            style={{ width: '100%', background: '#0b1220', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 8, padding: '.55rem .8rem', marginBottom: '1rem', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: 'var(--mfe-panel-2)', border: '1px solid var(--mfe-line)', color: 'var(--mfe-text)', borderRadius: 8, padding: '.55rem .8rem', marginBottom: '1rem', boxSizing: 'border-box' }}
           />
-          <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: 12 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e2e8f0', fontSize: '.88rem' }}>
+          <div style={{ overflowX: 'auto', border: '1px solid var(--mfe-line)', borderRadius: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--mfe-text)', fontSize: '.88rem' }}>
               <thead><tr><th style={th}>Khách hàng</th><th style={th}>Quy mô</th><th style={th}>Liên hệ chính</th></tr></thead>
               <tbody>
                 {filtered.map((c) => {
                   const primary = contacts.filter((x) => x.customer_id === c.id).find((x) => x.is_primary);
                   return (
-                    <tr key={c.id} onClick={() => setSelected(c.id)} style={{ cursor: 'pointer', background: selected === c.id ? '#1e3a5f' : undefined }}>
-                      <td style={td}><b>{c.name}</b><div style={{ color: '#94a3b8' }}>{c.industry} · {c.type}</div></td>
+                    <tr key={c.id} onClick={() => setSelected(c.id)} style={{ cursor: 'pointer', background: selected === c.id ? 'var(--mfe-selected)' : undefined }}>
+                      <td style={td}><b>{c.name}</b><div style={{ color: 'var(--mfe-muted)' }}>{c.industry} · {c.type}</div></td>
                       <td style={td}>{c.company_size}</td>
                       <td style={td}>{primary ? `${primary.name} (${primary.phone})` : '—'}</td>
                     </tr>
@@ -129,7 +129,7 @@ export function CustomersPage() {
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginTop: '.75rem' }}>
-      <div style={{ color: '#94a3b8', fontSize: '.78rem', textTransform: 'uppercase', marginBottom: '.25rem' }}>{props.title}</div>
+      <div style={{ color: 'var(--mfe-muted)', fontSize: '.78rem', textTransform: 'uppercase', marginBottom: '.25rem' }}>{props.title}</div>
       {props.children}
     </div>
   );

@@ -28,6 +28,8 @@ export interface PluginData {
   rating?: number;
   category?: string;
   tags?: string[];
+  /** URL public của Plugin UI (React MFE gateway). */
+  externalUrl?: string | null;
 }
 
 export interface PluginCardProps {
@@ -180,9 +182,19 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           </Button>
         )}
 
-        {status === "installing" && (
+        {(status === "installing" || status === "uninstalling" || status === "upgrading") && (
           <div className="w-full">
-            <ProgressBar progress={installProgress} label="Đang cài đặt..." status="installing" />
+            <ProgressBar
+              progress={installProgress}
+              label={
+                status === "uninstalling"
+                  ? "Đang gỡ cài đặt..."
+                  : status === "upgrading"
+                    ? "Đang nâng cấp..."
+                    : "Đang cài đặt..."
+              }
+              status="installing"
+            />
           </div>
         )}
 

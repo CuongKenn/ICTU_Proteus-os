@@ -154,6 +154,21 @@ async def test_create_injects_tenant_id_when_column_exists(ctx):
     assert str(params["tenant_id"]) == str(ctx.tenant_id)
 
 
+async def test_create_generates_id_when_missing(ctx):
+    """Bảng legacy (id UUID không DEFAULT) → server tự sinh id khi client thiếu."""
+    cols = _col_rows("id", "code", "name", "tenant_id")
+    created = _result(first_row={"id": "gen", "code": "MKT", "name": "Marketing"})
+    uc, session = _make_uc(
+        ["hr_departments"], [cols, created], perms=["hr:employees:read"]
+    )
+    await uc.create_record(
+        ctx, "hr-module", "hr_departments", {"code": "MKT", "name": "Marketing"}
+    )
+    params = session.execute.call_args_list[1].args[1]
+    assert "id" in params
+    assert isinstance(params["id"], uuid.UUID)
+
+
 async def test_create_empty_body(ctx):
     uc, _ = _make_uc(["asset_items"], [])
     with pytest.raises(DSLInvalidParametersError):

@@ -100,3 +100,7 @@ services:
       - "traefik.http.routers.plugins-mfe.entrypoints=websecure"
       - "traefik.http.routers.plugins-mfe.tls=true"
       - "traefik.http.routers.plugins-mfe.tls.certresolver=letsencrypt"
+      # Router same-origin (subpath trên domain gốc) cũng lên websecure + TLS.
+      - "traefik.http.routers.plugins-mfe-sameorigin.entrypoints=websecure"
+      - "traefik.http.routers.plugins-mfe-sameorigin.tls=true"
+      - "traefik.http.routers.plugins-mfe-sameorigin.tls.certresolver=letsencrypt"

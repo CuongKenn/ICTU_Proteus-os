@@ -186,8 +186,8 @@ export function RequestsPage() {
   );
 }
 
-const ok: React.CSSProperties = { background: 'none', border: 'none', color: '#22c55e', cursor: 'pointer' };
-const no: React.CSSProperties = { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' };
+const ok: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--mfe-success)', cursor: 'pointer' };
+const no: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--mfe-danger)', cursor: 'pointer' };
 
 function CreateForm(props: {
   onClose: () => void;
