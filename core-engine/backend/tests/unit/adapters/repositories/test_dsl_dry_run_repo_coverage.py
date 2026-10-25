@@ -163,7 +163,7 @@ async def test_execute_blocked_by_allowlist(repo):
         return_value=False,
     ):
         out = await repo.execute_dry_run(str(uuid.uuid4()), "leave_requests")
-    assert out == {"affected_count": 0, "preview": []}
+    assert out == {"affected_count": 0, "preview": [], "unknown_scope": True}
 
 
 @pytest.mark.asyncio
