@@ -154,7 +154,7 @@ export function IncomingPage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#38bdf8',
+  color: 'var(--mfe-accent)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',

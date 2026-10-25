@@ -116,7 +116,12 @@ async def test_execute_write_command(
     mock_mattermost_adapter,
     mock_dsl_dry_run_repo,
     tenant_ctx,
+    monkeypatch,
 ):
+    from app.infrastructure.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "MATTERMOST_SYSTEM_CHANNEL_ID", "test-channel")
+    mock_mattermost_adapter.send_interactive_message.return_value = "msg-123"
     request = AICommandDTO(
         command_id=uuid.uuid4(),
         session_id=uuid.uuid4(),

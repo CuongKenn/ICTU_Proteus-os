@@ -33,6 +33,11 @@ class Settings(BaseSettings):
 
     # ─── Keycloak (SSO) ───────────────────────────────────────
     KEYCLOAK_URL: str = "http://localhost:8080"
+    # Public base URL của Keycloak (qua Traefik, VD: https://auth.proteus.local).
+    # Keycloak dùng KC_HOSTNAME làm `iss` trong JWT, trong khi backend gọi
+    # Keycloak qua URL nội bộ → cần allowlist cả 2 issuer, nếu không mọi
+    # token đều rớt verify_iss (401) ở production.
+    KEYCLOAK_PUBLIC_URL: str = ""
     KEYCLOAK_REALM: str = "proteus"
     KEYCLOAK_CLIENT_ID: str = "proteus-bff"
     KEYCLOAK_ADMIN_CLIENT_ID: str = "admin-cli"
@@ -79,7 +84,15 @@ class Settings(BaseSettings):
 
     # ─── Outline (Knowledge Base) ──────────────────────────────────
     OUTLINE_URL: str = "http://localhost:3000"
+    # URL public (qua Traefik) — dùng dựng source_url cho citation để
+    # browser mở được; nếu rỗng fallback về OUTLINE_URL (nội bộ).
+    OUTLINE_PUBLIC_URL: str = ""
     OUTLINE_API_KEY: str = ""
+    # Đồng bộ tri thức từ nguồn ngoài (connector framework) — tùy chọn.
+    # KNOWLEDGE_SYNC_CONNECTOR: tên connector (VD "http_feed"); rỗng = tắt.
+    KNOWLEDGE_SYNC_CONNECTOR: str = ""
+    KNOWLEDGE_SYNC_URL: str = ""
+    KNOWLEDGE_SYNC_COLLECTION_ID: str = ""
     # ─── LLM Provider ─────────────────────────────────────────
     LLM_PROVIDER: Literal["local_llm"] = "local_llm"
     LLM_BASE_URL: str = "http://localhost:11434/v1"
@@ -93,6 +106,27 @@ class Settings(BaseSettings):
     @property
     def keycloak_token_url(self) -> str:
         return f"{self.KEYCLOAK_URL}/realms/{self.KEYCLOAK_REALM}/protocol/openid-connect/token"
+
+    @property
+    def outline_public_base(self) -> str:
+        """Base URL dùng cho link citation hiển thị cho browser."""
+        return (self.OUTLINE_PUBLIC_URL or self.OUTLINE_URL).rstrip("/")
+
+    @property
+    def outline_base(self) -> str:
+        """Base URL dùng cho API call nội bộ (container-to-container)."""
+        return self.OUTLINE_URL.rstrip("/")
+
+    @property
+    def keycloak_allowed_issuers(self) -> list[str]:
+        """Các `iss` hợp lệ: URL nội bộ + public (nếu có)."""
+        issuers = [f"{self.KEYCLOAK_URL.rstrip('/')}/realms/{self.KEYCLOAK_REALM}"]
+        public_base = (self.KEYCLOAK_PUBLIC_URL or "").strip().rstrip("/")
+        if public_base:
+            public_iss = f"{public_base}/realms/{self.KEYCLOAK_REALM}"
+            if public_iss not in issuers:
+                issuers.append(public_iss)
+        return issuers
 
 
 # Singleton instance — import này từ mọi nơi cần dùng config

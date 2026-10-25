@@ -58,6 +58,23 @@
     --rose-fill:    rgba(190, 18, 60, 0.09);
     --violet-fill:  rgba(109, 40, 217, 0.10);
 
+    /* === RGB channels — cho legacy utility classes hỗ trợ opacity (/10, /50...) === */
+    --paper-rgb:        239 242 241;
+    --paper-raised-rgb: 248 250 249;
+    --paper-white-rgb:  255 255 255;
+    --ink-rgb:          21 24 27;
+    --muted-rgb:        96 104 109;
+    --dim-rgb:          146 154 158;
+    --accent-rgb:       14 165 233;
+    --accent-hover-rgb: 2 132 199;
+    --line-rgb:         213 217 216;
+    --hover-rgb:        227 231 230;
+    --cyan-rgb:         8 145 178;
+    --emerald-rgb:      4 120 87;
+    --amber-rgb:        180 83 9;
+    --rose-rgb:         190 18 60;
+    --violet-rgb:       109 40 217;
+
     /* === Spacing === */
     --bento-gap:     14px;
     --section-pad:   5.25rem;
@@ -98,6 +115,25 @@
     --plate:        #080A0E;
     --plate-soft:   #0F1216;
     --plate-border: #1E2228;
+
+    /* === RGB channels (dark) === */
+    --paper-rgb:        11 15 20;
+    --paper-raised-rgb: 18 22 28;
+    --paper-white-rgb:  26 30 37;
+    --ink-rgb:          232 236 239;
+    --muted-rgb:        138 147 154;
+    --dim-rgb:          92 100 107;
+    --accent-rgb:       59 130 246;
+    --accent-hover-rgb: 37 99 235;
+    --line-rgb:         34 38 43;
+    --hover-rgb:        30 35 42;
+
+    /* Semantic sáng hơn cho dark mode (đảm bảo tương phản) */
+    --cyan:    #22D3EE;  --cyan-rgb:    34 211 238;
+    --emerald: #34D399;  --emerald-rgb: 52 211 153;
+    --amber:   #FBBF24;  --amber-rgb:   251 191 36;
+    --rose:    #FB7185;  --rose-rgb:    251 113 133;
+    --violet:  #A78BFA;  --violet-rgb:  167 139 250;
 
     --shadow-card:       0 1px 3px rgba(0, 0, 0, 0.2);
     --shadow-card-hover: 0 10px 26px rgba(0, 0, 0, 0.3);

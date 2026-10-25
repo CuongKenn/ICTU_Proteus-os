@@ -52,7 +52,7 @@ export function VendorsPage() {
     );
   });
 
-  const starColor = (r: number) => (r >= 4 ? '#22c55e' : r === 3 ? '#f59e0b' : '#ef4444');
+  const starColor = (r: number) => (r >= 4 ? 'var(--mfe-success)' : r === 3 ? 'var(--mfe-warning)' : 'var(--mfe-danger)');
 
   if (!store || loading) return <p style={{ color: C.muted }}>Đang tải...</p>;
 

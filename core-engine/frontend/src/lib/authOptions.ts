@@ -8,65 +8,14 @@
 
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
+import { refreshAccessToken } from "@/lib/tokenRefresh";
+import { SESSION_MAX_AGE, isSecureCookies, sessionCookieName } from "@/lib/sessionCookie";
 
 const publicIssuer = process.env.KEYCLOAK_ISSUER || "";
 const realm = publicIssuer.split("/realms/")[1] || "proteus";
 const internalBase = process.env.KEYCLOAK_INTERNAL_URL
   ? `${process.env.KEYCLOAK_INTERNAL_URL}/realms/${realm}`
   : publicIssuer;
-
-// ─── Silent Token Refresh ─────────────────────────────────────
-// Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
-// Được gọi tự động khi access_token hết hạn trong JWT callback.
-// (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
-// Cache promise để tránh concurrent refresh (race condition) gây lỗi revoke token ở Keycloak
-let refreshPromise: Promise<JWT> | null = null;
-
-// Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
-// Được gọi tự động khi access_token hết hạn trong JWT callback.
-// (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-  if (refreshPromise) {
-    return refreshPromise;
-  }
-
-  refreshPromise = (async () => {
-    try {
-      const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
-      const response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        client_id: process.env.KEYCLOAK_CLIENT_ID!,
-        client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-        refresh_token: token.refreshToken as string,
-      }),
-    });
-
-    const refreshed = await response.json();
-
-    if (!response.ok) {
-      // Refresh thất bại (refresh_token hết hạn hoặc bị revoke)
-      // Trả về token với error để client biết cần login lại
-      return { ...token, error: "RefreshAccessTokenError" };
-    }
-
-    return {
-      ...token,
-      accessToken: refreshed.access_token,
-      refreshToken: refreshed.refresh_token ?? token.refreshToken, // Rotate nếu có
-      accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
-      error: undefined, // Xóa error cũ nếu refresh thành công
-    };
-  } catch {
-    return { ...token, error: "RefreshAccessTokenError" };
-  } finally {
-    refreshPromise = null;
-  }
-})();
-return refreshPromise;
-}
 
 // ─── NextAuth Config ──────────────────────────────────────────
 export const authOptions: NextAuthOptions = {
@@ -185,7 +134,21 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 giờ (session tối đa, kể cả refresh)
+    maxAge: SESSION_MAX_AGE, // 8 giờ (session tối đa, kể cả refresh)
+  },
+
+  // PHẢI khớp tuyệt đối với lib/sessionJwt.ts (BFF proxy ghi lại session sau
+  // inline refresh). Cookie host-only + chunked — xem sessionCookie.ts.
+  cookies: {
+    sessionToken: {
+      name: sessionCookieName(),
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isSecureCookies(),
+      },
+    },
   },
 
   pages: {

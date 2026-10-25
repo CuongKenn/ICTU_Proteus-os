@@ -42,6 +42,9 @@ logger = logging.getLogger(__name__)
 _ACTION_PATTERN = re.compile(r"^[a-z0-9_-]+$")
 _CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _MAX_PAYLOAD_BYTES = 100 * 1024  # Chặn payload quá lớn gửi sang n8n
+# Timeout dispatch webhook: workflow AI (LLM local) có thể chạy ~1 phút. Để
+# ngắn (30s) sẽ khiến backend timeout rồi retry → chạy LLM trùng + ghi đè điểm.
+_ACTION_TIMEOUT_SECONDS = 120.0
 
 
 class PluginActionUseCase:
@@ -249,5 +252,7 @@ class PluginActionUseCase:
                 "task_id": task_id,
             },
         )
-        result = await self.n8n_adapter.trigger_webhook(webhook_url, envelope)
+        result = await self.n8n_adapter.trigger_webhook(
+            webhook_url, envelope, timeout=_ACTION_TIMEOUT_SECONDS
+        )
         return {"task_id": task_id, "action": action, "result": result}

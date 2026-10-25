@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 export default function ProteusAIPage() {
   return (
     <AppShell>
-      <AIChatPanel />
+      <div className="h-full overflow-hidden">
+        <AIChatPanel />
+      </div>
     </AppShell>
   );
 }

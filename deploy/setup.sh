@@ -443,7 +443,7 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
     # SiteURL lấy từ MM_SERVICESETTINGS_SITEURL trong compose (theo URL_SUFFIX).
     curl $CURL_K -s -H "$MM_HOST_HEADER" -H "Authorization: Bearer $MM_TOKEN" "$MM_URL/config" > /tmp/mm_config.json
     jq '.ServiceSettings.EnableUserAccessTokens = true | .ServiceSettings.EnableBotAccountCreation = true |
-        .ServiceSettings.AllowedUntrustedInternalConnections = "proteus-backend" |
+        .ServiceSettings.AllowedUntrustedInternalConnections = "backend proteus-backend" |
         .GitLabSettings.Enable = true |
         .GitLabSettings.Secret = "mattermost-secret" |
         .GitLabSettings.Id = "mattermost" |
@@ -471,6 +471,18 @@ if [ $MM_ELAPSED -lt $MM_TIMEOUT ] && grep -q "MATTERMOST_BOT_TOKEN=CHANGE_ME_GE
     fi
 
     if [ -n "$BOT_USER_ID" ] && [ "$BOT_USER_ID" != "null" ]; then
+      # 7.6b Cấp System Admin cho bot: mặc định bot chỉ có system_user nên
+      # POST /users (tạo user qua API) trả 403 no_open_server khi
+      # EnableOpenServer=false → backend không pre-provision user vào
+      # team/channel được. Cần quyền này để "mời nhân viên" tự thêm vào MM.
+      curl $CURL_K -sf -X PUT "$MM_URL/users/$BOT_USER_ID/roles" \
+        -H "$MM_HOST_HEADER" \
+        -H "Authorization: Bearer $MM_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"roles":"system_user system_admin"}' > /dev/null \
+        && echo "✅ Đã cấp System Admin cho bot Mattermost." \
+        || echo "⚠️  Không cấp được System Admin cho bot — user mới có thể chưa vào được team/channel."
+
       # 7.7 Tạo Personal Access Token cho Bot
       BOT_TOKEN=$(curl $CURL_K -sf -X POST "$MM_URL/users/$BOT_USER_ID/tokens" \
         -H "$MM_HOST_HEADER" \

@@ -13,6 +13,9 @@ from app.adapters.external.outline_adapter import OutlineAdapter, OutlineAdapter
 def adapter():
     with patch("app.adapters.external.outline_adapter.settings") as mock_settings:
         mock_settings.OUTLINE_URL = "http://outline.local"
+        mock_settings.OUTLINE_PUBLIC_URL = "http://outline.local"
+        mock_settings.outline_base = "http://outline.local"
+        mock_settings.outline_public_base = "http://outline.local"
         mock_settings.OUTLINE_API_KEY = "test-key"
         yield OutlineAdapter()
 

@@ -201,6 +201,7 @@ async def _run_install_plugin_background(
     plugin_code_name: str,
     credentials: list[CredentialInput],
     app_state,
+    owner_task_id: uuid.UUID | None = None,
 ):
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
 
@@ -238,6 +239,7 @@ async def _run_install_plugin_background(
                 context=ctx,
                 plugin_code_name=plugin_code_name,
                 credentials=credentials,
+                owner_task_id=owner_task_id,
             )
         logger.info("[BG_TASK] COMPLETED: %s", plugin_code_name)
     except BaseException as e:
@@ -258,7 +260,7 @@ async def install_plugin(
     request: Request,
     plugin_id: uuid.UUID,
     body: InstallPluginRequest = Body(default_factory=InstallPluginRequest),
-    ctx: TenantContext = Depends(require_permission("plugins.install")),
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
     repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
 ) -> dict[str, Any]:
     """
@@ -319,6 +321,7 @@ async def install_plugin(
             plugin_code_name=plugin.code_name,
             credentials=credential_inputs,
             app_state=request.app.state,
+            owner_task_id=task_id,
         )
     )
 
@@ -441,6 +444,52 @@ async def _run_uninstall_plugin_background(
         logger.exception("[BG_TASK] FAILED: %s", plugin_id)
 
 
+@router.post(
+    "/{plugin_id}/reset-install",
+    status_code=status.HTTP_200_OK,
+    summary="Reset trạng thái cài đặt bị kẹt (FAILED_DIRTY/INSTALLING)",
+)
+async def reset_install_state(
+    plugin_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
+    repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
+) -> dict[str, Any]:
+    """Đưa plugin từ trạng thái kẹt (INSTALLING/FAILED_DIRTY) về 'chưa cài'.
+
+    Dùng khi background task chết giữa chừng khiến UI polling mãi không xong.
+    Xóa install_task_id + steps_log để lần cài sau chạy sạch.
+    """
+    plugin = await repo.get_by_id(plugin_id)
+    if not plugin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plugin không tồn tại.",
+        )
+    status_val = await repo.get_installation_status(ctx.tenant_id, plugin_id)
+    if status_val == PluginStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Plugin đang ACTIVE — không cần reset. Gỡ cài đặt nếu muốn cài lại.",
+        )
+    await repo.upsert_installation(
+        ctx.tenant_id,
+        plugin_id,
+        PluginStatus.FAILED_DIRTY,
+        install_task_id=None,
+        error_log="Reset thủ công về trạng thái có thể cài lại.",
+    )
+    try:
+        await repo.update_install_steps_log(ctx.tenant_id, plugin_id, steps_log=[])
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Không xóa được steps_log khi reset: %s", e)
+    await repo._session.commit()
+    logger.info(
+        "Plugin install state reset",
+        extra={"plugin_id": str(plugin_id), "tenant_id": str(ctx.tenant_id)},
+    )
+    return {"message": "Đã reset trạng thái cài đặt.", "plugin_id": str(plugin_id)}
+
+
 @router.delete(
     "/{plugin_id}/uninstall",
     status_code=status.HTTP_202_ACCEPTED,
@@ -450,7 +499,7 @@ async def uninstall_plugin(
     request: Request,
     plugin_id: uuid.UUID,
     body: PluginUninstallRequest,
-    ctx: TenantContext = Depends(require_permission("plugins.uninstall")),
+    ctx: TenantContext = Depends(require_permission("plugins:uninstall")),
     repo: AbstractPluginRepository = Depends(get_plugin_repo_write),
 ) -> dict[str, str]:
     """
@@ -511,7 +560,7 @@ async def uninstall_plugin(
 )
 async def disable_plugin(
     plugin_id: uuid.UUID,
-    ctx: TenantContext = Depends(require_permission("plugins.disable")),
+    ctx: TenantContext = Depends(require_permission("plugins:disable")),
     use_case: PluginToggleUseCase = Depends(get_plugin_toggle_use_case),
 ) -> dict[str, str]:
     try:
@@ -532,7 +581,7 @@ async def disable_plugin(
 )
 async def enable_plugin(
     plugin_id: uuid.UUID,
-    ctx: TenantContext = Depends(require_permission("plugins.enable")),
+    ctx: TenantContext = Depends(require_permission("plugins:enable")),
     use_case: PluginToggleUseCase = Depends(get_plugin_toggle_use_case),
 ) -> dict[str, str]:
     try:
@@ -605,7 +654,7 @@ async def _run_upgrade_plugin_background(
 async def upgrade_plugin(
     request: Request,
     plugin_id: uuid.UUID,
-    ctx: TenantContext = Depends(require_permission("plugins.upgrade")),
+    ctx: TenantContext = Depends(require_permission("plugins:upgrade")),
     use_case: PluginUpgradeUseCase = Depends(get_plugin_upgrade_use_case),
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
 ) -> dict[str, Any]:
@@ -778,9 +827,25 @@ async def dispatch_plugin_action(
     except N8nAdapterError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Workflow engine tạm thời không khả dụng: {e}",
+            detail=f"Workflow engine tạm thời không khả dụng: {_clean_engine_error(str(e))}",
         ) from e
     return PluginActionResponse(**result)
+
+
+def _clean_engine_error(message: str) -> str:
+    """Rút gọn lỗi n8n/Cloudflare thành thông báo đọc được (bỏ HTML/stack)."""
+    import re as _re
+
+    text = _re.sub(r"<[^>]+>", " ", message or "")
+    text = _re.sub(r"\s+", " ", text).strip()
+    low = text.lower()
+    if (
+        "cloudflare" in low
+        or "origin web server" in low
+        or "invalid or incomplete" in low
+    ):
+        return "Máy chủ workflow (n8n) đang quá tải hoặc trả về lỗi. Vui lòng thử lại sau ít phút."
+    return text[:300] or "Lỗi không xác định từ workflow engine."
 
 
 # ─────────────────────────────────────────────────────────────
@@ -812,6 +877,22 @@ async def list_plugin_records(
     return RecordListResponse(**result)
 
 
+def _integrity_detail(exc: IntegrityError) -> str:
+    """Thông báo 409 nêu rõ nguyên nhân thay vì chung chung 'trùng mã'."""
+    orig = getattr(exc, "orig", None)
+    pgcode = getattr(orig, "pgcode", None) or getattr(orig, "sqlstate", None)
+    if pgcode == "23502":
+        col = getattr(orig, "column_name", None)
+        return f"Thiếu trường bắt buộc{(' ' + col) if col else ''}."
+    if pgcode == "23503":
+        return "Tham chiếu không tồn tại (khóa ngoại)."
+    if pgcode == "23505":
+        return "Dữ liệu đã tồn tại (trùng mã/khóa duy nhất)."
+    if pgcode == "23514":
+        return "Giá trị không thỏa ràng buộc CHECK."
+    return "Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã)."
+
+
 @router.post(
     "/{code}/records/{table}",
     response_model=dict[str, Any],
@@ -833,7 +914,7 @@ async def create_plugin_record(
     except IntegrityError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã).",
+            detail=_integrity_detail(e),
         ) from e
 
 
@@ -858,7 +939,7 @@ async def update_plugin_record(
     except IntegrityError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Dữ liệu bị trùng hoặc vi phạm ràng buộc (VD: trùng mã).",
+            detail=_integrity_detail(e),
         ) from e
 
 
@@ -892,7 +973,7 @@ async def delete_plugin_record(
 )
 async def reload_plugins(
     request: Request,
-    ctx: TenantContext = Depends(require_permission("plugins.install")),
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
 ) -> dict[str, str]:
     """
     Quét lại thư mục plugins và nạp động (hot-reload) các Python extensions
@@ -917,7 +998,7 @@ async def reload_plugins(
 async def synthesize_plugin(
     request: Request,
     body: PluginSynthesizeRequest,
-    ctx: TenantContext = Depends(require_permission("plugins.install")),
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
     llm: AbstractLLMPort | None = Depends(get_llm_port),
 ) -> dict[str, str]:
     """
@@ -958,7 +1039,7 @@ async def synthesize_plugin(
 async def configure_plugin_credentials(
     plugin_id: uuid.UUID,
     payload: PluginCredentialPayload,
-    ctx: TenantContext = Depends(require_permission("plugins.install")),
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
     use_case: ConfigurePluginCredentialsUseCase = Depends(
         get_plugin_credentials_use_case
     ),

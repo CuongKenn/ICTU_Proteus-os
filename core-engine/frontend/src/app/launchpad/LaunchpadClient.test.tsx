@@ -20,7 +20,8 @@ vi.mock("@/store/notificationStore", () => ({
 // Mock authStore — expose hasRole as controllable mock
 const mockHasRole = vi.fn();
 vi.mock("@/store/authStore", () => ({
-  useAuthStore: (selector: any) => selector({ hasRole: mockHasRole }),
+  useAuthStore: (selector?: any) =>
+    typeof selector === "function" ? selector({ hasRole: mockHasRole }) : { hasRole: mockHasRole },
 }));
 
 // Mock i18n

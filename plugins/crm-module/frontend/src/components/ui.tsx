@@ -4,11 +4,11 @@
 import React from 'react';
 
 export const C = {
-  panel: '#1e293b',
-  line: '#334155',
-  text: '#e2e8f0',
-  muted: '#94a3b8',
-  accent: '#38bdf8',
+  panel: 'var(--mfe-panel)',
+  line: 'var(--mfe-line)',
+  text: 'var(--mfe-text)',
+  muted: 'var(--mfe-muted)',
+  accent: 'var(--mfe-accent)',
 };
 
 export function StatCard(props: { label: string; value: string; sub?: string }) {
@@ -29,8 +29,8 @@ export function Btn(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { pri
       style={{
         padding: '.5rem .9rem', borderRadius: 8,
         border: primary ? 'none' : `1px solid ${C.line}`,
-        background: primary ? '#2563eb' : 'transparent',
-        color: primary ? '#fff' : C.text, cursor: 'pointer', fontWeight: 600,
+        background: primary ? 'var(--mfe-primary)' : 'transparent',
+        color: primary ? 'var(--mfe-on-accent)' : C.text, cursor: 'pointer', fontWeight: 600,
         ...(style ?? {}),
       }}
     />
@@ -42,7 +42,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       style={{
-        width: '100%', background: '#0b1220', border: `1px solid ${C.line}`,
+        width: '100%', background: 'var(--mfe-panel-2)', border: `1px solid ${C.line}`,
         color: C.text, borderRadius: 8, padding: '.55rem .8rem', boxSizing: 'border-box',
         ...((props as { style?: React.CSSProperties }).style ?? {}),
       }}
@@ -55,7 +55,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       style={{
-        background: '#0b1220', border: `1px solid ${C.line}`, color: C.text,
+        background: 'var(--mfe-panel-2)', border: `1px solid ${C.line}`, color: C.text,
         borderRadius: 8, padding: '.55rem .8rem',
         ...((props as { style?: React.CSSProperties }).style ?? {}),
       }}
@@ -65,7 +65,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 export function Modal(props: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div onClick={props.onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
+    <div onClick={props.onClose} style={{ position: 'fixed', inset: 0, background: 'var(--mfe-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: '1.5rem', width: '100%', maxWidth: 520, color: C.text }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h3 style={{ margin: 0 }}>{props.title}</h3>
@@ -85,33 +85,34 @@ export function Pill(props: { text: string; color: string }) {
   );
 }
 
-export const th: React.CSSProperties = { textAlign: 'left', padding: '.7rem .9rem', color: '#94a3b8', borderBottom: '1px solid #334155', background: '#0b1220', whiteSpace: 'nowrap' };
-export const td: React.CSSProperties = { padding: '.7rem .9rem', borderBottom: '1px solid #1e293b', verticalAlign: 'top' };
+export const th: React.CSSProperties = { textAlign: 'left', padding: '.7rem .9rem', color: 'var(--mfe-muted)', borderBottom: '1px solid var(--mfe-line)', background: 'var(--mfe-panel-2)', whiteSpace: 'nowrap' };
+export const td: React.CSSProperties = { padding: '.7rem .9rem', borderBottom: '1px solid var(--mfe-line-soft)', verticalAlign: 'top' };
 
 export function DataSourceBar(props: {
   mode: 'live' | 'demo' | null;
   reasonText: string | null;
   message?: string;
 }) {
-  if (!props.mode) return null;
-  const live = props.mode === 'live';
+  // LIVE dùng dữ liệu thật từ API — không hiện banner nữa.
+  if (props.mode !== 'demo') return null;
   return (
     <div
       style={{
-        background: live ? 'rgba(34,197,94,.08)' : 'rgba(245,158,11,.08)',
-        border: `1px solid ${live ? '#22c55e' : '#f59e0b'}`,
-        color: live ? '#22c55e' : '#f59e0b',
-        borderRadius: 8,
-        padding: '.45rem .8rem',
-        fontSize: '.8rem',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '.4rem',
+        background: 'var(--mfe-warning-soft)',
+        border: '1px solid var(--mfe-warning)',
+        color: 'var(--mfe-warning)',
+        borderRadius: 999,
+        padding: '.25rem .7rem',
+        fontSize: '.75rem',
+        fontWeight: 600,
         marginBottom: '1rem',
       }}
     >
-      {live ? (
-        <>● LIVE — dữ liệu thật từ API (Postgres + n8n).</>
-      ) : (
-        <>○ DEMO — dữ liệu local. {props.reasonText} {props.message ? `(${props.message})` : ''}</>
-      )}
+      Dữ liệu mẫu{props.reasonText ? ' · ' + props.reasonText : ''}
+{props.message ? ' (' + props.message + ')' : ''}
     </div>
   );
 }
@@ -121,9 +122,9 @@ export function InlineError(props: { text: string | null; onClose?: () => void }
   return (
     <div
       style={{
-        background: 'rgba(239,68,68,.1)',
-        border: '1px solid #ef4444',
-        color: '#fca5a5',
+        background: 'var(--mfe-danger-soft)',
+        border: '1px solid var(--mfe-danger)',
+        color: 'var(--mfe-danger)',
         borderRadius: 8,
         padding: '.5rem .8rem',
         fontSize: '.82rem',
@@ -134,7 +135,7 @@ export function InlineError(props: { text: string | null; onClose?: () => void }
       {props.onClose && (
         <button
           onClick={props.onClose}
-          style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', marginLeft: '.5rem' }}
+          style={{ background: 'none', border: 'none', color: 'var(--mfe-danger)', cursor: 'pointer', marginLeft: '.5rem' }}
         >
           ✕
         </button>

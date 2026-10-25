@@ -238,6 +238,12 @@ class PluginRecordsUseCase:
 
         col_types = await self._columns(self._schema(ctx), table)
         params = self._coerce_params(col_types, data)
+        # Một số bảng plugin đời đầu (VD hr_departments, hr_employees) có
+        # `id UUID PRIMARY KEY` nhưng KHÔNG có DEFAULT gen_random_uuid() →
+        # client không gửi id thì INSERT vi phạm NOT NULL (bị báo nhầm thành
+        # "trùng mã"). Server tự sinh id khi thiếu.
+        if "id" in col_types and "id" not in params and col_types["id"] == "uuid":
+            params["id"] = uuid.uuid4()
         # Một số plugin đời đầu (VD hr-module) vẫn giữ cột tenant_id NOT NULL —
         # server tự gắn, client không được gửi (chống giả mạo tenant).
         if "tenant_id" in col_types and "tenant_id" not in params:

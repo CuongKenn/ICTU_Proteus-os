@@ -231,7 +231,9 @@ services:
   # OLLAMA — Local LLM Provider (Optional)
   # ────────────────────────────────────────────────────────────
   ollama:
-    image: ollama/ollama:0.3.14
+    # Ghim 0.12.0: bản tối thiểu hỗ trợ kiến trúc qwen3 (0.3.x báo
+    # "unknown model architecture: 'qwen3'" → /v1/chat/completions 500).
+    image: ollama/ollama:0.12.0
     container_name: proteus-ollama
     restart: unless-stopped
     profiles: ["ollama"]
@@ -303,7 +305,10 @@ services:
   # N8N — Workflow Automation Engine
   # ────────────────────────────────────────────────────────────
   n8n:
-    image: n8nio/n8n:1.54.4
+    # DB n8n đã migrate lên schema 2026 (bản 1.54.4 cũ báo thiếu cột
+    # User.role / ProjectRelation...role → API + webhook 500).
+    # Ghim 2.45.3 (stable mới nhất) — tương thích schema hiện tại.
+    image: n8nio/n8n:2.45.3
     container_name: proteus-n8n
     restart: unless-stopped
     environment:
@@ -540,7 +545,9 @@ services:
       target: backend
     container_name: proteus-backend
     restart: unless-stopped
-    mem_limit: 1g
+    # 8g: mỗi uvicorn worker giữ 1 bản embedding model RAG (~1.1GB mpnet
+    # + onnx arena ~1.5GB peak). Thấp hơn OOM-killer giết worker giữa request AI.
+    mem_limit: 8g
     cpus: 1.0
     read_only: true
     cap_drop:
@@ -555,6 +562,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-proteus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proteus}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_PUBLIC_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-proteus}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_BFF_CLIENT_ID:-proteus-bff}
       KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN_USER:-admin}
@@ -565,6 +573,14 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ALLOWED_ORIGINS: '["${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}","http://localhost:3000"]'
+      # URL công khai của frontend — backend dùng để dựng link trong email mời
+      # (fallback khi không có X-Forwarded-Host). Trước đây thiếu → link trỏ localhost.
+      FRONTEND_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}
+      # URL backend mà Mattermost gọi callback (integration URL trong nút
+      # Duyệt/Từ chối). PHẢI là hostname nội bộ mà MM container resolve được
+      # (http://backend:8000), KHÔNG dùng localhost (MM chặn loopback + trỏ
+      # nhầm chính nó → nút bấm 400 "address forbidden").
+      BACKEND_URL: http://backend:8000
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
       LLM_MODEL_NAME: ${LLM_MODEL_NAME:-qwen3:8b}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
@@ -576,12 +592,21 @@ services:
       MATTERMOST_BOT_TOKEN: ${MATTERMOST_BOT_TOKEN}
       MATTERMOST_WEBHOOK_SECRET: ${MATTERMOST_WEBHOOK_SECRET}
       MATTERMOST_SYSTEM_CHANNEL_ID: ${MATTERMOST_SYSTEM_CHANNEL_ID}
-      PLUGINS_MFE_URL: ${PLUGINS_MFE_URL:-http://plugins.proteus.local}
+      # Outline (Wiki) — RAG ingestion. Thiếu URL/API_KEY thì adapter
+      # trả [] im lặng (AI không tra cứu được tri thức nội bộ).
+      OUTLINE_URL: http://outline:3000
+      OUTLINE_PUBLIC_URL: ${PUBLIC_SCHEME:-http}://wiki.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      OUTLINE_API_KEY: ${OUTLINE_API_KEY}
+      PLUGINS_MFE_URL: ${PLUGINS_MFE_URL:-${PUBLIC_SCHEME:-http}://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}/plugins-mfe}
       PLUGINS_DIR: /plugins
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
+      # Cache model embedding RAG (fastembed) ra volume persistent —
+      # mặc định nó tải vào ~/.cache (read-only trong image).
+      FASTEMBED_CACHE_PATH: /var/cache/fastembed
     volumes:
       - ../plugins:/plugins:ro
+      - fastembed-cache:/var/cache/fastembed
     depends_on:
       postgres:
         condition: service_healthy
@@ -614,6 +639,9 @@ services:
         NEXT_PUBLIC_METABASE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
         NEXT_PUBLIC_APPSMITH_URL: ${PUBLIC_SCHEME:-http}://apps.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
         NEXT_PUBLIC_KEYCLOAK_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+        NEXT_PUBLIC_PLUGINS_MFE_URL: ${PLUGINS_MFE_URL:-${PUBLIC_SCHEME:-http}://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}/plugins-mfe}
+        # Luôn false ở Docker image (dev dùng .env.local qua dockerignore-exempt).
+        NEXT_PUBLIC_ENABLE_MOCKS: "false"
     container_name: proteus-frontend
     restart: unless-stopped
     mem_limit: 512m
@@ -641,6 +669,7 @@ services:
       NEXT_PUBLIC_N8N_URL: ${PUBLIC_SCHEME:-http}://workflow.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
       NEXT_PUBLIC_METABASE_URL: ${PUBLIC_SCHEME:-http}://analytics.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
       NEXT_PUBLIC_APPSMITH_URL: ${PUBLIC_SCHEME:-http}://apps.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
+      NEXT_PUBLIC_PLUGINS_MFE_URL: ${PLUGINS_MFE_URL:-${PUBLIC_SCHEME:-http}://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}/plugins-mfe}
       NEXT_PUBLIC_KEYCLOAK_URL: ${PUBLIC_SCHEME:-http}://auth.${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}
       PYTHONDONTWRITEBYTECODE: "1"
     depends_on:
@@ -679,6 +708,14 @@ services:
       - "traefik.http.services.plugins-mfe.loadbalancer.server.port=3001"
       # Cho phép Iframe
       - "traefik.http.routers.plugins-mfe.middlewares=iframe-allow"
+      # CÙNG ORIGIN với BFF: nttspace.online/plugins-mfe/{code} → MFE.
+      # Nhờ vậy iframe gửi được session cookie (SameSite=Lax) và chạy LIVE
+      # thay vì fallback DEMO do cookie bị chặn cross-origin.
+      - "traefik.http.routers.plugins-mfe-sameorigin.rule=Host(`${DOMAIN}`) && PathPrefix(`/plugins-mfe`)"
+      - "traefik.http.routers.plugins-mfe-sameorigin.entrypoints=web"
+      - "traefik.http.routers.plugins-mfe-sameorigin.service=plugins-mfe"
+      - "traefik.http.routers.plugins-mfe-sameorigin.priority=5"
+      - "traefik.http.routers.plugins-mfe-sameorigin.middlewares=iframe-allow"
 
 networks:
   proteus-net:
@@ -687,6 +724,7 @@ networks:
 
 volumes:
   traefik-certs:
+  fastembed-cache:
   postgres-data:
   redis-data:
   qdrant-data:

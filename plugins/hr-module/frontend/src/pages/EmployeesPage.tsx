@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // HR Core — Nhân viên: search/filter + CRUD hồ sơ.
 import React, { useCallback, useEffect, useState } from 'react';
-import type { Department, Employee, EmployeeStatus } from '../types';
+import type { Department, Employee, EmployeeStatus, LeaveRequest } from '../types';
 import { errText, reasonText, useStore } from '../lib/useStore';
-import { Badge, Btn, C, DataSourceBar, InlineError, Input, Modal, Select, TableWrap, Toolbar, td, th } from '../components/ui';
+import { createBffClient } from '../lib/api';
+import { Badge, Btn, C, DataSourceBar, InlineError, Input, Modal, Select, SimpleBadge, TableWrap, Toolbar, td, th } from '../components/ui';
 
 const ALL = 'ALL';
 
@@ -12,6 +13,7 @@ export function EmployeesPage() {
   const { mode, store, reason, message } = useStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [depts, setDepts] = useState<Department[]>([]);
+  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,15 +22,63 @@ export function EmployeesPage() {
   const [status, setStatus] = useState<string>(ALL);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  // Đối chiếu với bảng users hệ thống (Settings → tài khoản đăng nhập)
+  // để 2 danh sách không lệch nhau mà không cần gộp bảng.
+  const [accountByEmail, setAccountByEmail] = useState<Record<string, boolean>>({});
+  const [invitingEmail, setInvitingEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'live') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const client = createBffClient();
+        const users = await client.get<Array<{ email?: string }>>('/v1/users');
+        if (cancelled) return;
+        const m: Record<string, boolean> = {};
+        (Array.isArray(users) ? users : []).forEach((u) => {
+          const em = String(u?.email || '').trim().toLowerCase();
+          if (em) m[em] = true;
+        });
+        setAccountByEmail(m);
+      } catch {
+        // Best-effort: không có quyền đọc users hoặc offline thì bỏ qua badge.
+        if (!cancelled) setAccountByEmail({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
+  const inviteAccount = async (emp: Employee) => {
+    if (!emp.email || invitingEmail) return;
+    setInvitingEmail(emp.email);
+    setError(null);
+    try {
+      const client = createBffClient();
+      await client.post('/v1/users/invite', { email: emp.email, full_name: emp.full_name });
+      setAccountByEmail((prev) => ({ ...prev, [emp.email.trim().toLowerCase()]: true }));
+    } catch (e) {
+      setError(errText(e));
+    } finally {
+      setInvitingEmail(null);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!store) return;
     setLoading(true);
     setError(null);
     try {
-      const [em, dp] = await Promise.all([store.listEmployees(), store.listDepartments()]);
+      const [em, dp, lv] = await Promise.all([
+        store.listEmployees(),
+        store.listDepartments(),
+        store.listLeaveRequests(),
+      ]);
       setEmployees(em);
       setDepts(dp);
+      setLeaves(lv);
     } catch (e) {
       setError(errText(e));
     } finally {
@@ -52,6 +102,17 @@ export function EmployeesPage() {
   };
 
   const deptName = (id: string) => depts.find((d) => d.id === id)?.name ?? '—';
+
+  // Nhân viên đang trong kỳ nghỉ đã duyệt (hôm nay nằm trong khoảng nghỉ).
+  const today = new Date().toISOString().slice(0, 10);
+  const onLeaveToday = (id: string) =>
+    leaves.some(
+      (l) =>
+        l.employee_id === id &&
+        l.status === 'APPROVED' &&
+        String(l.start_date) <= today &&
+        today <= String(l.end_date),
+    );
 
   const filtered = employees.filter((e) => {
     const q = search.trim().toLowerCase();
@@ -91,6 +152,7 @@ export function EmployeesPage() {
             <th style={th}>Phòng ban · Chức vụ</th>
             <th style={th}>Phép còn lại</th>
             <th style={th}>Trạng thái</th>
+            <th style={th}>Tài khoản</th>
             <th style={th}>Hành động</th>
           </tr>
         </thead>
@@ -107,7 +169,34 @@ export function EmployeesPage() {
                 <div style={{ color: C.muted, fontSize: '.78rem' }}>{e.position || '—'}</div>
               </td>
               <td style={td}>{e.annual_leave_balance} ngày</td>
-              <td style={td}><Badge status={e.status} /></td>
+              <td style={td}>
+                {onLeaveToday(e.id) ? (
+                  <SimpleBadge text="Đang nghỉ phép" color="var(--mfe-warning)" />
+                ) : (
+                  <Badge status={e.status} />
+                )}
+              </td>
+              <td style={td}>
+                {mode === 'live' ? (
+                  accountByEmail[e.email.trim().toLowerCase()] ? (
+                    <SimpleBadge text="Có tài khoản" color="var(--mfe-success)" />
+                  ) : (
+                    <span>
+                      <SimpleBadge text="Chưa có" color="var(--mfe-muted)" />{' '}
+                      <button
+                        onClick={() => inviteAccount(e)}
+                        disabled={invitingEmail === e.email}
+                        style={link}
+                        title="Mời tạo tài khoản đăng nhập (Settings → Users)"
+                      >
+                        {invitingEmail === e.email ? 'Đang mời...' : 'Mời'}
+                      </button>
+                    </span>
+                  )
+                ) : (
+                  <span style={{ color: C.muted, fontSize: '.78rem' }}>—</span>
+                )}
+              </td>
               <td style={{ ...td, whiteSpace: 'nowrap' }}>
                 <button onClick={() => setEditing(e)} style={link}>Sửa</button>{' '}
                 <button
@@ -149,7 +238,7 @@ export function EmployeesPage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#38bdf8',
+  color: 'var(--mfe-accent)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',

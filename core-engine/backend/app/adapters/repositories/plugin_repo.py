@@ -129,6 +129,22 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
         pid = row[1] if isinstance(row[1], uuid.UUID) else uuid.UUID(row[1])
         return PluginStatus(row[0]), pid
 
+    async def get_install_task_id(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> uuid.UUID | None:
+        """Lấy install_task_id hiện tại của (tenant, plugin)."""
+        result = await self._session.execute(
+            text(
+                "SELECT install_task_id FROM tenant_plugins "
+                "WHERE tenant_id = :tenant_id AND plugin_id = :plugin_id"
+            ),
+            {"tenant_id": tenant_id, "plugin_id": plugin_id},
+        )
+        row = result.first()
+        if not row or row[0] is None:
+            return None
+        return row[0] if isinstance(row[0], uuid.UUID) else uuid.UUID(str(row[0]))
+
     async def set_upgrade_task_id(
         self,
         tenant_id: uuid.UUID,

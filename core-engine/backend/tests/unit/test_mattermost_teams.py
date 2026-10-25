@@ -79,6 +79,29 @@ async def test_ensure_user_reuses_existing():
 
 
 @pytest.mark.asyncio
+async def test_ensure_user_joins_tenant_channel():
+    """Khi truyền channel_id, user phải được thêm vào cả channel của tenant."""
+    calls = []
+
+    def handler(request):
+        path = request.url.path
+        calls.append(path)
+        if path == "/api/v4/users/search":
+            return httpx.Response(200, json=[{"id": "u-1", "email": "a@x.vn"}])
+        if path.endswith("/members"):
+            return httpx.Response(201, json={"ok": True})
+        raise AssertionError(f"unexpected call {path}")
+
+    adapter = _adapter(handler)
+    user = await adapter.ensure_user_in_team_by_email(
+        "team-1", "a@x.vn", "a", "secret", channel_id="chan-1"
+    )
+    assert user["id"] == "u-1"
+    assert "/api/v4/teams/team-1/members" in calls
+    assert "/api/v4/channels/chan-1/members" in calls
+
+
+@pytest.mark.asyncio
 async def test_ensure_tenant_team_creates_and_stores():
     tenant_id = uuid.uuid4()
     repo = AsyncMock()

@@ -62,6 +62,12 @@ workflows:
     description: "Reassign documents when employee leaves"
     trigger: "webhook"
 
+  - id: "wf_publish_to_outline"
+    file: "workflows/publish_to_outline.json"
+    name: "Publish Document to Outline"
+    description: "Đẩy tài liệu/văn bản lên Outline Wiki tri thức nội bộ"
+    trigger: "webhook"
+
 dashboards:
   - file: "dashboards/document_stats.json"
     name: "Document Statistics"

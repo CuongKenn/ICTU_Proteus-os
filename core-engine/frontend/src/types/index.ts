@@ -69,6 +69,8 @@ export interface Plugin {
   workflows_count?: number;
   roles?: string[];
   credentials_schema: CredentialFieldSchema[];
+  /** URL public của Plugin UI (React MFE gateway). Null nếu chưa cấu hình. */
+  external_url?: string | null;
 }
 
 /** Plugin detail (thêm screenshots, long_description, license). */

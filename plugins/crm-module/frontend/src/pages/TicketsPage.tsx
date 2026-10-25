@@ -15,14 +15,14 @@ const NEXT: Record<TicketStatus, TicketStatus | null> = {
 };
 
 function slaInfo(deadline: string, status: TicketStatus): { text: string; color: string } {
-  if (['RESOLVED', 'CLOSED'].includes(status)) return { text: 'Done', color: '#22c55e' };
+  if (['RESOLVED', 'CLOSED'].includes(status)) return { text: 'Done', color: 'var(--mfe-success)' };
   const ms = new Date(deadline).getTime() - Date.now();
-  if (ms < 0) return { text: `Quá ${Math.ceil(-ms / 3600000)}h`, color: '#ef4444' };
-  if (ms < 86400000) return { text: `Còn ${Math.ceil(ms / 3600000)}h`, color: '#f59e0b' };
-  return { text: `Còn ${Math.ceil(ms / 86400000)}d`, color: '#38bdf8' };
+  if (ms < 0) return { text: `Quá ${Math.ceil(-ms / 3600000)}h`, color: 'var(--mfe-danger)' };
+  if (ms < 86400000) return { text: `Còn ${Math.ceil(ms / 3600000)}h`, color: 'var(--mfe-warning)' };
+  return { text: `Còn ${Math.ceil(ms / 86400000)}d`, color: 'var(--mfe-accent)' };
 }
 
-const pColor = (p: string) => (p === 'P1' ? '#ef4444' : p === 'P2' ? '#f59e0b' : '#38bdf8');
+const pColor = (p: string) => (p === 'P1' ? 'var(--mfe-danger)' : p === 'P2' ? 'var(--mfe-warning)' : 'var(--mfe-accent)');
 
 export function TicketsPage() {
   const { mode, store, reason, message } = useStore();
@@ -106,8 +106,8 @@ export function TicketsPage() {
           “Tạo ticket” gọi workflow `wf_ticket_assignment` (tìm agent → gán → nhắn).
         </p>
       )}
-      <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: 12 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e2e8f0', fontSize: '.88rem' }}>
+      <div style={{ overflowX: 'auto', border: '1px solid var(--mfe-line)', borderRadius: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--mfe-text)', fontSize: '.88rem' }}>
           <thead><tr><th style={th}>Ticket</th><th style={th}>Ưu tiên</th><th style={th}>SLA</th><th style={th}>Trạng thái</th><th style={th}>Next</th></tr></thead>
           <tbody>
             {filtered.map((t) => {
@@ -118,21 +118,21 @@ export function TicketsPage() {
                   <tr>
                     <td style={td}>
                       <b style={{ cursor: 'pointer' }} onClick={() => toggleComments(t.id)}>{t.title}</b>
-                      <div style={{ color: '#94a3b8', fontSize: '.78rem' }}>{custName(t.customer_id)} · {t.assignee}</div>
+                      <div style={{ color: 'var(--mfe-muted)', fontSize: '.78rem' }}>{custName(t.customer_id)} · {t.assignee}</div>
                     </td>
                     <td style={td}><Pill text={t.priority} color={pColor(t.priority)} /></td>
                     <td style={td}><Pill text={sla.text} color={sla.color} /></td>
                     <td style={td}>{t.status}</td>
                     <td style={td}>
-                      {next && <button onClick={() => mutate(() => store!.moveTicket(t.id, next))} style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer' }}>→ {next}</button>}
+                      {next && <button onClick={() => mutate(() => store!.moveTicket(t.id, next))} style={{ background: 'none', border: 'none', color: 'var(--mfe-accent)', cursor: 'pointer' }}>→ {next}</button>}
                     </td>
                   </tr>
                   {openId === t.id && (
                     <tr>
-                      <td style={{ ...td, background: '#0b1220' }} colSpan={5}>
-                        <div style={{ color: '#94a3b8', fontSize: '.85rem', marginBottom: '.5rem' }}>{t.description}</div>
+                      <td style={{ ...td, background: 'var(--mfe-panel-2)' }} colSpan={5}>
+                        <div style={{ color: 'var(--mfe-muted)', fontSize: '.85rem', marginBottom: '.5rem' }}>{t.description}</div>
                         {(comments[t.id] ?? []).map((c, i) => (
-                          <div key={i} style={{ color: '#e2e8f0', fontSize: '.85rem', padding: '.25rem 0' }}>
+                          <div key={i} style={{ color: 'var(--mfe-text)', fontSize: '.85rem', padding: '.25rem 0' }}>
                             <b>{c.user}:</b> {c.content}
                           </div>
                         ))}

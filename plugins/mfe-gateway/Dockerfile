@@ -28,19 +28,31 @@ FROM nginx:1.27-alpine
 # Copy built assets
 COPY --from=builder /build/plugins/mfe-gateway/dist /usr/share/nginx/html
 
-# Custom Nginx config for SPA routing
+# Custom Nginx config for SPA routing.
+# App build với base=/plugins-mfe/ nên phục vụ cả 2 cách:
+#   - /plugins-mfe/...  (cùng origin nttspace.online, cookie được gửi)
+#   - /...              (subdomain plugins.* cũ)
 RUN echo 'server { \
     listen 3001; \
     server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html index.htm; \
+    location /plugins-mfe/ { \
+        alias /usr/share/nginx/html/; \
+        try_files $uri $uri/ /index.html; \
+    } \
     location / { \
-        root /usr/share/nginx/html; \
-        index index.html index.htm; \
         try_files $uri $uri/ /index.html; \
     } \
 }' > /etc/nginx/conf.d/default.conf \
     && chown -R nginx:nginx /usr/share/nginx/html /etc/nginx/conf.d /var/cache/nginx /var/run
 
 # Hardening: chạy nginx worker bằng user không phải root (port 3001 > 1024)
+# NOTE: /run là tmpfs nên chown ở build-time bị mất khi chạy → nginx
+# không ghi được /run/nginx.pid (Permission denied, restart loop).
+# Fix: đổi pid về /tmp trong nginx.conf (không dùng -g vì trùng directive).
+RUN sed -i 's|pid .*;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+    && grep -E '^pid' /etc/nginx/nginx.conf
 USER nginx
 
 EXPOSE 3001

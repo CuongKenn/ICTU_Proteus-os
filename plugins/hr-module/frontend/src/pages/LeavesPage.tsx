@@ -145,7 +145,7 @@ export function LeavesPage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#38bdf8',
+  color: 'var(--mfe-accent)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',
@@ -160,7 +160,19 @@ function LeaveForm(props: {
   const [employee_id, setEmp] = useState(props.employees[0]?.id ?? '');
   const [start_date, setStart] = useState(today);
   const [end_date, setEnd] = useState(today);
+  const [saving, setSaving] = useState(false);
   const days = leaveDays(start_date, end_date);
+
+  const submit = async () => {
+    if (saving || !employee_id || days <= 0) return;
+    setSaving(true);
+    try {
+      await props.onSubmit({ employee_id, start_date, end_date, duration_days: days });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Modal title="Tạo đơn nghỉ phép" onClose={props.onClose}>
       <div style={{ display: 'grid', gap: '.6rem' }}>
@@ -182,10 +194,10 @@ function LeaveForm(props: {
         </div>
         <Btn
           primary
-          disabled={!employee_id || days <= 0}
-          onClick={() => props.onSubmit({ employee_id, start_date, end_date, duration_days: days })}
+          disabled={!employee_id || days <= 0 || saving}
+          onClick={submit}
         >
-          Gửi đơn
+          {saving ? 'Đang gửi...' : 'Gửi đơn'}
         </Btn>
       </div>
     </Modal>

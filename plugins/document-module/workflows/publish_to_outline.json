@@ -1,0 +1,76 @@
+{
+  "_license": "Copyright (c) 2026 CuongKenn & ICTU Team | SPDX-License-Identifier: AGPL-3.0-or-later",
+  "name": "Knowledge - Publish Document to Outline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "knowledge/publish",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Publish Doc",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "knowledge-publish-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst title = (body.title || '').trim();\nconst text = (body.text || body.content || '').trim();\nif (!title || !text) {\n  throw new Error('Thiếu title hoặc text để publish tài liệu');\n}\nreturn [{json: {\n  title,\n  text,\n  collection_id: body.collection_id || null,\n  parent_document_id: body.parent_document_id || null,\n  publish: body.publish !== false,\n  tenant_id: body.tenant_id || null,\n}}];"
+      },
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://outline:3000/api/documents.create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OUTLINE_API_KEY}}"
+            },
+            {
+              "name": "X-Forwarded-Proto",
+              "value": "https"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": {{JSON.stringify($json.title)}},\n  \"text\": {{JSON.stringify($json.text)}},\n  \"collectionId\": {{JSON.stringify($json.collection_id)}},\n  \"parentDocumentId\": {{JSON.stringify($json.parent_document_id)}},\n  \"publish\": {{$json.publish}}\n}",
+        "options": {}
+      },
+      "name": "Create Outline Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"doc_id\": \"{{$json.data.id}}\",\n  \"url\": \"{{$json.data.url || ('/doc/' + $json.data.urlId)}}\",\n  \"title\": \"{{$json.data.title}}\"\n}"
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Publish Doc": {"main": [[{"node": "Validate Payload", "type": "main", "index": 0}]]},
+    "Validate Payload": {"main": [[{"node": "Create Outline Doc", "type": "main", "index": 0}]]},
+    "Create Outline Doc": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {}
+}

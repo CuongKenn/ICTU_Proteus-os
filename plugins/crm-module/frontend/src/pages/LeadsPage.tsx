@@ -108,10 +108,10 @@ export function LeadsPage() {
 
 function LeadCard(props: { title: string; sub: string; value: string; actions: React.ReactNode }) {
   return (
-    <div style={{ background: '#0b1220', border: '1px solid #334155', borderRadius: 10, padding: '.6rem .7rem', marginBottom: '.5rem' }}>
-      <b style={{ color: '#e2e8f0', fontSize: '.88rem' }}>{props.title}</b>
-      <div style={{ color: '#94a3b8', fontSize: '.78rem' }}>{props.sub}</div>
-      <div style={{ color: '#38bdf8', fontWeight: 700, margin: '.25rem 0' }}>{props.value}</div>
+    <div style={{ background: 'var(--mfe-panel-2)', border: '1px solid var(--mfe-line)', borderRadius: 10, padding: '.6rem .7rem', marginBottom: '.5rem' }}>
+      <b style={{ color: 'var(--mfe-text)', fontSize: '.88rem' }}>{props.title}</b>
+      <div style={{ color: 'var(--mfe-muted)', fontSize: '.78rem' }}>{props.sub}</div>
+      <div style={{ color: 'var(--mfe-accent)', fontWeight: 700, margin: '.25rem 0' }}>{props.value}</div>
       <div style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>{props.actions}</div>
     </div>
   );
@@ -122,8 +122,8 @@ function MiniBtn(props: { children: React.ReactNode; onClick: () => void; danger
     <button
       onClick={props.onClick}
       style={{
-        background: 'none', border: `1px solid ${props.danger ? '#ef4444' : '#38bdf8'}`,
-        color: props.danger ? '#ef4444' : '#38bdf8', borderRadius: 6,
+        background: 'none', border: `1px solid ${props.danger ? 'var(--mfe-danger)' : 'var(--mfe-accent)'}`,
+        color: props.danger ? 'var(--mfe-danger)' : 'var(--mfe-accent)', borderRadius: 6,
         padding: '.2rem .5rem', cursor: 'pointer', fontSize: '.75rem',
       }}
     >

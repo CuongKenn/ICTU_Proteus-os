@@ -152,6 +152,57 @@ class MattermostAdapter(AbstractChatOpsPort):
         """Chưa implement."""
         raise NotImplementedError("update_message chưa được implement")
 
+    async def create_direct_channel(
+        self, user_id_a: str, user_id_b: str
+    ) -> dict[str, Any]:
+        """Tạo (hoặc lấy) DM/GM channel giữa bot và 1 user.
+
+        Mattermost API: POST /api/v4/channels/direct với body [uid1, uid2]
+        (idempotent — đã có thì trả về channel cũ).
+        """
+        response = await self._call(
+            "POST", "/api/v4/channels/direct", json=[user_id_a, user_id_b]
+        )
+        return response.json()
+
+    async def send_direct_message(self, mm_user_id: str, text: str) -> dict[str, Any]:
+        """Bot nhắn riêng text thường cho 1 Mattermost user qua DM."""
+        bot_id = await self.get_bot_user_id()
+        if not bot_id:
+            raise MattermostAdapterError("Không xác định được bot user_id.")
+        dm = await self.create_direct_channel(bot_id, mm_user_id)
+        channel_id = dm.get("id")
+        if not channel_id:
+            raise MattermostAdapterError("Tạo DM channel thất bại (thiếu id).")
+        return await self.send_message(channel_id, text)
+
+    async def send_direct_interactive_message(
+        self,
+        mm_user_id: str,
+        text: str,
+        action_id: str,
+        extra_context: dict[str, Any] | None = None,
+    ) -> str:
+        """Bot nhắn riêng interactive message (kèm nút Phê duyệt/Từ chối).
+
+        Luồng: lấy bot_id → POST /channels/direct → send_interactive_message
+        vào DM channel vừa tạo. Raise MattermostAdapterError khi lỗi để
+        caller log/fallback.
+        """
+        bot_id = await self.get_bot_user_id()
+        if not bot_id:
+            raise MattermostAdapterError("Không xác định được bot user_id.")
+        dm = await self.create_direct_channel(bot_id, mm_user_id)
+        channel_id = dm.get("id")
+        if not channel_id:
+            raise MattermostAdapterError("Tạo DM channel thất bại (thiếu id).")
+        return await self.send_interactive_message(
+            channel_id=channel_id,
+            text=text,
+            action_id=action_id,
+            extra_context=extra_context,
+        )
+
     # ─── Team-per-tenant isolation ────────────────────────────
     # Mỗi tenant có 1 Team riêng (tenant_<slug>); user chỉ thấy team mình
     # tham gia. Mọi method dưới raise MattermostAdapterError khi lỗi —
@@ -323,6 +374,24 @@ class MattermostAdapter(AbstractChatOpsPort):
                 "User đã ở trong team", extra={"team_id": team_id, "user": user_id}
             )
 
+    async def add_user_to_channel(self, channel_id: str, user_id: str) -> None:
+        """Thêm member vào channel. Đã là member (400/409) → bỏ qua (idempotent)."""
+        if not channel_id or not user_id:
+            return
+        try:
+            await self._call(
+                "POST",
+                f"/api/v4/channels/{channel_id}/members",
+                json={"user_id": user_id},
+            )
+        except MattermostAdapterError as e:
+            if "400" not in str(e) and "409" not in str(e):
+                raise
+            logger.info(
+                "User đã ở trong channel",
+                extra={"channel_id": channel_id, "user": user_id},
+            )
+
     async def ensure_user_in_team_by_email(
         self,
         team_id: str,
@@ -331,12 +400,23 @@ class MattermostAdapter(AbstractChatOpsPort):
         password: str,
         auth_service: str = "gitlab",
         auth_data: str | None = None,
+        channel_id: str | None = None,
     ) -> dict[str, Any]:
-        """Đảm bảo MM user tồn tại và nằm trong team (dùng cho invite)."""
+        """Đảm bảo MM user tồn tại, nằm trong team (và channel tenant nếu có).
+
+        channel_id: channel riêng của tenant (vd canh-bao-he-thong) — nếu truyền
+        thì user cũng được thêm vào channel, không chỉ team.
+        """
         user = await self.get_user_by_email(email)
         if not user:
             user = await self.create_user(
                 email, username, password, auth_service, auth_data
             )
         await self.add_user_to_team(team_id, user["id"])
+        if channel_id:
+            # Best-effort: channel lỗi không được làm fail cả luồng invite/login.
+            try:
+                await self.add_user_to_channel(channel_id, user["id"])
+            except Exception as e:
+                logger.warning("Không thêm được user vào channel %s: %s", channel_id, e)
         return user

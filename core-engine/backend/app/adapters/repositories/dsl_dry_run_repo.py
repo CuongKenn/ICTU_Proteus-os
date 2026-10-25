@@ -115,7 +115,13 @@ class SQLAlchemyDSLDryRunRepository(AbstractDSLDryRunRepository):
                 "dry_run bị chặn: bảng không thuộc manifest allowlist",
                 table=table_name,
             )
-            return {"affected_count": 0, "preview": []}
+            # Đánh dấu unknown_scope để UI không báo "0 bản ghi" gây hiểu lầm
+            # (0 ở đây nghĩa là "không đếm được", không phải "không ảnh hưởng").
+            return {
+                "affected_count": 0,
+                "preview": [],
+                "unknown_scope": True,
+            }
 
         # 1. Kiểm tra table TỒN TẠI trong schema của tenant (bind params, không f-string).
         check_table = await self._session.execute(

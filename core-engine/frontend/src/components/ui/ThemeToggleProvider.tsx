@@ -49,6 +49,19 @@ export const ThemeToggleProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.setItem("proteus-theme", t);
   }, []);
 
+  // Đồng bộ khi MFE plugin (iframe same-origin) đổi theme và postMessage lên.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as { type?: string; theme?: unknown } | null;
+      if (d?.type === "proteus-theme" && (d.theme === "dark" || d.theme === "light")) {
+        setThemeState(d.theme);
+        applyTheme(d.theme);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   const toggleTheme = useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);

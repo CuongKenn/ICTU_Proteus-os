@@ -9,7 +9,7 @@ import { Btn, C, DataSourceBar, InlineError, Input, Modal, Select, SimpleBadge, 
 const ALL = 'ALL';
 
 const color = (s: InvoiceStatus) =>
-  s === 'PAID' ? '#22c55e' : s === 'OVERDUE' ? '#ef4444' : s === 'CANCELLED' ? '#64748b' : '#f59e0b';
+  s === 'PAID' ? 'var(--mfe-success)' : s === 'OVERDUE' ? 'var(--mfe-danger)' : s === 'CANCELLED' ? 'var(--mfe-dim)' : 'var(--mfe-warning)';
 
 export function InvoicesPage() {
   const { mode, store, reason, message } = useStore();
@@ -137,8 +137,8 @@ export function InvoicesPage() {
   );
 }
 
-const ok: React.CSSProperties = { background: 'none', border: 'none', color: '#22c55e', cursor: 'pointer' };
-const no: React.CSSProperties = { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' };
+const ok: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--mfe-success)', cursor: 'pointer' };
+const no: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--mfe-danger)', cursor: 'pointer' };
 
 function CreateForm(props: {
   onClose: () => void;

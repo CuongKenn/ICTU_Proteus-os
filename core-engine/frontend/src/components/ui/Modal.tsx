@@ -4,6 +4,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2 } from "lucide-react";
 
 interface ModalProps {
@@ -34,6 +35,9 @@ export const Modal: React.FC<ModalProps> = ({
   confirmKeyword,
 }) => {
   const [keywordInput, setKeywordInput] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -47,29 +51,55 @@ export const Modal: React.FC<ModalProps> = ({
     if (!isOpen) setKeywordInput("");
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const isConfirmEnabled = confirmKeyword ? keywordInput === confirmKeyword : true;
 
   const btnClass = confirmVariant === "danger" ? "btn-danger" : "btn-accent";
 
-  return (
+  // Hỗ trợ cả named size của Tailwind ("sm","2xl"...) lẫn giá trị CSS ("480px").
+  // Trước đây truyền "2xl" bị đưa thẳng vào style.maxWidth → invalid → modal mất
+  // giới hạn bề rộng, kéo full màn hình.
+  const NAMED_SIZE_CLASS: Record<string, string> = {
+    xs: "max-w-xs",
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-xl",
+    "2xl": "max-w-2xl",
+    "3xl": "max-w-3xl",
+    "4xl": "max-w-4xl",
+    "5xl": "max-w-5xl",
+    "6xl": "max-w-6xl",
+    "7xl": "max-w-7xl",
+    full: "max-w-full",
+    "screen-sm": "max-w-screen-sm",
+    "screen-md": "max-w-screen-md",
+    "screen-lg": "max-w-screen-lg",
+    "screen-xl": "max-w-screen-xl",
+    "screen-2xl": "max-w-screen-2xl",
+  };
+  const sizeClass = NAMED_SIZE_CLASS[maxWidth];
+
+  // Portal ra document.body: tránh bị ancestor có `overflow:hidden`/`transform`
+  // (vd .card trong Settings) làm containing block, khiến modal bị cắt/can thiệp.
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-fade-in" onClick={onClose} />
 
       {/* Modal Card */}
       <div
-        className="relative w-full rounded-2xl animate-scale-in"
+        className={`relative w-full rounded-2xl animate-scale-in flex flex-col max-h-[90vh] ${sizeClass ?? ""}`}
         style={{
-          maxWidth,
+          ...(sizeClass ? {} : { maxWidth }),
           background: "var(--paper-white)",
           border: "1px solid var(--line-hi)",
           boxShadow: "var(--shadow-modal)",
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--line)" }}>
           <h2 className="text-lg font-grot font-semibold" style={{ color: "var(--ink)" }}>{title}</h2>
           <button
             onClick={onClose}
@@ -83,13 +113,13 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="px-6 py-5" style={{ color: "var(--ink-soft)" }}>
+        <div className="px-6 py-5 overflow-y-auto" style={{ color: "var(--ink-soft)" }}>
           {children}
         </div>
 
         {/* Footer — only if onConfirm is provided */}
         {onConfirm && (
-          <div className="px-6 py-4 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--line)" }}>
+          <div className="px-6 py-4 flex items-center justify-end gap-3 shrink-0" style={{ borderTop: "1px solid var(--line)" }}>
             {confirmKeyword && (
               <div className="flex-1">
                 <p className="text-xs mb-1.5" style={{ color: "var(--dim)" }}>
@@ -116,6 +146,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

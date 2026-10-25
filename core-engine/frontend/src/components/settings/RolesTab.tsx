@@ -14,7 +14,10 @@ export interface Role {
   name: string;
   display_name: string;
   description: string | null;
-  permissions: Record<string, string[]>;
+  // Plugin nào đăng ký role này (manifest roles). Null = role hệ thống/tự tạo.
+  plugin_code_name?: string | null;
+  // DB tồn tại 2 format: dict {"mod": [...]} và list ["scope:action"] (legacy).
+  permissions: Record<string, string[]> | string[] | null;
 }
 
 const AVAILABLE_MODULES = [
@@ -28,6 +31,9 @@ export const RolesTab = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  // Map plugin_code_name -> display_name để hiện "role này của plugin nào".
+  const [pluginNames, setPluginNames] = useState<Record<string, string>>({});
+  const [pluginFilter, setPluginFilter] = useState("all");
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -41,8 +47,22 @@ export const RolesTab = () => {
   const fetchRoles = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get("/v1/roles");
-      setRoles(res.data);
+      const [rolesRes, pluginsRes] = await Promise.all([
+        api.get("/v1/roles"),
+        // Best-effort: không có quyền xem plugins thì vẫn hiện roles (badge mã).
+        api.get("/v1/plugins/installed").catch(() => ({ data: { plugins: [] } })),
+      ]);
+      setRoles(Array.isArray(rolesRes.data) ? rolesRes.data : []);
+      const list = Array.isArray(pluginsRes.data)
+        ? pluginsRes.data
+        : Array.isArray(pluginsRes.data?.plugins)
+          ? pluginsRes.data.plugins
+          : [];
+      const names: Record<string, string> = {};
+      list.forEach((p: any) => {
+        if (p?.code_name) names[p.code_name] = p.display_name || p.code_name;
+      });
+      setPluginNames(names);
     } catch (err: any) {
       setError(err.message || "Failed to load roles");
     } finally {
@@ -50,11 +70,23 @@ export const RolesTab = () => {
     }
   };
 
+  const pluginLabel = (code?: string | null) =>
+    !code ? "Hệ thống / Tự tạo" : pluginNames[code] || code;
+
+  const visibleRoles =
+    pluginFilter === "all"
+      ? roles
+      : roles.filter((r) => (r.plugin_code_name || "") === pluginFilter);
+
   const handleOpenModal = (role?: Role) => {
     if (role) {
       setSelectedRole(role);
       setFormData({ name: role.name, display_name: role.display_name || role.name, description: role.description || "" });
-      setFormPermissions(role.permissions || {});
+      // Matrix chỉnh sửa chỉ hiểu format dict — list legacy thì reset rỗng
+      // (tránh crash spread array thành object).
+      setFormPermissions(
+        role.permissions && !Array.isArray(role.permissions) ? role.permissions : {}
+      );
     } else {
       setSelectedRole(null);
       setFormData({ name: "", display_name: "", description: "" });
@@ -123,14 +155,28 @@ export const RolesTab = () => {
             Quản lý các Role và phân quyền (RBAC) cho Tenant của bạn.
           </p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="shrink-0 gap-2">
-          <Plus className="w-4 h-4" />
-          Tạo Role Mới
-        </Button>
+        <div className="flex items-center gap-3 shrink-0">
+          <select
+            value={pluginFilter}
+            onChange={(e) => setPluginFilter(e.target.value)}
+            className="bg-bg-surface/50 border border-border rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-primary transition-colors"
+            aria-label="Lọc role theo plugin"
+          >
+            <option value="all">Tất cả plugin</option>
+            <option value="">Hệ thống / Tự tạo</option>
+            {Object.entries(pluginNames).map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
+          <Button onClick={() => handleOpenModal()} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Tạo Role Mới
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {roles.map((role) => (
+        {visibleRoles.map((role) => (
           <div key={role.id} className="bg-bg-surface/50 border border-border rounded-xl p-6 backdrop-blur-glass flex flex-col h-full hover:border-primary/50 transition-colors">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -139,6 +185,12 @@ export const RolesTab = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-text-primary">{role.display_name || role.name}</h3>
+                  <span
+                    title={role.plugin_code_name ? `Plugin: ${role.plugin_code_name}` : "Role hệ thống hoặc tự tạo"}
+                    className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-info/10 text-info"
+                  >
+                    {pluginLabel(role.plugin_code_name)}
+                  </span>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -158,17 +210,27 @@ export const RolesTab = () => {
             <div className="mt-auto">
               <h4 className="text-xs font-medium text-text-secondary mb-2 uppercase tracking-wider">Phân quyền</h4>
               <div className="flex flex-wrap gap-1.5">
-                {Object.entries(role.permissions || {}).length === 0 ? (
-                  <span className="text-xs text-text-muted italic">Chưa có quyền nào</span>
-                ) : (
-                  Object.entries(role.permissions).map(([mod, actions]) => (
-                    actions.map(act => (
+                {(() => {
+                  const perms = role.permissions;
+                  if (!perms || (Array.isArray(perms) ? perms.length === 0 : Object.keys(perms).length === 0)) {
+                    return <span className="text-xs text-text-muted italic">Chưa có quyền nào</span>;
+                  }
+                  // Format legacy: list ["scope:action", ...]
+                  if (Array.isArray(perms)) {
+                    return perms.map((p) => (
+                      <span key={p} className="px-2 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-primary border border-border">
+                        {p}
+                      </span>
+                    ));
+                  }
+                  return Object.entries(perms).map(([mod, actions]) => (
+                    (Array.isArray(actions) ? actions : [actions]).map(act => (
                       <span key={`${mod}-${act}`} className="px-2 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-primary border border-border">
                         {mod}:{act}
                       </span>
                     ))
-                  ))
-                )}
+                  ));
+                })()}
               </div>
             </div>
           </div>

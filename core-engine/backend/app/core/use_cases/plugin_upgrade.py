@@ -750,7 +750,10 @@ class PluginUpgradeUseCase:
                             "tenant_id": context.tenant_id,
                             "plugin_code_name": plugin_code_name,
                             "name": role.name,
-                            "display_name": role.display_name,
+                            # Fallback như _step_5 install (manifest thiếu display_name).
+                            "display_name": role.display_name
+                            or role.description
+                            or role.name,
                             "description": role.description,
                             "permissions": list(role.permissions),
                         }

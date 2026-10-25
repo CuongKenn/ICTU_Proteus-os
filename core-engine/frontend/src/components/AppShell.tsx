@@ -6,12 +6,8 @@
 import React from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
-import { AIChatWidget } from "@/components/AIChatWidget";
-import { useSession } from "next-auth/react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
-
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--paper)", color: "var(--ink)" }}>
       <Sidebar />
@@ -21,7 +17,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      {session && <AIChatWidget />}
     </div>
   );
 }

@@ -7,17 +7,28 @@
 
 export const SESSION_MAX_AGE = 8 * 60 * 60; // 8 giờ, khớp session.maxAge
 
+// Đổi tên cookie (+.v2) để bỏ lại phía sau các cookie rác của bản cũ: trước đây
+// BFF ghi 1 cookie đơn >4KB (browser bỏ qua) và lệch domain host-only/.nttspace.online
+// với NextAuth → session hỏng, refresh_token bị reuse. Tên mới tách hẳn khỏi các
+// chunk cũ (.0/.1) nên không bị SessionStore ghép nhầm. User login lại 1 lần.
+const SESSION_COOKIE_BASE = "next-auth.session-token.v2";
+
 export function isSecureCookies(): boolean {
   return (process.env.NEXTAUTH_URL ?? "").startsWith("https://");
 }
 
 export function sessionCookieName(): string {
   return isSecureCookies()
-    ? "__Secure-next-auth.session-token"
-    : "next-auth.session-token";
+    ? `__Secure-${SESSION_COOKIE_BASE}`
+    : SESSION_COOKIE_BASE;
 }
 
-/** Domain chia sẻ *.proteus.local; localhost dev giữ host-only. */
+/**
+ * Domain chia sẻ *.proteus.local; localhost dev giữ host-only.
+ * LƯU Ý: hiện KHÔNG dùng domain cho session cookie (host-only) để tránh trùng
+ * tên cookie giữa domain và host-only khiến SessionStore ghép nhầm. MFE đã
+ * chuyển sang same-origin (/plugins-mfe) nên host-only là đủ.
+ */
 export function sessionCookieDomain(): string | undefined {
   try {
     const host = new URL(process.env.NEXTAUTH_URL ?? "").hostname;

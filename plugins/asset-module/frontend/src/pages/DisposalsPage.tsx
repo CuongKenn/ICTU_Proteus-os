@@ -55,7 +55,7 @@ export function DisposalsPage() {
     return (!q || nameOf(d.asset_id).toLowerCase().includes(q)) && (filter === 'ALL' || d.status === filter);
   });
 
-  const color = (s: string) => (s === 'APPROVED' ? '#22c55e' : s === 'REJECTED' ? '#ef4444' : '#f59e0b');
+  const color = (s: string) => (s === 'APPROVED' ? 'var(--mfe-success)' : s === 'REJECTED' ? 'var(--mfe-danger)' : 'var(--mfe-warning)');
 
   if (!store || loading) return <p style={{ color: C.muted }}>Đang tải...</p>;
 
@@ -125,8 +125,8 @@ export function DisposalsPage() {
   );
 }
 
-const ok: React.CSSProperties = { background: 'none', border: 'none', color: '#22c55e', cursor: 'pointer' };
-const no: React.CSSProperties = { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' };
+const ok: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--mfe-success)', cursor: 'pointer' };
+const no: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--mfe-danger)', cursor: 'pointer' };
 
 function CreateForm(props: {
   assets: Array<{ id: string; label: string }>;

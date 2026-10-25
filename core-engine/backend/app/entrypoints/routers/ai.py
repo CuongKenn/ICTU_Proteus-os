@@ -7,7 +7,16 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 
 from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.core.domain.entities import AICommandStatus, TenantContext
@@ -23,6 +32,7 @@ from app.entrypoints.dependencies import (
     get_plugin_repo,
     get_qdrant_adapter,
     get_rag_ingestion_use_case,
+    require_permission,
 )
 from app.entrypoints.schemas.ai_command import (
     AIChatRequest,
@@ -201,6 +211,38 @@ async def transmit_kv_cache_ipc(
     )
 
 
+@router.get(
+    "/commands/{command_id}/status",
+    status_code=status.HTTP_200_OK,
+    summary="Trạng thái 1 lệnh (để chat widget poll khi chờ duyệt)",
+)
+@limiter.limit("30/minute")
+async def get_ai_command_status(
+    command_id: uuid.UUID,
+    request: Request,
+    ctx: TenantContext = Depends(get_current_tenant_context),
+    use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+):
+    """Trả về status/action/effect/deadline của lệnh cùng tenant.
+
+    Cùng tenant được xem (người duyệt cần theo dõi). 404 khi không tồn tại
+    hoặc khác tenant (không lộ thông tin).
+    """
+    cmd = await use_case.ai_command_repo.get_command_by_id(command_id)
+    if not cmd or str(cmd.get("tenant_id")) != str(ctx.tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lệnh."
+        )
+    dl = cmd.get("approval_deadline")
+    return {
+        "command_id": str(cmd.get("id") or command_id),
+        "status": cmd.get("status"),
+        "action": cmd.get("action"),
+        "effect": cmd.get("effect"),
+        "approval_deadline": dl.isoformat() if hasattr(dl, "isoformat") else dl,
+    }
+
+
 @router.post(
     "/commands/{command_id}/cancel",
     status_code=status.HTTP_200_OK,
@@ -377,6 +419,96 @@ async def search_knowledge(
             for h in hits
         ],
     }
+
+
+@router.get(
+    "/knowledge/connectors",
+    status_code=status.HTTP_200_OK,
+    summary="Liệt kê connector đồng bộ tri thức khả dụng",
+)
+async def list_knowledge_connectors(
+    ctx: TenantContext = Depends(get_current_tenant_context),
+):
+    from app.adapters.external.knowledge_connectors import list_connectors
+
+    return {"connectors": list_connectors()}
+
+
+@router.post(
+    "/knowledge/sync",
+    status_code=status.HTTP_200_OK,
+    summary="Đồng bộ tri thức từ nguồn ngoài vào Outline (connector framework)",
+)
+@limiter.limit("5/minute")
+async def sync_knowledge(
+    body: dict,
+    request: Request,
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
+):
+    """Kéo tài liệu từ connector ngoài → publish vào Outline Wiki.
+
+    Body: {"connector": "http_feed", "config": {"url": "..."},
+           "collection_id": null}
+    """
+    from app.adapters.external.knowledge_connectors import get_connector
+    from app.adapters.external.outline_adapter import OutlineAdapter
+    from app.core.use_cases.knowledge_sync import KnowledgeSyncUseCase
+
+    payload = body or {}
+    connector_name = str(payload.get("connector") or "http_feed")
+    connector_cls = get_connector(connector_name)
+    if connector_cls is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Connector '{connector_name}' không tồn tại.",
+        )
+    connector = connector_cls()
+    source = OutlineAdapter(client=request.app.state.http_client)
+    use_case = KnowledgeSyncUseCase(connector=connector, document_source=source)
+    result = await use_case.execute(
+        config=payload.get("config") or {},
+        collection_id=payload.get("collection_id"),
+        publish=bool(payload.get("publish", True)),
+    )
+    return result
+
+
+@router.post(
+    "/knowledge/upload",
+    status_code=status.HTTP_201_CREATED,
+    summary="Tải file PDF/DOCX/TXT/MD lên, trích chữ và đăng vào Outline",
+)
+@limiter.limit("10/minute")
+async def upload_knowledge(
+    request: Request,
+    file: UploadFile = File(..., description="File PDF/DOCX/TXT/MD (tối đa 10MB)"),
+    collection_id: str | None = Form(None),
+    ctx: TenantContext = Depends(require_permission("plugins:install")),
+):
+    """Nhận 1 file upload → trích văn bản → publish thành tài liệu Wiki.
+
+    Mỗi file = 1 tài liệu (tiêu đề = tên file). File .doc đời cũ,
+    PDF scan toàn ảnh hoặc file quá 10MB bị từ chối với lỗi rõ ràng.
+    """
+    from app.adapters.external.outline_adapter import OutlineAdapter
+    from app.core.use_cases.knowledge_upload import (
+        KnowledgeUploadUseCase,
+        UnsupportedFileError,
+    )
+
+    content = await file.read()
+    source = OutlineAdapter(client=request.app.state.http_client)
+    use_case = KnowledgeUploadUseCase(document_source=source)
+    try:
+        return await use_case.execute(
+            filename=file.filename or "tai-lieu",
+            content=content,
+            collection_id=collection_id,
+        )
+    except UnsupportedFileError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 # ─── Chat Streaming (SSE pipeline events) ───────────────────────────────────

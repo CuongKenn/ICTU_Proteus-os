@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from qdrant_client import AsyncQdrantClient
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text as sa_text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app import __version__
@@ -26,6 +27,8 @@ import asyncio
 from app.adapters.external.mattermost_adapter import MattermostAdapter
 from app.adapters.external.metabase_adapter import MetabaseAdapter
 from app.adapters.external.n8n_adapter import N8nAdapter
+from app.adapters.external.outline_adapter import OutlineAdapter
+from app.adapters.external.qdrant_adapter import QdrantAdapter
 from app.adapters.external.redis_event_bus import RedisEventBusPublisher
 from app.adapters.repositories.ai_command_repo import SQLAlchemyAICommandRepository
 from app.adapters.repositories.audit_log_repo import SQLAlchemyAuditLogRepository
@@ -36,6 +39,7 @@ from app.core.use_cases.ai_timeout_worker import AITimeoutWorker
 from app.core.use_cases.plugin_cleanup_agent import PluginCleanupAgent
 from app.core.use_cases.event_subscriber_worker import EventSubscriberWorker
 from app.core.use_cases.proactive_monitor import ProactiveMonitorAgent
+from app.core.use_cases.rag_ingestion import RAGIngestionUseCase
 from app.entrypoints.routers import (
     ai,
     auth,
@@ -219,6 +223,73 @@ async def lifespan(app: FastAPI):
                 exc_info=True,
             )
 
+    async def run_rag_ingestion() -> None:
+        """RAG: đồng bộ tài liệu Outline → Qdrant cho mọi tenant.
+
+        Chạy nightly (2:00 AM). Bỏ qua an toàn nếu chưa cấu hình Outline
+        để không spam lỗi khi triển khai không dùng Wiki.
+        """
+        if not settings.OUTLINE_API_KEY:
+            logger.warning("Bỏ qua RAG ingestion: chưa cấu hình OUTLINE_API_KEY.")
+            return
+        qdrant_adapter = QdrantAdapter()
+        try:
+            async with AsyncSessionLocal() as session:
+                rows = (
+                    await session.execute(
+                        sa_text("SELECT id FROM tenants WHERE deleted_at IS NULL")
+                    )
+                ).all()
+            source = OutlineAdapter()
+            use_case = RAGIngestionUseCase(
+                document_source_port=source, vector_db_port=qdrant_adapter
+            )
+            for (tenant_id,) in rows:
+                result = await use_case.execute(str(tenant_id))
+                logger.info(
+                    "RAG ingestion tenant %s: %s", tenant_id, result
+                )
+        except Exception as e:
+            logger.error(
+                "RAG ingestion FAILED",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
+        finally:
+            try:
+                await qdrant_adapter.aclose()
+            except Exception:
+                pass
+
+    async def run_knowledge_sync() -> None:
+        """Đồng bộ tri thức từ nguồn ngoài (connector) vào Outline.
+
+        Chạy nightly (3:00 AM), chỉ khi cấu hình KNOWLEDGE_SYNC_CONNECTOR.
+        """
+        connector_name = (settings.KNOWLEDGE_SYNC_CONNECTOR or "").strip()
+        if not connector_name:
+            return
+        from app.adapters.external.knowledge_connectors import get_connector
+        from app.core.use_cases.knowledge_sync import KnowledgeSyncUseCase
+
+        connector_cls = get_connector(connector_name)
+        if connector_cls is None:
+            logger.warning("Knowledge connector '%s' không tồn tại.", connector_name)
+            return
+        try:
+            connector = connector_cls()
+            source = OutlineAdapter(client=app.state.http_client)
+            use_case = KnowledgeSyncUseCase(
+                connector=connector, document_source=source
+            )
+            result = await use_case.execute(
+                config={"url": settings.KNOWLEDGE_SYNC_URL} if settings.KNOWLEDGE_SYNC_URL else {},
+                collection_id=settings.KNOWLEDGE_SYNC_COLLECTION_ID or None,
+            )
+            logger.info("Knowledge sync result: %s", result)
+        except Exception as e:
+            logger.error("Knowledge sync FAILED", extra={"error": str(e)}, exc_info=True)
+
     # Chạy cleanup mỗi 10 phút
     scheduler.add_job(run_plugin_cleanup, "interval", minutes=10, id="plugin_cleanup")
 
@@ -237,6 +308,22 @@ async def lifespan(app: FastAPI):
         hour=7,
         minute=0,
         id="proactive_monitor_morning",
+    )
+    # RAG ingestion: đồng bộ Outline -> Qdrant cho mọi tenant lúc 2:00 AM
+    scheduler.add_job(
+        run_rag_ingestion,
+        "cron",
+        hour=2,
+        minute=0,
+        id="rag_ingestion",
+    )
+    # Knowledge sync: nguồn ngoài -> Outline lúc 3:00 AM (nếu cấu hình)
+    scheduler.add_job(
+        run_knowledge_sync,
+        "cron",
+        hour=3,
+        minute=0,
+        id="knowledge_sync",
     )
     scheduler.start()
         # Khởi động Event Subscriber Worker (Redis Pub/Sub)

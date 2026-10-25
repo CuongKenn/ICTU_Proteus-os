@@ -90,13 +90,13 @@ export function MilestonesPage() {
               <td style={td}>{m.due_date || '—'}</td>
               <td style={{ ...td, minWidth: 180 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                  <div style={{ flex: 1, height: 8, background: '#0b1220', borderRadius: 999 }}>
+                  <div style={{ flex: 1, height: 8, background: 'var(--mfe-panel-2)', borderRadius: 999 }}>
                     <div
                       style={{
                         width: `${m.completion_pct}%`,
                         height: '100%',
                         borderRadius: 999,
-                        background: m.completion_pct >= 100 ? '#22c55e' : '#38bdf8',
+                        background: m.completion_pct >= 100 ? 'var(--mfe-success)' : 'var(--mfe-accent)',
                       }}
                     />
                   </div>
@@ -148,7 +148,7 @@ export function MilestonesPage() {
 const link: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#38bdf8',
+  color: 'var(--mfe-accent)',
   cursor: 'pointer',
   padding: 0,
   fontSize: '.85rem',

@@ -39,3 +39,8 @@ z3-solver==4.13.0.0
 # AI Synthesizer
 langchain==0.2.14
 slowapi==0.1.9
+
+# Knowledge Upload (PDF/DOCX/TXT text extraction + multipart forms)
+pypdf==4.3.1
+python-docx==1.1.2
+python-multipart==0.0.18

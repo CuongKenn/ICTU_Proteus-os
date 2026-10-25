@@ -30,6 +30,51 @@ from app.entrypoints.schemas.role import (
 router = APIRouter(prefix="/roles", tags=["Roles"])
 
 
+async def _sync_position_on_assign(
+    session, tenant_id: uuid.UUID, email: str, display_name: str
+) -> None:
+    """Best-effort: gán role → điền chức vụ (hr_employees.position) khi còn trống.
+
+    Đồng bộ 1 chiều Roles → HR để danh sách không lệch. Không bao giờ ghi đè
+    chức vụ HR đã nhập tay (dữ liệu HR chi tiết hơn tên role). Không raise.
+    """
+    import inspect
+    import logging
+    import re as _re
+
+    from sqlalchemy import text as _t
+
+    try:
+        if not display_name or not email:
+            return
+        schema = f"tenant_{str(tenant_id).replace('-', '_')}"
+        if not _re.match(r"^[a-zA-Z0-9_]+$", schema):
+            return
+        exists = await session.execute(
+            _t(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = :s AND table_name = 'hr_employees'"
+            ),
+            {"s": schema},
+        )
+        row = exists.first()
+        if inspect.isawaitable(row):
+            row = await row
+        if row is None:
+            return
+        await session.execute(
+            _t(
+                f'UPDATE "{schema}"."hr_employees" SET position = :p '
+                "WHERE lower(email) = lower(:e) "
+                "AND (position IS NULL OR position = '')"
+            ),
+            {"p": display_name, "e": email},
+        )
+        await session.commit()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Sync chức vụ HR bỏ qua: %s", exc)
+
+
 def get_role_use_case(
     session: AsyncSession = Depends(get_db_transactional),
 ) -> RoleManagementUseCase:
@@ -185,6 +230,14 @@ async def assign_role_to_user(
             logging.getLogger(__name__).warning(
                 "Lỗi khi gán role cho Keycloak user", exc_info=exc
             )
+
+        # Đồng bộ Roles → HR: điền chức vụ khi hồ sơ còn trống (best-effort).
+        await _sync_position_on_assign(
+            use_case.role_repo.session,
+            tenant_context.tenant_id,
+            user.email,
+            getattr(role, "display_name", "") or role.name,
+        )
 
         return {"detail": "Role assigned successfully"}
     except PermissionError as e:

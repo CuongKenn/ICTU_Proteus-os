@@ -195,6 +195,18 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                 f"User with ID {user_id} not found or already deactivated"
             )
 
+    async def mark_active(self, user_id: uuid.UUID) -> None:
+        """Bật is_active (dùng khi user đã nhận lời mời/đặt mật khẩu).
+
+        Không set last_login_at — user vẫn chưa đăng nhập app lần đầu.
+        """
+        stmt = (
+            update(UserModel)
+            .where(UserModel.id == user_id, UserModel.deleted_at.is_(None))
+            .values(is_active=True)
+        )
+        await self.session.execute(stmt)
+
     async def list_by_tenant(
         self, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0
     ) -> list[UserEntity]:

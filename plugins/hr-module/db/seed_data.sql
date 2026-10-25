@@ -4,7 +4,7 @@
 -- HR Module — Database Seed
 
 CREATE TABLE IF NOT EXISTS hr_departments (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     tenant_id UUID NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS hr_departments (
 );
 
 CREATE TABLE IF NOT EXISTS hr_employees (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_code VARCHAR(50) UNIQUE NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,

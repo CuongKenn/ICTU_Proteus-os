@@ -208,6 +208,7 @@ class OnboardingUseCase:
                     password=secrets.token_urlsafe(24),
                     auth_service="gitlab",
                     auth_data=str(mattermost_numeric_id(keycloak_user_id)),
+                    channel_id=team_cfg.get("alerts_channel_id"),
                 )
                 logger.info(
                     "Đã tạo Mattermost team cho tenant mới",

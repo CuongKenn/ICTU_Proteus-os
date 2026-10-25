@@ -56,7 +56,7 @@ export function ActionsPage() {
   });
 
   const color = (s: ActionStatus) =>
-    s === 'COMPLETED' ? '#22c55e' : s === 'CANCELLED' ? '#64748b' : s === 'IN_PROGRESS' ? '#38bdf8' : '#f59e0b';
+    s === 'COMPLETED' ? 'var(--mfe-success)' : s === 'CANCELLED' ? 'var(--mfe-dim)' : s === 'IN_PROGRESS' ? 'var(--mfe-accent)' : 'var(--mfe-warning)';
 
   if (!store || loading) return <p style={{ color: C.muted }}>Đang tải...</p>;
 

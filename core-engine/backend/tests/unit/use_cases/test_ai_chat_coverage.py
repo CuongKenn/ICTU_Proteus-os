@@ -150,7 +150,9 @@ def test_summarize_multi_iters_with_thoughts(chat):
     outs = [_outcome(1, "a.1", "COMPLETED"), _outcome(2, "a.2", "COMPLETED")]
     st, msg, res = chat._summarize(outs, 2, ["t1"], "iters")
     assert st == AICommandStatus.COMPLETED
-    assert "giới hạn vòng lặp" in msg and "Suy luận" in msg
+    # Message chính chỉ chứa output; suy luận nằm trong result (UI ẩn).
+    assert "giới hạn vòng lặp" in msg
+    assert "Suy luận" not in msg
     assert res["thoughts"] == ["t1"]
 
 

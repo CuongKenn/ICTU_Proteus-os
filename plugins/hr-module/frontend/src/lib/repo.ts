@@ -507,25 +507,36 @@ export function createLiveStore(client: BffClient): HrStore {
     async listLeaveRequests() {
       return (await rows<Record<string, unknown>>('hr_leave_requests')).map(toLeave);
     },
-    // Tạo đơn nghỉ đi qua workflow wf_leave_request (check số dư → nhắn manager).
+    // Tạo đơn nghỉ qua CRUD generic (không phụ thuộc n8n, luôn chạy được).
     async createLeaveRequest(input) {
-      const res = await client.post<Record<string, unknown>>(`${A}/wf_leave_request`, {
-        payload: { ...input },
+      const row = await client.post<Record<string, unknown>>(`${R}/hr_leave_requests`, {
+        employee_id: input.employee_id,
+        start_date: input.start_date,
+        end_date: input.end_date,
+        duration_days: input.duration_days,
+        status: 'PENDING_APPROVAL',
       });
-      if (res && res.id) return toLeave(res);
-      // Dispatcher 202 xử lý ngầm — đọc lại để lấy dòng workflow vừa tạo.
-      const all = await this.listLeaveRequests();
-      const found = all.find(
-        (l) =>
-          l.employee_id === input.employee_id &&
-          l.start_date === input.start_date &&
-          l.end_date === input.end_date,
-      );
-      if (found) return found;
-      return { ...input, id: `pending-${Date.now()}`, status: 'PENDING', created_at: new Date().toISOString() };
+      return toLeave(row);
     },
     async reviewLeaveRequest(id, status) {
+      // Lấy đơn trước để tránh trừ phép 2 lần nếu bấm lặp.
+      const all = await this.listLeaveRequests();
+      const req = all.find((l) => l.id === id);
       await client.patch(`${R}/hr_leave_requests/${id}`, { status });
+      // Duyệt đơn → trừ ngày phép còn lại của nhân viên (chỉ khi chuyển từ chưa duyệt).
+      if (status === 'APPROVED' && req && req.status !== 'APPROVED') {
+        const emps = await this.listEmployees();
+        const emp = emps.find((e) => e.id === req.employee_id);
+        if (emp) {
+          const remaining = Math.max(
+            0,
+            Number(emp.annual_leave_balance || 0) - Number(req.duration_days || 0),
+          );
+          await client.patch(`${R}/hr_employees/${emp.id}`, {
+            annual_leave_balance: remaining,
+          });
+        }
+      }
     },
     async listAttendance() {
       return rows<AttendanceLog>('hr_attendance_logs');
@@ -568,11 +579,19 @@ export function createLiveStore(client: BffClient): HrStore {
     // P3: AI chấm điểm qua workflow wf_application_screen (Ollama local).
     // LLM CPU ~1 phút — caller tự xử timeout/502 (coi như đang chạy ngầm).
     async screenApplication(id: string): Promise<{ score: number | null }> {
+      // LLM local chạy ~1 phút → riêng action này cần timeout dài hơn 30s.
       const res = await client.post<Record<string, unknown>>(
         `${A}/wf_application_screen`,
         { payload: { application_id: id } },
+        { timeoutMs: 120000 },
       );
-      const score = res && typeof res.score === 'number' ? res.score : null;
+      const nested = (res?.result as Record<string, unknown> | undefined) ?? res;
+      const raw = nested?.score;
+      let score: number | null = null;
+      if (typeof raw === 'number') score = raw;
+      else if (typeof raw === 'string' && raw.trim() !== '' && !Number.isNaN(Number(raw))) {
+        score = Number(raw);
+      }
       return { score };
     },
     async setApplicationScore(id, score, notes) {
@@ -614,17 +633,22 @@ export function createLiveStore(client: BffClient): HrStore {
       const apps = await this.listApplications();
       const app = apps.find((a) => a.id === offer.application_id);
       if (!app) throw new Error('Không tìm thấy hồ sơ');
+      // Suy ra phòng ban + vị trí từ tin tuyển dụng để nhân viên mới có dữ liệu
+      // hợp lệ. KHÔNG gửi department_id='' (backend coerce UUID → 400).
+      const postings = await this.listPostings();
+      const posting = postings.find((p) => p.id === app.posting_id);
       const employees = await this.listEmployees();
-      const emp = await this.createEmployee({
+      const payload = {
         employee_code: `NV${String(employees.length + 1).padStart(3, '0')}`,
         full_name: app.full_name,
         email: app.email,
-        department_id: '',
-        position: '',
+        position: posting?.title ?? '',
         hire_date: new Date().toISOString().slice(0, 10),
-        status: 'active',
+        status: 'active' as const,
         annual_leave_balance: 12,
-      });
+        ...(posting?.department_id ? { department_id: posting.department_id } : {}),
+      };
+      const emp = await this.createEmployee(payload as Omit<Employee, 'id'>);
       await this.moveApplication(app.id, 'HIRED');
       await client.patch(`${R}/hr_offers/${offer_id}`, { status: 'ACCEPTED' });
       return emp;

@@ -17,16 +17,33 @@ export class ApiError extends Error {
 
 export function bffBase(): string {
   const { protocol, hostname } = window.location;
-  if (hostname.startsWith('plugins.')) {
-    return `${protocol}//${hostname.slice('plugins.'.length)}/api/proxy`;
-  }
+  // Ưu tiên SAME-ORIGIN: MFE host dưới nttspace.online/plugins-mfe/ (subpath)
+  // → gọi /api/proxy cùng origin, iframe gửi được session cookie (SameSite=Lax).
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://localhost:3000/api/proxy';
+  }
+  // Subdomain cũ plugins.* vẫn map về domain gốc (third-party cookie có thể bị
+  // chặn — nên dùng subpath same-origin là chính).
+  if (hostname.startsWith('plugins.')) {
+    return `${protocol}//${hostname.slice('plugins.'.length)}/api/proxy`;
   }
   return `${protocol}//${hostname}/api/proxy`;
 }
 
+// Báo MFE shell (cùng window) biết request đang chạy → hiện progress bar.
+function trackBusy(delta: number) {
+  try {
+    const w = window as unknown as { __mfeBusy?: number };
+    const next = Math.max(0, (w.__mfeBusy ?? 0) + delta);
+    w.__mfeBusy = next;
+    window.dispatchEvent(new CustomEvent('mfe-busy', { detail: next }));
+  } catch {
+    /* không có window — bỏ qua */
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  trackBusy(1);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30000);
   try {
@@ -50,6 +67,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(0, e instanceof Error ? e.message : 'Lỗi mạng');
   } finally {
     clearTimeout(timer);
+    trackBusy(-1);
   }
 }
 

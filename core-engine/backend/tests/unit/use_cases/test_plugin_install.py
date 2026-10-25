@@ -187,7 +187,7 @@ async def test_execute_success(
         plugin_id=sample_plugin.id,
         status=PluginStatus.ACTIVE,
     )
-    assert mock_session.execute.call_count == 18
+    assert mock_session.execute.call_count == 19
     # advisory lock (1) + CREATE SCHEMA, SET LOCAL search_path,
     # SET LOCAL statement_timeout, SAVEPOINT, seed stmt, RELEASE SAVEPOINT,
     # SET search_path TO public (7) + RLS block (CREATE SCHEMA, SET search_path,
@@ -376,6 +376,9 @@ def test_validate_seed_statement_policy():
         "CREATE TABLE t (id UUID PRIMARY KEY);",
         "  create unique index ix_t ON t (a)  ",
         "INSERT INTO t (id) VALUES ('x');",
+        # Upsert hợp lệ: ON CONFLICT ... DO NOTHING / DO UPDATE
+        "INSERT INTO t (id, name) VALUES ('x','y') ON CONFLICT (id) DO NOTHING;",
+        "INSERT INTO t (id, name) VALUES ('x','y') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;",
     ]:
         _validate_seed_statement(ok)
 

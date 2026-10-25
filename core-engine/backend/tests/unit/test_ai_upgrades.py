@@ -442,7 +442,9 @@ async def test_react_repairs_failed_step():
     assert status == AICommandStatus.COMPLETED
     assert cmds.execute.call_count == 2
     assert any(s["action"] == "hr.c" for s in result["steps"])
-    assert "Suy luận" in message
+    # Suy luận không còn nhét vào message chính — chỉ nằm trong result.
+    assert "Suy luận" not in message
+    assert result.get("thoughts")
 
 
 @pytest.mark.asyncio
@@ -559,8 +561,9 @@ async def test_single_step_summary_one_liner():
     ]
     overall, summary, _ = use_case._summarize(outcomes, 1, [])
     assert overall == AICommandStatus.COMPLETED
-    assert "core.plugins.list" in summary
-    assert "1." not in summary.split("\n", 1)[0]
+    # Chỉ hiển thị output chính — KHÔNG kèm tên action / câu xác nhận kỹ thuật.
+    assert summary == "danh sách"
+    assert "core.plugins.list" not in summary
 
 
 @pytest.mark.asyncio

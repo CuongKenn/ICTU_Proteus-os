@@ -16,6 +16,9 @@ class AbstractDocumentSourcePort(ABC):
     """
     Port (Interface) cho nguồn cung cấp tài liệu (ví dụ: Outline, Notion, v.v.).
     Thuộc tầng Core Domain / Use Case, giúp đảm bảo Dependency Inversion Principle.
+
+    Read-only là bắt buộc; ghi tài liệu (publish) là tùy chọn — adapter không
+    hỗ trợ ghi sẽ raise NotImplementedError để use case xử lý an toàn.
     """
 
     @abstractmethod
@@ -24,6 +27,24 @@ class AbstractDocumentSourcePort(ABC):
     ) -> list[dict[str, Any]]:
         """Lấy danh sách documents từ nguồn."""
         pass
+
+    async def publish_document(
+        self,
+        title: str,
+        text: str,
+        *,
+        collection_id: str | None = None,
+        parent_document_id: str | None = None,
+        publish: bool = True,
+    ) -> dict[str, Any]:
+        """Tạo (hoặc cập nhật) 1 document trên nguồn tri thức.
+
+        Mặc định NotImplementedError — nguồn read-only. Adapter hỗ trợ ghi
+        override method này. Trả về dict chứa ít nhất {"id", "url"}.
+        """
+        raise NotImplementedError(
+            "Nguồn tài liệu này không hỗ trợ ghi (publish_document)."
+        )
 
     @abstractmethod
     async def aclose(self) -> None:
@@ -248,6 +269,43 @@ class AbstractChatOpsPort(ABC):
         """Cập nhật một message đã gửi (VD: sau khi được approve/reject)."""
         pass
 
+    async def get_user_by_email(self, email: str) -> dict[str, Any] | None:
+        """Tìm Mattermost user theo email. None nếu không thấy.
+
+        Optional — adapter không hỗ trợ thì trả None để caller fallback
+        về channel chung.
+        """
+        return None
+
+    async def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
+        """Lấy Mattermost user theo id. None nếu không thấy."""
+        return None
+
+    async def get_bot_user_id(self) -> str | None:
+        """Lấy user_id của bot. None nếu chưa cấu hình."""
+        return None
+
+    async def create_direct_channel(
+        self, user_id_a: str, user_id_b: str
+    ) -> dict[str, Any]:
+        """Tạo (hoặc lấy) DM channel giữa 2 users. Trả dict có 'id'."""
+        raise NotImplementedError
+
+    async def send_direct_interactive_message(
+        self,
+        mm_user_id: str,
+        text: str,
+        action_id: str,
+        extra_context: dict[str, Any] | None = None,
+    ) -> str:
+        """Bot nhắn riêng interactive message (kèm nút Duyệt/Từ chối)
+        cho 1 Mattermost user. Trả về post_id (rỗng nếu thất bại)."""
+        raise NotImplementedError
+
+    async def send_direct_message(self, mm_user_id: str, text: str) -> dict[str, Any]:
+        """Bot nhắn riêng text thường cho 1 Mattermost user."""
+        raise NotImplementedError
+
 
 # ─────────────────────────────────────────────────────────────
 # EVENT BUS PORT (Redis / Kafka)
@@ -321,4 +379,36 @@ class AbstractManifestParserPort(ABC):
     @abstractmethod
     def parse(self, plugin_code_name: str) -> "PluginManifest":
         """Parse plugin manifest from somewhere (e.g. file, DB)"""
+        pass
+
+
+# ─────────────────────────────────────────────────────────────
+# KNOWLEDGE CONNECTOR PORT
+# ─────────────────────────────────────────────────────────────
+
+
+class AbstractKnowledgeConnectorPort(ABC):
+    """Port cho connector đồng bộ tri thức từ nguồn ngoài VÀO hệ thống.
+
+    Mỗi connector trả danh sách documents chuẩn hoá; RAG pipeline (hoặc
+    use case publish) chịu trách nhiệm ghi vào nguồn tri thức đích.
+    Framework mở: cắm Google Drive / Confluence / HTTP feed / ... bằng cách
+    implement port này và đăng ký trong registry.
+    """
+
+    name: str = "base"
+
+    @abstractmethod
+    async def fetch_documents(self, *, config: dict[str, Any]) -> list[dict[str, Any]]:
+        """Lấy documents từ nguồn ngoài.
+
+        Trả list[dict] chuẩn hoá, mỗi item tối thiểu có:
+          - "title": str
+          - "text": str (markdown/plain)
+          - "external_id": str (để dedupe, optional)
+          - "source_url": str (optional)
+        """
+        pass
+
+    async def aclose(self) -> None:
         pass

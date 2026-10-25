@@ -43,8 +43,11 @@ _SEED_ALLOWED_STMT = re.compile(
 )
 # Denylist bổ sung: chặn sandbox-escape / side-effect ngoài schema tenant.
 _SEED_FORBIDDEN = re.compile(
-    r"(public\.|pg_\w+|pg_catalog|information_schema"
-    r"|\bCOPY\b|\bDO\b|\bLISTEN\b|\bNOTIFY\b"
+    r"(public\.|pg_\w+|pg_catalog|information_schema" r"|\bCOPY\b"
+    # Chặn DO $$ ... $$ (anonymous block) nhưng CHO PHÉP upsert
+    # "ON CONFLICT ... DO NOTHING/DO UPDATE" (hợp lệ, rất phổ biến).
+    r"|\bDO\s+(\$|LANGUAGE\b)"
+    r"|\bLISTEN\b|\bNOTIFY\b"
     r"|\bCREATE\s+(OR\s+REPLACE\s+)?(TRIGGER|VIEW|RULE|FUNCTION|PROCEDURE"
     r"|EXTENSION|SCHEMA|DATABASE|ROLE|USER|PUBLICATION|SUBSCRIPTION)\b"
     r"|\bALTER\b|\bDROP\b|\bDELETE\b|\bUPDATE\b|\bTRUNCATE\b"
@@ -56,6 +59,63 @@ _SEED_FORBIDDEN = re.compile(
 _PLUGIN_CODE_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _SEED_FILE_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+\.sql$")
 _SEED_STATEMENT_TIMEOUT = "10s"
+
+# ─── Delay simulation để UI kịp hiển thị từng bước chi tiết ───
+# Mỗi bước cài đặt sleep ngẫu nhiên trong khoảng này SAU khi persist DONE,
+# giúp frontend polling (1.5s/lần) luôn bắt được trạng thái RUNNING → DONE.
+_INSTALL_STEP_DELAY_MIN = 1.2
+_INSTALL_STEP_DELAY_MAX = 2.8
+
+# Chi tiết từng bước hiển thị trên UI (message RUNNING/DONE).
+_INSTALL_STEP_DETAILS: dict[str, dict[str, str]] = {
+    "queued": {
+        "running": "Đang xếp hàng tác vụ cài đặt...",
+        "done": "Tác vụ đã được xếp hàng, bắt đầu thực thi.",
+    },
+    "snapshot": {
+        "running": "Đang chụp snapshot trạng thái cũ để rollback khi lỗi...",
+        "done": "Đã lưu snapshot, sẵn sàng rollback nếu thất bại.",
+    },
+    "database": {
+        "running": "Đang tạo schema, chạy seed SQL và bật RLS...",
+        "done": "Hoàn tất thiết lập cơ sở dữ liệu.",
+    },
+    "credentials": {
+        "running": "Đang tạo credentials trên n8n từ thông tin người dùng...",
+        "done": "Đã khởi tạo xong credentials.",
+    },
+    "n8n": {
+        "running": "Đang import workflows vào n8n và gắn credentials...",
+        "done": "Đã import và kích hoạt workflows n8n.",
+    },
+    "metabase": {
+        "running": "Đang import dashboards vào Metabase...",
+        "done": "Đã import xong dashboards Metabase.",
+    },
+    "appsmith": {
+        "running": "Đang import giao diện Appsmith...",
+        "done": "Đã import xong ứng dụng Appsmith.",
+    },
+    "keycloak": {
+        "running": "Đang tạo roles trên Keycloak và DB roles...",
+        "done": "Đã đồng bộ phân quyền Keycloak.",
+    },
+    "events": {
+        "running": "Đang đăng ký event subscriptions (Pub/Sub)...",
+        "done": "Đã cấu hình xong sự kiện.",
+    },
+    "complete": {
+        "running": "Đang hoàn tất cài đặt...",
+        "done": "Cài đặt hoàn tất, plugin đã ACTIVE.",
+    },
+}
+
+
+async def _simulate_step_delay(step_name: str = "") -> None:
+    """Delay mô phỏng để UI kịp render chi tiết từng bước."""
+    delay = random.uniform(_INSTALL_STEP_DELAY_MIN, _INSTALL_STEP_DELAY_MAX)
+    logger.info("Delay simulation", step=step_name, delay_s=round(delay, 2))
+    await asyncio.sleep(delay)
 
 
 def _split_seed_statements_safe(sql: str) -> list[str]:
@@ -185,12 +245,26 @@ def _validate_seed_statement(stmt: str) -> None:
     stripped = stmt.strip().rstrip(";").strip()
     if not stripped:
         raise PluginInstallError("Seed file chứa statement rỗng.")
-    if _SEED_FORBIDDEN.search(stripped):
+    # Bỏ comment trước khi soi denylist: comment không thực thi được, và từ
+    # khóa tiếng Việt/tài liệu (VD "search_path da set san") có thể trùng
+    # \bSET\b gây chặn oan.
+    no_comments = re.sub(r"/\*.*?\*/", " ", stripped, flags=re.DOTALL)
+    no_comments = re.sub(r"--[^\n]*", " ", no_comments).strip()
+    # Loại phần upsert "ON CONFLICT ... DO UPDATE SET ..." trước khi soi
+    # denylist: đây là cú pháp INSERT hợp lệ, không phải UPDATE/SET/DELETE
+    # top-level.
+    scan = re.sub(
+        r"\bON\s+CONFLICT\b.*?\bDO\s+(?:NOTHING|UPDATE\s+SET)\b.*$",
+        "",
+        no_comments,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if _SEED_FORBIDDEN.search(scan):
         raise PluginInstallError(
             "Seed file chứa từ khóa/kênh không được phép "
             "(public./pg_/information_schema/COPY/DO/TRIGGER/VIEW/RULE...)."
         )
-    if not _SEED_ALLOWED_STMT.match(stripped):
+    if not _SEED_ALLOWED_STMT.match(no_comments):
         raise PluginInstallError(
             "Seed file chỉ cho phép CREATE TABLE / CREATE INDEX / INSERT. "
             f"Statement bị chặn: {stripped[:80]}"
@@ -234,11 +308,24 @@ class PluginInstallUseCase:
         self._steps_log: list[dict[str, Any]] = []
         self._credential_ids: list[dict[str, str]] = []
 
+    async def _installation_task_id(
+        self, tenant_id: uuid.UUID, plugin_id: uuid.UUID
+    ) -> uuid.UUID | None:
+        """Best-effort lấy install_task_id (mock/legacy repo thiếu method → None)."""
+        getter = getattr(self.plugin_repo, "get_install_task_id", None)
+        if getter is None:
+            return None
+        try:
+            return await getter(tenant_id, plugin_id)
+        except Exception:  # noqa: BLE001
+            return None
+
     async def execute(
         self,
         context: TenantContext,
         plugin_code_name: str,
         credentials: list[CredentialInput] | None = None,
+        owner_task_id: uuid.UUID | None = None,
     ) -> None:
         logger.info(
             "Bắt đầu cài đặt plugin",
@@ -306,9 +393,17 @@ class PluginInstallUseCase:
                 f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
             )
         if status == PluginStatus.INSTALLING:
-            raise PluginInstallError(
-                f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
-            )
+            # Cho phép worker CHÍNH resume task của nó: endpoint đã upsert
+            # INSTALLING + install_task_id trước khi queue background task,
+            # nên guard cũ tự chặn chính mình → task chết, kẹt INSTALLING.
+            if (
+                owner_task_id is None
+                or await self._installation_task_id(context.tenant_id, plugin.id)
+                != owner_task_id
+            ):
+                raise PluginInstallError(
+                    f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
+                )
         if status == PluginStatus.UNINSTALLING:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đang trong quá trình gỡ cài đặt, vui lòng thử lại sau."
@@ -332,6 +427,22 @@ class PluginInstallUseCase:
         completed_steps: list[str] = []
         created_assets: dict[str, list[str]] = created_assets_init
         try:
+            # BƯỚC 0: Queued — hiển thị ngay để UI không trống
+            self._log_step("queued", "DONE", _INSTALL_STEP_DETAILS["queued"]["done"])
+            await self._persist_steps(context, plugin.id)
+            # BƯỚC 0.5: Snapshot — chụp trạng thái cũ để rollback
+            self._log_step(
+                "snapshot",
+                "RUNNING",
+                _INSTALL_STEP_DETAILS["snapshot"]["running"],
+            )
+            await self._persist_steps(context, plugin.id)
+            await _simulate_step_delay("snapshot")
+            self._log_step(
+                "snapshot", "DONE", _INSTALL_STEP_DETAILS["snapshot"]["done"]
+            )
+            await self._persist_steps(context, plugin.id)
+
             # BƯỚC 1: Database Setup
             logger.info(
                 "Chạy bước cài đặt",
@@ -340,9 +451,21 @@ class PluginInstallUseCase:
                 plugin_code_name=plugin_code_name,
                 tenant_id=context.tenant_id,
             )
-            self._log_step("database", "RUNNING")
+            self._log_step(
+                "database", "RUNNING", _INSTALL_STEP_DETAILS["database"]["running"]
+            )
+            await self._persist_steps(context, plugin.id)
             await self._step_1_database(context, plugin_code_name, manifest)
-            self._log_step("database", "DONE")
+            tables = (
+                ", ".join(manifest.database.tables)
+                if manifest.database and manifest.database.tables
+                else "không có bảng mới"
+            )
+            self._log_step(
+                "database",
+                "DONE",
+                f"{_INSTALL_STEP_DETAILS['database']['done']} ({tables})",
+            )
             logger.info(
                 "Hoàn thành cài đặt",
                 step="database",
@@ -352,26 +475,38 @@ class PluginInstallUseCase:
             )
             completed_steps.append("database")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await _simulate_step_delay("database")
 
             # BƯỚC 1.5: External Credentials (n8n)
             credential_mapping: dict[str, str] = {}
             if credentials:
-                self._log_step("credentials", "RUNNING")
+                self._log_step(
+                    "credentials",
+                    "RUNNING",
+                    _INSTALL_STEP_DETAILS["credentials"]["running"],
+                )
+                await self._persist_steps(context, plugin.id)
                 cred_mapping, cred_assets = await self._step_1_5_credentials(
                     context, plugin_code_name, manifest, credentials
                 )
                 credential_mapping = cred_mapping
                 created_assets["credentials"] = cred_assets
-                self._log_step("credentials", "DONE")
+                self._log_step(
+                    "credentials",
+                    "DONE",
+                    f"Đã tạo {len(cred_assets)} credentials trên n8n.",
+                )
                 completed_steps.append("credentials")
                 await self.plugin_repo.update_credential_ids(
                     context.tenant_id, plugin.id, created_assets["credentials"]
                 )
+                await self._persist_steps(context, plugin.id)
+                await _simulate_step_delay("credentials")
 
             # BƯỚC 2: n8n Import (thu thập id dần vào created_assets
             # để fail giữa chừng vẫn rollback được partial imports)
-            self._log_step("n8n", "RUNNING")
+            self._log_step("n8n", "RUNNING", _INSTALL_STEP_DETAILS["n8n"]["running"])
+            await self._persist_steps(context, plugin.id)
             n8n_ids = await self._step_2_n8n(
                 context,
                 plugin_code_name,
@@ -379,57 +514,89 @@ class PluginInstallUseCase:
                 credential_mapping,
                 collected=created_assets["n8n"],
             )
-            self._log_step("n8n", "DONE")
+            self._log_step(
+                "n8n",
+                "DONE",
+                f"Đã import {len(n8n_ids)} workflows ({', '.join(str(x) for x in n8n_ids) if n8n_ids else 'không có workflow mới'}).",
+            )
             completed_steps.append("n8n")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await _simulate_step_delay("n8n")
 
             # BƯỚC 3: Metabase Import (thu thập dần như bước n8n)
-            self._log_step("metabase", "RUNNING")
+            self._log_step(
+                "metabase", "RUNNING", _INSTALL_STEP_DETAILS["metabase"]["running"]
+            )
+            await self._persist_steps(context, plugin.id)
             mb_ids = await self._step_3_metabase(
                 context,
                 plugin_code_name,
                 manifest,
                 collected=created_assets["metabase"],
             )
-            self._log_step("metabase", "DONE")
+            self._log_step(
+                "metabase",
+                "DONE",
+                f"Đã import {len(mb_ids)} dashboards Metabase.",
+            )
             completed_steps.append("metabase")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await _simulate_step_delay("metabase")
 
             # BƯỚC 4: Appsmith Import (thu thập dần như bước n8n)
-            self._log_step("appsmith", "RUNNING")
+            self._log_step(
+                "appsmith", "RUNNING", _INSTALL_STEP_DETAILS["appsmith"]["running"]
+            )
+            await self._persist_steps(context, plugin.id)
             app_ids = await self._step_4_appsmith(
                 context,
                 plugin_code_name,
                 manifest,
                 collected=created_assets["appsmith"],
             )
-            self._log_step("appsmith", "DONE")
+            self._log_step(
+                "appsmith",
+                "DONE",
+                f"Đã import {len(app_ids)} Appsmith apps.",
+            )
             completed_steps.append("appsmith")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await _simulate_step_delay("appsmith")
 
             # BƯỚC 5: Keycloak Roles + DB Roles
-            self._log_step("keycloak", "RUNNING")
+            self._log_step(
+                "keycloak", "RUNNING", _INSTALL_STEP_DETAILS["keycloak"]["running"]
+            )
+            await self._persist_steps(context, plugin.id)
             kc_roles, db_roles = await self._step_5_keycloak(
                 context, plugin_code_name, manifest
             )
             created_assets["keycloak"] = kc_roles
             created_assets["db_roles"] = db_roles
-            self._log_step("keycloak", "DONE")
+            self._log_step(
+                "keycloak",
+                "DONE",
+                f"Đã tạo {len(kc_roles)} Keycloak roles + {len(db_roles)} DB roles.",
+            )
             completed_steps.append("keycloak")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await _simulate_step_delay("keycloak")
 
             # BƯỚC 6: Event Subscriptions
-            self._log_step("events", "RUNNING")
+            self._log_step(
+                "events", "RUNNING", _INSTALL_STEP_DETAILS["events"]["running"]
+            )
+            await self._persist_steps(context, plugin.id)
             events = await self._step_6_events(context, plugin_code_name, manifest)
             created_assets["events"] = events
-            self._log_step("events", "DONE")
+            self._log_step(
+                "events",
+                "DONE",
+                f"Đã đăng ký {len(events)} event subscriptions.",
+            )
             completed_steps.append("events")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await _simulate_step_delay("events")
 
             # SUCCESS
             await self.plugin_repo.update_config(
@@ -442,8 +609,12 @@ class PluginInstallUseCase:
                 plugin_id=plugin.id,
                 status=PluginStatus.ACTIVE,
             )
-            self._log_step("complete", "DONE")
+            self._log_step(
+                "complete", "DONE", _INSTALL_STEP_DETAILS["complete"]["done"]
+            )
             await self._persist_steps(context, plugin.id)
+            # Delay ngắn cuối để UI kịp hiển thị bước hoàn tất trước khi modal đóng
+            await _simulate_step_delay("complete")
             await self.session.commit()
 
             # Notify Mattermost (Best effort)
@@ -728,6 +899,12 @@ class PluginInstallUseCase:
                             rls_err,
                         )
                         await self.session.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+
+            # CRITICAL: reset search_path về public NGAY trong _step_1_database.
+            # Block RLS ở trên dùng SET (không LOCAL) nên search_path bị giữ ở
+            # schema tenant → các bước sau (_persist_steps truy vấn tenant_plugins,
+            # n8n credentials_entity...) tìm sai schema → transaction abort.
+            await self.session.execute(text("SET search_path TO public"))
 
         # Chúng ta tạm thiết kế DB adapter bằng session execute.
 
@@ -1052,7 +1229,11 @@ class PluginInstallUseCase:
                         "tenant_id": context.tenant_id,
                         "plugin_code_name": plugin_code_name,
                         "name": role.name,
-                        "display_name": role.display_name,
+                        # Manifest có thể thiếu display_name (VD: it-helpdesk) —
+                        # fallback để GET /roles không 500 vì NULL.
+                        "display_name": role.display_name
+                        or role.description
+                        or role.name,
                         "description": role.description,
                         "permissions": list(role.permissions),
                     }
@@ -1191,15 +1372,6 @@ class PluginInstallUseCase:
                 "message": message,
             }
         )
-        # In log rõ ràng ra console
-        emoji = "⏳"
-        if status == "DONE":
-            emoji = "✅"
-        elif status == "FAILED":
-            emoji = "❌"
-
-        msg_suffix = f" - {message}" if message else ""
-        logger.info(f"{emoji} [INSTALL] Bước {step_name.upper()}: {status}{msg_suffix}")
 
     async def _persist_steps(
         self,

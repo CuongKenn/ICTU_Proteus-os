@@ -466,6 +466,7 @@ async def get_audit_log_repo(
 
 
 async def get_ai_command_use_case(
+    request: Request,
     plugin_repo: AbstractPluginRepository = Depends(get_plugin_repo),
     ai_command_repo: AbstractAICommandRepository = Depends(get_ai_command_repo),
     dsl_dry_run_repo: AbstractDSLDryRunRepository = Depends(get_dsl_dry_run_repo),
@@ -475,11 +476,11 @@ async def get_ai_command_use_case(
     qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
     audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),
     user_repo: AbstractUserRepository = Depends(get_user_repo),
-    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
 ) -> AICommandUseCase:
     """Inject AICommandUseCase (dynamic DSL + local core actions + audit)."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
 
+    outline_adapter = OutlineAdapter(client=request.app.state.http_client)
     return AICommandUseCase(
         plugin_repo=plugin_repo,
         ai_command_repo=ai_command_repo,
@@ -491,7 +492,7 @@ async def get_ai_command_use_case(
         qdrant_adapter=qdrant_adapter,
         audit_log_repo=audit_log_repo,
         user_repo=user_repo,
-        conversation_repo=conversation_repo,
+        document_source_port=outline_adapter,
     )
 
 
