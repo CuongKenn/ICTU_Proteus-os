@@ -27,6 +27,7 @@ database:
     - "it_tickets"
     - "it_ticket_updates"
     - "it_knowledge_base"
+    - "it_config"
 
   seed_file: "db/seed_data.sql"
 

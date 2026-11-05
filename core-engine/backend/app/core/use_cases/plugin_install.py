@@ -871,6 +871,15 @@ class PluginInstallUseCase:
                                 "{{TENANT_SCHEMA}}", tenant_schema
                             )
 
+                    # Standardize queryParams -> options.queryReplacement for Postgres nodes
+                    if node.get("type") == "n8n-nodes-base.postgres":
+                        params = node.setdefault("parameters", {})
+                        if isinstance(params, dict):
+                            af = params.get("additionalFields")
+                            if isinstance(af, dict) and "queryParams" in af:
+                                qp = af.pop("queryParams")
+                                params.setdefault("options", {})["queryReplacement"] = qp
+
                     # Auto-bind Credentials (Internal & External).
                     # credentials có thể là null (export từ n8n) → chuẩn hóa
                     # thành dict trước, nếu không setdefault crash AttributeError.

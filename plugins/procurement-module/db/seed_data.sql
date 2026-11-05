@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS procurement_requests (
 );
 CREATE TABLE IF NOT EXISTS procurement_contracts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    contract_number VARCHAR(100),
+    title VARCHAR(255),
     vendor_id UUID REFERENCES procurement_vendors(id),
     value DECIMAL(15, 2) NOT NULL,
     start_date DATE NOT NULL,
@@ -60,4 +62,14 @@ INSERT INTO procurement_vendors (id, name, contact, rating, tax_code) VALUES
     ('11111111-1111-1111-1111-111111111111', 'FPT Information System', 'fpt@fpt.com.vn', 5, '0101234567'),
     ('22222222-2222-2222-2222-222222222222', 'Viettel Solutions', 'contact@viettel.com.vn', 5, '0107654321'),
     ('33333333-3333-3333-3333-333333333333', 'VNPT IT', 'info@vnpt.vn', 4, '0100123456')
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS procurement_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    channel_id VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO procurement_config (id, channel_id) VALUES
+    ('66666666-6666-6666-6666-666666666666', 'mua-sam')
 ON CONFLICT (id) DO NOTHING;
