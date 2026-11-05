@@ -109,7 +109,9 @@ class DynamicPluginLoader:
         - Chấp nhận nếu manifest khai báo `is_official: true` hoặc `reviewed: true`.
         - Từ chối nếu manifest có `synthesized: true` mà chưa `reviewed: true`, hoặc `reviewed: false`.
         """
-        if (plugin_path / ".signature").exists() or (plugin_path / "signature.sig").exists():
+        if (plugin_path / ".signature").exists() or (
+            plugin_path / "signature.sig"
+        ).exists():
             return True
 
         manifest_file = plugin_path / "manifest.yaml"
@@ -129,10 +131,15 @@ class DynamicPluginLoader:
                 if manifest.get("reviewed") is False:
                     return False
 
-                if manifest.get("is_official") is True or manifest.get("reviewed") is True:
+                if (
+                    manifest.get("is_official") is True
+                    or manifest.get("reviewed") is True
+                ):
                     return True
             except Exception as e:
-                logger.warning("Error checking plugin trust for %s: %s", plugin_path.name, e)
+                logger.warning(
+                    "Error checking plugin trust for %s: %s", plugin_path.name, e
+                )
                 return False
 
         # Mặc định từ chối nạp code Python nếu không có bằng chứng đã review/ký duyệt
