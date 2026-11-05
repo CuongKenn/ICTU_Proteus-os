@@ -106,12 +106,15 @@ async def submit_ai_command(
     """
     if body.natural_language_input and not body.action:
         chat_dto = AIChatDTO(
-            session_id=body.session_id, natural_language_input=body.natural_language_input
+            session_id=body.session_id,
+            natural_language_input=body.natural_language_input,
         )
         try:
             status_code, message, result = await chat_use_case.execute(chat_dto, ctx)
         except PermissionError as e:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+            ) from e
         preview = None
         if isinstance(result, dict):
             preview = result.get("dsl_preview")

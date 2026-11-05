@@ -25,7 +25,9 @@ class AICommandRequest(BaseModel):
     dsl_version: str = Field("1.0", description="Phiên bản DX-DSL spec")
     command_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     session_id: uuid.UUID = Field(..., description="ID phiên chat")
-    action: str | None = Field(None, description="Action theo chuẩn {plugin}.{resource}.{verb}")
+    action: str | None = Field(
+        None, description="Action theo chuẩn {plugin}.{resource}.{verb}"
+    )
     effect: Literal["read", "write", "critical"] | None = Field(
         None, description="Mức độ tác động"
     )

@@ -283,7 +283,9 @@ class AICommandUseCase:
                 else:
                     webhook_url = self._resolve_action_url(body.action)
                     params = body.parameters or {}
-                    plugin_code = body.action.split(".")[0] if "." in body.action else ""
+                    plugin_code = (
+                        body.action.split(".")[0] if "." in body.action else ""
+                    )
                     envelope = {
                         **params,
                         "tenant_id": str(ctx.tenant_id),
@@ -730,7 +732,9 @@ class AICommandUseCase:
         try:
             params = self._extract_parameters(cmd) or {}
             webhook_url = self._resolve_action_url(cmd["action"])
-            plugin_code = cmd["action"].split(".")[0] if "." in cmd.get("action", "") else ""
+            plugin_code = (
+                cmd["action"].split(".")[0] if "." in cmd.get("action", "") else ""
+            )
             envelope = {
                 **params,
                 "tenant_id": str(tenant_id),
