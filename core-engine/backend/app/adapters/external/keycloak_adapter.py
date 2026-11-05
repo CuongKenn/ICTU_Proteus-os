@@ -14,6 +14,7 @@ from typing import Any, cast
 
 import httpx
 from jose import jwt
+from jose.exceptions import JWTClaimsError
 
 from app.core.domain.ports import AbstractIdentityProviderPort
 from app.infrastructure.config import settings
@@ -130,14 +131,28 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
         expected_issuer = (
             f"{settings.KEYCLOAK_URL.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
         )
-        payload = jwt.decode(
-            token,
-            jwks,
-            algorithms=["RS256"],
-            audience=settings.KEYCLOAK_CLIENT_ID,
-            issuer=expected_issuer,
-            options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
-        )
+        try:
+            payload = jwt.decode(
+                token,
+                jwks,
+                algorithms=["RS256"],
+                audience=settings.KEYCLOAK_CLIENT_ID,
+                issuer=expected_issuer,
+                options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+            )
+        except JWTClaimsError as e:
+            # Fallback (Issue #699): Nếu Keycloak trả aud mặc định là "account" nhưng azp hợp lệ
+            if "audience" in str(e).lower():
+                payload = jwt.decode(
+                    token,
+                    jwks,
+                    algorithms=["RS256"],
+                    audience="account",
+                    issuer=expected_issuer,
+                    options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+                )
+            else:
+                raise
         # M22: verify azp (authorized party) — chặn token cấp cho client khác.
         azp = payload.get("azp")
         if azp is not None and azp != settings.KEYCLOAK_CLIENT_ID:
