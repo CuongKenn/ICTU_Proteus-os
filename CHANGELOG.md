@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Security
+- [core-engine/backend] Siết phân quyền plugin chi tiết theo resource/bảng và verb (read/write/delete) trong `PluginRecordsUseCase` và `PluginActionUseCase`; chặn triệt để lỗ hổng user read-only có thể ghi/xóa bảng hoặc trigger workflow write (#683).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 

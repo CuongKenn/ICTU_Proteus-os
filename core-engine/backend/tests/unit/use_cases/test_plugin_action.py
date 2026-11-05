@@ -76,7 +76,7 @@ def _make_uc(tmp_path, workflows, installed=PluginStatus.ACTIVE, perms=None):
 
     role_repo = AsyncMock()
     role_repo.get_user_permissions.return_value = (
-        perms if perms is not None else ["asset:items:read"]
+        perms if perms is not None else ["asset:items:read", "asset:requests:write"]
     )
 
     n8n = AsyncMock()
@@ -105,9 +105,7 @@ async def test_list_actions_only_webhook(tmp_path, ctx):
 
 async def test_execute_success_envelope(tmp_path, ctx):
     uc, _, _, n8n = _make_uc(tmp_path, [_wf(id="wf_asset_request")])
-    out = await uc.execute(
-        ctx, "asset-module", "wf_asset_request", {"asset_id": "x"}
-    )
+    out = await uc.execute(ctx, "asset-module", "wf_asset_request", {"asset_id": "x"})
     assert out["action"] == "wf_asset_request"
     assert out["result"] == {"ok": True}
     assert out["task_id"]
@@ -159,9 +157,7 @@ async def test_execute_forbidden_without_prefix_perm(tmp_path, ctx):
 
 
 async def test_execute_admin_bypass(tmp_path, admin_ctx):
-    uc, _, role_repo, n8n = _make_uc(
-        tmp_path, [_wf(id="wf_asset_request")], perms=[]
-    )
+    uc, _, role_repo, n8n = _make_uc(tmp_path, [_wf(id="wf_asset_request")], perms=[])
     await uc.execute(admin_ctx, "asset-module", "wf_asset_request", {})
     role_repo.get_user_permissions.assert_not_called()
     n8n.trigger_webhook.assert_called_once()
@@ -177,10 +173,37 @@ async def test_execute_n8n_error_propagates(tmp_path, ctx):
 async def test_execute_payload_too_large(tmp_path, ctx):
     uc, _, _, _ = _make_uc(tmp_path, [_wf(id="wf_asset_request")])
     with pytest.raises(DSLInvalidParametersError, match="vượt quá"):
-        await uc.execute(ctx, "asset-module", "wf_asset_request", {"big": "x" * (200 * 1024)})
+        await uc.execute(
+            ctx, "asset-module", "wf_asset_request", {"big": "x" * (200 * 1024)}
+        )
 
 
 async def test_execute_bad_code_format(tmp_path, ctx):
     uc, _, _, _ = _make_uc(tmp_path, [_wf(id="wf_asset_request")])
     with pytest.raises(PluginNotFoundError):
         await uc.execute(ctx, "BAD_CODE!!", "wf_asset_request", {})
+
+
+async def test_regression_683_read_only_user_cannot_dispatch_write_action(
+    tmp_path, ctx
+):
+    """#683: User chỉ có quyền read không được gọi workflow ghi (wf_asset_request)."""
+    uc, _, _, _ = _make_uc(
+        tmp_path,
+        [_wf(id="wf_asset_request")],
+        perms=["asset:items:read"],
+    )
+    with pytest.raises(InsufficientPermissionsError, match="read-only"):
+        await uc.execute(ctx, "asset-module", "wf_asset_request", {})
+
+
+async def test_regression_683_read_only_user_can_dispatch_read_action(tmp_path, ctx):
+    """#683: User có quyền read được gọi workflow đọc (wf_asset_read)."""
+    uc, _, _, n8n = _make_uc(
+        tmp_path,
+        [_wf(id="wf_asset_read")],
+        perms=["asset:items:read"],
+    )
+    out = await uc.execute(ctx, "asset-module", "wf_asset_read", {})
+    assert out["action"] == "wf_asset_read"
+    n8n.trigger_webhook.assert_called_once()
