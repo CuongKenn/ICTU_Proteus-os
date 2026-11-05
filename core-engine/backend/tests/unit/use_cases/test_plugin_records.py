@@ -205,3 +205,36 @@ async def test_delete_missing_row(ctx):
         await uc.delete_record(
             ctx, "asset-module", "asset_items", str(uuid.uuid4())
         )
+
+
+async def test_create_ignores_client_supplied_tenant_id(ctx):
+    """#697: tenant_id client gá»­i pháº£i bá»‹ bá» qua, luĂ´n láº¥y tá»« context."""
+    cols = _col_rows("id", "name", "tenant_id")
+    created = _result(first_row={"id": "n", "name": "HR"})
+    uc, session = _make_uc(
+        ["hr_departments"], [cols, created], perms=["hr:employees:read"]
+    )
+    other_tenant = str(uuid.uuid4())
+    await uc.create_record(
+        ctx, "hr-module", "hr_departments", {"name": "HR", "tenant_id": other_tenant}
+    )
+    params = session.execute.call_args_list[1].args[1]
+    assert str(params["tenant_id"]) == str(ctx.tenant_id)
+    assert str(params["tenant_id"]) != other_tenant
+
+
+async def test_create_strips_server_owned_columns(ctx):
+    """#697: id/tenant_id/audit khĂ´ng Ä‘Æ°á»£c set bá»Ÿi client."""
+    cols = _col_rows("id", "name", "tenant_id", "created_at")
+    created = _result(first_row={"id": "n", "name": "x"})
+    uc, session = _make_uc(["asset_items"], [cols, created])
+    await uc.create_record(
+        ctx,
+        "asset-module",
+        "asset_items",
+        {"id": str(uuid.uuid4()), "name": "x", "created_at": "2020-01-01T00:00:00Z"},
+    )
+    params = session.execute.call_args_list[1].args[1]
+    assert "id" not in params
+    assert "created_at" not in params
+    assert params["name"] == "x"
