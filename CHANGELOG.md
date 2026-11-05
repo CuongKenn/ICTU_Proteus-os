@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [core-engine/backend] Tăng cường bảo mật RBAC: yêu cầu quyền users.read cho GET /api/v1/users, yêu cầu roles.read cho GET /api/v1/roles, và giới hạn get_user_permissions theo tenant_id cũng như loại trừ người dùng đã bị xóa (deleted_at) (#696).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 

@@ -25,6 +25,7 @@ from app.core.domain.exceptions import NotFoundError
 from app.core.use_cases.tenant_onboarding import ensure_tenant_mattermost_team
 from app.entrypoints.dependencies import (
     get_current_tenant_context,
+    require_permission,
     get_db_transactional,
     get_keycloak_adapter,
     get_mattermost_adapter,
@@ -157,7 +158,7 @@ def _invite_redirect_uri(request: Request) -> str:
     summary="Liệt kê tất cả Users trong Tenant hiện tại",
 )
 async def list_users(
-    context: TenantContext = Depends(get_current_tenant_context),
+    context: TenantContext = Depends(require_permission("users.read")),
     db: AsyncSession = Depends(get_db_transactional),
 ):
     """Chỉ trả về users thuộc Tenant của caller (RLS tự bảo vệ)."""

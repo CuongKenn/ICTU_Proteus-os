@@ -508,7 +508,7 @@ def require_permission(permission: str):
         if has_admin_role(context.roles):
             return context
 
-        user_permissions = await role_repo.get_user_permissions(context.user_id)
+        user_permissions = await role_repo.get_user_permissions(context.user_id, tenant_id=context.tenant_id)
         if has_wildcard_permission(user_permissions):
             return context
         if permission not in user_permissions:
