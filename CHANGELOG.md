@@ -10,6 +10,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
 ### Fixed
+- [.github/workflows/docker-ci-cd.yml] Job `deploy-webhook` không còn chạy khi một trong hai image (backend/frontend) build thất bại hoặc bị huỷ, tránh lệch version (#700).
 - [deploy/docker-compose.yml] Nâng Traefik `v3.1.7` → `v3.5` → `v3.7`: image cũ gửi Docker API 1.24 bị Docker Engine 29 từ chối (yêu cầu ≥1.44) khiến provider docker rỗng và toàn bộ route public 404.
 - [deploy/docker-compose.yml] Nâng `frontend` priority `1` → `2`: bằng priority với `http-catchall` khiến request `/` rơi vào catch-all 404.
 - [deploy/docker-compose.yml] + [core-engine/Dockerfile] Thêm `HOSTNAME=0.0.0.0` cho frontend: Docker gán `HOSTNAME=<container-id>` khiến Next standalone chỉ nghe trên IP eth0, healthcheck `127.0.0.1` fail → unhealthy vĩnh viễn → Traefik v3 lọc bỏ router frontend.

@@ -136,11 +136,17 @@ jobs:
   deploy-webhook:
     name: Trigger Deploy Webhook
     needs: [build-frontend, build-backend]
-    # Chạy khi push lên main và ít nhất 1 image build thành công
+    # Chỉ deploy khi push lên main, KHÔNG có image nào build lỗi/bị huỷ và ít nhất
+    # 1 image build thành công. 'skipped' hợp lệ (path-filter không đổi phía đó).
+    # Tránh lệch version backend/frontend khi một phía build fail (#700).
     if: |
       always() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
+      needs.build-frontend.result != 'failure' &&
+      needs.build-frontend.result != 'cancelled' &&
+      needs.build-backend.result != 'failure' &&
+      needs.build-backend.result != 'cancelled' &&
       (needs.build-frontend.result == 'success' || needs.build-backend.result == 'success')
     runs-on: ubuntu-latest
 
