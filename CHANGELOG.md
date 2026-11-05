@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Security
+- [core-engine/frontend] Thay đổi cơ chế cache refresh token từ singleton toàn cục sang `Map` theo user ID (`token.sub`) để chặn nguy cơ lẫn token giữa các user khi refresh đồng thời (#686).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
