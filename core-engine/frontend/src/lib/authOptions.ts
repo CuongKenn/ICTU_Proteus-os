@@ -168,10 +168,9 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Expose access token cho BFF Proxy (server-side only).
-      // Token này KHÔNG bao giờ xuống browser — chỉ BFF API Route đọc qua getServerSession().
-      // Bắt buộc để BFF proxy có thể inject Authorization header khi forward request đến backend.
-      (session as any).accessToken = token.accessToken as string;
+      // KHÔNG expose access token vào session (#685).
+      // NextAuth serialize session về client qua /api/auth/session nên token không được nằm ở đây.
+      // Các BFF routes lấy accessToken qua getToken({ req }) ở server-side.
       session.user.roles = (token.roles as string[]) ?? [];
 
       // Truyền lỗi refresh lên client để hiển thị thông báo (vd: RefreshAccessTokenError)

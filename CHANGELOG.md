@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Security
+- [core-engine/frontend] Loại bỏ `accessToken` khỏi session callback của NextAuth để tránh rò rỉ bearer token về trình duyệt; các BFF route tiếp tục đọc token an toàn qua `getToken({ req })` ở server-side (#685).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
