@@ -501,4 +501,6 @@ class N8nAdapter(AbstractWorkflowEnginePort):
                 f"n8n delete_credential failed: HTTP {response.status_code} — {response.text[:200]}"
             )
 
-        logger.info("Credential deleted successfully", extra={"credential_id": credential_id})
+        logger.info(
+            "Credential deleted successfully", extra={"credential_id": credential_id}
+        )
