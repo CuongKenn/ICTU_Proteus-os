@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [core-engine/frontend] Sửa RBAC Frontend: hỗ trợ parse permissions dạng danh sách và từ điển, chuẩn hóa định dạng dấu chấm (.) và hai chấm (:), nhận diện các vai trò admin/tenant_admin, hỗ trợ wildcard *:* và sửa crash khi render phân quyền tại RolesTab (#694).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
