@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Changed
+- [hardening] Nâng cấp SQL migration denylist chống DDL nguy hiểm, loại bỏ artificial sleeps trong cài đặt plugin, rollback session khi lưu steps_log lỗi, hiện thực update_message Mattermost và delete_credential n8n, bổ sung retry cho AI approval webhook (Closes #701).
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
 ### Fixed
