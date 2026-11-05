@@ -273,8 +273,18 @@ class AICommandUseCase:
 
         now = datetime.now(UTC)
 
-        # 2. Xử lý theo effect
-        if body.effect == "read":
+        # 2. Xử lý theo effect (server-side derive để chống client bypass #684)
+        from app.core.use_cases.action_catalog import derive_action_effect
+
+        server_effect = derive_action_effect(body.action)
+        effective_effect = (
+            server_effect
+            if server_effect in ("write", "critical")
+            else (body.effect or server_effect)
+        )
+        body.effect = effective_effect
+
+        if effective_effect == "read":
             # Lệnh Read → core actions chạy local, còn lại qua n8n webhook.
             try:
                 handled, local_result = await self._execute_local_read(body, ctx)
