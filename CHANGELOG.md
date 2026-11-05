@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [deploy/postgres] Áp dụng FORCE ROW LEVEL SECURITY cho toàn bộ bảng Core và Plugin, cấu hình role app_user có quyền LOGIN, ngăn chặn table owner bypass RLS và bảo đảm cách ly dữ liệu đa người thuê (multi-tenant) (#690).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 

@@ -709,13 +709,16 @@ class PluginInstallUseCase:
                             text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
                         )
                         await self.session.execute(
+                            text(f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY')
+                        )
+                        await self.session.execute(
                             text(
                                 f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
                             )
                         )
                         policy_sql = f"""
                             CREATE POLICY tenant_isolation_policy ON "{table}"
-                            FOR ALL TO app_user
+                            FOR ALL TO public
                             USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
                             WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
                         """
