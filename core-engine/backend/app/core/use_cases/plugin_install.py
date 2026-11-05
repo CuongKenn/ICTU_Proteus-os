@@ -234,11 +234,34 @@ class PluginInstallUseCase:
         self._steps_log: list[dict[str, Any]] = []
         self._credential_ids: list[dict[str, str]] = []
 
+    async def _is_own_install(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        install_task_id: uuid.UUID | None,
+    ) -> bool:
+        """True nếu trạng thái INSTALLING do chính request này tạo (cùng task_id).
+
+        Endpoint upsert INSTALLING (kèm install_task_id) trước khi queue worker;
+        worker phải nhận ra bản ghi của mình thay vì tự chặn chính nó (#682).
+        """
+        if install_task_id is None:
+            return False
+        found = await self.plugin_repo.get_installation_status_by_task_id(
+            tenant_id, install_task_id
+        )
+        return (
+            found is not None
+            and found[0] == PluginStatus.INSTALLING
+            and found[1] == plugin_id
+        )
+
     async def execute(
         self,
         context: TenantContext,
         plugin_code_name: str,
         credentials: list[CredentialInput] | None = None,
+        install_task_id: uuid.UUID | None = None,
     ) -> None:
         logger.info(
             "Bắt đầu cài đặt plugin",
@@ -305,7 +328,9 @@ class PluginInstallUseCase:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
             )
-        if status == PluginStatus.INSTALLING:
+        if status == PluginStatus.INSTALLING and not await self._is_own_install(
+            context.tenant_id, plugin.id, install_task_id
+        ):
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
             )
