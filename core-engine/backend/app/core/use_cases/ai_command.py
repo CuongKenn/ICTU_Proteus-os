@@ -277,11 +277,12 @@ class AICommandUseCase:
         from app.core.use_cases.action_catalog import derive_action_effect
 
         server_effect = derive_action_effect(body.action)
-        effective_effect = (
-            server_effect
-            if server_effect in ("write", "critical")
-            else (body.effect or server_effect)
-        )
+        if body.effect == "critical" or server_effect == "critical":
+            effective_effect = "critical"
+        elif server_effect == "write" or body.effect == "write":
+            effective_effect = "write"
+        else:
+            effective_effect = "read"
         body.effect = effective_effect
 
         if effective_effect == "read":

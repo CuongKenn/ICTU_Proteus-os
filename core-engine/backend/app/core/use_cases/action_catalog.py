@@ -122,7 +122,10 @@ def derive_action_effect(action: str) -> str:
 
 
 def infer_effect(action_id: str) -> str:
-    return derive_action_effect(action_id)
+    lowered = action_id.lower()
+    if any(h in lowered for h in READ_HINTS):
+        return "read"
+    return "write"
 
 
 FALLBACK_PROMPT_ACTIONS = """1. "hr.leave_requests.batch_approve": (effect: write) Duyệt nghỉ phép, phê duyệt đơn.
