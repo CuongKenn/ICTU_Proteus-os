@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [deploy] Tăng cường bảo mật Traefik và Grafana: thêm basicauth middleware bảo vệ Traefik dashboard, tắt public dashboard trong traefik.prod.yml, loại bỏ default admin password trong Grafana và đọc ALLOWED_ORIGINS từ biến môi trường (#698).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
