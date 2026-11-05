@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [core-engine/backend] Chặn tự động thực thi code LLM tại /plugins/synthesize; chỉ nạp dynamic plugin khi có chữ ký số hoặc được đánh dấu review; trả lỗi 400 rõ ràng khi volume /plugins ở chế độ read-only (#689).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
