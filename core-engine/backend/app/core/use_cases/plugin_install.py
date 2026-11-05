@@ -878,7 +878,9 @@ class PluginInstallUseCase:
                             af = params.get("additionalFields")
                             if isinstance(af, dict) and "queryParams" in af:
                                 qp = af.pop("queryParams")
-                                params.setdefault("options", {})["queryReplacement"] = qp
+                                params.setdefault("options", {})[
+                                    "queryReplacement"
+                                ] = qp
 
                     # Auto-bind Credentials (Internal & External).
                     # credentials có thể là null (export từ n8n) → chuẩn hóa
