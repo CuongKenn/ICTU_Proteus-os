@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [core-engine] Thống nhất AI contract giữa Frontend/BFF/Backend: định tuyến đúng câu lệnh tự nhiên sang /api/v1/ai/chat tránh lỗi 422, chuẩn hóa enum status sang chữ thường, đảm bảo dsl_preview có dữ liệu khi chờ duyệt, và chuẩn hóa envelope trigger n8n flat đồng nhất (#693).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 

@@ -282,9 +282,19 @@ class AICommandUseCase:
                     response = local_result
                 else:
                     webhook_url = self._resolve_action_url(body.action)
+                    params = body.parameters or {}
+                    plugin_code = body.action.split(".")[0] if "." in body.action else ""
+                    envelope = {
+                        **params,
+                        "tenant_id": str(ctx.tenant_id),
+                        "user_id": str(ctx.user_id),
+                        "plugin": plugin_code,
+                        "action": body.action,
+                        "idempotency_key": str(body.command_id),
+                    }
                     response = await self.n8n_adapter.trigger_webhook(
                         webhook_url=webhook_url,
-                        payload=json.loads(json.dumps(asdict(body), default=str)),
+                        payload=envelope,
                     )
 
                 # Lưu DB ngay (schema mới: parameters/dry_run JSONB)
@@ -718,10 +728,19 @@ class AICommandUseCase:
             status="success",
         )
         try:
-            params = self._extract_parameters(cmd)
+            params = self._extract_parameters(cmd) or {}
             webhook_url = self._resolve_action_url(cmd["action"])
+            plugin_code = cmd["action"].split(".")[0] if "." in cmd.get("action", "") else ""
+            envelope = {
+                **params,
+                "tenant_id": str(tenant_id),
+                "user_id": str(cmd.get("user_id", "")),
+                "plugin": plugin_code,
+                "action": cmd["action"],
+                "idempotency_key": str(cmd_id),
+            }
             await self.n8n_adapter.trigger_webhook(
-                webhook_url=webhook_url, payload=params or {}
+                webhook_url=webhook_url, payload=envelope
             )
         except Exception as e:
             logger.error(
