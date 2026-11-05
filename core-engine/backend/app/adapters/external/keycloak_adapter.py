@@ -149,7 +149,11 @@ class KeycloakAdapter(AbstractIdentityProviderPort):
                     algorithms=["RS256"],
                     audience="account",
                     issuer=expected_issuer,
-                    options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
+                    options={
+                        "verify_exp": True,
+                        "verify_iss": True,
+                        "verify_aud": True,
+                    },
                 )
             else:
                 raise
