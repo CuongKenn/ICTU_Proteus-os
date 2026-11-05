@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [core-engine/backend] Sửa lỗi Plugin toggle: bổ sung commit trạng thái thay đổi vào cơ sở dữ liệu và tự động deactivate/activate các workflow n8n tương ứng khi vô hiệu hóa hoặc kích hoạt lại plugin (#691).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
