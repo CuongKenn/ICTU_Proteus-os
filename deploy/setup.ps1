@@ -208,6 +208,9 @@ if (-Not (Test-Path $envFile)) {
         $appsmithPass = Read-Host "APPSMITH_ADMIN_PASSWORD [random]"
         if (-not $appsmithPass) { $appsmithPass = Get-RandomHex 12 }
 
+        $grafanaPass = Read-Host "GRAFANA_PASSWORD [random]"
+        if (-not $grafanaPass) { $grafanaPass = Get-RandomHex 12 }
+
         $envContent = $envContent -replace "POSTGRES_USER=proteus", "POSTGRES_USER=$pgUser"
         $envContent = $envContent -replace "POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "POSTGRES_PASSWORD=$pgPass"
         $envContent = $envContent -replace "REDIS_PASSWORD=CHANGE_ME_REDIS_PASSWORD_HERE", "REDIS_PASSWORD=$redisPass"
@@ -215,6 +218,7 @@ if (-Not (Test-Path $envFile)) {
         $envContent = $envContent -replace "KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD_HERE", "KEYCLOAK_ADMIN_PASSWORD=$kcPass"
         $envContent = $envContent -replace "MATTERMOST_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE_123", "MATTERMOST_ADMIN_PASSWORD=$mmPass"
         $envContent = $envContent -replace "APPSMITH_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "APPSMITH_ADMIN_PASSWORD=$appsmithPass"
+        $envContent = $envContent -replace "GRAFANA_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE", "GRAFANA_PASSWORD=$grafanaPass" 
 
         Set-Content -Path $envFile -Value $envContent -Encoding UTF8
 

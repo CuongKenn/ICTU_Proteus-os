@@ -6,6 +6,9 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
+### Fixed
+- [deploy] Tăng cường bảo mật biến môi trường: tự động sinh ngẫu nhiên GRAFANA_PASSWORD, thiết lập quyền file chmod 600 cho .env trong setup script, bổ sung deploy/.gitignore và tài liệu hướng dẫn secret rotation / purge Git history (docs/secret-rotation.md) (#687).
+
 ### Changed
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
