@@ -131,7 +131,9 @@ class PluginToggleUseCase:
                     except Exception:
                         pass
                 logger.error("Failed to activate n8n workflows: %s", e)
-                raise PluginToggleError(f"Không thể kích hoạt workflows n8n: {e}") from e
+                raise PluginToggleError(
+                    f"Không thể kích hoạt workflows n8n: {e}"
+                ) from e
 
         try:
             await self.plugin_repo.update_status(
