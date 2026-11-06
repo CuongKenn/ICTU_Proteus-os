@@ -8,11 +8,15 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ### Fixed
 - [deploy/postgres] Áp dụng FORCE ROW LEVEL SECURITY cho toàn bộ bảng Core và Plugin, cấu hình role app_user có quyền LOGIN, ngăn chặn table owner bypass RLS và bảo đảm cách ly dữ liệu đa người thuê (multi-tenant) (#690).
+- [core-engine/backend] Tăng cường bảo mật RBAC: yêu cầu quyền users.read cho GET /api/v1/users, yêu cầu roles.read cho GET /api/v1/roles, và giới hạn get_user_permissions theo tenant_id cũng như loại trừ người dùng đã bị xóa (deleted_at) (#696).
 
 ### Changed
+- [hardening] Nâng cấp SQL migration denylist chống DDL nguy hiểm, loại bỏ artificial sleeps trong cài đặt plugin, rollback session khi lưu steps_log lỗi, hiện thực update_message Mattermost và delete_credential n8n, bổ sung retry cho AI approval webhook (Closes #701).
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
 ### Fixed
+- [plugins/hr-module] Bổ sung workflow file leave_balance_reset.json và khai báo bảng hr_payroll_config trong manifest.yaml và seed_data.sql (Closes #702).
+- [workflows] Chuẩn hóa tên bảng giữa manifest, seed và workflow; thêm prefix {{TENANT_SCHEMA}} cho các bảng tenant; chuyển queryParams sang options.queryReplacement theo spec n8n (Closes #692).
 - [deploy/docker-compose.yml] Nâng Traefik `v3.1.7` → `v3.5` → `v3.7`: image cũ gửi Docker API 1.24 bị Docker Engine 29 từ chối (yêu cầu ≥1.44) khiến provider docker rỗng và toàn bộ route public 404.
 - [deploy/docker-compose.yml] Nâng `frontend` priority `1` → `2`: bằng priority với `http-catchall` khiến request `/` rơi vào catch-all 404.
 - [deploy/docker-compose.yml] + [core-engine/Dockerfile] Thêm `HOSTNAME=0.0.0.0` cho frontend: Docker gán `HOSTNAME=<container-id>` khiến Next standalone chỉ nghe trên IP eth0, healthcheck `127.0.0.1` fail → unhealthy vĩnh viễn → Traefik v3 lọc bỏ router frontend.

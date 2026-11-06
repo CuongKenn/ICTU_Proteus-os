@@ -5,6 +5,7 @@
 # Xử lý DX-DSL actions với các effect: read, write, critical.
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
+import asyncio
 import json
 import uuid
 from dataclasses import asdict, dataclass
@@ -717,13 +718,27 @@ class AICommandUseCase:
             payload={"action": cmd.get("action"), "approver": str(approver.id)},
             status="success",
         )
-        try:
-            params = self._extract_parameters(cmd)
-            webhook_url = self._resolve_action_url(cmd["action"])
-            await self.n8n_adapter.trigger_webhook(
-                webhook_url=webhook_url, payload=params or {}
-            )
-        except Exception as e:
+        last_err = None
+        for attempt in range(3):
+            try:
+                params = self._extract_parameters(cmd)
+                webhook_url = self._resolve_action_url(cmd["action"])
+                await self.n8n_adapter.trigger_webhook(
+                    webhook_url=webhook_url, payload=params or {}
+                )
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                logger.warning(
+                    "Retry %d/3 triggering n8n webhook failed: %s",
+                    attempt + 1,
+                    e,
+                )
+                if attempt < 2:
+                    await asyncio.sleep(0.2 * (2**attempt))
+        if last_err is not None:
+            e = last_err
             logger.error(
                 "Failed to trigger n8n after approval",
                 command_id=str(cmd_id),

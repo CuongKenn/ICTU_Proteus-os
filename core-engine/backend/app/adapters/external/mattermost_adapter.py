@@ -149,8 +149,11 @@ class MattermostAdapter(AbstractChatOpsPort):
     async def update_message(
         self, post_id: str, message: str, props: dict[str, Any] | None = None
     ) -> None:
-        """Chưa implement."""
-        raise NotImplementedError("update_message chưa được implement")
+        """Cập nhật nội dung một bài đăng Mattermost qua PUT /api/v4/posts/{post_id}."""
+        payload: dict[str, Any] = {"id": post_id, "message": message}
+        if props:
+            payload["props"] = props
+        await self._call("PUT", f"/api/v4/posts/{post_id}", json=payload)
 
     # ─── Team-per-tenant isolation ────────────────────────────
     # Mỗi tenant có 1 Team riêng (tenant_<slug>); user chỉ thấy team mình

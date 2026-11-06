@@ -62,7 +62,9 @@ async def test_require_permission_success(normal_context, mock_role_repo):
 
     result = await checker(context=normal_context, role_repo=mock_role_repo)
     assert result == normal_context
-    mock_role_repo.get_user_permissions.assert_called_once_with(normal_context.user_id)
+    mock_role_repo.get_user_permissions.assert_called_once_with(
+        normal_context.user_id, tenant_id=normal_context.tenant_id
+    )
 
 
 async def test_require_permission_denied(normal_context, mock_role_repo):
@@ -73,7 +75,9 @@ async def test_require_permission_denied(normal_context, mock_role_repo):
         InsufficientPermissionsError, match="Cần quyền 'test:action:execute'"
     ):
         await checker(context=normal_context, role_repo=mock_role_repo)
-    mock_role_repo.get_user_permissions.assert_called_once_with(normal_context.user_id)
+    mock_role_repo.get_user_permissions.assert_called_once_with(
+        normal_context.user_id, tenant_id=normal_context.tenant_id
+    )
 
 
 async def test_require_permission_superadmin_bypass(superadmin_context, mock_role_repo):
