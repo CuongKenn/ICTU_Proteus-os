@@ -55,7 +55,7 @@ async def create_role(
 
 @router.get("", response_model=list[RoleResponse])
 async def list_roles(
-    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    tenant_context: TenantContext = Depends(require_permission("roles.read")),
     use_case: RoleManagementUseCase = Depends(get_role_use_case),
 ):
     """
