@@ -12,7 +12,10 @@
       "name": "Webhook - Incoming Doc",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "document-incoming-webhook"
     },
     {
@@ -22,33 +25,42 @@
       "name": "Generate Doc Code",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO doc_documents (tenant_id, doc_code, title, doc_type, category, source, sender_name, received_at, status, assigned_to, file_url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'RECEIVED',$9,$10,NOW()) RETURNING id;",
-        "additionalFields": {
-          "queryParams": "={{$json.tenant_id}},={{$json.doc_code}},={{$json.title}},={{$json.doc_type}},={{$json.category}},={{$json.source}},={{$json.sender_name}},={{$json.received_at}},={{$json.assigned_to}},={{$json.file_url}}"
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.document_incoming (so_van_ban, noi_gui, ngay_nhan, trich_yeu, file_url, assignee_id, status) VALUES ($1,$2,CURRENT_DATE,$3,$4,$5,'received') RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.doc_code}},={{$json.sender_name || $json.source || 'Ngoại bộ'}},={{$json.title}},={{$json.file_url || ''}},={{$json.assigned_to}}"
         }
       },
       "name": "Save Document",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT mattermost_user_id FROM users WHERE id = $1;",
-        "additionalFields": {
-          "queryParams": "={{$('Generate Doc Code').item.json.assigned_to}}"
+        "options": {
+          "queryReplacement": "={{$('Generate Doc Code').item.json.assigned_to}}"
         }
       },
       "name": "Get Assignee",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     },
     {
       "parameters": {
@@ -58,7 +70,10 @@
       "name": "Notify Assignee",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     },
     {
       "parameters": {
@@ -68,17 +83,79 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [
+        1250,
+        300
+      ]
     }
   ],
   "connections": {
-    "Webhook - Incoming Doc": {"main": [[{"node": "Generate Doc Code", "type": "main", "index": 0}]]},
-    "Generate Doc Code": {"main": [[{"node": "Save Document", "type": "main", "index": 0}]]},
-    "Save Document": {"main": [[{"node": "Get Assignee", "type": "main", "index": 0}]]},
-    "Get Assignee": {"main": [[{"node": "Notify Assignee", "type": "main", "index": 0}]]},
-    "Notify Assignee": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+    "Webhook - Incoming Doc": {
+      "main": [
+        [
+          {
+            "node": "Generate Doc Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Doc Code": {
+      "main": [
+        [
+          {
+            "node": "Save Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Document": {
+      "main": [
+        [
+          {
+            "node": "Get Assignee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Assignee": {
+      "main": [
+        [
+          {
+            "node": "Notify Assignee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Assignee": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "document"}, {"name": "incoming"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "document"
+    },
+    {
+      "name": "incoming"
+    }
+  ]
 }
