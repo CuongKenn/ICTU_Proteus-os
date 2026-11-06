@@ -29,6 +29,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
 ### Fixed
+- [core-engine/backend] Sửa `get_ai_command_use_case` truyền tham số `conversation_repo` thừa khiến `/ai/command`, `/ai/chat` và callback phê duyệt Mattermost trả 500; thêm test DI wiring (#681).
 - [core-engine/backend] `POST /plugins/{id}/install` trả 409 khi plugin đã ACTIVE/INSTALLING/UNINSTALLING (không queue task thứ hai); worker nhận diện INSTALLING do chính request tạo (`install_task_id`) và lỗi nền luôn chuyển sang `FAILED_DIRTY` kèm `install_error_log` thay vì kẹt INSTALLING (#682).
 - [plugins/hr-module] Bổ sung workflow file leave_balance_reset.json và khai báo bảng hr_payroll_config trong manifest.yaml và seed_data.sql (Closes #702).
 - [workflows] Chuẩn hóa tên bảng giữa manifest, seed và workflow; thêm prefix {{TENANT_SCHEMA}} cho các bảng tenant; chuyển queryParams sang options.queryReplacement theo spec n8n (Closes #692).
