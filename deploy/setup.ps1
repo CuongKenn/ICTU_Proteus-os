@@ -596,5 +596,5 @@ Write-Host "  ChatOps (Mattermost) : ${scheme}://$domain$urlSuffix/chat/"
 Write-Host "  Observability        : ${scheme}://grafana.$domain$urlSuffix"
 Write-Host "  Traefik Dashboard    : ${scheme}://traefik.$domain$urlSuffix"
 Write-Host "------------------------------------------------------"
-Write-Host "Default account: admin / admin (Keycloak)"
+Write-Host "Initial admin account: admin (Password change required on first login)" -ForegroundColor Yellow
 Write-Host "Enjoy Proteus OS!" -ForegroundColor Cyan
