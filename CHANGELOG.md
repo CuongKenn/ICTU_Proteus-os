@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [deploy/postgres] Áp dụng FORCE ROW LEVEL SECURITY cho toàn bộ bảng Core và Plugin, cấu hình role app_user có quyền LOGIN, ngăn chặn table owner bypass RLS và bảo đảm cách ly dữ liệu đa người thuê (multi-tenant) (#690).
 - [core-engine/backend] Tăng cường bảo mật RBAC: yêu cầu quyền users.read cho GET /api/v1/users, yêu cầu roles.read cho GET /api/v1/roles, và giới hạn get_user_permissions theo tenant_id cũng như loại trừ người dùng đã bị xóa (deleted_at) (#696).
 
 ### Changed
