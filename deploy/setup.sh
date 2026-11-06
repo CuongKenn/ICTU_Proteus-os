@@ -229,6 +229,10 @@ if [ ! -f .env ]; then
     read -p "APPSMITH_ADMIN_PASSWORD [random]: " appsmith_pass
     appsmith_pass=${appsmith_pass:-$(openssl rand -hex 12)}
     sed -i.bak "s|APPSMITH_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE|APPSMITH_ADMIN_PASSWORD=$appsmith_pass|g" .env
+
+    read -p "GRAFANA_PASSWORD [random]: " grafana_pass
+    grafana_pass=${grafana_pass:-$(openssl rand -hex 12)}
+    sed -i.bak "s|GRAFANA_PASSWORD=CHANGE_ME_STRONG_PASSWORD_HERE|GRAFANA_PASSWORD=$grafana_pass|g" .env
     
     # 3. Auto-generate Secrets
     NEXTAUTH_SECRET=$(openssl rand -base64 32)
@@ -845,5 +849,5 @@ echo "👉 ChatOps (Mattermost): $SCHEME://$DOMAIN$URL_SUFFIX/chat/"
 echo "👉 Observability (Grafana): $SCHEME://grafana.$DOMAIN$URL_SUFFIX"
 echo "👉 Traefik Dashboard   : $SCHEME://traefik.$DOMAIN$URL_SUFFIX"
 echo "------------------------------------------------------"
-echo "Tài khoản mặc định: admin / admin (Keycloak)"
+echo "Tài khoản quản trị khởi tạo: admin (Yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên)"
 echo "Chúc bạn sử dụng Proteus OS hiệu quả!"

@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS document_outgoing (
     nguoi_ky UUID,
     ngay_phat_hanh DATE,
     file_url VARCHAR(1024),
+    trich_yeu TEXT,
     status VARCHAR(50) DEFAULT 'draft',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -75,4 +76,14 @@ INSERT INTO document_categories (id, name, description) VALUES
     ('33333333-3333-3333-3333-333333333333', 'Công văn', 'Công văn trao đổi công việc'),
     ('44444444-4444-4444-4444-444444444444', 'Thông báo', 'Thông báo nội bộ'),
     ('55555555-5555-5555-5555-555555555555', 'Tờ trình', 'Tờ trình xin phê duyệt')
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS document_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    channel_id VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO document_config (id, channel_id) VALUES
+    ('66666666-6666-6666-6666-666666666666', 'van-phong')
 ON CONFLICT (id) DO NOTHING;

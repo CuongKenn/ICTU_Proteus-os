@@ -50,6 +50,18 @@ _TABLE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 _SCHEMA_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
 _MAX_LIMIT = 100
 _UNSET = object()
+# Cột server-owned: client không được set qua create/update (#697).
+SERVER_OWNED_COLUMNS = frozenset(
+    {
+        "id",
+        "tenant_id",
+        "created_at",
+        "updated_at",
+        "deleted_at",
+        "created_by",
+        "updated_by",
+    }
+)
 
 
 def _jsonable(value: Any) -> Any:
@@ -108,6 +120,72 @@ class PluginRecordsUseCase:
             raise DSLPluginNotActiveError(
                 f"Plugin '{plugin_code}' chưa ACTIVE (hiện tại: {status})."
             )
+
+    async def _require_table_permission(
+        self, ctx: TenantContext, plugin_code: str, table: str, action: str = "read"
+    ) -> None:
+        if has_admin_role(ctx.roles):
+            return
+        perms = await self.role_repo.get_user_permissions(ctx.user_id)
+        if has_wildcard_permission(perms):
+            return
+
+        prefix = plugin_code.split("-")[0]
+        prefix_colon = f"{prefix}:"
+        user_plugin_perms = [p for p in perms if p.startswith(prefix_colon)]
+        if not user_plugin_perms:
+            raise InsufficientPermissionsError(
+                f"Cần quyền nhóm '{prefix}:*' để truy cập dữ liệu plugin."
+            )
+
+        # Trích xuất resource từ tên bảng: hr_employees -> employees; hr_departments -> departments
+        resource = table[len(prefix) + 1 :] if table.startswith(f"{prefix}_") else table
+        candidates = {resource, table}
+        if resource.endswith("s"):
+            candidates.add(resource[:-1])
+        if resource.endswith("ies"):
+            candidates.add(resource[:-3] + "y")
+        if "_" in resource:
+            candidates.add(resource.split("_")[0])
+
+        # Wildcard cấp plugin
+        if any(
+            p in user_plugin_perms
+            for p in (f"{prefix}:*", f"{prefix}:*:*", f"{prefix}:*:{action}")
+        ):
+            return
+
+        for r in candidates:
+            if action == "read":
+                if any(
+                    p in user_plugin_perms
+                    for p in (
+                        f"{prefix}:{r}:read",
+                        f"{prefix}:{r}:write",
+                        f"{prefix}:{r}:*",
+                    )
+                ):
+                    return
+            elif action in ("write", "create", "update"):
+                if any(
+                    p in user_plugin_perms
+                    for p in (f"{prefix}:{r}:write", f"{prefix}:{r}:*")
+                ):
+                    return
+            elif action == "delete":
+                if any(
+                    p in user_plugin_perms
+                    for p in (
+                        f"{prefix}:{r}:delete",
+                        f"{prefix}:{r}:write",
+                        f"{prefix}:{r}:*",
+                    )
+                ):
+                    return
+
+        raise InsufficientPermissionsError(
+            f"Cần quyền '{prefix}:{resource}:{action}' để thao tác trên bảng '{table}'."
+        )
 
     async def _require_prefix_perm(self, ctx: TenantContext, plugin_code: str) -> None:
         if has_admin_role(ctx.roles):
@@ -202,7 +280,7 @@ class PluginRecordsUseCase:
     ) -> dict[str, Any]:
         await self._resolve_table(plugin_code, table)
         await self._require_active(ctx, plugin_code)
-        await self._require_prefix_perm(ctx, plugin_code)
+        await self._require_table_permission(ctx, plugin_code, table, "read")
 
         limit = max(1, min(limit, _MAX_LIMIT))
         offset = max(0, offset)
@@ -232,15 +310,17 @@ class PluginRecordsUseCase:
     ) -> dict[str, Any]:
         await self._resolve_table(plugin_code, table)
         await self._require_active(ctx, plugin_code)
-        await self._require_prefix_perm(ctx, plugin_code)
+        await self._require_table_permission(ctx, plugin_code, table, "write")
         if not isinstance(data, dict) or not data:
             raise DSLInvalidParametersError("Body phải là JSON object không rỗng.")
 
         col_types = await self._columns(self._schema(ctx), table)
-        params = self._coerce_params(col_types, data)
+        # Cột do server sở hữu (id, tenant_id, audit) KHÔNG nhận từ client (#697).
+        body = {c: v for c, v in data.items() if c not in SERVER_OWNED_COLUMNS}
+        params = self._coerce_params(col_types, body)
         # Một số plugin đời đầu (VD hr-module) vẫn giữ cột tenant_id NOT NULL —
-        # server tự gắn, client không được gửi (chống giả mạo tenant).
-        if "tenant_id" in col_types and "tenant_id" not in params:
+        # luôn lấy tenant_id từ context (JWT), ghi đè mọi giá trị client gửi.
+        if "tenant_id" in col_types:
             params["tenant_id"] = self._coerce(
                 col_types["tenant_id"], "tenant_id", str(ctx.tenant_id)
             )
@@ -267,7 +347,7 @@ class PluginRecordsUseCase:
     ) -> dict[str, Any]:
         await self._resolve_table(plugin_code, table)
         await self._require_active(ctx, plugin_code)
-        await self._require_prefix_perm(ctx, plugin_code)
+        await self._require_table_permission(ctx, plugin_code, table, "write")
         try:
             uuid.UUID(str(record_id))
         except ValueError as exc:
@@ -276,7 +356,7 @@ class PluginRecordsUseCase:
             raise DSLInvalidParametersError("Body phải là JSON object không rỗng.")
 
         col_types = await self._columns(self._schema(ctx), table)
-        body = {c: v for c, v in data.items() if c not in ("id", "tenant_id")}
+        body = {c: v for c, v in data.items() if c not in SERVER_OWNED_COLUMNS}
         coerced = self._coerce_params(col_types, body)
         allowed = list(coerced)
         if not allowed:
@@ -306,7 +386,7 @@ class PluginRecordsUseCase:
     ) -> None:
         await self._resolve_table(plugin_code, table)
         await self._require_active(ctx, plugin_code)
-        await self._require_prefix_perm(ctx, plugin_code)
+        await self._require_table_permission(ctx, plugin_code, table, "delete")
         try:
             uuid.UUID(str(record_id))
         except ValueError as exc:

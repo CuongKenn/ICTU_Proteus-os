@@ -24,6 +24,7 @@ database:
     - "document_approvals"
     - "document_distributions"
     - "document_categories"
+    - "document_config"
   seed_file: "db/seed_data.sql"
   default_config:
     archive_after_years: 5

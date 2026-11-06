@@ -201,6 +201,8 @@ async def _run_install_plugin_background(
     plugin_code_name: str,
     credentials: list[CredentialInput],
     app_state,
+    install_task_id: uuid.UUID | None = None,
+    plugin_id: uuid.UUID | None = None,
 ):
     from app.infrastructure.database import current_tenant_id as tenant_id_ctx
 
@@ -238,6 +240,7 @@ async def _run_install_plugin_background(
                 context=ctx,
                 plugin_code_name=plugin_code_name,
                 credentials=credentials,
+                install_task_id=install_task_id,
             )
         logger.info("[BG_TASK] COMPLETED: %s", plugin_code_name)
     except BaseException as e:
@@ -247,6 +250,41 @@ async def _run_install_plugin_background(
             type(e).__name__,
             e,
         )
+        await _mark_install_failed_if_stuck(ctx, plugin_id, install_task_id, e)
+
+
+async def _mark_install_failed_if_stuck(
+    ctx: TenantContext,
+    plugin_id: uuid.UUID | None,
+    install_task_id: uuid.UUID | None,
+    error: BaseException,
+) -> None:
+    """Đảm bảo lỗi nền không để plugin kẹt INSTALLING (#682).
+
+    Chỉ chuyển sang FAILED_DIRTY khi bản ghi vẫn INSTALLING và thuộc đúng
+    task_id của request này (không đè lên cài đặt/trạng thái của request khác).
+    """
+    if plugin_id is None or install_task_id is None:
+        return
+    from app.adapters.repositories.plugin_repo import SQLAlchemyPluginRepository
+    from app.infrastructure.database import AsyncSessionLocal
+
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = SQLAlchemyPluginRepository(session=session)
+            found = await repo.get_installation_status_by_task_id(
+                ctx.tenant_id, install_task_id
+            )
+            if found and found[0] == PluginStatus.INSTALLING:
+                await repo.update_status(
+                    ctx.tenant_id,
+                    plugin_id,
+                    PluginStatus.FAILED_DIRTY,
+                    error_log=f"{type(error).__name__}: {error}"[:2000],
+                )
+                await session.commit()
+    except Exception:  # noqa: BLE001 - không để lỗi dọn dẹp che lỗi gốc
+        logger.exception("[BG_TASK] Không thể đặt FAILED_DIRTY cho %s", plugin_id)
 
 
 @router.post(
@@ -295,6 +333,22 @@ async def install_plugin(
         for c in (body.credentials or [])
     ]
 
+    # Chặn double-install TRƯỚC khi upsert: nếu không, worker sẽ thấy INSTALLING
+    # do chính request này tạo và tự từ chối → plugin kẹt INSTALLING (#682).
+    current_status = await repo.get_installation_status(ctx.tenant_id, plugin_id)
+    if current_status in (
+        PluginStatus.ACTIVE,
+        PluginStatus.INSTALLING,
+        PluginStatus.UNINSTALLING,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Plugin đang ở trạng thái {current_status.value}, "
+                "không thể cài đặt lại."
+            ),
+        )
+
     task_id = uuid.uuid4()
 
     # Persist task_id với trạng thái INSTALLING — commit ngay trong handler
@@ -319,6 +373,8 @@ async def install_plugin(
             plugin_code_name=plugin.code_name,
             credentials=credential_inputs,
             app_state=request.app.state,
+            install_task_id=task_id,
+            plugin_id=plugin_id,
         )
     )
 
@@ -929,14 +985,21 @@ async def synthesize_plugin(
     synthesizer = PluginSynthesizer(llm=llm)
     try:
         plugin_name = await synthesizer.synthesize(body.prompt)
-        loader = getattr(request.app.state, "plugin_loader", None)
-        if loader:
-            loader.load_plugin(plugin_name)
-
+        # BẢO MẬT (Issue #689): Không tự động nạp hoặc thực thi code do LLM sinh ra vào runtime!
+        # Plugin sinh ra chỉ lưu dưới dạng artifact chờ admin review và ký số trước khi nạp.
         return {
-            "message": f"Đã sinh và nạp thành công Plugin: {plugin_name}",
+            "message": f"Đã sinh cấu trúc Plugin {plugin_name} thành công. Cần kiểm duyệt (review) và ký số trước khi nạp vào hệ thống.",
             "plugin_code_name": plugin_name,
+            "status": "pending_review",
         }
+    except (PermissionError, OSError) as e:
+        logger.warning("Không thể ghi file plugin do hệ thống tập tin read-only: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thư mục plugins đang ở chế độ Read-Only hoặc không có quyền ghi. Không thể sinh plugin trực tiếp tại runtime.",
+        ) from e
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Plugin synthesize failed")
         raise HTTPException(
