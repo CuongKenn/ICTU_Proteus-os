@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [core-engine/frontend] Persist refresh token và session mới vào session cookie sau khi inline refresh tại BFF Proxy route (/api/proxy/[...path]), ngăn chặn logout ngẫu nhiên do rotation/race condition (#695).
 - [core-engine/frontend] Sửa RBAC Frontend: hỗ trợ parse permissions dạng danh sách và từ điển, chuẩn hóa định dạng dấu chấm (.) và hai chấm (:), nhận diện các vai trò admin/tenant_admin, hỗ trợ wildcard *:* và sửa crash khi render phân quyền tại RolesTab (#694).
 - [core-engine] Thống nhất AI contract giữa Frontend/BFF/Backend: định tuyến đúng câu lệnh tự nhiên sang /api/v1/ai/chat tránh lỗi 422, chuẩn hóa enum status sang chữ thường, đảm bảo dsl_preview có dữ liệu khi chờ duyệt, và chuẩn hóa envelope trigger n8n flat đồng nhất (#693).
 - [core-engine/backend] Sửa lỗi Plugin toggle: bổ sung commit trạng thái thay đổi vào cơ sở dữ liệu và tự động deactivate/activate các workflow n8n tương ứng khi vô hiệu hóa hoặc kích hoạt lại plugin (#691).
