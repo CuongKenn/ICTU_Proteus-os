@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [core-engine] Thống nhất AI contract giữa Frontend/BFF/Backend: định tuyến đúng câu lệnh tự nhiên sang /api/v1/ai/chat tránh lỗi 422, chuẩn hóa enum status sang chữ thường, đảm bảo dsl_preview có dữ liệu khi chờ duyệt, và chuẩn hóa envelope trigger n8n flat đồng nhất (#693).
 - [core-engine/backend] Sửa lỗi Plugin toggle: bổ sung commit trạng thái thay đổi vào cơ sở dữ liệu và tự động deactivate/activate các workflow n8n tương ứng khi vô hiệu hóa hoặc kích hoạt lại plugin (#691).
 - [deploy/postgres] Áp dụng FORCE ROW LEVEL SECURITY cho toàn bộ bảng Core và Plugin, cấu hình role app_user có quyền LOGIN, ngăn chặn table owner bypass RLS và bảo đảm cách ly dữ liệu đa người thuê (multi-tenant) (#690).
 - [core-engine/backend] Tăng cường bảo mật RBAC: yêu cầu quyền users.read cho GET /api/v1/users, yêu cầu roles.read cho GET /api/v1/roles, và giới hạn get_user_permissions theo tenant_id cũng như loại trừ người dùng đã bị xóa (deleted_at) (#696).
