@@ -102,6 +102,17 @@
             "claim.name": "realm_access.roles",
             "jsonType.label": "String"
           }
+        },
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "proteus-bff",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
         }
       ]
     },

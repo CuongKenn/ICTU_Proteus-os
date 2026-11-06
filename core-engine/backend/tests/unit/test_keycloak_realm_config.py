@@ -1,6 +1,6 @@
 # Copyright (c) 2026 CuongKenn & ICTU Team
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Tests xác thực cấu hình Keycloak realm-import.json bảo mật (#688)."""
+"""Tests xác thực cấu hình Keycloak realm-import.json bảo mật (#688, #699)."""
 
 import json
 from pathlib import Path
@@ -33,3 +33,25 @@ def test_realm_import_security_hardening():
                 assert (
                     cred.get("temporary") is True
                 ), "Admin credentials phải có temporary=True để ép đổi mật khẩu ở lần đăng nhập đầu tiên"
+
+
+def test_keycloak_realm_proteus_bff_audience_mapper():
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+    realm_path = repo_root / "deploy" / "keycloak" / "realm-import.json"
+    assert realm_path.exists(), "realm-import.json must exist"
+
+    with open(realm_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    clients = data.get("clients", [])
+    bff_client = next((c for c in clients if c.get("clientId") == "proteus-bff"), None)
+    assert bff_client is not None, "proteus-bff client must exist in realm-import.json"
+
+    mappers = bff_client.get("protocolMappers", [])
+    aud_mapper = next(
+        (m for m in mappers if m.get("protocolMapper") == "oidc-audience-mapper"), None
+    )
+    assert aud_mapper is not None, "proteus-bff must have an oidc-audience-mapper configured"
+    assert (
+        aud_mapper.get("config", {}).get("included.client.audience") == "proteus-bff"
+    ), "Audience mapper must include proteus-bff audience"

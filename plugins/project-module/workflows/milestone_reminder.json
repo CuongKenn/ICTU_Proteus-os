@@ -4,34 +4,51 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {"cronExpression": "0 8 * * *"}
+        "rule": {
+          "cronExpression": "0 8 * * *"
+        }
       },
       "name": "Schedule - Daily 8AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ms.id, ms.name, ms.due_date, ms.project_id, p.name as project_name, p.channel_id FROM prj_milestones ms JOIN prj_projects p ON p.id = ms.project_id WHERE ms.status = 'IN_PROGRESS' AND ms.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' AND ms.deleted_at IS NULL;",
+        "query": "SELECT ms.id, ms.name, ms.due_date, ms.project_id, p.name as project_name FROM {{TENANT_SCHEMA}}.project_milestones ms JOIN {{TENANT_SCHEMA}}.project_projects p ON p.id = ms.project_id WHERE ms.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days';",
         "additionalFields": {}
       },
       "name": "Find Upcoming Milestones",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+          "number": [
+            {
+              "value1": "={{$items().length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
         }
       },
       "name": "Any Milestones?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +58,10 @@
       "name": "Split Milestones",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
-      "position": [850, 200]
+      "position": [
+        850,
+        200
+      ]
     },
     {
       "parameters": {
@@ -51,16 +71,68 @@
       "name": "Notify Project Channel",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [1050, 200]
+      "position": [
+        1050,
+        200
+      ]
     }
   ],
   "connections": {
-    "Schedule - Daily 8AM": {"main": [[{"node": "Find Upcoming Milestones", "type": "main", "index": 0}]]},
-    "Find Upcoming Milestones": {"main": [[{"node": "Any Milestones?", "type": "main", "index": 0}]]},
-    "Any Milestones?": {"main": [[{"node": "Split Milestones", "type": "main", "index": 0}]]},
-    "Split Milestones": {"main": [[{"node": "Notify Project Channel", "type": "main", "index": 0}]]}
+    "Schedule - Daily 8AM": {
+      "main": [
+        [
+          {
+            "node": "Find Upcoming Milestones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Upcoming Milestones": {
+      "main": [
+        [
+          {
+            "node": "Any Milestones?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Milestones?": {
+      "main": [
+        [
+          {
+            "node": "Split Milestones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Milestones": {
+      "main": [
+        [
+          {
+            "node": "Notify Project Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "project"}, {"name": "milestone"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "project"
+    },
+    {
+      "name": "milestone"
+    }
+  ]
 }

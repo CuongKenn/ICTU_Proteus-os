@@ -57,6 +57,7 @@ database:
     - "hr_leave_requests"
     - "hr_attendance_logs"
     - "hr_payroll_records"
+    - "hr_payroll_config"
     - "hr_onboarding_tasks"
     - "hr_job_postings"
     - "hr_applications"

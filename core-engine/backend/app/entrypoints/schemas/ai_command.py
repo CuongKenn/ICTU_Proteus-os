@@ -25,13 +25,18 @@ class AICommandRequest(BaseModel):
     dsl_version: str = Field("1.0", description="Phiên bản DX-DSL spec")
     command_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     session_id: uuid.UUID = Field(..., description="ID phiên chat")
-    action: str = Field(..., description="Action theo chuẩn {plugin}.{resource}.{verb}")
-    effect: Literal["read", "write", "critical"] = Field(
-        ..., description="Mức độ tác động"
+    action: str | None = Field(
+        None, description="Action theo chuẩn {plugin}.{resource}.{verb}"
+    )
+    effect: Literal["read", "write", "critical"] | None = Field(
+        None, description="Mức độ tác động"
     )
     parameters: dict[str, Any] = Field(default_factory=dict)
     approval_message: str | None = Field(
         None, description="Nội dung tin nhắn Mattermost gửi xin phê duyệt"
+    )
+    natural_language_input: str | None = Field(
+        None, description="Câu lệnh tiếng Việt tự nhiên nếu gửi qua /command"
     )
 
     model_config = {

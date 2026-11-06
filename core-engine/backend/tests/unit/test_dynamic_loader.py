@@ -57,6 +57,8 @@ def test_load_plugin_with_python(mock_modules, mock_import, mock_app, tmp_path):
 
     main_py = plugin_dir / "main.py"
     main_py.touch()
+    manifest = plugin_dir / "manifest.yaml"
+    manifest.write_text("name: test-plugin\nis_official: true\nreviewed: true\n")
 
     mock_module = MagicMock()
     mock_module.register_plugin = MagicMock()
@@ -67,3 +69,36 @@ def test_load_plugin_with_python(mock_modules, mock_import, mock_app, tmp_path):
     assert result is True
     mock_import.assert_called_once_with("test-plugin.main")
     mock_module.register_plugin.assert_called_once_with(mock_app)
+
+
+def test_load_plugin_unreviewed_rejected(mock_app, tmp_path):
+    loader = DynamicPluginLoader(mock_app)
+    loader._plugins_dir = tmp_path
+
+    plugin_dir = tmp_path / "unreviewed-plugin"
+    plugin_dir.mkdir()
+    main_py = plugin_dir / "main.py"
+    main_py.touch()
+    manifest = plugin_dir / "manifest.yaml"
+    manifest.write_text("name: unreviewed-plugin\nsynthesized: true\nreviewed: false\n")
+
+    result = loader.load_plugin("unreviewed-plugin")
+    assert result is False
+
+
+def test_load_plugin_with_signature_accepted(mock_app, tmp_path):
+    loader = DynamicPluginLoader(mock_app)
+    loader._plugins_dir = tmp_path
+
+    plugin_dir = tmp_path / "signed-plugin"
+    plugin_dir.mkdir()
+    main_py = plugin_dir / "main.py"
+    main_py.touch()
+    sig = plugin_dir / ".signature"
+    sig.write_text("valid-sig")
+
+    with patch("app.core.dynamic_loader.importlib.import_module") as mock_import,          patch("sys.modules", new_callable=dict):
+        mock_mod = MagicMock()
+        mock_import.return_value = mock_mod
+        result = loader.load_plugin("signed-plugin")
+        assert result is True
