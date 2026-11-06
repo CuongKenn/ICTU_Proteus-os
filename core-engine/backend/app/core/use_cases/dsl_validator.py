@@ -73,6 +73,20 @@ class DSLValidator:
         # hoặc action 2-part "hr.leave_request" (workflow của plugin đã cài).
 
         action = dsl_payload.get("action", "")
+
+        # Rule 1: Effect validation & reconciliation (chống bypass approval #684)
+        from app.core.use_cases.action_catalog import derive_action_effect
+
+        derived_effect = derive_action_effect(action)
+        client_effect = dsl_payload.get("effect")
+        if client_effect is not None:
+            if derived_effect in ("write", "critical") and client_effect == "read":
+                raise DSLInvalidParametersError(
+                    f"Action '{action}' là hành động '{derived_effect}', "
+                    f"không thể khai báo bypass effect='{client_effect}'."
+                )
+        else:
+            dsl_payload["effect"] = derived_effect
         parts = action.split(".")
         if len(parts) == 2 and all(parts) and self.manifest_parser is not None:
             await self._validate_plugin_workflow_action(action, dsl_payload)
@@ -201,10 +215,39 @@ class DSLValidator:
         user_permissions = await self.role_repo.get_user_permissions(
             uuid.UUID(self.user_id)
         )
-        if not any(str(p).startswith(f"{prefix}:") for p in user_permissions or []):
+        perms_str = [str(p) for p in (user_permissions or [])]
+        user_plugin_perms = [p for p in perms_str if p.startswith(f"{prefix}:")]
+        if not user_plugin_perms and not any(p in ("*", "*:*") for p in perms_str):
             raise DSLPermissionDeniedError(
                 f"User {self.user_id} lacks permission '{prefix}:*'."
             )
+
+        from app.core.use_cases.action_catalog import derive_action_effect
+
+        derived_effect = derive_action_effect(action)
+        client_effect = dsl_payload.get("effect")
+        if client_effect is not None:
+            if derived_effect in ("write", "critical") and client_effect == "read":
+                raise DSLInvalidParametersError(
+                    f"Action '{action}' là hành động '{derived_effect}', "
+                    f"không thể khai báo bypass effect='{client_effect}'."
+                )
+        else:
+            dsl_payload["effect"] = derived_effect
+
+        # Action 2-part workflow write: user chỉ có quyền read thì phải REJECT (#684)
+        if derived_effect in ("write", "critical") and not any(
+            p in ("*", "*:*") for p in perms_str
+        ):
+            has_write_perm = any(
+                not p.endswith(":read") and not p.endswith(":view")
+                for p in user_plugin_perms
+            )
+            if not has_write_perm:
+                raise DSLPermissionDeniedError(
+                    f"User {self.user_id} chỉ có quyền đọc (read-only), "
+                    f"không được kích hoạt workflow ghi '{action}'."
+                )
 
         params = dsl_payload.get("parameters", {})
         if not isinstance(params, dict):

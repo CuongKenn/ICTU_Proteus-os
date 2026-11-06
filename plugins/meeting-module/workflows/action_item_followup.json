@@ -4,34 +4,51 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {"cronExpression": "0 9 * * *"}
+        "rule": {
+          "cronExpression": "0 9 * * *"
+        }
       },
       "name": "Schedule - Daily 9AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.title, a.due_date, a.assignee_id, a.meeting_id, u.mattermost_user_id FROM mtg_action_items a JOIN users u ON u.id = a.assignee_id WHERE a.status = 'OPEN' AND a.due_date::date = CURRENT_DATE AND a.deleted_at IS NULL;",
+        "query": "SELECT a.id, a.task_desc as title, a.due_date, a.owner_id as assignee_id, a.booking_id as meeting_id, u.mattermost_user_id FROM {{TENANT_SCHEMA}}.meeting_action_items a JOIN users u ON u.id = a.owner_id WHERE a.status = 'PENDING' AND a.due_date::date = CURRENT_DATE;",
         "additionalFields": {}
       },
       "name": "Get Due Today Actions",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+          "number": [
+            {
+              "value1": "={{$items().length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
         }
       },
       "name": "Has Actions?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +58,10 @@
       "name": "Split Actions",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
-      "position": [850, 200]
+      "position": [
+        850,
+        200
+      ]
     },
     {
       "parameters": {
@@ -51,16 +71,68 @@
       "name": "Remind Assignee",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [1050, 200]
+      "position": [
+        1050,
+        200
+      ]
     }
   ],
   "connections": {
-    "Schedule - Daily 9AM": {"main": [[{"node": "Get Due Today Actions", "type": "main", "index": 0}]]},
-    "Get Due Today Actions": {"main": [[{"node": "Has Actions?", "type": "main", "index": 0}]]},
-    "Has Actions?": {"main": [[{"node": "Split Actions", "type": "main", "index": 0}]]},
-    "Split Actions": {"main": [[{"node": "Remind Assignee", "type": "main", "index": 0}]]}
+    "Schedule - Daily 9AM": {
+      "main": [
+        [
+          {
+            "node": "Get Due Today Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Due Today Actions": {
+      "main": [
+        [
+          {
+            "node": "Has Actions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Actions?": {
+      "main": [
+        [
+          {
+            "node": "Split Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Actions": {
+      "main": [
+        [
+          {
+            "node": "Remind Assignee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "meeting"}, {"name": "action-items"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "meeting"
+    },
+    {
+      "name": "action-items"
+    }
+  ]
 }

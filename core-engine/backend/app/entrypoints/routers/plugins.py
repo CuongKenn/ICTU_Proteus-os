@@ -985,14 +985,21 @@ async def synthesize_plugin(
     synthesizer = PluginSynthesizer(llm=llm)
     try:
         plugin_name = await synthesizer.synthesize(body.prompt)
-        loader = getattr(request.app.state, "plugin_loader", None)
-        if loader:
-            loader.load_plugin(plugin_name)
-
+        # BẢO MẬT (Issue #689): Không tự động nạp hoặc thực thi code do LLM sinh ra vào runtime!
+        # Plugin sinh ra chỉ lưu dưới dạng artifact chờ admin review và ký số trước khi nạp.
         return {
-            "message": f"Đã sinh và nạp thành công Plugin: {plugin_name}",
+            "message": f"Đã sinh cấu trúc Plugin {plugin_name} thành công. Cần kiểm duyệt (review) và ký số trước khi nạp vào hệ thống.",
             "plugin_code_name": plugin_name,
+            "status": "pending_review",
         }
+    except (PermissionError, OSError) as e:
+        logger.warning("Không thể ghi file plugin do hệ thống tập tin read-only: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thư mục plugins đang ở chế độ Read-Only hoặc không có quyền ghi. Không thể sinh plugin trực tiếp tại runtime.",
+        ) from e
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Plugin synthesize failed")
         raise HTTPException(

@@ -4,29 +4,61 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {"interval": [{"field": "minutes", "minutesInterval": 15}]}
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
       },
       "name": "Schedule - Every 15 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE mtg_bookings SET status = 'COMPLETED' WHERE status = 'CONFIRMED' AND end_time < NOW() AND end_time > NOW() - INTERVAL '20 minutes' AND deleted_at IS NULL RETURNING id, room_id, title;",
+        "query": "UPDATE {{TENANT_SCHEMA}}.meeting_bookings SET status = 'COMPLETED', released_at = NOW() WHERE status = 'SCHEDULED' AND end_time < NOW() RETURNING id, room_id, title;",
         "additionalFields": {}
       },
       "name": "Release Finished Rooms",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     }
   ],
   "connections": {
-    "Schedule - Every 15 Minutes": {"main": [[{"node": "Release Finished Rooms", "type": "main", "index": 0}]]}
+    "Schedule - Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Release Finished Rooms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "meeting"}, {"name": "room-release"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "meeting"
+    },
+    {
+      "name": "room-release"
+    }
+  ]
 }

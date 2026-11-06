@@ -1,0 +1,4 @@
+# Ignore environment files in deploy
+.env
+.env.*
+!.env.example

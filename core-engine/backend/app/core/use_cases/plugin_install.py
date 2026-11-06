@@ -377,7 +377,6 @@ class PluginInstallUseCase:
             )
             completed_steps.append("database")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 1.5: External Credentials (n8n)
             credential_mapping: dict[str, str] = {}
@@ -407,7 +406,6 @@ class PluginInstallUseCase:
             self._log_step("n8n", "DONE")
             completed_steps.append("n8n")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 3: Metabase Import (thu thập dần như bước n8n)
             self._log_step("metabase", "RUNNING")
@@ -420,7 +418,6 @@ class PluginInstallUseCase:
             self._log_step("metabase", "DONE")
             completed_steps.append("metabase")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 4: Appsmith Import (thu thập dần như bước n8n)
             self._log_step("appsmith", "RUNNING")
@@ -433,7 +430,6 @@ class PluginInstallUseCase:
             self._log_step("appsmith", "DONE")
             completed_steps.append("appsmith")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 5: Keycloak Roles + DB Roles
             self._log_step("keycloak", "RUNNING")
@@ -445,7 +441,6 @@ class PluginInstallUseCase:
             self._log_step("keycloak", "DONE")
             completed_steps.append("keycloak")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 6: Event Subscriptions
             self._log_step("events", "RUNNING")
@@ -454,7 +449,6 @@ class PluginInstallUseCase:
             self._log_step("events", "DONE")
             completed_steps.append("events")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # SUCCESS
             await self.plugin_repo.update_config(
@@ -734,13 +728,16 @@ class PluginInstallUseCase:
                             text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
                         )
                         await self.session.execute(
+                            text(f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY')
+                        )
+                        await self.session.execute(
                             text(
                                 f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
                             )
                         )
                         policy_sql = f"""
                             CREATE POLICY tenant_isolation_policy ON "{table}"
-                            FOR ALL TO app_user
+                            FOR ALL TO public
                             USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
                             WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
                         """
@@ -895,6 +892,17 @@ class PluginInstallUseCase:
                             node["parameters"]["query"] = query.replace(
                                 "{{TENANT_SCHEMA}}", tenant_schema
                             )
+
+                    # Standardize queryParams -> options.queryReplacement for Postgres nodes
+                    if node.get("type") == "n8n-nodes-base.postgres":
+                        params = node.setdefault("parameters", {})
+                        if isinstance(params, dict):
+                            af = params.get("additionalFields")
+                            if isinstance(af, dict) and "queryParams" in af:
+                                qp = af.pop("queryParams")
+                                params.setdefault("options", {})[
+                                    "queryReplacement"
+                                ] = qp
 
                     # Auto-bind Credentials (Internal & External).
                     # credentials có thể là null (export từ n8n) → chuẩn hóa
@@ -1241,7 +1249,8 @@ class PluginInstallUseCase:
             # Commit ngay để status endpoint thấy progress realtime
             await self.session.commit()
         except Exception as e:
-            logger.warning("Không thể persist steps_log: %s", e)
+            await self.session.rollback()
+            logger.error("Không thể persist steps_log, session rolled back: %s", e)
 
     async def _rollback(
         self,
