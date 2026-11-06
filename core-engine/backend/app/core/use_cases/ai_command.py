@@ -5,6 +5,7 @@
 # Xử lý DX-DSL actions với các effect: read, write, critical.
 # Tham chiếu: docs/dsl-spec.md §4, AGENTS.md §4 (Human-in-the-loop)
 
+import asyncio
 import json
 import uuid
 from dataclasses import asdict, dataclass
@@ -293,9 +294,21 @@ class AICommandUseCase:
                     response = local_result
                 else:
                     webhook_url = self._resolve_action_url(body.action)
+                    params = body.parameters or {}
+                    plugin_code = (
+                        body.action.split(".")[0] if "." in body.action else ""
+                    )
+                    envelope = {
+                        **params,
+                        "tenant_id": str(ctx.tenant_id),
+                        "user_id": str(ctx.user_id),
+                        "plugin": plugin_code,
+                        "action": body.action,
+                        "idempotency_key": str(body.command_id),
+                    }
                     response = await self.n8n_adapter.trigger_webhook(
                         webhook_url=webhook_url,
-                        payload=json.loads(json.dumps(asdict(body), default=str)),
+                        payload=envelope,
                     )
 
                 # Lưu DB ngay (schema mới: parameters/dry_run JSONB)
@@ -728,13 +741,38 @@ class AICommandUseCase:
             payload={"action": cmd.get("action"), "approver": str(approver.id)},
             status="success",
         )
-        try:
-            params = self._extract_parameters(cmd)
-            webhook_url = self._resolve_action_url(cmd["action"])
-            await self.n8n_adapter.trigger_webhook(
-                webhook_url=webhook_url, payload=params or {}
-            )
-        except Exception as e:
+        last_err = None
+        for attempt in range(3):
+            try:
+                params = self._extract_parameters(cmd) or {}
+                webhook_url = self._resolve_action_url(cmd["action"])
+                plugin_code = (
+                    cmd["action"].split(".")[0] if "." in cmd.get("action", "") else ""
+                )
+                envelope = {
+                    **params,
+                    "tenant_id": str(tenant_id),
+                    "user_id": str(cmd.get("user_id", "")),
+                    "plugin": plugin_code,
+                    "action": cmd["action"],
+                    "idempotency_key": str(cmd_id),
+                }
+                await self.n8n_adapter.trigger_webhook(
+                    webhook_url=webhook_url, payload=envelope
+                )
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                logger.warning(
+                    "Retry %d/3 triggering n8n webhook failed: %s",
+                    attempt + 1,
+                    e,
+                )
+                if attempt < 2:
+                    await asyncio.sleep(0.2 * (2**attempt))
+        if last_err is not None:
+            e = last_err
             logger.error(
                 "Failed to trigger n8n after approval",
                 command_id=str(cmd_id),

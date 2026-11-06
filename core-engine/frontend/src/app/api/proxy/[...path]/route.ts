@@ -7,13 +7,34 @@
 // Dùng getToken() + manual refresh thay vì getServerSession() (gây 500 trong App Router).
 // Tham chiếu: docs/architecture.md (BFF Pattern)
 
-import { getToken } from "next-auth/jwt";
+import { encode, getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { refreshAccessToken } from "@/lib/tokenRefresh";
 import { logger } from "@/lib/logger";
-
+import {
+  isSecureCookies,
+  sessionCookieDomain,
+  sessionCookieName,
+  SESSION_MAX_AGE,
+} from "@/lib/sessionCookie";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+
+function withRotatedCookie(res: NextResponse, rotatedCookieValue: string | null): NextResponse {
+  if (rotatedCookieValue) {
+    res.cookies.set({
+      name: sessionCookieName(),
+      value: rotatedCookieValue,
+      httpOnly: true,
+      secure: isSecureCookies(),
+      sameSite: "lax",
+      path: "/",
+      domain: sessionCookieDomain(),
+      maxAge: SESSION_MAX_AGE,
+    });
+  }
+  return res;
+}
 
 async function proxyHandler(
   request: NextRequest,
@@ -30,6 +51,7 @@ async function proxyHandler(
 
   // Kiểm tra token hết hạn — thử refresh inline thay vì trả 401 ngay
   let accessToken = token.accessToken as string;
+  let newSessionCookieValue: string | null = null;
   const expires = token.accessTokenExpires as number | undefined;
   if (expires && Date.now() > expires - 10_000) {
     logger.info("[BFF] access_token sắp/đã hết hạn — thử refresh inline");
@@ -41,6 +63,17 @@ async function proxyHandler(
       }
       accessToken = refreshed.accessToken as string;
       logger.info("[BFF] Refresh token thành công — tiếp tục proxy với token mới");
+
+      // Persist refresh token và session mới vào cookie cho browser (Issue #695)
+      try {
+        newSessionCookieValue = await encode({
+          token: refreshed,
+          secret: process.env.NEXTAUTH_SECRET ?? "default-secret",
+          maxAge: SESSION_MAX_AGE,
+        });
+      } catch (encodeErr) {
+        logger.error("[BFF] Lỗi encode session cookie sau refresh:", encodeErr);
+      }
     } catch (err) {
       logger.error("[BFF] Lỗi khi refresh token:", err);
       return NextResponse.json({ error: "AccessTokenExpired" }, { status: 401 });
@@ -72,9 +105,12 @@ async function proxyHandler(
       body = await request.text();
     } catch (error) {
       logger.error("[BFF] Lỗi đọc request body:", error);
-      return NextResponse.json(
-        { error: "Invalid request body format or stream interrupted" },
-        { status: 400 }
+      return withRotatedCookie(
+        NextResponse.json(
+          { error: "Invalid request body format or stream interrupted" },
+          { status: 400 }
+        ),
+        newSessionCookieValue
       );
     }
   }
@@ -88,7 +124,10 @@ async function proxyHandler(
     });
   } catch (err: any) {
     logger.error(`[BFF] Fetch to backend failed: ${err.message}`);
-    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
+    return withRotatedCookie(
+      NextResponse.json({ error: "Backend unavailable" }, { status: 502 }),
+      newSessionCookieValue
+    );
   }
 
   logger.info(`[BFF] ${request.method} ${targetUrl} → ${response.status}`);
@@ -96,22 +135,31 @@ async function proxyHandler(
   if (response.status === 401) {
     const txt = await response.text();
     logger.error(`[BFF] Backend returned 401 for ${targetUrl}: ${txt}`);
-    return NextResponse.json({ error: "Unauthorized from backend", detail: txt }, { status: 401 });
+    return withRotatedCookie(
+      NextResponse.json({ error: "Unauthorized from backend", detail: txt }, { status: 401 }),
+      newSessionCookieValue
+    );
   }
 
   // Proxy status code và response body nguyên vẹn
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     const data = await response.json().catch(() => null);
-    return NextResponse.json(data, { status: response.status });
+    return withRotatedCookie(
+      NextResponse.json(data, { status: response.status }),
+      newSessionCookieValue
+    );
   }
 
   // Non-JSON response (ví dụ: file download)
   const blob = await response.blob();
-  return new NextResponse(blob, {
-    status: response.status,
-    headers: { "Content-Type": contentType },
-  });
+  return withRotatedCookie(
+    new NextResponse(blob, {
+      status: response.status,
+      headers: { "Content-Type": contentType },
+    }),
+    newSessionCookieValue
+  );
 }
 
 export const GET = proxyHandler;

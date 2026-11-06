@@ -10,7 +10,7 @@
 # dashboard TẮT insecure (xem qua router traefik.<domain> đã bọc TLS).
 
 api:
-  dashboard: true
+  dashboard: false
   insecure: false
 
 entryPoints:

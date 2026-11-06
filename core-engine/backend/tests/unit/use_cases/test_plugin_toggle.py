@@ -12,12 +12,28 @@ from app.core.use_cases.plugin_toggle import PluginToggleError, PluginToggleUseC
 
 @pytest.fixture
 def mock_plugin_repo():
+    repo = AsyncMock()
+    repo.get_config.return_value = {"n8n": ["wf-101", "wf-102"]}
+    return repo
+
+
+@pytest.fixture
+def mock_n8n_adapter():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(mock_plugin_repo):
-    return PluginToggleUseCase(plugin_repo=mock_plugin_repo)
+def mock_session():
+    return AsyncMock()
+
+
+@pytest.fixture
+def use_case(mock_plugin_repo, mock_n8n_adapter, mock_session):
+    return PluginToggleUseCase(
+        plugin_repo=mock_plugin_repo,
+        n8n_adapter=mock_n8n_adapter,
+        session=mock_session,
+    )
 
 
 @pytest.fixture
@@ -31,7 +47,9 @@ def tenant_context():
 
 
 @pytest.mark.asyncio
-async def test_disable_plugin_success(use_case, mock_plugin_repo, tenant_context):
+async def test_disable_plugin_success(
+    use_case, mock_plugin_repo, mock_n8n_adapter, mock_session, tenant_context
+):
     plugin_id = uuid.uuid4()
     mock_plugin_repo.get_by_id.return_value = PluginEntity(
         id=plugin_id,
@@ -44,11 +62,18 @@ async def test_disable_plugin_success(use_case, mock_plugin_repo, tenant_context
 
     await use_case.disable_plugin(context=tenant_context, plugin_id=plugin_id)
 
+    # Workflow deactivated in n8n
+    assert mock_n8n_adapter.deactivate_workflow.call_count == 2
+    mock_n8n_adapter.deactivate_workflow.assert_any_call("wf-101")
+    mock_n8n_adapter.deactivate_workflow.assert_any_call("wf-102")
+
+    # DB status updated and committed
     mock_plugin_repo.update_status.assert_called_once_with(
         tenant_id=tenant_context.tenant_id,
         plugin_id=plugin_id,
         status=PluginStatus.DISABLED,
     )
+    mock_session.commit.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -68,7 +93,9 @@ async def test_disable_plugin_not_active(use_case, mock_plugin_repo, tenant_cont
 
 
 @pytest.mark.asyncio
-async def test_enable_plugin_success(use_case, mock_plugin_repo, tenant_context):
+async def test_enable_plugin_success(
+    use_case, mock_plugin_repo, mock_n8n_adapter, mock_session, tenant_context
+):
     plugin_id = uuid.uuid4()
     mock_plugin_repo.get_by_id.return_value = PluginEntity(
         id=plugin_id,
@@ -81,11 +108,18 @@ async def test_enable_plugin_success(use_case, mock_plugin_repo, tenant_context)
 
     await use_case.enable_plugin(context=tenant_context, plugin_id=plugin_id)
 
+    # Workflows activated in n8n
+    assert mock_n8n_adapter.activate_workflow.call_count == 2
+    mock_n8n_adapter.activate_workflow.assert_any_call("wf-101")
+    mock_n8n_adapter.activate_workflow.assert_any_call("wf-102")
+
+    # DB status updated and committed
     mock_plugin_repo.update_status.assert_called_once_with(
         tenant_id=tenant_context.tenant_id,
         plugin_id=plugin_id,
         status=PluginStatus.ACTIVE,
     )
+    mock_session.commit.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -102,3 +136,28 @@ async def test_enable_plugin_not_disabled(use_case, mock_plugin_repo, tenant_con
 
     with pytest.raises(PluginToggleError, match="không ở trạng thái DISABLED"):
         await use_case.enable_plugin(context=tenant_context, plugin_id=plugin_id)
+
+
+@pytest.mark.asyncio
+async def test_disable_plugin_n8n_failure_rolls_back(
+    use_case, mock_plugin_repo, mock_n8n_adapter, mock_session, tenant_context
+):
+    plugin_id = uuid.uuid4()
+    mock_plugin_repo.get_by_id.return_value = PluginEntity(
+        id=plugin_id,
+        code_name="test-plugin",
+        display_name="Test Plugin",
+        version="1.0.0",
+        is_official=True,
+    )
+    mock_plugin_repo.get_installation_status.return_value = PluginStatus.ACTIVE
+    mock_n8n_adapter.deactivate_workflow.side_effect = [None, RuntimeError("n8n network down")]
+
+    with pytest.raises(PluginToggleError, match="Không thể tắt workflows n8n"):
+        await use_case.disable_plugin(context=tenant_context, plugin_id=plugin_id)
+
+    # Rolled back the first deactivated workflow
+    mock_n8n_adapter.activate_workflow.assert_called_once_with("wf-101")
+    # DB status update was never called
+    mock_plugin_repo.update_status.assert_not_called()
+    mock_session.commit.assert_not_called()

@@ -43,6 +43,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=traefik-auth"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_AUTH_USERS:-admin:$$apr1$$92W5.n8y$$v1f8V8mGvMhLpYt1.6d4f1}"
       # Middleware allow iframe embedding for apps
       - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.X-Frame-Options="
       - "traefik.http.middlewares.iframe-allow.headers.customresponseheaders.Content-Security-Policy=frame-ancestors 'self' http://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX} https://${DOMAIN:-proteus.local}${PUBLIC_URL_SUFFIX}"
@@ -514,7 +516,8 @@ services:
     container_name: proteus-grafana
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required and must not be empty}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
@@ -564,7 +567,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      ALLOWED_ORIGINS: '["${PUBLIC_SCHEME:-http}://${DOMAIN}${PUBLIC_URL_SUFFIX}","http://localhost:3000"]'
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["http://localhost:3000","http://${DOMAIN:-proteus.local}"]}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
       LLM_MODEL_NAME: ${LLM_MODEL_NAME:-qwen3:8b}
       METABASE_SECRET_KEY: ${METABASE_SECRET_KEY}
