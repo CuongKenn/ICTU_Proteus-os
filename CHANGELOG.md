@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [deploy/keycloak] Thêm protocol mapper oidc-audience-mapper cho client proteus-bff trong realm-import.json và hỗ trợ fallback audience account trong KeycloakAdapter (#699).
 - [deploy] Tăng cường bảo mật Traefik và Grafana: thêm basicauth middleware bảo vệ Traefik dashboard, tắt public dashboard trong traefik.prod.yml, loại bỏ default admin password trong Grafana và đọc ALLOWED_ORIGINS từ biến môi trường (#698).
 - [core-engine/frontend] Persist refresh token và session mới vào session cookie sau khi inline refresh tại BFF Proxy route (/api/proxy/[...path]), ngăn chặn logout ngẫu nhiên do rotation/race condition (#695).
 - [core-engine/frontend] Sửa RBAC Frontend: hỗ trợ parse permissions dạng danh sách và từ điển, chuẩn hóa định dạng dấu chấm (.) và hai chấm (:), nhận diện các vai trò admin/tenant_admin, hỗ trợ wildcard *:* và sửa crash khi render phân quyền tại RolesTab (#694).
