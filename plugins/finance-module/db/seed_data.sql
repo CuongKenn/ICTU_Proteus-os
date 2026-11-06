@@ -70,3 +70,13 @@ INSERT INTO finance_accounts (id, code, name, type) VALUES
     ('44444444-4444-4444-4444-444444444444', '511', 'Doanh thu bán hàng', 'REVENUE'),
     ('55555555-5555-5555-5555-555555555555', '642', 'Chi phí quản lý doanh nghiệp', 'EXPENSE')
 ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS finance_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id VARCHAR(100),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO finance_config (id, channel_id) VALUES
+    ('66666666-6666-6666-6666-666666666666', 'tai-chinh')
+ON CONFLICT (id) DO NOTHING;
