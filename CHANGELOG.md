@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [core-engine/backend] `create_record` không còn nhận `tenant_id` (và `id`/audit) từ client; luôn ghi đè `tenant_id` bằng context JWT, `update_record` dùng chung danh sách cột server-owned (#697).
 - [core-engine/backend] Siết phân quyền plugin chi tiết theo resource/bảng và verb (read/write/delete) trong `PluginRecordsUseCase` và `PluginActionUseCase`; chặn triệt để lỗ hổng user read-only có thể ghi/xóa bảng hoặc trigger workflow write (#683).
 - [core-engine/backend] Server-side derive AI command effect từ catalog, chặn client bypass phê duyệt bằng `effect=read` và chặn read-only user dispatch workflow write (#684).
 - [core-engine/frontend] Loại bỏ `accessToken` khỏi session callback của NextAuth để tránh rò rỉ bearer token về trình duyệt; các BFF route tiếp tục đọc token an toàn qua `getToken({ req })` ở server-side (#685).
