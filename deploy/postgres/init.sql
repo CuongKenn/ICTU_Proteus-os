@@ -16,13 +16,21 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";  -- Full-text search support
 
--- Role dùng trong RLS policy của bảng plugin (FOR ALL TO app_user).
--- Phải tồn tại trước khi cài plugin đầu tiên, nếu không CREATE POLICY fail.
+-- Role dùng trong RLS policy của bảng plugin và kết nối app (Issue #690).
 DO $$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
-    CREATE ROLE app_user NOLOGIN;
+    CREATE ROLE app_user WITH LOGIN PASSWORD 'app_user_password';
+  ELSE
+    ALTER ROLE app_user WITH LOGIN;
   END IF;
 END $$;
+
+GRANT CONNECT ON DATABASE proteus TO app_user;
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO app_user;
 
 -- ─────────────────────────────────────────────────────────────
 -- SCHEMA SEPARATION
@@ -312,10 +320,15 @@ CREATE TRIGGER set_tenant_plugins_updated_at
 -- ─────────────────────────────────────────────────────────────
 -- Bật RLS cho tất cả các bảng có tenant_id
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
 ALTER TABLE tenant_plugins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_plugins FORCE ROW LEVEL SECURITY;
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roles FORCE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 ALTER TABLE ai_commands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_commands FORCE ROW LEVEL SECURITY;
 
 -- Tạo Policy áp dụng cho toàn bộ thao tác dựa trên biến session
 CREATE POLICY tenant_isolation_policy_users ON users
@@ -356,6 +369,7 @@ CREATE TABLE IF NOT EXISTS tenant_integrations (
 CREATE INDEX IF NOT EXISTS idx_tenant_integrations_tenant_id ON tenant_integrations(tenant_id);
 
 ALTER TABLE tenant_integrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_integrations FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_policy_tenant_integrations ON tenant_integrations
     FOR ALL TO PUBLIC USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)

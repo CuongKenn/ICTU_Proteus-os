@@ -50,17 +50,41 @@ CREATE TABLE IF NOT EXISTS hr_leave_requests (
 CREATE TABLE IF NOT EXISTS hr_attendance_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID REFERENCES hr_employees(id),
-    log_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    log_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    check_in_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    check_out_time TIMESTAMP WITH TIME ZONE,
+    worked_hours DECIMAL(5,2),
+    location VARCHAR(255),
+    device_id VARCHAR(100),
     tenant_id UUID NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS hr_payroll_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID REFERENCES hr_employees(id),
-    amount DECIMAL NOT NULL,
     tenant_id UUID NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    employee_id UUID REFERENCES hr_employees(id),
+    period VARCHAR(7) NOT NULL DEFAULT '',
+    worked_days DECIMAL(4,1) DEFAULT 0,
+    overtime_hours DECIMAL(4,1) DEFAULT 0,
+    gross_salary DECIMAL(15,2) DEFAULT 0,
+    tax_amount DECIMAL(15,2) DEFAULT 0,
+    social_insurance DECIMAL(15,2) DEFAULT 0,
+    net_salary DECIMAL(15,2) DEFAULT 0,
+    amount DECIMAL DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'DRAFT',
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, employee_id, period)
+);
+
+CREATE TABLE IF NOT EXISTS hr_payroll_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    mattermost_user_id VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id)
 );
 
 CREATE TABLE IF NOT EXISTS hr_onboarding_tasks (
@@ -156,3 +180,8 @@ INSERT INTO hr_applications (id, posting_id, full_name, email, phone, source, st
     ('bbbbbbbb-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000001', 'Phạm Văn E', 'e@example.com', '0911111111', 'WEBSITE', 'NEW', current_setting('app.current_tenant_id')::uuid),
     ('bbbbbbbb-0000-4000-8000-000000000002', 'aaaaaaaa-0000-4000-8000-000000000001', 'Hoàng Thị F', 'f@example.com', '0922222222', 'REFERRAL', 'SCREENING', current_setting('app.current_tenant_id')::uuid)
 ON CONFLICT (id) DO NOTHING;
+
+
+INSERT INTO hr_payroll_config (id, tenant_id, mattermost_user_id) VALUES
+    ('cccccccc-0000-4000-8000-000000000001', current_setting('app.current_tenant_id')::uuid, 'hr-admin-mm-id')
+ON CONFLICT (tenant_id) DO NOTHING;

@@ -46,7 +46,7 @@ interface AICommandBFFResponse {
   /** effect=write/critical: DSL preview để hiển thị awaiting_approval */
   dsl_preview?: DslPreview;
   /** Trạng thái xử lý */
-  status: "completed" | "pending_approval" | "error";
+  status: "completed" | "pending_approval" | "error" | string;
   message: string;
 }
 
@@ -152,16 +152,19 @@ export function useAICommand(): UseAICommandReturn {
         data = await response.json();
       }
 
-      if (data.status === "completed" && data.result) {
+      const statusLower = String(data.status || "").toLowerCase();
+      const preview = data.dsl_preview || (data as any).dry_run;
+      if (statusLower === "completed" && data.result) {
         // effect=read: hiển thị kết quả ngay
-        appendMessage("assistant", data.result);
+        const resultText = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
+        appendMessage("assistant", resultText);
         setWidgetState("expanded");
-      } else if (data.status === "pending_approval" && data.dsl_preview) {
+      } else if (statusLower === "pending_approval" && preview) {
         // effect=write/critical: chờ phê duyệt
-        setDslPreview(data.dsl_preview);
+        setDslPreview(preview);
         appendMessage(
           "assistant",
-          `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${data.dsl_preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
+          `🔒 Lệnh này yêu cầu phê duyệt từ Ban Giám đốc.\n\n**Hành động:** \`${preview.action}\`\n\nVui lòng bấm **"Phê duyệt trên Mattermost"** để tiếp tục.`
         );
         setWidgetState("awaiting_approval");
       } else {

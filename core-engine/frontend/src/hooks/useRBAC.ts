@@ -6,6 +6,17 @@ import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { logger } from '@/lib/logger';
 
+const ADMIN_ROLES = new Set([
+  'admin',
+  'tenant_admin',
+  'system_admin',
+  'Admin',
+  'Tenant_Admin',
+  'System_Admin',
+  'TENANT_ADMIN',
+  'SYSTEM_ADMIN',
+]);
+
 /**
  * Hook custom để kiểm tra Role và Permission (RBAC) trên Frontend.
  */
@@ -21,24 +32,52 @@ export const useRBAC = () => {
       return;
     }
 
-    // Tạm thời nếu là Admin thì luôn cấp toàn quyền (Fallback)
-    if (user.roles.includes('Admin')) {
+    // Nếu người dùng có role admin/tenant_admin/system_admin thì luôn có toàn quyền
+    const hasAdminRole = user.roles.some((r) =>
+      ADMIN_ROLES.has(r) || ADMIN_ROLES.has(r.toLowerCase())
+    );
+    if (hasAdminRole) {
       setPermissions(['*']); // Wildcard permission cho Admin
       setIsLoading(false);
       return;
     }
 
     try {
-      // Cố gắng fetch từ API Roles (nếu Backend có hỗ trợ lấy danh sách role để parse)
+      // Cố gắng fetch từ API Roles
       const res = await api.get('/v1/roles');
       const allRoles = res.data;
-      const userRoles = allRoles.filter((r: any) => user.roles.includes(r.name) || user.roles.includes(r.display_name));
-      
+      const userRoles = allRoles.filter(
+        (r: any) =>
+          user.roles.includes(r.name) ||
+          user.roles.includes(r.display_name) ||
+          user.roles.includes(r.code_name)
+      );
+
       const perms = new Set<string>();
       userRoles.forEach((r: any) => {
-        Object.entries(r.permissions || {}).forEach(([mod, actions]) => {
-          (actions as string[]).forEach((act) => perms.add(`${mod}:${act}`));
-        });
+        if (!r.permissions) return;
+        if (Array.isArray(r.permissions)) {
+          r.permissions.forEach((p: any) => {
+            if (typeof p === 'string') {
+              perms.add(p);
+              // Normalize dot and colon
+              perms.add(p.replace(/:/g, '.'));
+              perms.add(p.replace(/\./g, ':'));
+            }
+          });
+        } else if (typeof r.permissions === 'object') {
+          Object.entries(r.permissions).forEach(([mod, actions]) => {
+            if (Array.isArray(actions)) {
+              actions.forEach((act) => {
+                perms.add(`${mod}:${act}`);
+                perms.add(`${mod}.${act}`);
+              });
+            } else if (typeof actions === 'string') {
+              perms.add(`${mod}:${actions}`);
+              perms.add(`${mod}.${actions}`);
+            }
+          });
+        }
       });
       setPermissions(Array.from(perms));
     } catch (err) {
@@ -55,8 +94,43 @@ export const useRBAC = () => {
 
   const hasPermission = useCallback(
     (requiredPermission: string) => {
-      if (permissions.includes('*')) return true;
-      return permissions.includes(requiredPermission);
+      // 1. Wildcard toàn quyền
+      if (
+        permissions.includes('*') ||
+        permissions.includes('*:*') ||
+        permissions.includes('*.*')
+      ) {
+        return true;
+      }
+
+      // 2. Exact match
+      if (permissions.includes(requiredPermission)) return true;
+
+      // 3. Chuẩn hóa dot (.) và colon (:)
+      const normalizedWithDot = requiredPermission.replace(/:/g, '.');
+      const normalizedWithColon = requiredPermission.replace(/\./g, ':');
+      if (
+        permissions.includes(normalizedWithDot) ||
+        permissions.includes(normalizedWithColon)
+      ) {
+        return true;
+      }
+
+      // 4. Wildcard theo resource (vd: "plugins:*" hoặc "plugins.*")
+      const parts = requiredPermission.includes(':')
+        ? requiredPermission.split(':')
+        : requiredPermission.split('.');
+      if (parts.length >= 2) {
+        const resource = parts[0];
+        if (
+          permissions.includes(`${resource}:*`) ||
+          permissions.includes(`${resource}.*`)
+        ) {
+          return true;
+        }
+      }
+
+      return false;
     },
     [permissions]
   );

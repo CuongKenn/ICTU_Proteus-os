@@ -541,3 +541,6 @@ class SQLAlchemyPluginRepository(AbstractPluginRepository):
             installed_version=row.get("installed_version"),
             credentials_schema=credentials_schema,
         )
+
+    async def commit(self) -> None:
+        await self._session.commit()
