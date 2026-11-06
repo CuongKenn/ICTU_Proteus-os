@@ -212,9 +212,11 @@ async def get_plugin_uninstall_use_case(
 
 async def get_plugin_toggle_use_case(
     repo: AbstractPluginRepository = Depends(get_plugin_repo),
+    n8n_adapter: N8nAdapter = Depends(get_n8n_adapter),
+    db: AsyncSession = Depends(get_db_transactional),
 ) -> PluginToggleUseCase:
     """Inject Plugin Toggle Use Case."""
-    return PluginToggleUseCase(plugin_repo=repo)
+    return PluginToggleUseCase(plugin_repo=repo, n8n_adapter=n8n_adapter, session=db)
 
 
 async def get_plugin_upgrade_use_case(
@@ -475,7 +477,6 @@ async def get_ai_command_use_case(
     qdrant_adapter: QdrantAdapter = Depends(get_qdrant_adapter),
     audit_log_repo: AbstractAuditLogRepository = Depends(get_audit_log_repo),
     user_repo: AbstractUserRepository = Depends(get_user_repo),
-    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
 ) -> AICommandUseCase:
     """Inject AICommandUseCase (dynamic DSL + local core actions + audit)."""
     from app.adapters.external.local_manifest_parser import LocalManifestParser
@@ -491,7 +492,6 @@ async def get_ai_command_use_case(
         qdrant_adapter=qdrant_adapter,
         audit_log_repo=audit_log_repo,
         user_repo=user_repo,
-        conversation_repo=conversation_repo,
     )
 
 
@@ -508,7 +508,9 @@ def require_permission(permission: str):
         if has_admin_role(context.roles):
             return context
 
-        user_permissions = await role_repo.get_user_permissions(context.user_id)
+        user_permissions = await role_repo.get_user_permissions(
+            context.user_id, tenant_id=context.tenant_id
+        )
         if has_wildcard_permission(user_permissions):
             return context
         if permission not in user_permissions:

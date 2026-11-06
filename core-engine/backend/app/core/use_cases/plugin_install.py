@@ -234,11 +234,34 @@ class PluginInstallUseCase:
         self._steps_log: list[dict[str, Any]] = []
         self._credential_ids: list[dict[str, str]] = []
 
+    async def _is_own_install(
+        self,
+        tenant_id: uuid.UUID,
+        plugin_id: uuid.UUID,
+        install_task_id: uuid.UUID | None,
+    ) -> bool:
+        """True nếu trạng thái INSTALLING do chính request này tạo (cùng task_id).
+
+        Endpoint upsert INSTALLING (kèm install_task_id) trước khi queue worker;
+        worker phải nhận ra bản ghi của mình thay vì tự chặn chính nó (#682).
+        """
+        if install_task_id is None:
+            return False
+        found = await self.plugin_repo.get_installation_status_by_task_id(
+            tenant_id, install_task_id
+        )
+        return (
+            found is not None
+            and found[0] == PluginStatus.INSTALLING
+            and found[1] == plugin_id
+        )
+
     async def execute(
         self,
         context: TenantContext,
         plugin_code_name: str,
         credentials: list[CredentialInput] | None = None,
+        install_task_id: uuid.UUID | None = None,
     ) -> None:
         logger.info(
             "Bắt đầu cài đặt plugin",
@@ -305,7 +328,9 @@ class PluginInstallUseCase:
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đã được cài đặt và đang ACTIVE."
             )
-        if status == PluginStatus.INSTALLING:
+        if status == PluginStatus.INSTALLING and not await self._is_own_install(
+            context.tenant_id, plugin.id, install_task_id
+        ):
             raise PluginInstallError(
                 f"Plugin '{plugin_code_name}' đang trong quá trình cài đặt, vui lòng thử lại sau."
             )
@@ -352,7 +377,6 @@ class PluginInstallUseCase:
             )
             completed_steps.append("database")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 1.5: External Credentials (n8n)
             credential_mapping: dict[str, str] = {}
@@ -382,7 +406,6 @@ class PluginInstallUseCase:
             self._log_step("n8n", "DONE")
             completed_steps.append("n8n")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 3: Metabase Import (thu thập dần như bước n8n)
             self._log_step("metabase", "RUNNING")
@@ -395,7 +418,6 @@ class PluginInstallUseCase:
             self._log_step("metabase", "DONE")
             completed_steps.append("metabase")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 4: Appsmith Import (thu thập dần như bước n8n)
             self._log_step("appsmith", "RUNNING")
@@ -408,7 +430,6 @@ class PluginInstallUseCase:
             self._log_step("appsmith", "DONE")
             completed_steps.append("appsmith")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 5: Keycloak Roles + DB Roles
             self._log_step("keycloak", "RUNNING")
@@ -420,7 +441,6 @@ class PluginInstallUseCase:
             self._log_step("keycloak", "DONE")
             completed_steps.append("keycloak")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # BƯỚC 6: Event Subscriptions
             self._log_step("events", "RUNNING")
@@ -429,7 +449,6 @@ class PluginInstallUseCase:
             self._log_step("events", "DONE")
             completed_steps.append("events")
             await self._persist_steps(context, plugin.id)
-            await asyncio.sleep(random.uniform(1.0, 3.0))
 
             # SUCCESS
             await self.plugin_repo.update_config(
@@ -709,13 +728,16 @@ class PluginInstallUseCase:
                             text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
                         )
                         await self.session.execute(
+                            text(f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY')
+                        )
+                        await self.session.execute(
                             text(
                                 f'DROP POLICY IF EXISTS tenant_isolation_policy ON "{table}"'
                             )
                         )
                         policy_sql = f"""
                             CREATE POLICY tenant_isolation_policy ON "{table}"
-                            FOR ALL TO app_user
+                            FOR ALL TO public
                             USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
                             WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
                         """
@@ -870,6 +892,17 @@ class PluginInstallUseCase:
                             node["parameters"]["query"] = query.replace(
                                 "{{TENANT_SCHEMA}}", tenant_schema
                             )
+
+                    # Standardize queryParams -> options.queryReplacement for Postgres nodes
+                    if node.get("type") == "n8n-nodes-base.postgres":
+                        params = node.setdefault("parameters", {})
+                        if isinstance(params, dict):
+                            af = params.get("additionalFields")
+                            if isinstance(af, dict) and "queryParams" in af:
+                                qp = af.pop("queryParams")
+                                params.setdefault("options", {})[
+                                    "queryReplacement"
+                                ] = qp
 
                     # Auto-bind Credentials (Internal & External).
                     # credentials có thể là null (export từ n8n) → chuẩn hóa
@@ -1216,7 +1249,8 @@ class PluginInstallUseCase:
             # Commit ngay để status endpoint thấy progress realtime
             await self.session.commit()
         except Exception as e:
-            logger.warning("Không thể persist steps_log: %s", e)
+            await self.session.rollback()
+            logger.error("Không thể persist steps_log, session rolled back: %s", e)
 
     async def _rollback(
         self,

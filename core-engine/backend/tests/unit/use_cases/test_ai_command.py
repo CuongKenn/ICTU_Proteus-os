@@ -86,7 +86,7 @@ async def test_execute_read_command(
         command_id=uuid.uuid4(),
         session_id=uuid.uuid4(),
         dsl_version="1.0",
-        action="hr.leave_requests.batch_approve",
+        action="hr.leave_requests.read",
         effect="read",
         parameters={"request_ids": ["1", "2"]},
     )

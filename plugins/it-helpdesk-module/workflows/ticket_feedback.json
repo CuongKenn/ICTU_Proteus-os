@@ -12,45 +12,63 @@
       "name": "Webhook - Feedback Submitted",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "helpdesk-feedback-webhook"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE hd_tickets SET feedback_score = $1, feedback_comment = $2, feedback_at = NOW(), status = 'CLOSED' WHERE id = $3 AND tenant_id = $4 RETURNING assigned_to;",
-        "additionalFields": {
-          "queryParams": "={{$json.body.score}},={{$json.body.comment}},={{$json.body.ticket_id}},={{$json.body.tenant_id}}"
+        "query": "UPDATE {{TENANT_SCHEMA}}.it_tickets SET feedback_rating = $1, feedback_comment = $2, status = 'CLOSED', updated_at = NOW() WHERE id = $3 RETURNING assignee_id;",
+        "options": {
+          "queryReplacement": "={{$json.body.score}},={{$json.body.comment}},={{$json.body.ticket_id}}"
         }
       },
       "name": "Save Feedback & Close",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "number": [{"value1": "={{$('Webhook - Feedback Submitted').item.json.body.score}}", "operation": "smaller", "value2": 3}]
+          "number": [
+            {
+              "value1": "={{$('Webhook - Feedback Submitted').item.json.body.score}}",
+              "operation": "smaller",
+              "value2": 3
+            }
+          ]
         }
       },
       "name": "Low Score?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT mattermost_user_id FROM hd_managers WHERE tenant_id = $1 LIMIT 1;",
-        "additionalFields": {
-          "queryParams": "={{$('Webhook - Feedback Submitted').item.json.body.tenant_id}}"
+        "query": "SELECT mattermost_user_id FROM users LIMIT 1;",
+        "options": {
+          "queryReplacement": ""
         }
       },
       "name": "Get Manager",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [850, 200]
+      "position": [
+        850,
+        200
+      ]
     },
     {
       "parameters": {
@@ -60,7 +78,10 @@
       "name": "Alert Manager Low Score",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [1050, 200]
+      "position": [
+        1050,
+        200
+      ]
     },
     {
       "parameters": {
@@ -70,22 +91,86 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1050, 400]
+      "position": [
+        1050,
+        400
+      ]
     }
   ],
   "connections": {
-    "Webhook - Feedback Submitted": {"main": [[{"node": "Save Feedback & Close", "type": "main", "index": 0}]]},
-    "Save Feedback & Close": {"main": [[{"node": "Low Score?", "type": "main", "index": 0}]]},
-    "Low Score?": {
+    "Webhook - Feedback Submitted": {
       "main": [
-        [{"node": "Get Manager", "type": "main", "index": 0}],
-        [{"node": "Respond OK", "type": "main", "index": 0}]
+        [
+          {
+            "node": "Save Feedback & Close",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Get Manager": {"main": [[{"node": "Alert Manager Low Score", "type": "main", "index": 0}]]},
-    "Alert Manager Low Score": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+    "Save Feedback & Close": {
+      "main": [
+        [
+          {
+            "node": "Low Score?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Score?": {
+      "main": [
+        [
+          {
+            "node": "Get Manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Manager": {
+      "main": [
+        [
+          {
+            "node": "Alert Manager Low Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Manager Low Score": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "helpdesk"}, {"name": "feedback"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "helpdesk"
+    },
+    {
+      "name": "feedback"
+    }
+  ]
 }

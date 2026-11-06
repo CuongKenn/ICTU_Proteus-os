@@ -413,6 +413,21 @@ async def test_synthesize_success_and_failure(auth):
             )
         assert resp.status_code == 200
         assert resp.json()["plugin_code_name"] == "new-module"
+        assert resp.json()["status"] == "pending_review"
+
+        # Read-only filesystem error returns 400 instead of 500
+        synth_cls.return_value.synthesize = AsyncMock(
+            side_effect=PermissionError("Read-only file system")
+        )
+        async with _client() as c:
+            resp = await c.post(
+                "/api/v1/plugins/synthesize",
+                json={"prompt": "fail ro"},
+                headers={"Authorization": "Bearer x"},
+            )
+        assert resp.status_code == 400
+        assert "Read-Only" in resp.json()["detail"]
+
         synth_cls.return_value.synthesize = AsyncMock(
             side_effect=RuntimeError("llm down")
         )

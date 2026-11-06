@@ -12,34 +12,43 @@
       "name": "Webhook - Submit for Approval",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "document-approval-webhook"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE doc_documents SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND status = 'DRAFT' RETURNING title, category, doc_type, author_id;",
-        "additionalFields": {
-          "queryParams": "={{$json.body.document_id}},={{$json.body.tenant_id}}"
+        "query": "UPDATE {{TENANT_SCHEMA}}.document_outgoing SET status = 'pending', updated_at = NOW() WHERE id = $1 AND status = 'draft' RETURNING id, so_van_ban, trich_yeu as title;",
+        "options": {
+          "queryReplacement": "={{$json.body.document_id}}"
         }
       },
       "name": "Submit Document",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT u.mattermost_user_id FROM doc_approvers da JOIN users u ON u.id = da.user_id WHERE da.tenant_id = $1 AND da.doc_type = $2 LIMIT 1;",
-        "additionalFields": {
-          "queryParams": "={{$('Webhook - Submit for Approval').item.json.body.tenant_id}},={{$json.doc_type}}"
+        "query": "SELECT u.mattermost_user_id FROM {{TENANT_SCHEMA}}.document_approvals da JOIN users u ON u.id = da.approver_id WHERE da.document_id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{$('Webhook - Submit for Approval').item.json.body.document_id}}"
         }
       },
       "name": "Find Approver",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -49,7 +58,10 @@
       "name": "Notify Approver",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     },
     {
       "parameters": {
@@ -59,16 +71,68 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     }
   ],
   "connections": {
-    "Webhook - Submit for Approval": {"main": [[{"node": "Submit Document", "type": "main", "index": 0}]]},
-    "Submit Document": {"main": [[{"node": "Find Approver", "type": "main", "index": 0}]]},
-    "Find Approver": {"main": [[{"node": "Notify Approver", "type": "main", "index": 0}]]},
-    "Notify Approver": {"main": [[{"node": "Respond OK", "type": "main", "index": 0}]]}
+    "Webhook - Submit for Approval": {
+      "main": [
+        [
+          {
+            "node": "Submit Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Document": {
+      "main": [
+        [
+          {
+            "node": "Find Approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Approver": {
+      "main": [
+        [
+          {
+            "node": "Notify Approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Approver": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "document"}, {"name": "approval"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "document"
+    },
+    {
+      "name": "approval"
+    }
+  ]
 }

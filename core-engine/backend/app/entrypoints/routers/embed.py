@@ -15,10 +15,10 @@ from app.infrastructure.config import settings
 router = APIRouter(prefix="/embed")
 
 
-def _verify_metabase_token(token: str) -> dict:
+def _verify_metabase_token(token: str, secret_key: str) -> dict:
     """M11: verify JWT embed (tenant binding). Raise 403 nếu sai tenant/hết hạn."""
     try:
-        payload = jwt.decode(token, settings.METABASE_SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -36,8 +36,8 @@ async def get_metabase_embed_url(
     Tạo Signed URL cho iframe Metabase.
     Yêu cầu quyền analytics.view
     """
-    # M11: fail-closed — thiếu secret thì lỗi thay vì trả mock URL mở.
-    if not settings.METABASE_SECRET_KEY:
+    secret_key = settings.METABASE_SECRET_KEY or settings.METABASE_EMBEDDING_KEY
+    if not secret_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Metabase embed chưa được cấu hình (thiếu secret).",
@@ -55,9 +55,9 @@ async def get_metabase_embed_url(
         "exp": int(time.time()) + 600,  # 10 phút
     }
 
-    token = jwt.encode(payload, settings.METABASE_SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(payload, secret_key, algorithm="HS256")
     # Verify ngay sau khi ký (phát hiện sai secret/thuật toán sớm).
-    _verify_metabase_token(token)
+    _verify_metabase_token(token, secret_key)
 
     return {
         "url": (
