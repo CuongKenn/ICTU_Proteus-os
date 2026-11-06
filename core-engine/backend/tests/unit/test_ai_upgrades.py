@@ -57,13 +57,21 @@ def test_split_plugin_action():
 
 
 def _manifest_parser(plugins_dir="/tmp/proteus-test-plugins"):
-    wf1 = SimpleNamespace(id="leave_request", file="workflows/leave_request.json",
-                          name="Leave", description="Duyệt phép", trigger="webhook")
-    wf2 = SimpleNamespace(id=None, file="workflows/nightly.json",
-                          name="Night", description="Cron", trigger="cron")
-    manifest = SimpleNamespace(
-        name="hr-module", workflows=[wf1, wf2], roles=[]
+    wf1 = SimpleNamespace(
+        id="leave_request",
+        file="workflows/leave_request.json",
+        name="Leave",
+        description="Duyệt phép",
+        trigger="webhook",
     )
+    wf2 = SimpleNamespace(
+        id=None,
+        file="workflows/nightly.json",
+        name="Night",
+        description="Cron",
+        trigger="cron",
+    )
+    manifest = SimpleNamespace(name="hr-module", workflows=[wf1, wf2], roles=[])
 
     class Parser:
         def __init__(self):
@@ -106,14 +114,17 @@ def _role_repo(perms):
 async def test_validator_accepts_two_part_action():
     v = DSLValidator(
         plugin_repo=_PluginRepo(),
-        role_repo=_role_repo(["hr:employees:read"]),
+        role_repo=_role_repo(["hr:leave_requests:write"]),
         tenant_id="t1",
         user_id="12345678-1234-5678-1234-567812345678",
         manifest_parser=_manifest_parser(),
     )
-    assert await v.validate(
-        {"dsl_version": "1.0", "action": "hr.leave_request", "parameters": {}}
-    ) is True
+    assert (
+        await v.validate(
+            {"dsl_version": "1.0", "action": "hr.leave_request", "parameters": {}}
+        )
+        is True
+    )
 
 
 @pytest.mark.asyncio
@@ -126,9 +137,7 @@ async def test_validator_rejects_unknown_workflow():
         manifest_parser=_manifest_parser(),
     )
     with pytest.raises(DSLInvalidActionError):
-        await v.validate(
-            {"dsl_version": "1.0", "action": "hr.nope", "parameters": {}}
-        )
+        await v.validate({"dsl_version": "1.0", "action": "hr.nope", "parameters": {}})
 
 
 @pytest.mark.asyncio
@@ -190,14 +199,17 @@ async def test_validator_public_core_read_needs_no_permission():
         tenant_id="t1",
         user_id="12345678-1234-5678-1234-567812345678",
     )
-    assert await v.validate(
-        {
-            "dsl_version": "1.0",
-            "action": "core.knowledge.search",
-            "effect": "read",
-            "parameters": {"raw_input": "chính sách nghỉ phép?"},
-        }
-    ) is True
+    assert (
+        await v.validate(
+            {
+                "dsl_version": "1.0",
+                "action": "core.knowledge.search",
+                "effect": "read",
+                "parameters": {"raw_input": "chính sách nghỉ phép?"},
+            }
+        )
+        is True
+    )
 
 
 @pytest.mark.asyncio
@@ -234,19 +246,16 @@ def _chat_case(llm_content: str = ""):
 
 @pytest.mark.asyncio
 async def test_parse_plan_multi_step_truncates():
-    from app.core.use_cases.ai_chat import AIChatDTO, MAX_PLAN_STEPS
+    from app.core.use_cases.ai_chat import MAX_PLAN_STEPS, AIChatDTO
 
     use_case, _ = _chat_case()
     steps = [
         {"action": f"hr.step{i}", "effect": "read", "parameters": {}}
         for i in range(MAX_PLAN_STEPS + 3)
     ]
-    dto = AIChatDTO(
-        session_id=uuid.uuid4(), natural_language_input="làm nhiều việc"
-    )
+    dto = AIChatDTO(session_id=uuid.uuid4(), natural_language_input="làm nhiều việc")
     plan = use_case._parse_plan(
-        '{"goal": "g", "steps": %s}'
-        % __import__("json").dumps(steps),
+        '{"goal": "g", "steps": %s}' % __import__("json").dumps(steps),
         dto,
     )
     assert len(plan) == MAX_PLAN_STEPS
@@ -357,14 +366,17 @@ async def test_chat_reply_public_and_local():
         tenant_id="t1",
         user_id="12345678-1234-5678-1234-567812345678",
     )
-    assert await v.validate(
-        {
-            "dsl_version": "1.0",
-            "action": "core.chat.reply",
-            "effect": "read",
-            "parameters": {"reply": "chào bạn"},
-        }
-    ) is True
+    assert (
+        await v.validate(
+            {
+                "dsl_version": "1.0",
+                "action": "core.chat.reply",
+                "effect": "read",
+                "parameters": {"reply": "chào bạn"},
+            }
+        )
+        is True
+    )
 
 
 def _react_case(first_status, react_script):
@@ -376,9 +388,7 @@ def _react_case(first_status, react_script):
 
     llm = MagicMock()
     llm.ainvoke_json = AsyncMock(
-        side_effect=[
-            SimpleNamespace(content=s) for s in react_script
-        ]
+        side_effect=[SimpleNamespace(content=s) for s in react_script]
     )
     cmds = MagicMock()
     use_case = AIChatUseCase(llm_port=llm, ai_command_use_case=cmds)
@@ -501,14 +511,13 @@ async def test_plugins_list_returns_markdown():
     from types import SimpleNamespace as _SN
     from unittest.mock import MagicMock as _MM
 
-    from app.core.use_cases.ai_command import AICommandDTO
     from app.core.use_cases.ai_command import (
-        AICommandUseCase as _AICommandUseCase,
+        AICommandDTO,
     )
+    from app.core.use_cases.ai_command import AICommandUseCase as _AICommandUseCase
 
     plugins = [
-        _SN(code_name="hr-module", display_name="HR Core",
-            status=_SN(value="ACTIVE")),
+        _SN(code_name="hr-module", display_name="HR Core", status=_SN(value="ACTIVE")),
     ]
     plugin_repo = _MM()
     plugin_repo.list_installed = AsyncMock(return_value=(plugins, 1))
@@ -528,9 +537,7 @@ async def test_plugins_list_returns_markdown():
         effect="read",
         parameters={},
     )
-    handled, result = await uc._execute_local_read(
-        dto, _SN(tenant_id=uuid.uuid4())
-    )
+    handled, result = await uc._execute_local_read(dto, _SN(tenant_id=uuid.uuid4()))
     assert handled is True
     assert "HR Core" in result["markdown"]
     assert result["total"] == 1
@@ -543,9 +550,7 @@ async def test_single_step_summary_one_liner():
     from app.core.domain.entities import AICommandStatus
     from app.core.use_cases.ai_chat import AIChatDTO, AIChatUseCase
 
-    use_case = AIChatUseCase(
-        llm_port=_MagicMock(), ai_command_use_case=_MagicMock()
-    )
+    use_case = AIChatUseCase(llm_port=_MagicMock(), ai_command_use_case=_MagicMock())
     outcomes = [
         {
             "index": 1,
@@ -624,11 +629,16 @@ async def test_approver_wildcard_permission_allowed():
     )
     use_case.role_repo.get_user_permissions = AsyncMock(return_value=["*"])
     approver = SimpleNamespace(
-        id=uuid.uuid4(), tenant_id=uuid.uuid4(), roles=["general_manager"],
+        id=uuid.uuid4(),
+        tenant_id=uuid.uuid4(),
+        roles=["general_manager"],
         is_active=True,
     )
-    cmd = {"action": "hr.wf_leave_request", "effect": "write",
-           "issued_by_user_id": str(uuid.uuid4())}
+    cmd = {
+        "action": "hr.wf_leave_request",
+        "effect": "write",
+        "issued_by_user_id": str(uuid.uuid4()),
+    }
     allowed, reason = await use_case._approver_allowed(cmd, approver)
     assert allowed is True, reason
 
@@ -646,12 +656,8 @@ async def test_pending_preview_has_real_details():
     repo = AsyncMock()
     cmd_use.ai_command_repo = repo
     dl = datetime.now(UTC) + timedelta(minutes=30)
-    repo.get_command_by_id = AsyncMock(
-        return_value={"approval_deadline": dl}
-    )
-    use_case = AIChatUseCase(
-        llm_port=MagicMock(), ai_command_use_case=cmd_use
-    )
+    repo.get_command_by_id = AsyncMock(return_value={"approval_deadline": dl})
+    use_case = AIChatUseCase(llm_port=MagicMock(), ai_command_use_case=cmd_use)
     outcomes = [
         {
             "index": 1,
@@ -716,9 +722,7 @@ async def test_cancel_own_command():
     uc2 = _use_case(dict(base, status="APPROVED"))
     assert await uc2.cancel_own_command(str(cmd_id), str(requester_id)) == "invalid"
 
-    stranger = SimpleNamespace(
-        id=uuid.uuid4(), tenant_id=tenant_id, is_active=True
-    )
+    stranger = SimpleNamespace(id=uuid.uuid4(), tenant_id=tenant_id, is_active=True)
     uc3 = _use_case(dict(base))
     uc3.user_repo.get = AsyncMock(return_value=stranger)
     uc3.role_repo.get_user_permissions = AsyncMock(return_value=[])

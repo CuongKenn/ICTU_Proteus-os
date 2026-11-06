@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [core-engine/backend] Server-side derive AI command effect từ catalog, chặn client bypass phê duyệt bằng `effect=read` và chặn read-only user dispatch workflow write (#684).
 - [core-engine/frontend] Loại bỏ `accessToken` khỏi session callback của NextAuth để tránh rò rỉ bearer token về trình duyệt; các BFF route tiếp tục đọc token an toàn qua `getToken({ req })` ở server-side (#685).
 - [core-engine/frontend] Thay đổi cơ chế cache refresh token từ singleton toàn cục sang `Map` theo user ID (`token.sub`) để chặn nguy cơ lẫn token giữa các user khi refresh đồng thời (#686).
 - [deploy/keycloak] Xóa bỏ wildcard redirect và web origins trên toàn bộ client Keycloak, tắt direct access grants và cấu hình admin password temporary buộc đổi ở lần đầu đăng nhập (#688).
