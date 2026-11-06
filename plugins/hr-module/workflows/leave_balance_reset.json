@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO hr_leave_balances (employee_id, year, total_days, remaining_days) SELECT id, extract(year from current_date), max_leave_days_per_year, max_leave_days_per_year FROM hr_employees WHERE status = 'ACTIVE' ON CONFLICT (employee_id, year) DO NOTHING;"
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.hr_leave_balances (employee_id, year, total_days, remaining_days) SELECT id, extract(year from current_date), max_leave_days_per_year, max_leave_days_per_year FROM {{TENANT_SCHEMA}}.hr_employees WHERE status = 'ACTIVE' ON CONFLICT (employee_id, year) DO NOTHING;"
       },
       "name": "Reset Leave Balances",
       "type": "n8n-nodes-base.postgres",
