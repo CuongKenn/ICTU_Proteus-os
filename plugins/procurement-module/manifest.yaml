@@ -23,6 +23,7 @@ database:
     - "procurement_contracts"
     - "procurement_purchase_orders"
     - "procurement_deliveries"
+    - "procurement_config"
   seed_file: "db/seed_data.sql"
   default_config:
     require_board_approval_threshold: 50000000

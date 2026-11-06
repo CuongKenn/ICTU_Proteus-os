@@ -92,9 +92,11 @@ async def submit_ai_command(
     body: AICommandRequest,
     ctx: TenantContext = Depends(get_current_tenant_context),
     use_case: AICommandUseCase = Depends(get_ai_command_use_case),
+    chat_use_case: AIChatUseCase = Depends(get_ai_chat_use_case),
 ) -> AICommandResponse:
     """
     Nhận DX-DSL command từ AI Layer, validate và xử lý.
+    Nếu client gửi natural_language_input mà không có action/effect, tự động forward sang chat_use_case.
 
     - Nếu effect = read: thực thi ngay, trả về kết quả.
     - Nếu effect = write/critical: gửi xin phê duyệt qua Mattermost,
@@ -102,6 +104,34 @@ async def submit_ai_command(
 
     Tham chiếu: docs/dsl-spec.md §4 (Effect Levels & Approval Rules)
     """
+    if body.natural_language_input and not body.action:
+        chat_dto = AIChatDTO(
+            session_id=body.session_id,
+            natural_language_input=body.natural_language_input,
+        )
+        try:
+            status_code, message, result = await chat_use_case.execute(chat_dto, ctx)
+        except PermissionError as e:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+            ) from e
+        preview = None
+        if isinstance(result, dict):
+            preview = result.get("dsl_preview")
+        return AICommandResponse(
+            command_id=body.command_id,
+            status=status_code,
+            message=message,
+            result=result if status_code == AICommandStatus.COMPLETED else None,
+            dsl_preview=preview,
+        )
+
+    if not body.action or not body.effect:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Các trường 'action' và 'effect' là bắt buộc đối với DX-DSL Command",
+        )
+
     logger.info(
         "AI command received",
         extra={
@@ -126,11 +156,24 @@ async def submit_ai_command(
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
+    preview = None
+    if status_code == AICommandStatus.PENDING_APPROVAL:
+        preview = {
+            "command_id": str(body.command_id),
+            "action": body.action,
+            "effect": body.effect,
+            "parameters": body.parameters,
+            "dry_run": result,
+        }
+    elif isinstance(result, dict) and "dsl_preview" in result:
+        preview = result.get("dsl_preview")
+
     return AICommandResponse(
         command_id=body.command_id,
         status=status_code,
         message=message,
-        result=result,
+        result=result if status_code != AICommandStatus.PENDING_APPROVAL else None,
+        dsl_preview=preview,
     )
 
 

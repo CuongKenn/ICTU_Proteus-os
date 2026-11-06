@@ -4,36 +4,47 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {"cronExpression": "0 2 1 1 *"}
+        "rule": {
+          "cronExpression": "0 2 1 1 *"
+        }
       },
       "name": "Schedule - Annually Jan 1",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE doc_documents SET status = 'ARCHIVED', archived_at = NOW() WHERE status = 'CLOSED' AND created_at < NOW() - INTERVAL '2 years' AND archived_at IS NULL AND deleted_at IS NULL RETURNING COUNT(*) as archived_count, tenant_id;",
+        "query": "UPDATE {{TENANT_SCHEMA}}.document_incoming SET status = 'done', updated_at = NOW() WHERE status = 'processing' AND created_at < NOW() - INTERVAL '2 years' RETURNING id;",
         "additionalFields": {}
       },
       "name": "Archive Old Docs",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT channel_id FROM doc_config WHERE tenant_id = $1;",
-        "additionalFields": {
-          "queryParams": "={{$json.tenant_id}}"
+        "query": "SELECT channel_id FROM {{TENANT_SCHEMA}}.document_config LIMIT 1;",
+        "options": {
+          "queryReplacement": ""
         }
       },
       "name": "Get Config Channel",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -43,15 +54,57 @@
       "name": "Notify Archive Done",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     }
   ],
   "connections": {
-    "Schedule - Annually Jan 1": {"main": [[{"node": "Archive Old Docs", "type": "main", "index": 0}]]},
-    "Archive Old Docs": {"main": [[{"node": "Get Config Channel", "type": "main", "index": 0}]]},
-    "Get Config Channel": {"main": [[{"node": "Notify Archive Done", "type": "main", "index": 0}]]}
+    "Schedule - Annually Jan 1": {
+      "main": [
+        [
+          {
+            "node": "Archive Old Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive Old Docs": {
+      "main": [
+        [
+          {
+            "node": "Get Config Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Config Channel": {
+      "main": [
+        [
+          {
+            "node": "Notify Archive Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "document"}, {"name": "archive"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "document"
+    },
+    {
+      "name": "archive"
+    }
+  ]
 }
