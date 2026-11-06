@@ -12,47 +12,59 @@
       "name": "Webhook - New Invoice",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "finance-invoice-webhook"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO fin_invoices (tenant_id, invoice_number, vendor_id, amount, currency, due_date, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,'PENDING',NOW()) RETURNING id;",
-        "additionalFields": {
-          "queryParams": "={{$json.body.tenant_id}},={{$json.body.invoice_number}},={{$json.body.vendor_id}},={{$json.body.amount}},={{$json.body.currency}},={{$json.body.due_date}}"
+        "query": "INSERT INTO {{TENANT_SCHEMA}}.finance_invoices (invoice_number, vendor_name, amount, issue_date, due_date, status) VALUES ($1,$2,$3,CURRENT_DATE,$4,'PENDING') RETURNING id;",
+        "options": {
+          "queryReplacement": "={{$json.body.invoice_number}},={{$json.body.vendor_name || 'Vendor'}},={{$json.body.amount}},={{$json.body.due_date}}"
         }
       },
       "name": "Create Invoice",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT name FROM fin_vendors WHERE id = $1 AND tenant_id = $2;",
-        "additionalFields": {
-          "queryParams": "={{$('Webhook - New Invoice').item.json.body.vendor_id}},={{$('Webhook - New Invoice').item.json.body.tenant_id}}"
+        "query": "SELECT vendor_name as name FROM {{TENANT_SCHEMA}}.finance_invoices WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{$('Webhook - New Invoice').item.json.body.invoice_id || $('Create Invoice').item.json.id}}"
         }
       },
       "name": "Get Vendor Info",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT mattermost_user_id FROM fin_approvers WHERE tenant_id = $1 AND level = 'ACCOUNTANT' LIMIT 1;",
-        "additionalFields": {
-          "queryParams": "={{$('Webhook - New Invoice').item.json.body.tenant_id}}"
+        "query": "SELECT u.mattermost_user_id FROM users u LIMIT 1;",
+        "options": {
+          "queryReplacement": ""
         }
       },
       "name": "Get Accountant",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [850, 300]
+      "position": [
+        850,
+        300
+      ]
     },
     {
       "parameters": {
@@ -62,7 +74,10 @@
       "name": "Notify Accountant",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     },
     {
       "parameters": {
@@ -72,27 +87,79 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [
+        1250,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook - New Invoice": {
-      "main": [[{"node": "Create Invoice", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Create Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Create Invoice": {
-      "main": [[{"node": "Get Vendor Info", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Vendor Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Vendor Info": {
-      "main": [[{"node": "Get Accountant", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Accountant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Accountant": {
-      "main": [[{"node": "Notify Accountant", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Notify Accountant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Notify Accountant": {
-      "main": [[{"node": "Respond OK", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "finance"}, {"name": "invoice"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "finance"
+    },
+    {
+      "name": "invoice"
+    }
+  ]
 }
