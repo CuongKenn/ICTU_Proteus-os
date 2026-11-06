@@ -13,7 +13,7 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
   ? `${process.env.KEYCLOAK_INTERNAL_URL}/realms/${realm}`
   : publicIssuer;
 
-// Keyed cache per user/token để tránh concurrent refresh nhưng KHÔNG lẫn token giữa các user (#686).
+// Keyed cache per user/token để tránh concurrent refresh nhưng KHÔNG lẫn token giữa các user (#686, #695)
 const refreshPromises = new Map<string, Promise<JWT>>();
 
 /**
