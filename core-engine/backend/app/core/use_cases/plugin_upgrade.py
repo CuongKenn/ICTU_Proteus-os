@@ -49,9 +49,12 @@ class PluginUpgradeError(Exception):
 # SQL nguy hiểm (check sau khi strip comment). Chặt hơn bản cũ (chỉ `in` thô):
 # TRUNCATE, DROP COLUMN/SCHEMA/DATABASE, ALTER...DROP.
 _DANGEROUS_SQL = re.compile(
-    r"\bDROP\s+(TABLE|COLUMN|SCHEMA|DATABASE)\b"
+    r"\bDROP\s+(TABLE|COLUMN|SCHEMA|DATABASE|FUNCTION|PROCEDURE|INDEX|VIEW|TRIGGER|POLICY|EXTENSION|ROLE|USER)\b"
     r"|\bTRUNCATE\b"
-    r"|\bALTER\s+TABLE\b.{0,200}?\bDROP\b",
+    r"|\bALTER\s+TABLE\b.{0,200}?\bDROP\b"
+    r"|\bGRANT\b|\bREVOKE\b"
+    r"|\bSECURITY\s+DEFINER\b"
+    r"|\b(public\.|pg_\w+|pg_catalog|information_schema)",
     re.IGNORECASE | re.DOTALL,
 )
 
