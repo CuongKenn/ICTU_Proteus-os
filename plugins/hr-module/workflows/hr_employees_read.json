@@ -21,7 +21,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SET search_path TO \"{{TENANT_SCHEMA}}\";\nSELECT e.id, e.employee_code, e.full_name, d.name as department_name, e.position, e.status FROM hr_employees e LEFT JOIN hr_departments d ON e.department_id = d.id;",
+        "query": "SELECT e.id, e.employee_code, e.full_name, d.name as department_name, e.position, e.status FROM {{TENANT_SCHEMA}}.hr_employees e LEFT JOIN {{TENANT_SCHEMA}}.hr_departments d ON e.department_id = d.id;",
         "additionalFields": {}
       },
       "name": "Query Employees",

@@ -67,3 +67,13 @@ INSERT INTO it_sla_policies (id, priority, resolve_time_hours) VALUES
     ('44444444-4444-4444-4444-444444444443', 'P3', 24), -- Normal
     ('44444444-4444-4444-4444-444444444444', 'P4', 72)  -- Low
 ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS it_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id VARCHAR(100),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO it_config (id, channel_id) VALUES
+    ('66666666-6666-6666-6666-666666666666', 'it-support')
+ON CONFLICT (id) DO NOTHING;
