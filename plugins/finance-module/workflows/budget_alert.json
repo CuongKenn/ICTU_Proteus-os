@@ -4,34 +4,56 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {"interval": [{"field": "hours", "hoursInterval": 24}]}
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
       },
       "name": "Schedule - Daily Check",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT b.id, b.name, b.amount as budget, b.tenant_id, COALESCE(SUM(e.amount),0) as spent, b.alert_channel_id FROM fin_budgets b LEFT JOIN fin_expense_requests e ON b.id = e.budget_id AND e.status = 'APPROVED' AND e.tenant_id = b.tenant_id WHERE b.deleted_at IS NULL GROUP BY b.id, b.name, b.amount, b.tenant_id, b.alert_channel_id HAVING COALESCE(SUM(e.amount),0) >= b.amount * 0.8;",
+        "query": "SELECT b.id, b.category as name, b.allocated_amount as budget, b.spent_amount as spent FROM {{TENANT_SCHEMA}}.finance_budgets b WHERE b.spent_amount >= b.allocated_amount * 0.8;",
         "additionalFields": {}
       },
       "name": "Find Near-Limit Budgets",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.1,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "number": [{"value1": "={{$items().length}}", "operation": "larger", "value2": 0}]
+          "number": [
+            {
+              "value1": "={{$items().length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
         }
       },
       "name": "Any Budget?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +63,10 @@
       "name": "Split By Budget",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
-      "position": [850, 200]
+      "position": [
+        850,
+        200
+      ]
     },
     {
       "parameters": {
@@ -51,24 +76,68 @@
       "name": "Alert Finance Team",
       "type": "n8n-nodes-base.mattermost",
       "typeVersion": 1,
-      "position": [1050, 200]
+      "position": [
+        1050,
+        200
+      ]
     }
   ],
   "connections": {
     "Schedule - Daily Check": {
-      "main": [[{"node": "Find Near-Limit Budgets", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Find Near-Limit Budgets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Find Near-Limit Budgets": {
-      "main": [[{"node": "Any Budget?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Any Budget?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Any Budget?": {
-      "main": [[{"node": "Split By Budget", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Split By Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split By Budget": {
-      "main": [[{"node": "Alert Finance Team", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Alert Finance Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
-  "tags": [{"name": "finance"}, {"name": "budget"}]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "finance"
+    },
+    {
+      "name": "budget"
+    }
+  ]
 }

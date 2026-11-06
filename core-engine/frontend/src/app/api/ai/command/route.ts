@@ -34,7 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let body: unknown;
+  let body: any;
   try {
     body = await request.json();
   } catch {
@@ -44,7 +44,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const targetUrl = `${BACKEND_URL}/api/v1/ai/command`;
+  const isNaturalLanguage = typeof body?.natural_language_input === "string" && !body?.action;
+  const targetUrl = isNaturalLanguage
+    ? `${BACKEND_URL}/api/v1/ai/chat`
+    : `${BACKEND_URL}/api/v1/ai/command`;
 
   try {
     const backendResponse = await fetch(targetUrl, {
@@ -63,6 +66,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const contentType = backendResponse.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
       const data = await backendResponse.json();
+      if (data && typeof data === "object") {
+        // Chuẩn hóa status enum sang lowercase cho Frontend
+        const rawStatus = String(data.status || "");
+        data.status = rawStatus.toLowerCase();
+        if (data.status === "pending_approval" && !data.dsl_preview && data.result) {
+          data.dsl_preview = data.result;
+        }
+      }
       return NextResponse.json(data, { status: backendResponse.status });
     }
 
