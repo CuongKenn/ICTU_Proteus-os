@@ -7,6 +7,7 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 ## [Unreleased] - Sắp tới
 
 ### Fixed
+- [core-engine/backend] Chặn tự động thực thi code LLM tại /plugins/synthesize; chỉ nạp dynamic plugin khi có chữ ký số hoặc được đánh dấu review; trả lỗi 400 rõ ràng khi volume /plugins ở chế độ read-only (#689).
 - [deploy] Tăng cường bảo mật biến môi trường: tự động sinh ngẫu nhiên GRAFANA_PASSWORD, thiết lập quyền file chmod 600 cho .env trong setup script, bổ sung deploy/.gitignore và tài liệu hướng dẫn secret rotation / purge Git history (docs/secret-rotation.md) (#687).
 - [deploy/keycloak] Thêm protocol mapper oidc-audience-mapper cho client proteus-bff trong realm-import.json và hỗ trợ fallback audience account trong KeycloakAdapter (#699).
 - [deploy] Tăng cường bảo mật Traefik và Grafana: thêm basicauth middleware bảo vệ Traefik dashboard, tắt public dashboard trong traefik.prod.yml, loại bỏ default admin password trong Grafana và đọc ALLOWED_ORIGINS từ biến môi trường (#698).
