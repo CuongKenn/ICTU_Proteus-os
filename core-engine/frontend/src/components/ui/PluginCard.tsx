@@ -50,7 +50,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
   const isDisabled = status === "disabled";
   const { hasPermission } = useRBAC();
   
-  const canInstall = hasPermission("plugins:install");
+  const canInstall = hasPermission("plugins.install") || hasPermission("plugins:install");
   
   const renderInstallButton = () => (
     <Button 

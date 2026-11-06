@@ -27,6 +27,7 @@ database:
     - "finance_invoices"
     - "finance_budgets"
     - "finance_expense_requests"
+    - "finance_config"
 
   seed_file: "db/seed_data.sql"
 

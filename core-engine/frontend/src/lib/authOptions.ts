@@ -19,53 +19,54 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
 // Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
 // Được gọi tự động khi access_token hết hạn trong JWT callback.
 // (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
-// Cache promise để tránh concurrent refresh (race condition) gây lỗi revoke token ở Keycloak
-let refreshPromise: Promise<JWT> | null = null;
+// Keyed cache per user/token để tránh concurrent refresh (race condition)
+// nhưng KHÔNG lẫn token giữa các user khác nhau (#686).
+const refreshPromises = new Map<string, Promise<JWT>>();
 
-// Gọi Keycloak token endpoint để lấy access_token mới bằng refresh_token.
-// Được gọi tự động khi access_token hết hạn trong JWT callback.
-// (Xem tokenRefresh.ts cho BFF Proxy version độc lập)
 async function refreshAccessToken(token: JWT): Promise<JWT> {
-  if (refreshPromise) {
-    return refreshPromise;
+  const key = (token.sub as string) || (token.refreshToken as string) || "anonymous";
+
+  const existing = refreshPromises.get(key);
+  if (existing) {
+    return existing;
   }
 
-  refreshPromise = (async () => {
+  const promise = (async () => {
     try {
       const tokenUrl = `${internalBase}/protocol/openid-connect/token`;
       const response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        client_id: process.env.KEYCLOAK_CLIENT_ID!,
-        client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-        refresh_token: token.refreshToken as string,
-      }),
-    });
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          client_id: process.env.KEYCLOAK_CLIENT_ID!,
+          client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+          refresh_token: token.refreshToken as string,
+        }),
+      });
 
-    const refreshed = await response.json();
+      const refreshed = await response.json();
 
-    if (!response.ok) {
-      // Refresh thất bại (refresh_token hết hạn hoặc bị revoke)
-      // Trả về token với error để client biết cần login lại
+      if (!response.ok) {
+        return { ...token, error: "RefreshAccessTokenError" };
+      }
+
+      return {
+        ...token,
+        accessToken: refreshed.access_token,
+        refreshToken: refreshed.refresh_token ?? token.refreshToken,
+        accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
+        error: undefined,
+      };
+    } catch {
       return { ...token, error: "RefreshAccessTokenError" };
+    } finally {
+      refreshPromises.delete(key);
     }
+  })();
 
-    return {
-      ...token,
-      accessToken: refreshed.access_token,
-      refreshToken: refreshed.refresh_token ?? token.refreshToken, // Rotate nếu có
-      accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
-      error: undefined, // Xóa error cũ nếu refresh thành công
-    };
-  } catch {
-    return { ...token, error: "RefreshAccessTokenError" };
-  } finally {
-    refreshPromise = null;
-  }
-})();
-return refreshPromise;
+  refreshPromises.set(key, promise);
+  return promise;
 }
 
 // ─── NextAuth Config ──────────────────────────────────────────
