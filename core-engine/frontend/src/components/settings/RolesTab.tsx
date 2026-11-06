@@ -14,7 +14,7 @@ export interface Role {
   name: string;
   display_name: string;
   description: string | null;
-  permissions: Record<string, string[]>;
+  permissions: Record<string, string[]> | string[];
 }
 
 const AVAILABLE_MODULES = [
@@ -23,6 +23,25 @@ const AVAILABLE_MODULES = [
   { id: "roles", name: "Roles", actions: ["read", "write", "delete"] },
   { id: "settings", name: "Settings", actions: ["read", "write"] },
 ];
+
+function getRolePermissionBadges(permissions: any): string[] {
+  if (!permissions) return [];
+  if (Array.isArray(permissions)) {
+    return permissions.filter((p) => typeof p === 'string');
+  }
+  if (typeof permissions === 'object') {
+    const list: string[] = [];
+    Object.entries(permissions).forEach(([mod, actions]) => {
+      if (Array.isArray(actions)) {
+        actions.forEach((act) => list.push(`${mod}:${act}`));
+      } else if (typeof actions === 'string') {
+        list.push(`${mod}:${actions}`);
+      }
+    });
+    return list;
+  }
+  return [];
+}
 
 export const RolesTab = () => {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -54,7 +73,19 @@ export const RolesTab = () => {
     if (role) {
       setSelectedRole(role);
       setFormData({ name: role.name, display_name: role.display_name || role.name, description: role.description || "" });
-      setFormPermissions(role.permissions || {});
+            const initialPerms: Record<string, string[]> = {};
+      if (Array.isArray(role.permissions)) {
+        role.permissions.forEach((p) => {
+          const [mod, act] = p.includes(':') ? p.split(':') : p.split('.');
+          if (mod && act) {
+            initialPerms[mod] = initialPerms[mod] || [];
+            if (!initialPerms[mod].includes(act)) initialPerms[mod].push(act);
+          }
+        });
+      } else if (typeof role.permissions === 'object' && role.permissions) {
+        Object.assign(initialPerms, role.permissions);
+      }
+      setFormPermissions(initialPerms);
     } else {
       setSelectedRole(null);
       setFormData({ name: "", display_name: "", description: "" });
@@ -158,15 +189,13 @@ export const RolesTab = () => {
             <div className="mt-auto">
               <h4 className="text-xs font-medium text-text-secondary mb-2 uppercase tracking-wider">Phân quyền</h4>
               <div className="flex flex-wrap gap-1.5">
-                {Object.entries(role.permissions || {}).length === 0 ? (
+                {getRolePermissionBadges(role.permissions).length === 0 ? (
                   <span className="text-xs text-text-muted italic">Chưa có quyền nào</span>
                 ) : (
-                  Object.entries(role.permissions).map(([mod, actions]) => (
-                    actions.map(act => (
-                      <span key={`${mod}-${act}`} className="px-2 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-primary border border-border">
-                        {mod}:{act}
-                      </span>
-                    ))
+                  getRolePermissionBadges(role.permissions).map((badge) => (
+                    <span key={badge} className="px-2 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-primary border border-border">
+                      {badge}
+                    </span>
                   ))
                 )}
               </div>
