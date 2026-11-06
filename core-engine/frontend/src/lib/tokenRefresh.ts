@@ -13,7 +13,7 @@ const internalBase = process.env.KEYCLOAK_INTERNAL_URL
   ? `${process.env.KEYCLOAK_INTERNAL_URL}/realms/${realm}`
   : publicIssuer;
 
-// Cache promise theo session/sub để tránh concurrent refresh gây lỗi revoke token ở Keycloak (Issue #686, #695)
+// Keyed cache per user/token để tránh concurrent refresh nhưng KHÔNG lẫn token giữa các user (#686, #695)
 const refreshPromises = new Map<string, Promise<JWT>>();
 
 /**
@@ -21,10 +21,11 @@ const refreshPromises = new Map<string, Promise<JWT>>();
  * Dùng cho BFF Proxy khi cần refresh token mà không muốn trigger jwt callback.
  */
 export async function refreshAccessToken(token: JWT): Promise<JWT> {
-  const key = (token.sub as string) || "anonymous";
-  const inFlight = refreshPromises.get(key);
-  if (inFlight) {
-    return inFlight;
+  const key = (token.sub as string) || (token.refreshToken as string) || "anonymous";
+
+  const existing = refreshPromises.get(key);
+  if (existing) {
+    return existing;
   }
 
   const promise = (async () => {
@@ -56,10 +57,10 @@ export async function refreshAccessToken(token: JWT): Promise<JWT> {
       };
     } catch {
       return { ...token, error: "RefreshAccessTokenError" };
+    } finally {
+      refreshPromises.delete(key);
     }
-  })().finally(() => {
-    refreshPromises.delete(key);
-  });
+  })();
 
   refreshPromises.set(key, promise);
   return promise;
