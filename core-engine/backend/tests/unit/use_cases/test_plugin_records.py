@@ -40,15 +40,15 @@ def ctx():
 
 def _make_uc(tables, session_results, installed=PluginStatus.ACTIVE, perms=None):
     parser = MagicMock()
-    parser.parse.return_value = SimpleNamespace(
-        database=SimpleNamespace(tables=tables)
-    )
+    parser.parse.return_value = SimpleNamespace(database=SimpleNamespace(tables=tables))
     repo = AsyncMock()
     repo.get_by_code_name.return_value = SimpleNamespace(id=uuid.uuid4())
     repo.get_installation_status.return_value = installed
     role_repo = AsyncMock()
     role_repo.get_user_permissions.return_value = (
-        perms if perms is not None else ["asset:items:read"]
+        perms
+        if perms is not None
+        else ["asset:items:read", "asset:items:write", "asset:items:delete"]
     )
     session = AsyncMock()
     session.execute.side_effect = session_results
@@ -74,9 +74,7 @@ def _col_rows(*names):
 async def test_list_schema_qualified(ctx):
     cols = _col_rows("id", "code", "created_at")
     count = _result(scalar_val=2)
-    rows = _result(
-        all_rows=[{"id": "a", "code": "X"}, {"id": "b", "code": "Y"}]
-    )
+    rows = _result(all_rows=[{"id": "a", "code": "X"}, {"id": "b", "code": "Y"}])
     uc, session = _make_uc(["asset_items"], [cols, count, rows])
     out = await uc.list_records(ctx, "asset-module", "asset_items")
     assert out["total"] == 2
@@ -121,8 +119,15 @@ async def test_create_strips_unknown_cols(ctx):
     created = _result(first_row={"id": "n", "code": "X", "name": "Y"})
     uc, session = _make_uc(["asset_items"], [cols, created])
     out = await uc.create_record(
-        ctx, "asset-module", "asset_items",
-        {"code": "X", "name": "Y", "purchase_date": "2026-09-11", "hacker": "DROP TABLE"},
+        ctx,
+        "asset-module",
+        "asset_items",
+        {
+            "code": "X",
+            "name": "Y",
+            "purchase_date": "2026-09-11",
+            "hacker": "DROP TABLE",
+        },
     )
     assert out["code"] == "X"
     insert_sql = str(session.execute.call_args_list[1].args[0])
@@ -147,7 +152,9 @@ async def test_create_injects_tenant_id_when_column_exists(ctx):
     cols = _col_rows("id", "name", "tenant_id")
     created = _result(first_row={"id": "n", "name": "HR"})
     uc, session = _make_uc(
-        ["hr_departments"], [cols, created], perms=["hr:employees:read"]
+        ["hr_departments"],
+        [cols, created],
+        perms=["hr:departments:read", "hr:departments:write"],
     )
     await uc.create_record(ctx, "hr-module", "hr_departments", {"name": "HR"})
     params = session.execute.call_args_list[1].args[1]
@@ -166,7 +173,10 @@ async def test_update_ok_and_ignores_id(ctx):
     updated = _result(first_row={"id": rid, "name": "New"})
     uc, _ = _make_uc(["asset_items"], [cols, updated])
     out = await uc.update_record(
-        ctx, "asset-module", "asset_items", rid,
+        ctx,
+        "asset-module",
+        "asset_items",
+        rid,
         {"id": "forged", "name": "New"},
     )
     assert out["name"] == "New"
@@ -202,17 +212,47 @@ async def test_delete_missing_row(ctx):
     deleted = _result(rowcount=0)
     uc, _ = _make_uc(["asset_items"], [cols, deleted])
     with pytest.raises(PluginNotFoundError):
-        await uc.delete_record(
-            ctx, "asset-module", "asset_items", str(uuid.uuid4())
+        await uc.delete_record(ctx, "asset-module", "asset_items", str(uuid.uuid4()))
+
+
+async def test_regression_683_read_only_staff_cannot_write_or_access_other_tables(ctx):
+    """#683: User chỉ có quyền read (hr:leave_requests:read) không được ghi hoặc truy cập bảng khác."""
+    cols = _col_rows("id", "status")
+    uc, session = _make_uc(
+        ["hr_leave_requests", "hr_employees", "hr_payroll_records"],
+        [cols, _result(first_row={"count": 0}), _result(all_rows=[])],
+        perms=["hr:leave_requests:read"],
+    )
+    # Đọc hr_leave_requests: OK
+    await uc.list_records(ctx, "hr-module", "hr_leave_requests")
+
+    # Đọc bảng khác (hr_payroll_records): bị chặn
+    with pytest.raises(InsufficientPermissionsError):
+        await uc.list_records(ctx, "hr-module", "hr_payroll_records")
+
+    # Ghi vào hr_leave_requests: bị chặn (chỉ có quyền read)
+    with pytest.raises(InsufficientPermissionsError):
+        await uc.create_record(
+            ctx, "hr-module", "hr_leave_requests", {"status": "PENDING"}
         )
+
+    # Cập nhật hr_employees: bị chặn
+    with pytest.raises(InsufficientPermissionsError):
+        await uc.update_record(
+            ctx, "hr-module", "hr_employees", str(uuid.uuid4()), {"name": "Hacked"}
+        )
+
+    # Xóa hr_employees: bị chặn
+    with pytest.raises(InsufficientPermissionsError):
+        await uc.delete_record(ctx, "hr-module", "hr_employees", str(uuid.uuid4()))
 
 
 async def test_create_ignores_client_supplied_tenant_id(ctx):
-    """#697: tenant_id client gá»­i pháº£i bá»‹ bá» qua, luĂ´n láº¥y tá»« context."""
+    """#697: tenant_id client gửi phải bị bỏ qua, luôn lấy từ context."""
     cols = _col_rows("id", "name", "tenant_id")
     created = _result(first_row={"id": "n", "name": "HR"})
     uc, session = _make_uc(
-        ["hr_departments"], [cols, created], perms=["hr:employees:read"]
+        ["hr_departments"], [cols, created], perms=["hr:departments:write"]
     )
     other_tenant = str(uuid.uuid4())
     await uc.create_record(
@@ -224,7 +264,7 @@ async def test_create_ignores_client_supplied_tenant_id(ctx):
 
 
 async def test_create_strips_server_owned_columns(ctx):
-    """#697: id/tenant_id/audit khĂ´ng Ä‘Æ°á»£c set bá»Ÿi client."""
+    """#697: id/tenant_id/audit không được set bởi client."""
     cols = _col_rows("id", "name", "tenant_id", "created_at")
     created = _result(first_row={"id": "n", "name": "x"})
     uc, session = _make_uc(["asset_items"], [cols, created])

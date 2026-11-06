@@ -61,17 +61,29 @@ class RoleRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_user_permissions(self, user_id: uuid.UUID) -> list[str]:
+    async def get_user_permissions(
+        self, user_id: uuid.UUID, tenant_id: uuid.UUID | None = None
+    ) -> list[str]:
         """
         Lấy danh sách các permission strings (ví dụ: ["plugins:read", "users:write"])
         thuộc các roles mà user đang nắm giữ, hỗ trợ cả internal id và keycloak_id.
+        Lọc theo tenant_id và loại trừ user đã bị xóa (deleted_at).
         """
         stmt = (
             select(RoleModel.permissions)
             .join(UserRoleModel, UserRoleModel.role_id == RoleModel.id)
             .join(UserModel, UserModel.id == UserRoleModel.user_id)
-            .where(or_(UserModel.id == user_id, UserModel.keycloak_id == user_id))
+            .where(
+                or_(UserModel.id == user_id, UserModel.keycloak_id == user_id),
+                UserModel.deleted_at.is_(None),
+                UserModel.is_active.is_(True),
+            )
         )
+        if tenant_id is not None:
+            stmt = stmt.where(
+                RoleModel.tenant_id == tenant_id,
+                UserModel.tenant_id == tenant_id,
+            )
         result = await self.session.execute(stmt)
 
         all_permissions = set()

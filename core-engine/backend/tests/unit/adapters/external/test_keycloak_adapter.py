@@ -133,3 +133,29 @@ async def test_delete_role_not_found(adapter, mock_client):
 
     await adapter.delete_role("proteus", "old_role")
     mock_client.delete.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_verify_and_decode_token_audience_fallback(adapter, mock_client):
+    from jose.exceptions import JWTClaimsError
+
+    mock_request = httpx.Request("GET", "http://test")
+    mock_client.get.return_value = httpx.Response(
+        200, json={"keys": []}, request=mock_request
+    )
+
+    with patch(
+        "app.adapters.external.keycloak_adapter.jwt.decode"
+    ) as mock_jwt_decode, patch(
+        "app.adapters.external.keycloak_adapter.jwt.get_unverified_header",
+        return_value={},
+    ):
+        mock_jwt_decode.side_effect = [
+            JWTClaimsError("Invalid audience"),
+            {"sub": "user-fallback", "tenant_id": "tenant-1", "azp": "proteus-client"},
+        ]
+
+        payload = await adapter.verify_and_decode_token("fake-token")
+
+        assert payload["sub"] == "user-fallback"
+        assert mock_jwt_decode.call_count == 2

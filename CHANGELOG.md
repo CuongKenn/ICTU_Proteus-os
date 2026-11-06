@@ -6,13 +6,31 @@ Dự án tuân thủ theo nguyên tắc [Semantic Versioning](https://semver.org
 
 ## [Unreleased] - Sắp tới
 
-### Security
+### Fixed
 - [core-engine/backend] `create_record` không còn nhận `tenant_id` (và `id`/audit) từ client; luôn ghi đè `tenant_id` bằng context JWT, `update_record` dùng chung danh sách cột server-owned (#697).
+- [core-engine/backend] Siết phân quyền plugin chi tiết theo resource/bảng và verb (read/write/delete) trong `PluginRecordsUseCase` và `PluginActionUseCase`; chặn triệt để lỗ hổng user read-only có thể ghi/xóa bảng hoặc trigger workflow write (#683).
+- [core-engine/backend] Server-side derive AI command effect từ catalog, chặn client bypass phê duyệt bằng `effect=read` và chặn read-only user dispatch workflow write (#684).
+- [core-engine/frontend] Loại bỏ `accessToken` khỏi session callback của NextAuth để tránh rò rỉ bearer token về trình duyệt; các BFF route tiếp tục đọc token an toàn qua `getToken({ req })` ở server-side (#685).
+- [core-engine/frontend] Thay đổi cơ chế cache refresh token từ singleton toàn cục sang `Map` theo user ID (`token.sub`) để chặn nguy cơ lẫn token giữa các user khi refresh đồng thời (#686).
+- [deploy/keycloak] Xóa bỏ wildcard redirect và web origins trên toàn bộ client Keycloak, tắt direct access grants và cấu hình admin password temporary buộc đổi ở lần đầu đăng nhập (#688).
+- [core-engine/backend] Chặn tự động thực thi code LLM tại /plugins/synthesize; chỉ nạp dynamic plugin khi có chữ ký số hoặc được đánh dấu review; trả lỗi 400 rõ ràng khi volume /plugins ở chế độ read-only (#689).
+- [deploy] Tăng cường bảo mật biến môi trường: tự động sinh ngẫu nhiên GRAFANA_PASSWORD, thiết lập quyền file chmod 600 cho .env trong setup script, bổ sung deploy/.gitignore và tài liệu hướng dẫn secret rotation / purge Git history (docs/secret-rotation.md) (#687).
+- [deploy/keycloak] Thêm protocol mapper oidc-audience-mapper cho client proteus-bff trong realm-import.json và hỗ trợ fallback audience account trong KeycloakAdapter (#699).
+- [deploy] Tăng cường bảo mật Traefik và Grafana: thêm basicauth middleware bảo vệ Traefik dashboard, tắt public dashboard trong traefik.prod.yml, loại bỏ default admin password trong Grafana và đọc ALLOWED_ORIGINS từ biến môi trường (#698).
+- [core-engine/frontend] Persist refresh token và session mới vào session cookie sau khi inline refresh tại BFF Proxy route (/api/proxy/[...path]), ngăn chặn logout ngẫu nhiên do rotation/race condition (#695).
+- [core-engine/frontend] Sửa RBAC Frontend: hỗ trợ parse permissions dạng danh sách và từ điển, chuẩn hóa định dạng dấu chấm (.) và hai chấm (:), nhận diện các vai trò admin/tenant_admin, hỗ trợ wildcard *:* và sửa crash khi render phân quyền tại RolesTab (#694).
+- [core-engine] Thống nhất AI contract giữa Frontend/BFF/Backend: định tuyến đúng câu lệnh tự nhiên sang /api/v1/ai/chat tránh lỗi 422, chuẩn hóa enum status sang chữ thường, đảm bảo dsl_preview có dữ liệu khi chờ duyệt, và chuẩn hóa envelope trigger n8n flat đồng nhất (#693).
+- [core-engine/backend] Sửa lỗi Plugin toggle: bổ sung commit trạng thái thay đổi vào cơ sở dữ liệu và tự động deactivate/activate các workflow n8n tương ứng khi vô hiệu hóa hoặc kích hoạt lại plugin (#691).
+- [deploy/postgres] Áp dụng FORCE ROW LEVEL SECURITY cho toàn bộ bảng Core và Plugin, cấu hình role app_user có quyền LOGIN, ngăn chặn table owner bypass RLS và bảo đảm cách ly dữ liệu đa người thuê (multi-tenant) (#690).
+- [core-engine/backend] Tăng cường bảo mật RBAC: yêu cầu quyền users.read cho GET /api/v1/users, yêu cầu roles.read cho GET /api/v1/roles, và giới hạn get_user_permissions theo tenant_id cũng như loại trừ người dùng đã bị xóa (deleted_at) (#696).
 
 ### Changed
+- [hardening] Nâng cấp SQL migration denylist chống DDL nguy hiểm, loại bỏ artificial sleeps trong cài đặt plugin, rollback session khi lưu steps_log lỗi, hiện thực update_message Mattermost và delete_credential n8n, bổ sung retry cho AI approval webhook (Closes #701).
 - [landing-page] Polish UI/UX giữ nguyên tone màu Deep Blue/Neon Purple: thay inline-grid vỡ mobile bằng class responsive (pain/quick/mini/roadmap), tăng contrast label, thêm skip-link, focus-visible, scroll-margin, lazy-load ảnh và menu mobile có khóa scroll + phím Escape.
 
 ### Fixed
+- [plugins/hr-module] Bổ sung workflow file leave_balance_reset.json và khai báo bảng hr_payroll_config trong manifest.yaml và seed_data.sql (Closes #702).
+- [workflows] Chuẩn hóa tên bảng giữa manifest, seed và workflow; thêm prefix {{TENANT_SCHEMA}} cho các bảng tenant; chuyển queryParams sang options.queryReplacement theo spec n8n (Closes #692).
 - [deploy/docker-compose.yml] Nâng Traefik `v3.1.7` → `v3.5` → `v3.7`: image cũ gửi Docker API 1.24 bị Docker Engine 29 từ chối (yêu cầu ≥1.44) khiến provider docker rỗng và toàn bộ route public 404.
 - [deploy/docker-compose.yml] Nâng `frontend` priority `1` → `2`: bằng priority với `http-catchall` khiến request `/` rơi vào catch-all 404.
 - [deploy/docker-compose.yml] + [core-engine/Dockerfile] Thêm `HOSTNAME=0.0.0.0` cho frontend: Docker gán `HOSTNAME=<container-id>` khiến Next standalone chỉ nghe trên IP eth0, healthcheck `127.0.0.1` fail → unhealthy vĩnh viễn → Traefik v3 lọc bỏ router frontend.
